@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tealdash</title>
+<meta name="description" content="One place for everything you do with data. Query 35+ data sources, build dashboards, and share what you find — self-hosted, open source, no per-seat pricing.">
+<meta property="og:title" content="Tealdash">
+<meta property="og:description" content="One place for everything you do with data. Self-hosted, open source, no per-seat pricing.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Palette is the product's own tokens.less — the site and the app are the
+   same design system, deliberately. */
+:root {
+  --n-50:#fbfaf9; --n-100:#f6f4f1; --n-200:#f1efec; --n-300:#e8e5e1;
+  --n-400:#d8d3cb; --n-600:#8a857e; --n-700:#6f6b66; --n-800:#34302b; --n-900:#1c1b1a;
+  --ac-100:#e4f4f7; --ac-200:#c6e8ee; --ac-400:#6bb4c4; --ac-600:#0a7c93; --ac-700:#086476;
+
+  --canvas:var(--n-50);
+  --surface:#ffffff;
+  --sunken:var(--n-100);
+  --rule:var(--n-300);
+  --rule-soft:var(--n-200);
+  --ink:var(--n-900);
+  --ink-2:var(--n-800);
+  --muted:var(--n-700);
+  --faint:var(--n-600);
+  --accent:var(--ac-600);
+  --accent-ink:var(--ac-700);
+  --accent-wash:var(--ac-100);
+  --accent-edge:var(--ac-200);
+  --code-bg:#ffffff;
+
+  --r-chip:6px; --r-control:8px; --r-card:12px;
+  --sans:"Instrument Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --canvas:#121116; --surface:#1b1a21; --sunken:#232229;
+    --rule:#33313c; --rule-soft:#2a2933;
+    --ink:#f4f2ef; --ink-2:#ddd9d3; --muted:#a8a29a; --faint:#8a857e;
+    --accent:var(--ac-400); --accent-ink:#8fcbd8; --accent-wash:#14323a; --accent-edge:#1e4a56;
+    --code-bg:#17161d;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"] {
+  --canvas:#121116; --surface:#1b1a21; --sunken:#232229;
+  --rule:#33313c; --rule-soft:#2a2933;
+  --ink:#f4f2ef; --ink-2:#ddd9d3; --muted:#a8a29a; --faint:#8a857e;
+  --accent:var(--ac-400); --accent-ink:#8fcbd8; --accent-wash:#14323a; --accent-edge:#1e4a56;
+  --code-bg:#17161d;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--canvas); color:var(--ink);
+  font-family:var(--sans); font-size:16px; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+img{max-width:100%}
+a{color:var(--accent-ink);text-underline-offset:2px}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+.narrow{max-width:66ch}
+
+/* ---------- top bar ---------- */
+.topbar{
+  border-bottom:1px solid var(--rule);
+  background:color-mix(in srgb, var(--canvas) 88%, transparent);
+  backdrop-filter:blur(8px);
+  position:sticky; top:0; z-index:10;
+}
+.topbar-in{display:flex;align-items:center;gap:14px;height:60px}
+.brand{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--ink);font-weight:600;letter-spacing:-0.02em;font-size:17px}
+.brand svg{width:26px;height:26px;display:block;color:var(--accent)}
+.topbar nav{margin-left:auto;display:flex;gap:6px;align-items:center}
+.topbar nav a{
+  font-size:14px;color:var(--muted);text-decoration:none;
+  padding:6px 11px;border-radius:var(--r-chip);
+}
+.topbar nav a:hover{color:var(--accent-ink);background:var(--accent-wash)}
+@media (max-width:620px){.topbar nav a.hide-sm{display:none}}
+
+/* ---------- hero ---------- */
+/* padding-block, not the shorthand: this element also carries .wrap, whose
+   horizontal padding a `padding: 76px 0 64px` would silently reset to 0 and
+   pull the hero 24px left of every other section. */
+.hero{padding-block:76px 64px;border-bottom:1px solid var(--rule)}
+.hero-mark{width:64px;height:64px;color:var(--accent);margin-bottom:26px;display:block}
+h1{
+  font-size:clamp(40px,7vw,68px); line-height:1.02; letter-spacing:-0.035em;
+  font-weight:600; margin:0 0 18px; text-wrap:balance;
+}
+.lede{font-size:clamp(18px,2.2vw,21px);line-height:1.55;color:var(--muted);max-width:56ch;margin:0 0 30px}
+.lede strong{color:var(--ink);font-weight:600}
+.cta{display:flex;flex-wrap:wrap;gap:11px;align-items:center}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:15px;font-weight:500;text-decoration:none;
+  padding:11px 20px;border-radius:var(--r-control);
+  border:1px solid transparent;
+}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:var(--ac-700)}
+:root[data-theme="dark"] .btn-primary,
+:root:not([data-theme="light"]) .btn-primary{color:#0b1416}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .btn-primary{color:#fff}}
+.btn-ghost{background:var(--surface);color:var(--ink);border-color:var(--rule)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent-ink)}
+.hero-note{margin-top:22px;font-family:var(--mono);font-size:12.5px;color:var(--faint)}
+
+/* ---------- sections ---------- */
+section{padding:72px 0;border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:none}
+.eyebrow{
+  font-family:var(--mono);font-size:11.5px;font-weight:500;
+  letter-spacing:0.1em;text-transform:uppercase;color:var(--accent-ink);
+  margin:0 0 10px;
+}
+h2{font-size:clamp(26px,3.4vw,36px);line-height:1.15;letter-spacing:-0.024em;font-weight:600;margin:0 0 14px;text-wrap:balance;max-width:20ch}
+h3{font-size:17px;font-weight:600;letter-spacing:-0.01em;margin:0 0 6px}
+p{margin:0 0 16px}
+.sub{color:var(--muted);max-width:60ch;font-size:16.5px}
+
+/* ---------- feature grid ---------- */
+.features{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:var(--r-card);overflow:hidden;margin-top:36px;grid-template-columns:repeat(auto-fit,minmax(252px,1fr))}
+.feature{background:var(--surface);padding:24px 22px}
+.feature h3{display:flex;align-items:center;gap:9px}
+.feature h3 svg{width:17px;height:17px;color:var(--accent);flex:0 0 auto}
+.feature p{font-size:14.5px;color:var(--muted);margin:0;line-height:1.55}
+
+/* ---------- terminal ---------- */
+.term{
+  background:var(--code-bg);border:1px solid var(--rule);border-radius:var(--r-card);
+  overflow:hidden;margin-top:28px;
+}
+.term-bar{
+  display:flex;align-items:center;gap:7px;padding:10px 15px;
+  border-bottom:1px solid var(--rule-soft);background:var(--sunken);
+}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--n-400);display:block}
+.term-title{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-left:7px}
+.term pre{margin:0;padding:18px 20px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.85;color:var(--ink-2)}
+.term .p{color:var(--accent);user-select:none}
+.term .c{color:var(--faint)}
+
+/* ---------- source chips ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:26px}
+.chip{
+  font-family:var(--mono);font-size:12.5px;
+  padding:5px 11px;border-radius:var(--r-chip);
+  border:1px solid var(--rule);background:var(--surface);color:var(--muted);
+}
+.chip.more{border-style:dashed;color:var(--faint)}
+
+/* ---------- roadmap ---------- */
+.road{margin-top:34px;display:flex;flex-direction:column}
+.road-item{display:grid;grid-template-columns:118px minmax(0,1fr);gap:26px;padding:22px 0;border-top:1px solid var(--rule)}
+.road-item:last-child{border-bottom:1px solid var(--rule)}
+.road-k{font-family:var(--mono);font-size:12px;color:var(--faint);line-height:1.5}
+.road-status{
+  display:inline-block;font-family:var(--mono);font-size:10px;font-weight:700;
+  letter-spacing:0.08em;text-transform:uppercase;padding:2px 7px;border-radius:3px;margin-bottom:6px;
+}
+.s-now{background:var(--accent-wash);color:var(--accent-ink)}
+.s-next{background:var(--sunken);color:var(--muted)}
+.road-b{font-size:14.5px;color:var(--muted);margin:0}
+@media (max-width:620px){.road-item{grid-template-columns:1fr;gap:6px}}
+
+/* ---------- two-up ---------- */
+.two{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:32px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-card);padding:22px 24px}
+.card p:last-child{margin-bottom:0}
+.card p{font-size:14.5px;color:var(--muted)}
+.card code{font-family:var(--mono);font-size:0.86em;background:var(--sunken);border:1px solid var(--rule-soft);border-radius:4px;padding:1px 5px;color:var(--ink-2)}
+
+/* ---------- footer ---------- */
+footer{padding:48px 0 64px;font-size:14px;color:var(--muted)}
+footer .fgrid{display:grid;gap:26px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+footer h4{font-size:11.5px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:var(--faint);margin:0 0 10px}
+footer ul{list-style:none;margin:0;padding:0}
+footer li{margin-bottom:6px}
+footer a{color:var(--muted);text-decoration:none}
+footer a:hover{color:var(--accent-ink);text-decoration:underline}
+.legal{margin-top:36px;padding-top:22px;border-top:1px solid var(--rule);font-size:13px;color:var(--faint);max-width:72ch}
+.legal p{margin:0 0 8px}
+
+@media (prefers-reduced-motion: reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="#top">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      Tealdash
+    </a>
+    <nav>
+      <a href="why.html">Why Tealdash</a>
+      <a href="performance.html" class="hide-sm">Performance</a>
+      <a href="#roadmap" class="hide-sm">Roadmap</a>
+      <a href="https://github.com/tdot-labs/tealdash">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap hero" id="top">
+  <svg class="hero-mark" viewBox="0 0 120 120" role="img" aria-label="Tealdash">
+    <g fill="none" stroke="currentColor" stroke-width="4">
+      <circle cx="60" cy="60" r="55.5"/><circle cx="60" cy="60" r="47.5" stroke-width="3.5"/>
+    </g>
+    <g fill="currentColor">
+      <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+      <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+      <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+    </g>
+    <polyline points="40,62 54,50 68,58 82,39" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <g fill="currentColor">
+      <circle cx="40" cy="62" r="5.5"/><circle cx="54" cy="50" r="5.5"/><circle cx="68" cy="58" r="5.5"/><circle cx="82" cy="39" r="6.5"/>
+    </g>
+  </svg>
+
+  <h1>One place for everything you do with data.</h1>
+  <p class="lede">
+    Connect to your data, write a query, turn it into a chart, put it on a dashboard
+    other people actually use. <strong>Self-hosted, open source, and viewers are free</strong>
+    — because there is nobody to charge you for them.
+  </p>
+  <div class="cta">
+    <a class="btn btn-primary" href="#start">Get started</a>
+    <a class="btn btn-ghost" href="https://github.com/tdot-labs/tealdash">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      View source
+    </a>
+  </div>
+  <p class="hero-note">Apache 2.0 &middot; Python + React &middot; runs in Docker</p>
+</div>
+
+<section id="start">
+  <div class="wrap">
+    <p class="eyebrow">Quick start</p>
+    <h2>Running in three commands</h2>
+    <p class="sub">A published image, plus the Postgres and Redis it needs. Nothing to build.</p>
+
+    <div class="term">
+      <div class="term-bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="term-title">bash</span>
+      </div>
+<pre><code><span class="c"># fill in the three secrets it asks for</span>
+<span class="p">$</span> cp .env.example .env
+
+<span class="p">$</span> docker compose -f compose.prod.yaml run --rm server create_db
+<span class="p">$</span> docker compose -f compose.prod.yaml up -d
+
+<span class="c">→ http://localhost:5000</span></code></pre>
+    </div>
+
+    <p class="sub" style="margin-top:14px">
+      Images are published to
+      <code>ghcr.io/tdot-labs/tealdash</code> for amd64 and arm64. To build from
+      source instead, <code>compose.yaml</code> is the development setup —
+      <code>make env &amp;&amp; make compose_build &amp;&amp; make create_database &amp;&amp; make up</code>.
+    </p>
+
+    <div class="two">
+      <div class="card">
+        <h3>Configuration</h3>
+        <p>Tealdash reads <code>TEALDASH_*</code> environment variables. Migrating an existing
+        Redash install? Your <code>REDASH_*</code> variables still work as a fallback, so your
+        <code>.env</code> keeps running untouched.</p>
+      </div>
+      <div class="card">
+        <h3>Keep your secret key</h3>
+        <p>Data-source passwords are encrypted with <code>TEALDASH_SECRET_KEY</code>.
+        Back it up and do not rotate it casually — changing it makes every stored
+        credential unreadable, and they have to be entered again.</p>
+      </div>
+      <div class="card">
+        <h3>No phone home</h3>
+        <p>Tealdash sends nothing anywhere. Version checking is off unless you set
+        <code>TEALDASH_VERSION_CHECK_URL</code> to an endpoint you control, and no usage data
+        or account details leave your box.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <p class="eyebrow">What you get</p>
+    <h2>A query editor, and everything downstream of it</h2>
+    <p class="sub">Analysts write SQL. Everyone else gets dashboards, alerts and links that keep working.</p>
+
+    <div class="features">
+      <div class="feature">
+        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h7"/></svg>Query editor</h3>
+        <p>Schema browser, autocomplete, query formatting, parameters and scheduled refresh. Fork a query, version it, publish it.</p>
+      </div>
+      <div class="feature">
+        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="9" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/></svg>Dashboards</h3>
+        <p>Drag visualizations into a grid, filter across them at once, and export the whole thing to PDF or an image.</p>
+      </div>
+      <div class="feature">
+        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 1.8a4 4 0 0 0-4 4c0 3.2-1.4 4.2-1.4 4.2h10.8S12 9 12 5.8a4 4 0 0 0-4-4Z"/><path d="M6.6 12.6a1.6 1.6 0 0 0 2.8 0"/></svg>Alerts</h3>
+        <p>Trigger on a query result and notify Slack, email, PagerDuty, webhooks and a dozen more destinations.</p>
+      </div>
+      <div class="feature">
+        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><ellipse cx="8" cy="3.6" rx="5.4" ry="2.2"/><path d="M2.6 3.6v8.8c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2V3.6"/><path d="M2.6 8c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2"/></svg>Upload a file</h3>
+        <p>Drop in a CSV or Parquet file and query it with SQL immediately, backed by DuckDB. No pipeline required.</p>
+      </div>
+      <div class="feature">
+        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 13V7M6 13V3M10 13V9M14 13V5"/></svg>Visualizations</h3>
+        <p>Charts, tables, pivot tables, cohorts, funnels, maps, counters — all configured without code.</p>
+      </div>
+      <div class="feature">
+        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="2.6" y="7" width="10.8" height="7" rx="1.6"/><path d="M5.2 7V4.8a2.8 2.8 0 0 1 5.6 0V7"/></svg>Permissions</h3>
+        <p>Groups, per-data-source access, view-only roles and shareable public links with their own tokens.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="sources">
+  <div class="wrap">
+    <p class="eyebrow">Data sources</p>
+    <h2>35+ databases, out of the box</h2>
+    <p class="sub">Each one is a small plugin over the vendor's own driver, so connections behave the way the vendor intended.</p>
+    <div class="chips">
+      <span class="chip">PostgreSQL</span><span class="chip">MySQL</span><span class="chip">BigQuery</span>
+      <span class="chip">Snowflake</span><span class="chip">Databricks</span><span class="chip">Redshift</span>
+      <span class="chip">Athena</span><span class="chip">ClickHouse</span><span class="chip">DuckDB</span>
+      <span class="chip">MongoDB</span><span class="chip">Elasticsearch</span><span class="chip">SQL Server</span>
+      <span class="chip">Oracle</span><span class="chip">Trino</span><span class="chip">Presto</span>
+      <span class="chip">Cassandra</span><span class="chip">Druid</span><span class="chip">SQLite</span>
+      <span class="chip">Google Sheets</span><span class="chip">Prometheus</span><span class="chip">InfluxDB</span>
+      <span class="chip more">and more</span>
+    </div>
+  </div>
+</section>
+
+<section id="roadmap">
+  <div class="wrap">
+    <p class="eyebrow">Roadmap</p>
+    <h2>Where this is going</h2>
+    <p class="sub">The goal is one tool for the whole job — not another dashboard you bolt onto four other products.</p>
+
+    <div class="road">
+      <div class="road-item">
+        <div class="road-k"><span class="road-status s-now">Shipping</span>v27</div>
+        <div>
+          <h3>A rebuilt interface</h3>
+          <p class="road-b">New design system with proper contrast and density, a top navigation bar that gives the
+          content its full width, row actions across dashboards, queries and alerts, and branded PDF and image
+          export with full lineage on the header.</p>
+        </div>
+      </div>
+      <div class="road-item">
+        <div class="road-k"><span class="road-status s-next">Next</span>Notes</div>
+        <div>
+          <h3>Notebooks, properly isolated</h3>
+          <p class="road-b">Write Python next to your SQL, run cells, chart the result, and export or share the whole
+          note. Built on Zeppelin's interpreter model and Jupyter's <code>.ipynb</code> format — with execution in a
+          hardware-isolated tier that never holds a database credential.</p>
+        </div>
+      </div>
+      <div class="road-item">
+        <div class="road-k"><span class="road-status s-next">Next</span>Streaming</div>
+        <div>
+          <h3>Kafka as a first-class source</h3>
+          <p class="road-b">Point Tealdash at a topic, take a bounded read by offset, timestamp or message count, and
+          treat it like any other result — cached, charted, scheduled and alertable. Materialisation to Parquet for
+          real history comes after.</p>
+        </div>
+      </div>
+      <div class="road-item">
+        <div class="road-k"><span class="road-status s-next">Next</span>Performance</div>
+        <div>
+          <h3>Push instead of poll</h3>
+          <p class="road-b">Server-sent events replacing the status polling loop, concurrency that does not cost a
+          whole OS process per connection, and a frontend that no longer ships its entire bundle on first load.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="architecture">
+  <div class="wrap">
+    <p class="eyebrow">Under the hood</p>
+    <h2>Boring where it counts</h2>
+    <div class="two">
+      <div class="card">
+        <h3>Backend</h3>
+        <p>Python 3.13, Flask and SQLAlchemy, with RQ workers running queries, schedules and alerts off the
+        request path. The web server, workers and scheduler are separate processes.</p>
+      </div>
+      <div class="card">
+        <h3>Frontend</h3>
+        <p>React and TypeScript, built with Webpack. Visualizations live in their own workspace package so charts
+        can be developed and tested independently of the app.</p>
+      </div>
+      <div class="card">
+        <h3>Storage</h3>
+        <p>Postgres holds queries, dashboards, users and cached results. Redis handles job queues, locks and
+        schema caching. DuckDB backs file upload and local analytics.</p>
+      </div>
+      <div class="card">
+        <h3>Deployment</h3>
+        <p>Docker Compose for a single box, or split the web and worker tiers across machines. No managed service
+        required and no license server to call.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="fgrid">
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/tdot-labs/tealdash">Source on GitHub</a></li>
+          <li><a href="https://github.com/tdot-labs/tealdash/issues">Issues</a></li>
+          <li><a href="https://github.com/tdot-labs/tealdash/releases">Releases</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Getting started</h4>
+        <ul>
+          <li><a href="#start">Quick start</a></li>
+          <li><a href="why.html">Why Tealdash</a></li>
+          <li><a href="performance.html">Performance work</a></li>
+          <li><a href="https://github.com/tdot-labs/tealdash/blob/main/README.md">README</a></li>
+          <li><a href="https://github.com/tdot-labs/tealdash/blob/main/CONTRIBUTING.md">Contributing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="https://github.com/tdot-labs/tealdash/blob/main/LICENSE">Apache License 2.0</a></li>
+          <li><a href="https://github.com/tdot-labs/tealdash/blob/main/NOTICE">Attribution notice</a></li>
+          <li><a href="https://github.com/tdot-labs/tealdash/blob/main/SECURITY.md">Security policy</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="legal">
+      <p>
+        Tealdash is licensed under the Apache License 2.0. It is a fork of
+        <a href="https://github.com/getredash/redash">Redash</a>, copyright &copy; 2013&ndash;2020
+        Arik Fraimovich, licensed under BSD 2-Clause. That licence and its copyright notice are
+        preserved in full and apply to all inherited code.
+      </p>
+      <p>
+        Tealdash is an independent project. It is not affiliated with, endorsed by, or supported by
+        the Redash project or its contributors.
+      </p>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

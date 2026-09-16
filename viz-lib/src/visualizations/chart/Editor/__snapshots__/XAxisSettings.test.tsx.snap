@@ -1,0 +1,60 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Visualizations -> Chart -> Editor -> X-Axis Settings Changes axis name 1`] = `
+{
+  "xAxis": {
+    "labels": {
+      "enabled": true,
+    },
+    "title": {
+      "text": "test",
+    },
+    "type": "-",
+  },
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> X-Axis Settings Changes axis tick format 1`] = `
+{
+  "xAxis": {
+    "labels": {
+      "enabled": true,
+    },
+    "tickFormat": "%B",
+    "type": "-",
+  },
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> X-Axis Settings Changes axis type 1`] = `
+{
+  "xAxis": {
+    "labels": {
+      "enabled": true,
+    },
+    "type": "linear",
+  },
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> X-Axis Settings Sets Reverse X Values option 1`] = `
+{
+  "reverseX": true,
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> X-Axis Settings Sets Show Labels option 1`] = `
+{
+  "xAxis": {
+    "labels": {
+      "enabled": true,
+    },
+  },
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> X-Axis Settings Sets Sort X Values option 1`] = `
+{
+  "sortX": true,
+}
+`;

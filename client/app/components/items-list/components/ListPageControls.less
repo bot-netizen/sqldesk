@@ -1,0 +1,55 @@
+.list-page-control {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: var(--control-lg);
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  white-space: nowrap;
+  box-sizing: border-box;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--color-action-border);
+    color: var(--color-text);
+  }
+
+  /* An active filter or a hidden column is easy to forget about; mark the
+     control so the list never looks wrong for an unexplained reason. */
+  &-on,
+  &-on:hover {
+    border-color: var(--color-action-border);
+    background: var(--color-action-tint);
+    color: var(--color-action-text);
+  }
+}
+
+.list-page-filter-panel {
+  width: 260px;
+  padding: var(--sp-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-overlay);
+}
+
+.list-page-filter-label {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: var(--sp-2);
+}
+
+.list-page-columns-menu {
+  min-width: 190px;
+  max-height: 340px;
+  overflow-y: auto;
+  border-radius: var(--radius-control);
+}

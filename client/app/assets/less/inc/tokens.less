@@ -1,0 +1,124 @@
+/* ==========================================================================
+   Tealdash design tokens — v27
+   --------------------------------------------------------------------------
+   Single source of truth for colour, type, geometry and density.
+
+   Two layers, deliberately:
+     1. LESS variables  — consumed by antd 4 and Bootstrap at BUILD time.
+     2. CSS custom properties — consumed by our own components at RUNTIME.
+
+   Layer 2 is what makes theming possible later: when the antd 5 migration
+   lands, its ConfigProvider is fed from these same values and the LESS
+   layer goes away. Until then the two are kept in lockstep by hand — if you
+   change a value here, change its LESS twin in ant-variables.less.
+   ========================================================================== */
+
+/* --- Neutral ramp (warm) -------------------------------------------------- */
+@n-50:  #fbfaf9;
+@n-100: #f6f4f1;
+@n-200: #f1efec;
+@n-300: #e8e5e1;
+@n-400: #d8d3cb;
+@n-500: #b5afa6;
+@n-600: #8a857e;
+@n-700: #6f6b66;
+@n-800: #34302b;
+@n-900: #1c1b1a;
+
+/* --- Action ramp (teal) --------------------------------------------------- */
+/* ac-600 is the action colour: 4.9:1 on white, passes AA as a filled control */
+@ac-50:  #f2fafb;
+@ac-100: #e4f4f7;
+@ac-200: #c6e8ee;
+@ac-300: #a8d5df;
+@ac-400: #6bb4c4;
+@ac-500: #2e93a8;
+@ac-600: #0a7c93;
+@ac-700: #086476;
+@ac-800: #064c59;
+@ac-900: #04333c;
+
+/* --- Status --------------------------------------------------------------- */
+/* Reserved. Never reused as a chart series colour, always paired with a
+   label or icon so state is never carried by colour alone.
+   All four are chosen to clear 4.5:1 on white, because they render as text. */
+@status-good:     #1e7a4c;
+@status-warning:  #9a6510;
+@status-serious:  #c2560e;
+@status-critical: #b4342c;
+
+/* --- Chart series --------------------------------------------------------- */
+/* Fixed order, never cycled. Validated for CVD separation and contrast
+   against both the light (#ffffff) and dark (#1b1a21) surfaces.
+   A 9th series folds into "Other" — it is never a generated hue.
+   These belong to DATA INK only: no series colour may be used on a control,
+   and the action teal above never appears as a series. */
+@series-1: #4a45b8;
+@series-2: #12a07a;
+@series-3: #d45d00;
+@series-4: #2e86c8;
+@series-5: #c04a86;
+@series-6: #8a6a16;
+@series-7: #1594ab;
+@series-8: #7b3fa0;
+
+/* --- Geometry ------------------------------------------------------------- */
+@radius-chip:    6px;
+@radius-control: 8px;
+@radius-card:    12px;
+@radius-pill:    999px;
+
+/* --- Control heights ------------------------------------------------------ */
+@control-sm: 28px;
+@control-md: 32px;
+@control-lg: 36px;
+
+/* --- Density -------------------------------------------------------------- */
+/* Comfortable is the shipped default.
+   Applied to header and body cells alike: a header that is taller than its
+   rows reads as a separate block rather than a label for them. The two are
+   distinguished by background, not by size. */
+@table-row-height: 58px;
+/* Vertical padding inside a table row. Rows are sized by their content plus
+   this, so it is the one knob for list density.
+   Rows measured 64px before v27 (a lopsided 5px/14px, with tags forced onto
+   a second line). Tags are inline now, so content is a single 28px line and
+   15px here lands a row at 58px — about 10% shorter. Drop this to 10px for
+   a 48px row if you want the list denser. */
+@table-row-padding-y: 15px;
+
+/* --- Spacing -------------------------------------------------------------- */
+@sp-1: 4px;
+@sp-2: 6px;
+@sp-3: 8px;
+@sp-4: 12px;
+@sp-5: 16px;
+@sp-6: 20px;
+@sp-7: 24px;
+@sp-8: 32px;
+
+/* --- Navigation ----------------------------------------------------------- */
+/* Top bar rather than a left rail: content gets the full viewport width, and
+   the chrome costs one row of height once instead of a column on every page. */
+@navbar-height: 56px;
+
+/* --- Type ----------------------------------------------------------------- */
+/* Instrument Sans + JetBrains Mono, self-hosted through Fontsource (imported
+   in client/app/index.js) rather than fetched from a CDN, so air-gapped
+   deployments work and no viewer IP leaks to a third party.
+   The fallbacks are chosen for close metrics: text laid out before the
+   webfont swaps in should not visibly reflow. */
+@font-sans: "Instrument Sans Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial,
+  sans-serif;
+@font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+  monospace;
+
+@fs-display: 25px;
+@fs-title:   19px;
+@fs-heading: 15px;
+@fs-body:    14px;
+@fs-small:   12.5px;
+@fs-micro:   11px;
+
+/* The :root{} emission lives in tokens-root.less so this file stays
+   output-free and can be imported from every entry point safely. */

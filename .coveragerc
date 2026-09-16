@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = tealdash
+
+[report]
+omit =
+    */settings.py
+    */python?.?/*
+show_missing = True

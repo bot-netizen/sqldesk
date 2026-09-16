@@ -1,0 +1,85 @@
+# Running Tealdash from the published image.
+#
+# compose.yaml next to this one is the development setup: it builds from source
+# and bind-mounts the working tree over /app, which would shadow anything in a
+# published image. This file is the other thing -- no build, no mount, just the
+# released container and the two services it needs.
+#
+#   cp .env.example .env     # then fill in the secrets
+#   docker compose -f compose.prod.yaml run --rm server create_db
+#   docker compose -f compose.prod.yaml up -d
+#
+# Tealdash is then on http://localhost:5000.
+
+x-tealdash-service: &tealdash-service
+  image: ${TEALDASH_IMAGE:-ghcr.io/tdot-labs/tealdash:0.1.0}
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  env_file:
+    - .env
+  restart: unless-stopped
+
+x-tealdash-environment: &tealdash-environment
+  TEALDASH_REDIS_URL: "redis://redis:6379/0"
+  TEALDASH_DATABASE_URL: "postgresql://tealdash:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres/tealdash"
+  TEALDASH_LOG_LEVEL: "INFO"
+  # The address people reach Tealdash on. Links in emails and alerts use it, so
+  # it has to be right or they point at localhost.
+  TEALDASH_HOST: ${TEALDASH_HOST:-http://localhost:5000}
+
+services:
+  server:
+    <<: *tealdash-service
+    command: server
+    ports:
+      - "${TEALDASH_PORT:-5000}:5000"
+    environment:
+      <<: *tealdash-environment
+      TEALDASH_WEB_WORKERS: ${TEALDASH_WEB_WORKERS:-4}
+
+  worker:
+    <<: *tealdash-service
+    command: worker
+    environment:
+      <<: *tealdash-environment
+      QUEUES: "queries,scheduled_queries,schemas,periodic,emails,default"
+      WORKERS_COUNT: ${TEALDASH_WORKERS_COUNT:-2}
+
+  scheduler:
+    <<: *tealdash-service
+    command: scheduler
+    environment:
+      <<: *tealdash-environment
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tealdash
+      POSTGRES_DB: tealdash
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - tealdash-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tealdash -d tealdash"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - tealdash-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  tealdash-postgres:
+  tealdash-redis:

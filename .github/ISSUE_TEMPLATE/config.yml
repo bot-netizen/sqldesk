@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/tdot-labs/tealdash/discussions
+    about: Ask a question, or talk through an idea before opening an issue.
+  - name: Security vulnerability
+    url: https://github.com/tdot-labs/tealdash/security/advisories/new
+    about: Report privately. Please do not open a public issue for a vulnerability.

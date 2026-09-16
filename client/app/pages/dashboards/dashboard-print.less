@@ -1,0 +1,59 @@
+/*
+  Print layout for a dashboard, used by Export as PDF.
+
+  The screen layout is a fixed-height flex column with its own scrolling
+  region; printed, that yields one page of the visible area and nothing
+  else. These rules unwind that so the whole grid flows onto as many pages
+  as it needs.
+*/
+@media print {
+  /* Application chrome is not part of the dashboard. */
+  .application-layout-nav,
+  .application-layout-top-menu,
+  .dashboard-header .dashboard-control,
+  .add-widget-container,
+  .ant-back-top,
+  .list-page-control {
+    display: none !important;
+  }
+
+  /* body.fixed-layout hides overflow and pins height to the viewport, which
+     clips everything past the first screen. */
+  body,
+  body.fixed-layout,
+  body.fixed-layout #application-root,
+  #application-root,
+  .application-layout-content {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    position: static !important;
+  }
+
+  /* Chart fills and status colours are information here, not decoration, so
+     print them rather than letting the browser drop backgrounds. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* A widget split across a page break is unreadable — keep each whole.
+     .dashboard-widget-wrapper is the grid item react-grid-layout positions;
+     .widget-wrapper is the card inside it. */
+  .dashboard-widget-wrapper,
+  .widget-wrapper,
+  .tile {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* react-grid-layout positions widgets absolutely against a measured
+     container width; that survives printing, so the grid keeps its shape. */
+  .dashboard-wrapper {
+    width: 100% !important;
+  }
+
+  @page {
+    margin: 12mm;
+  }
+}

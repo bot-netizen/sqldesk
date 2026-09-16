@@ -1,0 +1,39 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Visualizations -> Chart -> Editor -> Colors Settings for all except of pie and heatmap Changes series color 1`] = `
+{
+  "seriesOptions": {
+    "b": {
+      "color": "#FF0000",
+    },
+  },
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> Colors Settings for heatmap Changes color scheme 1`] = `
+{
+  "colorScheme": "Blues",
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> Colors Settings for heatmap Sets custom color scheme 1`] = `
+{
+  "heatMinColor": "#FFFF00",
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> Colors Settings for heatmap Sets custom color scheme 2`] = `
+{
+  "heatMaxColor": "#FF0000",
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> Colors Settings for pie Changes series color 1`] = `
+{
+  "valuesOptions": {
+    "v": {
+      "color": "#FF0000",
+    },
+  },
+}
+`;

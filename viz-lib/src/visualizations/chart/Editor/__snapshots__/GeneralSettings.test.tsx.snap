@@ -1,0 +1,74 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Visualizations -> Chart -> Editor -> General Settings Box: toggles show points 1`] = `
+{
+  "showpoints": true,
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> General Settings Changes global series type 1`] = `
+{
+  "globalSeriesType": "pie",
+  "seriesOptions": {
+    "a": {
+      "type": "pie",
+    },
+    "b": {
+      "type": "pie",
+    },
+  },
+  "showDataLabels": true,
+  "swappedAxes": false,
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> General Settings Enables stacking 1`] = `
+{
+  "series": {
+    "stacking": "stack",
+  },
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> General Settings Keep missing/null values 1`] = `
+{
+  "missingValuesAsZero": false,
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> General Settings Pie: changes direction 1`] = `
+{
+  "direction": {
+    "type": "clockwise",
+  },
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> General Settings Toggles Enable click events 1`] = `
+{
+  "enableLink": true,
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> General Settings Toggles horizontal bar chart 1`] = `
+{
+  "seriesOptions": {},
+  "swappedAxes": true,
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> General Settings Toggles legend 1`] = `
+{
+  "legend": {
+    "enabled": false,
+  },
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> General Settings Toggles normalize values to percentage 1`] = `
+{
+  "series": {
+    "percentValues": true,
+  },
+}
+`;

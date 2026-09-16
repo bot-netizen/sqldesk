@@ -1,0 +1,36 @@
+// Qualified with .ant-btn deliberately: antd's own `.ant-btn { display:
+// inline-block }` has the same specificity and loads later, so an unqualified
+// `.query-schedule-control` loses every `display` declaration here -- including
+// the `display: none` in the media query below, which silently left two
+// schedule controls on screen at narrow widths.
+.ant-btn.query-schedule-control {
+  display: inline-flex;
+  align-items: center;
+
+  .zmdi-refresh {
+    color: var(--color-text-muted);
+  }
+
+  // The label says what the value means; the value is what you scan for.
+  .query-schedule-control-label {
+    margin-left: 6px;
+    color: var(--color-text-muted);
+
+    &:after {
+      content: ":";
+    }
+  }
+
+  .query-schedule-control-value {
+    margin-left: 5px;
+    color: var(--color-text);
+  }
+
+  // Below 880px the left rail collapses and QueryMetadata's horizontal layout
+  // takes over, schedule included -- so the header control steps aside rather
+  // than showing the same thing twice. Breakpoint is pinned to the one in
+  // assets/less/tealdash/query.less that reveals that layout.
+  @media (max-width: 880px) {
+    display: none;
+  }
+}

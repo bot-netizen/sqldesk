@@ -1,0 +1,152 @@
+/* --------------------------------------------------------
+    antd 4 theme — driven by the v27 design tokens.
+
+    antd 4 resolves these at BUILD time, so everything here is a
+    compile-time mapping onto tokens.less. When the antd 5 migration
+    lands this file is replaced by a ConfigProvider theme object fed
+    from the same tokens, and the duplication goes away.
+-----------------------------------------------------------*/
+@import "tokens";
+
+/* --------------------------------------------------------
+    Colors
+-----------------------------------------------------------*/
+@primary-color: @ac-600;
+@link-color: @ac-600;
+@link-hover-color: @ac-700;
+@success-color: @status-good;
+@warning-color: @status-warning;
+@error-color: @status-critical;
+@info-color: @ac-600;
+
+@item-active-bg: @ac-100;
+@item-hover-bg: @n-100;
+
+/* Legacy aliases still referenced by older component styles. */
+@lightblue: @ac-500;
+@tealdash-gray: rgba(102, 136, 153, 1);
+@tealdash-orange: rgba(255, 120, 100, 1);
+@tealdash-black: rgba(0, 0, 0, 1);
+@tealdash-yellow: rgba(252, 252, 161, 0.75);
+
+/* --------------------------------------------------------
+    Font
+-----------------------------------------------------------*/
+@tealdash-font: @font-sans;
+@font-family-no-number: @font-sans;
+@font-family: @font-sans;
+@code-family: @font-mono;
+@font-size-base: @fs-body;
+@font-size-lg: @fs-heading;
+@font-size-sm: @fs-small;
+
+@heading-color: @n-900;
+@heading-1-size: @fs-display;
+@heading-2-size: @fs-title;
+@heading-3-size: @fs-heading;
+
+/* --------------------------------------------------------
+    Borders & geometry
+-----------------------------------------------------------*/
+@border-color-base: @n-300;
+@border-color-split: @n-200;
+@border-radius-base: @radius-control;
+@border-radius-sm: @radius-chip;
+
+/* --------------------------------------------------------
+    Typography
+-----------------------------------------------------------*/
+@text-color: @n-800;
+@text-color-secondary: @n-600;
+@disabled-color: @n-500;
+
+/* --------------------------------------------------------
+    Form
+-----------------------------------------------------------*/
+@input-height-base: @control-md;
+@input-height-lg: @control-lg;
+@input-height-sm: @control-sm;
+@input-color: @n-800;
+@input-color-placeholder: @n-500;
+@input-border-color: @n-300;
+@input-bg: #fff;
+@input-hover-border-color: @ac-400;
+
+@btn-height-base: @control-md;
+@btn-height-lg: @control-lg;
+@btn-height-sm: @control-sm;
+@btn-font-weight: 500;
+@btn-border-radius-base: @radius-control;
+@btn-border-radius-sm: @radius-chip;
+@btn-default-color: @n-800;
+@btn-default-border: @n-300;
+
+/* --------------------------------------------------------
+    Pagination
+-----------------------------------------------------------*/
+@pagination-item-size: @control-md;
+@pagination-font-family: @font-sans;
+@pagination-font-weight-active: 500;
+@pagination-item-bg: #fff;
+@pagination-item-bg-active: @ac-600;
+@pagination-color: @n-700;
+@pagination-hover-color: @n-900;
+
+/* Tealdash overrides its own pagination chrome in ant.less and reads these
+   names directly, so they are kept alongside antd's own. */
+@pagination-bg: @n-100;
+@pagination-hover-bg: @n-200;
+@pagination-active-bg: @ac-600;
+@pagination-active-color: #fff;
+@pagination-disabled-bg: @n-100;
+
+/* --------------------------------------------------------
+    Table
+-----------------------------------------------------------*/
+@table-border-radius-base: @radius-card;
+@table-header-color: @n-600;
+@table-header-bg: @n-100;
+@table-header-icon-color: @n-500;
+@table-header-icon-active-color: @n-800;
+@table-header-sort-bg: @n-100;
+@table-header-sort-active-bg: @n-200;
+@table-header-filter-active-bg: @n-200;
+@table-body-sort-bg: transparent;
+@table-row-hover-bg: @n-100;
+@table-selected-row-bg: @ac-50;
+@table-padding-vertical: 14px;
+@table-padding-horizontal: 12px;
+
+/* --------------------------------------------------------
+    Surfaces
+-----------------------------------------------------------*/
+@body-background: @n-50;
+@component-background: #fff;
+@popover-background: #fff;
+@card-radius: @radius-card;
+@modal-header-border-color-split: @n-200;
+@modal-footer-border-color-split: @n-200;
+
+@menu-item-active-bg: @ac-100;
+@menu-highlight-color: @ac-600;
+
+@tooltip-bg: @n-900;
+@tooltip-color: @n-50;
+@tooltip-border-radius: @radius-chip;
+
+@tag-default-bg: @n-50;
+@tag-default-color: @n-700;
+@tag-border-radius: @radius-chip;
+
+/* --------------------------------------------------------
+    Notification
+-----------------------------------------------------------*/
+@notification-padding: @notification-padding-vertical 48px @notification-padding-vertical 17px;
+@notification-width: auto;
+
+/* --------------------------------------------------------
+    Shadows — borders carry structure; shadow is for overlays.
+-----------------------------------------------------------*/
+@shadow-1-up: 0 -6px 16px -8px rgba(28, 27, 26, 0.08), 0 -9px 28px 0 rgba(28, 27, 26, 0.05);
+@shadow-1-down: 0 6px 16px -8px rgba(28, 27, 26, 0.08), 0 9px 28px 0 rgba(28, 27, 26, 0.05);
+@shadow-2: 0 8px 24px -6px rgba(28, 27, 26, 0.14);

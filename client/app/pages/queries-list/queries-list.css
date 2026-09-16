@@ -1,0 +1,49 @@
+.search input[type="text"],
+.search button {
+  height: var(--control-md);
+}
+
+/* Source is an identifier, and rows/runtime are figures to compare down the
+   column — all three are monospaced in the design, which is what separates
+   them from the prose columns. */
+.queries-list-source {
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+  font-size: var(--fs-body);
+  white-space: nowrap;
+}
+
+.queries-list-rows {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-body);
+  white-space: nowrap;
+}
+
+.queries-list-runtime {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  color: var(--color-text-muted);
+  font-size: var(--fs-body);
+  white-space: nowrap;
+}
+
+/* Schedule reads as a value, not prose — chip it so the column scans. */
+.queries-list-schedule {
+  display: inline-block;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-chip);
+  padding: 2px 8px;
+  font-size: var(--fs-body);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* same rule as for sidebar */
+@media (max-width: 990px) {
+  .page-queries-list .page-header-actions {
+    width: auto;
+  }
+}

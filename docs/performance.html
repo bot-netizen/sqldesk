@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Performance work — Tealdash</title>
+<meta name="description" content="What we measured in Tealdash's query path, what we changed, and the before and after numbers.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+:root{
+  --n-50:#fbfaf9;--n-100:#f6f4f1;--n-200:#f1efec;--n-300:#e8e5e1;--n-600:#8a857e;--n-700:#6f6b66;--n-800:#34302b;--n-900:#1c1b1a;
+  --ac-100:#e4f4f7;--ac-200:#c6e8ee;--ac-400:#6bb4c4;--ac-600:#0a7c93;--ac-700:#086476;
+  --good:#1e7a4c;--warning:#9a6510;--critical:#b4342c;
+  --canvas:var(--n-50);--surface:#fff;--sunken:var(--n-100);--rule:var(--n-300);--rule-soft:var(--n-200);
+  --ink:var(--n-900);--ink-2:var(--n-800);--muted:var(--n-700);--faint:var(--n-600);
+  --accent:var(--ac-600);--accent-ink:var(--ac-700);--accent-wash:var(--ac-100);--accent-edge:var(--ac-200);
+  --good-wash:#e8f3ed;--warning-wash:#f7efdf;
+  --r-chip:6px;--r-control:8px;--r-card:12px;
+  --sans:"Instrument Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --canvas:#121116;--surface:#1b1a21;--sunken:#232229;--rule:#33313c;--rule-soft:#2a2933;
+  --ink:#f4f2ef;--ink-2:#ddd9d3;--muted:#a8a29a;--faint:#8a857e;
+  --accent:var(--ac-400);--accent-ink:#8fcbd8;--accent-wash:#14323a;--accent-edge:#1e4a56;
+  --good:#56b585;--good-wash:#163024;--warning:#d0a04f;--warning-wash:#33280f;--critical:#e37c74;
+  color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --canvas:#121116;--surface:#1b1a21;--sunken:#232229;--rule:#33313c;--rule-soft:#2a2933;
+  --ink:#f4f2ef;--ink-2:#ddd9d3;--muted:#a8a29a;--faint:#8a857e;
+  --accent:var(--ac-400);--accent-ink:#8fcbd8;--accent-wash:#14323a;--accent-edge:#1e4a56;
+  --good:#56b585;--good-wash:#163024;--warning:#d0a04f;--warning-wash:#33280f;--critical:#e37c74;
+  color-scheme:dark;}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink);text-underline-offset:2px}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+.topbar{border-bottom:1px solid var(--rule);background:color-mix(in srgb,var(--canvas) 88%,transparent);backdrop-filter:blur(8px);position:sticky;top:0;z-index:10}
+.topbar-in{display:flex;align-items:center;gap:14px;height:60px}
+.brand{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--ink);font-weight:600;letter-spacing:-.02em;font-size:17px}
+.brand svg{width:26px;height:26px;display:block;color:var(--accent)}
+.topbar nav{margin-left:auto;display:flex;gap:6px}
+.topbar nav a{font-size:14px;color:var(--muted);text-decoration:none;padding:6px 11px;border-radius:var(--r-chip)}
+.topbar nav a:hover,.topbar nav a[aria-current]{color:var(--accent-ink);background:var(--accent-wash)}
+
+.head{padding-block:64px 44px;border-bottom:1px solid var(--rule)}
+.eyebrow{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent-wash);border:1px solid var(--accent-edge);border-radius:999px;padding:5px 12px;margin-bottom:20px}
+h1{font-size:clamp(34px,5.2vw,52px);line-height:1.05;letter-spacing:-.03em;font-weight:600;margin:0 0 16px;text-wrap:balance;max-width:19ch}
+.lede{font-size:18.5px;line-height:1.6;color:var(--muted);max-width:62ch;margin:0}
+
+section{padding:60px 0;border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:none}
+h2{font-size:clamp(23px,3vw,31px);line-height:1.15;letter-spacing:-.022em;font-weight:600;margin:0 0 12px;text-wrap:balance;max-width:24ch}
+h3{font-size:16px;font-weight:600;margin:26px 0 6px}
+p{margin:0 0 15px;max-width:66ch}
+.sub{color:var(--muted);max-width:64ch}
+code{font-family:var(--mono);font-size:.86em;background:var(--sunken);border:1px solid var(--rule-soft);border-radius:4px;padding:1px 5px;color:var(--ink-2);word-break:break-word}
+
+/* fix cards: number first, because the number is the point */
+.fix{border:1px solid var(--rule);border-radius:var(--r-card);background:var(--surface);overflow:hidden;margin-top:26px}
+.fix-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;padding:18px 22px;border-bottom:1px solid var(--rule-soft);background:var(--sunken)}
+.fix-n{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.09em;color:var(--faint)}
+.fix-t{font-size:17px;font-weight:600;letter-spacing:-.01em;margin:0}
+.fix-body{padding:20px 22px}
+.fix-body p:last-child{margin-bottom:0}
+
+.ba{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:var(--r-control);overflow:hidden;margin:6px 0 20px}
+.ba div{background:var(--surface);padding:14px 16px}
+.ba .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+.ba .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:19px;font-weight:500;letter-spacing:-.02em;display:block}
+.ba .n{font-size:12px;color:var(--muted);display:block;margin-top:3px}
+.ba .before .v{color:var(--critical)}
+.ba .after .v{color:var(--good)}
+.ba .delta .v{color:var(--accent-ink)}
+
+pre{font-family:var(--mono);font-size:12.5px;line-height:1.7;background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-control);padding:15px 17px;overflow-x:auto;margin:0 0 18px;color:var(--ink-2)}
+pre .c{color:var(--faint)}
+pre .hot{color:var(--critical)}
+pre .ok{color:var(--good)}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:var(--r-card);background:var(--surface);margin:22px 0}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--sunken);padding:10px 15px;white-space:nowrap;border-bottom:1px solid var(--rule)}
+td{padding:11px 15px;border-bottom:1px solid var(--rule-soft);vertical-align:top;line-height:1.5}
+tr:last-child td{border-bottom:none}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+td.hot{color:var(--critical)}
+td.ok{color:var(--good)}
+
+.note{border-left:3px solid var(--accent);padding:2px 0 2px 17px;margin:22px 0;font-size:15px}
+.note-h{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:5px}
+.note p:last-child{margin-bottom:0}
+.note.warn{border-color:var(--warning)}
+.note.warn .note-h{color:var(--warning)}
+
+footer{padding:44px 0 64px;font-size:13.5px;color:var(--muted)}
+footer a{color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      Tealdash
+    </a>
+    <nav>
+      <a href="index.html">Overview</a>
+      <a href="performance.html" aria-current="page">Performance</a>
+      <a href="https://github.com/tdot-labs/tealdash">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap head">
+  <span class="eyebrow">Engineering &middot; September 2026</span>
+  <h1>Where the query path was wasting a second.</h1>
+  <p class="lede">
+    Four fixes to the caching layer, each one found by measuring rather than guessing.
+    A 27MB cached result now serves in a tenth of the time, and the cache lookup behind
+    it went from 66ms to 0.06ms.
+  </p>
+</div>
+
+<section>
+  <div class="wrap">
+    <h2>The short version</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>What</th><th class="num">Before</th><th class="num">After</th><th>How it was found</th></tr></thead>
+        <tbody>
+          <tr><td>Serving a 27MB cached result</td><td class="num hot">547 ms</td><td class="num ok">99 ms</td><td>Timed the serializer directly</td></tr>
+          <tr><td>Cache lookup, 100k rows of history</td><td class="num hot">66.7 ms</td><td class="num ok">0.064 ms</td><td><code>EXPLAIN ANALYZE</code></td></tr>
+          <tr><td>Buffers read per lookup</td><td class="num hot">3,356</td><td class="num ok">4</td><td>Same</td></tr>
+          <tr><td>Result eviction ceiling</td><td class="num hot">28,800/day</td><td class="num ok">288,000/day</td><td>Arithmetic on the job schedule</td></tr>
+          <tr><td>DuckDB connects per query</td><td class="num hot">1 + extensions</td><td class="num ok">0</td><td>Reading the runner lifecycle</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>One: the payload was decoded and re-encoded on every hit</h2>
+    <p class="sub">
+      Query results are stored in Postgres as JSON text. They leave over HTTP as JSON text.
+      In between, the old path built the entire Python object graph and threw it away.
+    </p>
+
+    <div class="fix">
+      <div class="fix-head"><span class="fix-n">01</span><p class="fix-t">Splice the stored bytes instead of re-encoding them</p></div>
+      <div class="fix-body">
+<pre><code>Postgres TEXT <span class="c">──▶</span> <span class="hot">json_loads()</span> <span class="c">──▶</span> Python dicts <span class="c">──▶</span> <span class="hot">json_dumps()</span> <span class="c">──▶</span> HTTP
+              <span class="c">     328 ms                            663 ms</span>
+
+Postgres TEXT <span class="c">─────────────────────────────────────────────▶</span> HTTP
+              <span class="ok">     payload passes through untouched</span></code></pre>
+
+        <div class="ba">
+          <div class="before"><span class="k">Before</span><span class="v">547 ms</span><span class="n">excludes the decode already paid</span></div>
+          <div class="after"><span class="k">After</span><span class="v">99 ms</span><span class="n">includes load and raw read</span></div>
+          <div class="delta"><span class="k">Saved</span><span class="v">82%</span><span class="n">per cache hit</span></div>
+        </div>
+
+        <p>
+          The surprise was inside the encode. <code>_sanitize_data</code>, which walks the whole
+          object graph looking for <code>NaN</code> and values JSON cannot represent, cost
+          <strong>291ms — more than the 252ms serializer it guards</strong>. It could never find
+          anything: unrepresentable values fail at insert time, so on the read path it was pure
+          overhead.
+        </p>
+        <p>
+          The metadata is still encoded normally, which is cheap because it is tiny. The payload
+          is spliced into the slot it would have occupied, using a fresh random token per call
+          rather than a fixed marker — so a payload cannot contain the string that would displace
+          it, because it cannot know the token.
+        </p>
+        <p>
+          The decode is skipped too, by deferring the mapped column. Deferring is transparent, so
+          the CSV and Excel paths that genuinely need decoded data trigger an ordinary lazy load
+          and behave exactly as before.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Two: the cache lookup got slower the longer you used it</h2>
+    <p class="sub">
+      Checking for a cached result filters on three columns and sorts on a fourth. Only one of
+      them was indexed.
+    </p>
+
+    <div class="fix">
+      <div class="fix-head"><span class="fix-n">02</span><p class="fix-t">A composite index matching the actual query</p></div>
+      <div class="fix-body">
+<pre><code><span class="c">-- before: every row that ever shared the hash, then filter, then sort</span>
+Limit
+  -&gt; <span class="hot">Sort</span>  (Sort Key: retrieved_at DESC)
+       -&gt; Bitmap Heap Scan on query_results
+            Recheck Cond: query_hash = ...
+            <span class="hot">Filter: data_source_id = ... AND retrieved_at + interval &gt;= now()</span>
+
+<span class="c">-- after: one descent, no sort</span>
+Limit
+  -&gt; <span class="ok">Index Scan using ix_query_results_cache_lookup</span>
+       Index Cond: query_hash = ... AND data_source_id = ...</code></pre>
+
+        <div class="ba">
+          <div class="before"><span class="k">Before</span><span class="v">66.7 ms</span><span class="n">3,356 buffers</span></div>
+          <div class="after"><span class="k">After</span><span class="v">0.064 ms</span><span class="n">4 buffers</span></div>
+          <div class="delta"><span class="k">Faster</span><span class="v">~1000&times;</span><span class="n">on 100k rows of history</span></div>
+        </div>
+
+        <p>
+          The cost was linear in how much history a query had accumulated — and a query refreshing
+          every five minutes accumulates roughly <strong>105,000 rows a year</strong>. The index is
+          <code>(query_hash, data_source_id, retrieved_at DESC)</code>, with <code>retrieved_at</code>
+          descending so the first row the index yields is the answer and no sort is needed.
+        </p>
+        <p>
+          The old single-column index was dropped at the same time. Every query on this table that
+          filters <code>query_hash</code> also filters <code>data_source_id</code>, so the composite's
+          leading column covers it — and two indexes where one serves taxes every insert on the
+          most-written table in the schema.
+        </p>
+
+        <div class="note">
+          <div class="note-h">Built without locking</div>
+          <p>Both operations run <code>CONCURRENTLY</code>, so no write lock is held on a table that
+          could hold millions of rows. Upgrade and downgrade were both exercised before shipping.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Three: old results could accumulate faster than they were deleted</h2>
+
+    <div class="fix">
+      <div class="fix-head"><span class="fix-n">03</span><p class="fix-t">Lift the eviction cap, and say when it binds</p></div>
+      <div class="fix-body">
+<pre><code>288 runs/day  ×  100 rows/run  =  <span class="hot">28,800 rows/day maximum</span>
+                                 <span class="c">≈ 20 results a minute</span></code></pre>
+        <p>
+          A few hundred queries on short schedules exceeds that, and past that point the table grows
+          without bound — forever, with nothing saying so. The cap is now 1,000 per run.
+        </p>
+        <p>
+          The more useful change is the second one: the job now <strong>warns when it deletes its
+          full quota</strong>. The failure mode was never the number, it was the silence. A disk
+          filling up is a bad way to learn that cleanup has been losing a race for months.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Four: DuckDB reconnected on every query</h2>
+
+    <div class="fix">
+      <div class="fix-head"><span class="fix-n">04</span><p class="fix-t">Cache connections per process, and health-check them</p></div>
+      <div class="fix-body">
+        <p>
+          <code>DataSource.query_runner</code> is a property, not a cached attribute — so every
+          access built a new runner, which opened a new DuckDB connection and reran
+          <code>INSTALL</code> and <code>LOAD</code> for each configured extension. Per query.
+        </p>
+        <p>
+          Connections are now cached per process, keyed by the configuration that produced them so
+          two differently configured sources never share one. Each RQ worker is its own process, so
+          the cache is naturally per-worker.
+        </p>
+        <div class="note warn">
+          <div class="note-h">The part that needed care</div>
+          <p>
+            A cached connection outlives any single query and can be invalidated underneath you —
+            the database file replaced, say. Without a health check, one dead connection would fail
+            every subsequent query in that process, which is strictly worse than not caching at all.
+            So the cached connection is checked before reuse and transparently replaced if it has died.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>How these were found</h2>
+    <p class="sub">
+      Every figure on this page came from running something on the actual stack — timing the
+      serializer against a real 100,000-row result, and <code>EXPLAIN ANALYZE</code> against a table
+      loaded with a year of realistic history. None of them are estimates.
+    </p>
+    <p>
+      That mattered more than once. An early version of the index looked like it changed nothing,
+      because the test table had four rows in it and the planner was right to ignore an index at
+      that size. The improvement only became visible — and only became real — once the table held
+      the history a production instance would actually have.
+    </p>
+    <p>
+      Next up: replacing the polling loop with server-sent events, and a concurrency model that
+      does not spend a whole OS process on each waiting connection.
+      <a href="index.html#roadmap">See the roadmap</a>.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>
+      <a href="index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/tdot-labs/tealdash">Source</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/tdot-labs/tealdash/blob/main/LICENSE">Apache 2.0</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

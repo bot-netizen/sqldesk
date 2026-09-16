@@ -1,0 +1,43 @@
+.edit-in-place {
+  white-space: pre-line;
+  display: inline-block;
+
+  p {
+    margin-bottom: 0;
+  }
+
+  .editable {
+    display: inline-block;
+    cursor: pointer;
+
+    &:hover {
+      background: @tealdash-yellow;
+      border-radius: @tealdash-radius;
+    }
+  }
+
+  &.active input,
+  &.active textarea {
+    display: inline-block;
+  }
+}
+
+/*
+  Sentence-case the first character of an in-place-editable title.
+
+  ::first-letter only paints — the underlying value is untouched, so clicking
+  to edit still shows exactly what was stored and saving cannot write back a
+  rewritten name. inline-block is required for ::first-letter to apply to
+  what is otherwise an inline span.
+
+  Not text-transform: capitalize on the whole element: that capitalises every
+  word and would render "MRR waterfall — current quarter" as something its
+  author did not write.
+*/
+.edit-in-place > span {
+  display: inline-block;
+
+  &::first-letter {
+    text-transform: uppercase;
+  }
+}

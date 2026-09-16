@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why Tealdash — Tealdash</title>
+<meta name="description" content="Where Tealdash sits among BI tools and notebooks, what it does better, and what other tools do better.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+:root{
+  --n-50:#fbfaf9;--n-100:#f6f4f1;--n-200:#f1efec;--n-300:#e8e5e1;--n-600:#8a857e;--n-700:#6f6b66;--n-800:#34302b;--n-900:#1c1b1a;
+  --ac-100:#e4f4f7;--ac-200:#c6e8ee;--ac-400:#6bb4c4;--ac-600:#0a7c93;--ac-700:#086476;
+  --good:#1e7a4c;--warning:#9a6510;--critical:#b4342c;
+  --canvas:var(--n-50);--surface:#fff;--sunken:var(--n-100);--rule:var(--n-300);--rule-soft:var(--n-200);
+  --ink:var(--n-900);--ink-2:var(--n-800);--muted:var(--n-700);--faint:var(--n-600);
+  --accent:var(--ac-600);--accent-ink:var(--ac-700);--accent-wash:var(--ac-100);--accent-edge:var(--ac-200);
+  --good-wash:#e8f3ed;--warning-wash:#f7efdf;
+  --r-chip:6px;--r-control:8px;--r-card:12px;
+  --sans:"Instrument Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --canvas:#121116;--surface:#1b1a21;--sunken:#232229;--rule:#33313c;--rule-soft:#2a2933;
+  --ink:#f4f2ef;--ink-2:#ddd9d3;--muted:#a8a29a;--faint:#8a857e;
+  --accent:var(--ac-400);--accent-ink:#8fcbd8;--accent-wash:#14323a;--accent-edge:#1e4a56;
+  --good:#56b585;--good-wash:#163024;--warning:#d0a04f;--warning-wash:#33280f;--critical:#e37c74;
+  color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --canvas:#121116;--surface:#1b1a21;--sunken:#232229;--rule:#33313c;--rule-soft:#2a2933;
+  --ink:#f4f2ef;--ink-2:#ddd9d3;--muted:#a8a29a;--faint:#8a857e;
+  --accent:var(--ac-400);--accent-ink:#8fcbd8;--accent-wash:#14323a;--accent-edge:#1e4a56;
+  --good:#56b585;--good-wash:#163024;--warning:#d0a04f;--warning-wash:#33280f;--critical:#e37c74;
+  color-scheme:dark;}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink);text-underline-offset:2px}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+.topbar{border-bottom:1px solid var(--rule);background:color-mix(in srgb,var(--canvas) 88%,transparent);backdrop-filter:blur(8px);position:sticky;top:0;z-index:10}
+.topbar-in{display:flex;align-items:center;gap:14px;height:60px}
+.brand{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--ink);font-weight:600;letter-spacing:-.02em;font-size:17px}
+.brand svg{width:26px;height:26px;display:block;color:var(--accent)}
+.topbar nav{margin-left:auto;display:flex;gap:6px}
+.topbar nav a{font-size:14px;color:var(--muted);text-decoration:none;padding:6px 11px;border-radius:var(--r-chip)}
+.topbar nav a:hover,.topbar nav a[aria-current]{color:var(--accent-ink);background:var(--accent-wash)}
+
+.head{padding-block:64px 44px;border-bottom:1px solid var(--rule)}
+.eyebrow{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent-wash);border:1px solid var(--accent-edge);border-radius:999px;padding:5px 12px;margin-bottom:20px}
+h1{font-size:clamp(34px,5.2vw,52px);line-height:1.05;letter-spacing:-.03em;font-weight:600;margin:0 0 16px;text-wrap:balance;max-width:18ch}
+.lede{font-size:18.5px;line-height:1.6;color:var(--muted);max-width:62ch;margin:0}
+
+section{padding:60px 0;border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:none}
+h2{font-size:clamp(23px,3vw,31px);line-height:1.15;letter-spacing:-.022em;font-weight:600;margin:0 0 12px;text-wrap:balance;max-width:24ch}
+h3{font-size:16.5px;font-weight:600;margin:0 0 6px}
+p{margin:0 0 15px;max-width:66ch}
+.sub{color:var(--muted);max-width:64ch}
+code{font-family:var(--mono);font-size:.86em;background:var(--sunken);border:1px solid var(--rule-soft);border-radius:4px;padding:1px 5px;color:var(--ink-2)}
+
+/* reason blocks — the claim, then the evidence, never one without the other */
+.reasons{display:flex;flex-direction:column;margin-top:30px}
+.reason{display:grid;grid-template-columns:44px minmax(0,1fr);gap:20px;padding:26px 0;border-top:1px solid var(--rule)}
+.reason:last-child{border-bottom:1px solid var(--rule)}
+.reason-n{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--faint);padding-top:3px}
+.reason p:last-child{margin-bottom:0}
+.evidence{
+  font-family:var(--mono);font-size:12.5px;line-height:1.6;
+  background:var(--sunken);border:1px solid var(--rule-soft);border-left:3px solid var(--accent);
+  border-radius:0 var(--r-control) var(--r-control) 0;
+  padding:11px 15px;margin:12px 0 0;color:var(--ink-2);max-width:none;
+}
+.evidence b{color:var(--accent-ink);font-weight:500}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:var(--r-card);background:var(--surface);margin:26px 0}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:620px}
+th{text-align:left;font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--sunken);padding:10px 15px;white-space:nowrap;border-bottom:1px solid var(--rule)}
+td{padding:11px 15px;border-bottom:1px solid var(--rule-soft);vertical-align:top;line-height:1.5}
+tr:last-child td{border-bottom:none}
+td.mark{text-align:center;font-family:var(--mono);font-weight:700;white-space:nowrap}
+.yes{color:var(--good)}
+.no{color:var(--faint)}
+.part{color:var(--warning)}
+tr.us td{background:var(--accent-wash)}
+tr.us td:first-child{font-weight:600}
+
+.two{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:26px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-card);padding:20px 22px}
+.card p{font-size:14.5px;color:var(--muted);margin-bottom:0}
+.card h3{margin-bottom:7px}
+
+.note{border-left:3px solid var(--accent);padding:2px 0 2px 17px;margin:24px 0;font-size:15px}
+.note-h{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:5px}
+.note p:last-child{margin-bottom:0}
+
+footer{padding:44px 0 64px;font-size:13.5px;color:var(--muted)}
+footer a{color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      Tealdash
+    </a>
+    <nav>
+      <a href="index.html">Overview</a>
+      <a href="why.html" aria-current="page">Why Tealdash</a>
+      <a href="performance.html">Performance</a>
+      <a href="https://github.com/tdot-labs/tealdash">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap head">
+  <span class="eyebrow">Positioning</span>
+  <h1>Why Tealdash</h1>
+  <p class="lede">
+    An honest account of where this sits, what it does better than the alternatives, and
+    what the alternatives still do better. If you only need one of the things below, one
+    of those other tools is probably the right answer.
+  </p>
+</div>
+
+<section>
+  <div class="wrap">
+    <h2>Six reasons, each with its receipt</h2>
+
+    <div class="reasons">
+      <div class="reason">
+        <div class="reason-n">01</div>
+        <div>
+          <h3>Your viewers are free, and always will be</h3>
+          <p>
+            Self-hosted with no seat count, no viewer tier and no license server to call home to.
+            The tools that charge for viewers get expensive precisely when your work succeeds and
+            more people start looking at it.
+          </p>
+          <p class="evidence">One published comparison puts a 10-editor, 10-viewer<br>
+          setup on a notebook-BI platform at <b>$27,000 a year</b>.<br>Tealdash: the cost of the box you run it on.</p>
+        </div>
+      </div>
+
+      <div class="reason">
+        <div class="reason-n">02</div>
+        <div>
+          <h3>Actively built, not merely kept alive</h3>
+          <p>
+            Tealdash forked Redash, which has been in maintenance mode for years — dependency
+            bumps and security patches rather than new work. That makes the fork additive rather
+            than divergent: there is no fast-moving upstream to fight, and the features people
+            have been asking for are simply unbuilt.
+          </p>
+          <p class="evidence">Redash upstream: roughly <b>one release a year since 2022</b>,<br>
+          community forum read-only, ~7 volunteer maintainers.</p>
+        </div>
+      </div>
+
+      <div class="reason">
+        <div class="reason-n">03</div>
+        <div>
+          <h3>It doesn't phone home</h3>
+          <p>
+            Not a policy — a removal. The upstream shipped hard-coded endpoints that POSTed usage
+            statistics, and separately your admin's name and email, to servers you don't control.
+            Both are gone. Version checking exists but is off until you point it at an endpoint
+            of your own.
+          </p>
+          <p class="evidence">Removed: <b>version.redash.io/api/report</b> (usage data)<br>
+          Removed: <b>version.redash.io/subscribe</b> (admin name + email)</p>
+        </div>
+      </div>
+
+      <div class="reason">
+        <div class="reason-n">04</div>
+        <div>
+          <h3>Performance claims come with numbers</h3>
+          <p>
+            Everything in the query path gets measured before and after, on real data volumes,
+            and the figures are published. No "blazing fast" — just what it was, what it is, and
+            how it was measured.
+          </p>
+          <p class="evidence">Cached 27MB result: <b>547ms &rarr; 99ms</b><br>
+          Cache lookup on a year of history: <b>66.7ms &rarr; 0.064ms</b><br>
+          <a href="performance.html">See the full workings &rarr;</a></p>
+        </div>
+      </div>
+
+      <div class="reason">
+        <div class="reason-n">05</div>
+        <div>
+          <h3>Apache 2.0, with the provenance kept straight</h3>
+          <p>
+            A permissive licence with an explicit patent grant, which BSD 2-Clause does not
+            provide. The inherited code keeps its original copyright and licence text, reproduced
+            in full — because the alternative is a licence violation dressed up as a rebrand.
+          </p>
+          <p class="evidence">LICENSE &rarr; Apache 2.0 &nbsp;&middot;&nbsp; LICENSE.redash &rarr; BSD 2-Clause, verbatim<br>
+          NOTICE &rarr; attribution, and an explicit "not affiliated" statement</p>
+        </div>
+      </div>
+
+      <div class="reason">
+        <div class="reason-n">06</div>
+        <div>
+          <h3>One tool, not four stitched together</h3>
+          <p>
+            SQL, dashboards and alerts today; notebooks and Kafka streams next — under one
+            permission model, one login and one deployment. The value isn't any single surface,
+            it's that a note can read a saved query, join it against a stream, and publish the
+            result to a dashboard without leaving the product or re-declaring who may see what.
+          </p>
+          <p class="evidence"><a href="index.html#roadmap">Roadmap &rarr;</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Where everyone sits</h2>
+    <p class="sub">
+      The open-source, self-hosted corner that covers all three surfaces is genuinely thin.
+      That's the gap Tealdash is built for.
+    </p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Tool</th><th class="mark">Dashboards</th><th class="mark">Notebooks</th><th class="mark">Streaming</th><th class="mark">Self-hosted</th><th>Shape</th></tr>
+        </thead>
+        <tbody>
+          <tr class="us">
+            <td>Tealdash</td>
+            <td class="mark yes">&#10003;</td><td class="mark part">soon</td><td class="mark part">soon</td><td class="mark yes">&#10003;</td>
+            <td>SQL-first, open, unlimited viewers</td>
+          </tr>
+          <tr><td>Metabase</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td class="mark no">&mdash;</td><td class="mark yes">&#10003;</td><td>Easiest for non-technical users</td></tr>
+          <tr><td>Apache Superset</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td class="mark no">&mdash;</td><td class="mark yes">&#10003;</td><td>Most powerful for SQL teams</td></tr>
+          <tr><td>Redash</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td class="mark no">&mdash;</td><td class="mark yes">&#10003;</td><td>Maintenance mode</td></tr>
+          <tr><td>Briefer</td><td class="mark yes">&#10003;</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td class="mark yes">&#10003;</td><td>Notebooks + dashboards, multiplayer</td></tr>
+          <tr><td>Hex / Deepnote</td><td class="mark yes">&#10003;</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td class="mark no">&mdash;</td><td>SaaS, per-seat including viewers</td></tr>
+          <tr><td>Timeplus</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td class="mark yes">&#10003;</td><td class="mark yes">&#10003;</td><td>Streaming-first, ClickHouse storage</td></tr>
+          <tr><td>Tinybird</td><td class="mark no">&mdash;</td><td class="mark no">&mdash;</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td>Managed real-time APIs</td></tr>
+          <tr><td>Databricks</td><td class="mark yes">&#10003;</td><td class="mark yes">&#10003;</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td>All three, enterprise-priced</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <div class="note-h">Worth saying out loud</div>
+      <p>
+        Databricks acquired Redash in 2020. Tealdash is building, from that lineage, toward a
+        subset of what Databricks does — with one <code>docker compose up</code>, no lakehouse
+        commitment and no per-seat bill.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What other tools do better</h2>
+    <p class="sub">
+      Breadth is the bet, and breadth has a cost. If one of these is your whole problem, use the
+      specialist.
+    </p>
+
+    <div class="two">
+      <div class="card">
+        <h3>Briefer, for notebooks today</h3>
+        <p>Open-source notebooks and dashboards with real-time multiplayer editing, shipping now.
+        Tealdash's Notes are still ahead of us on the roadmap.</p>
+      </div>
+      <div class="card">
+        <h3>Timeplus, for true streaming</h3>
+        <p>A purpose-built streaming engine with push-based dashboards over SSE. Tealdash starts
+        with bounded reads from Kafka, which is a smaller claim honestly made.</p>
+      </div>
+      <div class="card">
+        <h3>Metabase, for non-technical users</h3>
+        <p>The best point-and-click question builder in open source. Tealdash assumes somebody on
+        the team writes SQL.</p>
+      </div>
+      <div class="card">
+        <h3>Grafana, for time-series and ops</h3>
+        <p>If your dashboards are about infrastructure and alerting on metrics, that is what
+        Grafana was built for and Tealdash was not.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>
+      <a href="index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+      <a href="performance.html">Performance</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/tdot-labs/tealdash">Source</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/tdot-labs/tealdash/blob/main/LICENSE">Apache 2.0</a>
+    </p>
+    <p style="margin-top:14px;color:var(--faint);font-size:12.5px;max-width:74ch">
+      Comparisons reflect publicly documented capabilities as of September 2026 and are offered in
+      good faith. Every other project listed here is doing good work; several of them do their
+      speciality better than Tealdash does.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

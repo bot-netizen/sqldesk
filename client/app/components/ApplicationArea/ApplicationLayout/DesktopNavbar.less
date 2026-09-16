@@ -1,0 +1,182 @@
+@import "../../../assets/less/inc/tokens";
+
+/*
+  v27 top navigation.
+
+  Moved out of a left rail so page content gets the full viewport width —
+  the list tables had grown wide enough that ~224px of permanent chrome was
+  the binding constraint. A top bar costs one row of height once, rather
+  than a column of width on every screen, which is why the collapse control
+  the rail needed is gone: there is nothing left to reclaim.
+
+  Colours read from the runtime token layer so this follows a theme switch
+  once the antd 5 ConfigProvider lands.
+*/
+
+.desktop-navbar {
+  display: flex;
+  align-items: center;
+  gap: @sp-5;
+  height: @navbar-height;
+  padding: 0 @sp-5;
+  box-sizing: border-box;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+
+  /* PlainButton resets itself with `all: unset`, which drops box-sizing to
+     content-box; everything here is sized including padding. */
+  .plain-button {
+    box-sizing: border-box;
+  }
+
+  /* --- brand --- */
+  &-brand {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+    flex: 0 0 auto;
+    color: var(--color-text);
+
+    &:hover,
+    &:focus-visible {
+      color: var(--color-text);
+    }
+
+    img {
+      width: 26px;
+      height: 26px;
+      display: block;
+    }
+  }
+
+  &-wordmark {
+    font-size: @fs-heading;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
+  /* --- links --- */
+  &-links {
+    display: flex;
+    align-items: center;
+    gap: @sp-1;
+    height: 100%;
+  }
+
+  &-link {
+    display: flex;
+    align-items: center;
+    height: @control-md;
+    padding: 0 @sp-4;
+    border-radius: @radius-control;
+    color: var(--color-text-muted);
+    font-size: @fs-body;
+    font-weight: 500;
+    white-space: nowrap;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--color-surface-sunken);
+      color: var(--color-text);
+    }
+
+    &-active,
+    &-active:hover {
+      background: var(--color-action-tint);
+      color: var(--color-action-text);
+    }
+  }
+
+  &-spacer {
+    flex: 1 1 auto;
+  }
+
+  /* --- actions --- */
+  &-create-button {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    height: @control-md;
+    padding: 0 @sp-4;
+    border-radius: @radius-control;
+    background: var(--color-action);
+    color: var(--color-action-on);
+    font-size: @fs-body;
+    font-weight: 500;
+    white-space: nowrap;
+    flex: 0 0 auto;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--color-action-hover);
+      color: var(--color-action-on);
+    }
+  }
+
+  &-icon-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: @control-md;
+    height: @control-md;
+    border-radius: @radius-control;
+    color: var(--color-text-muted);
+    font-size: 17px;
+    flex: 0 0 auto;
+    font-family: inherit;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--color-surface-sunken);
+      color: var(--color-text);
+    }
+  }
+
+  &-profile-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    border-radius: @radius-pill;
+    flex: 0 0 auto;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--color-surface-sunken);
+    }
+
+    .profile__image_thumb {
+      width: 28px;
+      height: 28px;
+      border-radius: @radius-pill;
+      margin: 0;
+      display: block;
+    }
+  }
+}
+
+/* Portalled out of .desktop-navbar, so styled at the root. */
+.desktop-navbar-dropdown-menu {
+  min-width: 180px;
+  border-radius: @radius-control;
+
+  .ant-menu-item,
+  .ant-dropdown-menu-item {
+    a,
+    button {
+      color: inherit;
+      font-family: inherit;
+    }
+  }
+
+  .version-info {
+    height: auto;
+    line-height: normal;
+    padding-top: @sp-4;
+    padding-bottom: @sp-4;
+    cursor: default;
+    color: var(--color-text-muted);
+    font-size: @fs-micro;
+  }
+}

@@ -1,0 +1,89 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Visualizations -> Chart -> Editor -> Y-Axis Settings Changes axis max value 1`] = `
+{
+  "yAxis": [
+    {
+      "rangeMax": 200,
+      "type": "linear",
+    },
+    {
+      "opposite": true,
+      "type": "linear",
+    },
+  ],
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> Y-Axis Settings Changes axis min value 1`] = `
+{
+  "yAxis": [
+    {
+      "rangeMin": 50,
+      "type": "linear",
+    },
+    {
+      "opposite": true,
+      "type": "linear",
+    },
+  ],
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> Y-Axis Settings Changes axis name 1`] = `
+{
+  "yAxis": [
+    {
+      "title": {
+        "text": "test",
+      },
+      "type": "linear",
+    },
+    {
+      "opposite": true,
+      "type": "linear",
+    },
+  ],
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> Y-Axis Settings Changes axis tick format 1`] = `
+{
+  "yAxis": [
+    {
+      "tickFormat": "s",
+      "type": "linear",
+    },
+    {
+      "opposite": true,
+      "type": "linear",
+    },
+  ],
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> Y-Axis Settings Changes axis type 1`] = `
+{
+  "yAxis": [
+    {
+      "type": "category",
+    },
+    {
+      "opposite": true,
+      "type": "linear",
+    },
+  ],
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> Y-Axis Settings for heatmap Sets Reverse Y Values option 1`] = `
+{
+  "reverseY": true,
+}
+`;
+
+exports[`Visualizations -> Chart -> Editor -> Y-Axis Settings for heatmap Sets Sort X Values option 1`] = `
+{
+  "sortY": true,
+}
+`;

@@ -1,0 +1,32 @@
+/*
+  Status is never carried by colour alone — every tone ships with its label,
+  and the dot is aria-hidden so screen readers get the word, not the shape.
+*/
+.query-health {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: var(--fs-body);
+
+  &-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-pill);
+    background: currentColor;
+    flex: 0 0 6px;
+  }
+
+  &-good {
+    color: var(--color-good);
+  }
+  &-warning {
+    color: var(--color-warning);
+  }
+  &-critical {
+    color: var(--color-critical);
+  }
+  &-neutral {
+    color: var(--color-text-muted);
+  }
+}

@@ -1,0 +1,31 @@
+.list-item-actions-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-chip);
+  color: var(--color-text-subtle);
+  font-size: 16px;
+  box-sizing: border-box;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--color-surface-sunken);
+    color: var(--color-text);
+  }
+}
+
+.list-item-actions-menu {
+  min-width: 180px;
+  border-radius: var(--radius-control);
+
+  .ant-menu-item,
+  .ant-dropdown-menu-item {
+    a,
+    button {
+      color: inherit;
+      font-family: inherit;
+    }
+  }
+}

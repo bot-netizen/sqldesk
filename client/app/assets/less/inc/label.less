@@ -1,0 +1,37 @@
+.label {
+    border-radius: @radius-chip;
+    padding: 3px 6px 4px;
+    font-weight: 500;
+    font-size: 11px;
+}
+
+.badge {
+    border-radius: 1px;
+}
+
+.label-default {
+    background: fade(@tealdash-gray, 85%);
+}
+
+.label-tag-unpublished {
+    background: fade(@tealdash-gray, 85%);
+}
+
+.label-tag-archived {
+    .label-warning();
+}
+
+.label-tag {
+    background: fade(@tealdash-gray, 10%);
+    color: fade(@tealdash-gray, 75%);
+}
+
+.label-tag-unpublished,
+.label-tag-archived,
+.label-tag {
+    margin-right: 3px;
+    display: inline;
+    margin-top: 2px;
+    max-width: 24ch;
+    .text-overflow();
+}

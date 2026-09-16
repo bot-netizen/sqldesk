@@ -1,0 +1,10 @@
+Hi {{ invited.name }},
+
+{{ inviter.name }} ({{inviter.email}}) invited you to join the Tealdash account of {{org.name}}.
+
+Use the following link to setup your account:
+
+{{ invite_url }}
+
+Your sign-in email: {{invited.email}}
+Your Tealdash account: {{ url_for('tealdash.index', org_slug=org.slug, _external=True) }}

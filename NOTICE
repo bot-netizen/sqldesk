@@ -1,0 +1,18 @@
+Tealdash
+Copyright 2026 Tealdash contributors
+
+This product includes software developed as part of the Redash project.
+
+  Copyright (c) 2013-2020, Arik Fraimovich.
+  All rights reserved.
+
+  Licensed under the BSD 2-Clause License. The full text of that licence,
+  including the required copyright notice, list of conditions and disclaimer,
+  is reproduced verbatim in LICENSE.redash and applies to all code in this
+  work that derives from Redash.
+
+Tealdash is an independent project. It is not affiliated with, endorsed by,
+or supported by the Redash project or its contributors.
+
+Map boundary data used in the map visualisations is attributed separately in
+LICENSE.borders.

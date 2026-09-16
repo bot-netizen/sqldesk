@@ -1,0 +1,85 @@
+/* Runtime token layer. Imported ONCE, from main.less — importing it from a
+   second entry point would emit a duplicate :root block. */
+@import "tokens";
+
+:root {
+  --n-50: @n-50;    --n-100: @n-100;  --n-200: @n-200;  --n-300: @n-300;
+  --n-400: @n-400;  --n-500: @n-500;  --n-600: @n-600;  --n-700: @n-700;
+  --n-800: @n-800;  --n-900: @n-900;
+
+  --ac-50: @ac-50;    --ac-100: @ac-100;  --ac-200: @ac-200;  --ac-300: @ac-300;
+  --ac-400: @ac-400;  --ac-500: @ac-500;  --ac-600: @ac-600;  --ac-700: @ac-700;
+  --ac-800: @ac-800;  --ac-900: @ac-900;
+
+  /* Semantic surfaces and ink */
+  --color-canvas:         @n-50;
+  --color-surface:        #ffffff;
+  --color-surface-sunken: @n-100;
+  --color-border:         @n-300;
+  --color-border-subtle:  @n-200;
+  --color-text:           @n-900;
+  --color-text-secondary: @n-800;
+  /* n-700, not n-600: n-600 measures 3.3-3.7:1 across our surfaces and
+     fails WCAG AA for normal text everywhere it could be used. */
+  --color-text-muted:     @n-700;
+  /* NOT a text colour. 2.0-2.2:1 on our surfaces — dividers, disabled
+     glyphs and decorative icons only. */
+  --color-text-subtle:    @n-500;
+
+  /* Action */
+  /* ac-600 is the FILL: white on it is 4.86:1, so filled buttons pass. */
+  --color-action:        @ac-600;
+  --color-action-hover:  @ac-700;
+  --color-action-tint:   @ac-100;
+  --color-action-border: @ac-300;
+  --color-action-on:     #ffffff;
+  /* ac-700 is the teal used as INK. ac-600 as text measures only 4.30:1 on
+     the action tint and 4.43:1 on the sunken surface; ac-700 gives 6.00:1
+     and 6.18:1. Use this any time the teal is the text, not the background. */
+  --color-action-text:   @ac-700;
+
+  /* Status */
+  --color-good:     @status-good;
+  --color-warning:  @status-warning;
+  --color-serious:  @status-serious;
+  --color-critical: @status-critical;
+
+  /* Chart series */
+  --series-1: @series-1;  --series-2: @series-2;  --series-3: @series-3;
+  --series-4: @series-4;  --series-5: @series-5;  --series-6: @series-6;
+  --series-7: @series-7;  --series-8: @series-8;
+
+  /* Geometry */
+  --radius-chip:    @radius-chip;
+  --radius-control: @radius-control;
+  --radius-card:    @radius-card;
+  --radius-pill:    @radius-pill;
+
+  /* Controls and density */
+  --control-sm: @control-sm;
+  --control-md: @control-md;
+  --control-lg: @control-lg;
+  --table-row-height: @table-row-height;
+  --table-row-padding-y: @table-row-padding-y;
+
+  /* Spacing */
+  --sp-1: @sp-1;  --sp-2: @sp-2;  --sp-3: @sp-3;  --sp-4: @sp-4;
+  --sp-5: @sp-5;  --sp-6: @sp-6;  --sp-7: @sp-7;  --sp-8: @sp-8;
+
+  /* Layout */
+  --navbar-height: @navbar-height;
+
+  /* Type */
+  --font-sans: @font-sans;
+  --font-mono: @font-mono;
+  --fs-display: @fs-display;
+  --fs-title:   @fs-title;
+  --fs-heading: @fs-heading;
+  --fs-body:    @fs-body;
+  --fs-small:   @fs-small;
+  --fs-micro:   @fs-micro;
+
+  /* Elevation — borders carry structure; shadow is for overlays only */
+  --shadow-raised:  0 1px 2px rgba(28, 27, 26, 0.05);
+  --shadow-overlay: 0 8px 24px -6px rgba(28, 27, 26, 0.14);
+}

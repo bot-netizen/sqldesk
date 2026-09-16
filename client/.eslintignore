@@ -1,0 +1,7 @@
+build/*.js
+dist
+config/*.js
+client/dist
+
+# Vendored third-party source, kept as close to its original as possible.
+client/app/lib/sql-formatter/

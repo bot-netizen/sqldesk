@@ -1,0 +1,97 @@
+.query-fullscreen {
+  .query-editor-wrapper {
+    padding: 15px;
+    margin-bottom: 10px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+
+    .query-editor-container {
+      flex: 1 1 auto;
+
+      &[data-executing] {
+        .ace_marker-layer {
+          .ace_selection {
+            background-color: rgb(255, 210, 181);
+          }
+        }
+      }
+    }
+
+    .query-editor-controls {
+      flex: 0 0 auto;
+      margin-top: 10px;
+    }
+  }
+
+  .query-results-wrapper {
+    display: flex;
+    flex-direction: column;
+    margin: 15px 0 15px 0;
+
+    .query-parameters-wrapper {
+      flex: 0 0 auto;
+    }
+
+    .query-alerts {
+      margin: 15px 0;
+      flex: 0 0 auto;
+    }
+
+    .query-results-log {
+      padding: 10px;
+      flex: 0 0 auto;
+    }
+
+    .ant-tabs {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+
+      .ant-tabs-bar {
+        flex: 0 0 auto;
+      }
+
+      .ant-tabs-content-holder {
+        flex: 1 1 auto;
+        position: relative;
+
+        @media (min-width: 880px) {
+          .ant-tabs-tabpane {
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            overflow: auto;
+          }
+        }
+      }
+    }
+  }
+}
+
+// The description used to sit at the foot of the left rail, below the schema
+// browser, where it was easy to miss. It now reads directly under the query
+// title -- but that puts it above the SQL, so it is capped and scrolls rather
+// than pushing the editor down the page.
+.query-page-query-description {
+  margin-top: 2px;
+
+  .edit-in-place {
+    display: block;
+    max-height: 90px;
+    overflow: auto;
+    color: var(--color-text-muted);
+
+    &.active {
+      overflow: visible;
+      max-height: unset !important;
+
+      .ant-input {
+        resize: vertical;
+      }
+    }
+  }
+}
