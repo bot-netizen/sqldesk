@@ -24,6 +24,18 @@ x-sqldesk-service: &sqldesk-service
   env_file:
     - .env
   restart: unless-stopped
+  volumes:
+    # Every service that touches an uploaded file needs the same one. The
+    # server writes it, and the worker -- a different container -- is what
+    # actually runs the query, so DuckDB opens the file by absolute path from
+    # there. Without a shared volume the upload appears to succeed and every
+    # query against it then fails, because the bytes only ever existed in the
+    # server's container. It is also the only thing keeping uploads across a
+    # `compose up` that recreates a container.
+    #
+    # The development compose.yaml does not need this: it bind-mounts the whole
+    # working tree into every service, which is why uploads work there.
+    - sqldesk-uploads:/app/uploads
 
 x-sqldesk-environment: &sqldesk-environment
   SQLDESK_REDIS_URL: "redis://redis:6379/0"
@@ -92,3 +104,4 @@ services:
 volumes:
   sqldesk-postgres:
   sqldesk-redis:
+  sqldesk-uploads:
