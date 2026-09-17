@@ -49,6 +49,35 @@ TimeEditor.defaultProps = {
   defaultValue: null,
 };
 
+// Exported so the schedule dropdown in the page header produces exactly the
+// shape this dialog would. An interval of a day or more has to be pinned to a
+// time of day and a weekly one to a weekday, or there is nothing for the
+// scheduler to fire on; shorter intervals must have those cleared, or a
+// schedule that used to be weekly keeps a weekday it no longer honours.
+export function scheduleForInterval(schedule, newSeconds) {
+  const next = clone(schedule || RefreshScheduleDefault);
+  const { interval: newInterval } = secondsToInterval(newSeconds);
+
+  if (newInterval === IntervalEnum.NEVER) {
+    next.until = null;
+  }
+  if ([IntervalEnum.NEVER, IntervalEnum.MINUTES, IntervalEnum.HOURS].indexOf(newInterval) !== -1) {
+    next.time = null;
+  }
+  if (newInterval !== IntervalEnum.WEEKS) {
+    next.day_of_week = null;
+  }
+  if ((newInterval === IntervalEnum.DAYS || newInterval === IntervalEnum.WEEKS) && !next.time) {
+    next.time = moment().hour("00").minute("15").utc().format(HOUR_FORMAT);
+  }
+  if (newInterval === IntervalEnum.WEEKS && !next.day_of_week) {
+    next.day_of_week = WEEKDAYS_FULL[0];
+  }
+
+  next.interval = newSeconds;
+  return next;
+}
+
 class ScheduleDialog extends React.Component {
   static propTypes = {
     schedule: RefreshScheduleType,
@@ -108,30 +137,8 @@ class ScheduleDialog extends React.Component {
   };
 
   setInterval = (newSeconds) => {
-    const { newSchedule } = this.state;
     const { interval: newInterval } = secondsToInterval(newSeconds);
-
-    // resets to defaults
-    if (newInterval === IntervalEnum.NEVER) {
-      newSchedule.until = null;
-    }
-    if ([IntervalEnum.NEVER, IntervalEnum.MINUTES, IntervalEnum.HOURS].indexOf(newInterval) !== -1) {
-      newSchedule.time = null;
-    }
-    if (newInterval !== IntervalEnum.WEEKS) {
-      newSchedule.day_of_week = null;
-    }
-    if (
-      (newInterval === IntervalEnum.DAYS || newInterval === IntervalEnum.WEEKS) &&
-      (!this.state.minute || !this.state.hour)
-    ) {
-      newSchedule.time = moment().hour("00").minute("15").utc().format(HOUR_FORMAT);
-    }
-    if (newInterval === IntervalEnum.WEEKS && !this.state.dayOfWeek) {
-      newSchedule.day_of_week = WEEKDAYS_FULL[0];
-    }
-
-    newSchedule.interval = newSeconds;
+    const newSchedule = scheduleForInterval(this.state.newSchedule, newSeconds);
 
     const [hour, minute] = newSchedule.time ? localizeTime(newSchedule.time).split(":") : [null, null];
 
