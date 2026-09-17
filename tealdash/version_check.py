@@ -59,17 +59,24 @@ def usage_data():
 
 
 def run_version_check():
+    # Checked before anything else is done. There is no default endpoint -- an
+    # operator has to name one -- so on most installs this returns here, and
+    # gathering usage_data() first would mean running six aggregates over every
+    # table once a day only to discard the result.
+    if not settings.VERSION_CHECK_URL:
+        logging.info("No version check endpoint configured; skipping.")
+        return
+
     logging.info("Performing version check.")
     logging.info("Current version: %s", current_version)
 
     data = {"current_version": current_version}
 
-    if Organization.query.first().get_setting("beacon_consent"):
+    # No organization exists until the initial setup form is submitted, and the
+    # daily job can fire before somebody gets round to it.
+    organization = Organization.query.first()
+    if organization is not None and organization.get_setting("beacon_consent"):
         data["usage"] = usage_data()
-
-    if not settings.VERSION_CHECK_URL:
-        logging.info("No version check endpoint configured; skipping.")
-        return
 
     try:
         response = requests.post(
