@@ -131,6 +131,13 @@
     padding-bottom: var(--table-row-padding-y);
   }
 
+  /* Same size as a cell in a result table, so a row of queries and a row of
+     query output read as the same kind of thing. The header keeps its smaller
+     uppercase treatment: it is a label for the rows, not one of them. */
+  tbody > tr > td {
+    font-size: 13px;
+  }
+
   /*
     antd pads .ant-table-column-sorters as well as the th, so a sortable
     header picked up the vertical padding twice and stood 79px tall against

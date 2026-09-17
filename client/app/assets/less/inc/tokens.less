@@ -78,14 +78,15 @@
    Applied to header and body cells alike: a header that is taller than its
    rows reads as a separate block rather than a label for them. The two are
    distinguished by background, not by size. */
-@table-row-height: 58px;
+@table-row-height: 42px;
 /* Vertical padding inside a table row. Rows are sized by their content plus
    this, so it is the one knob for list density.
    Rows measured 64px before v27 (a lopsided 5px/14px, with tags forced onto
-   a second line). Tags are inline now, so content is a single 28px line and
-   15px here lands a row at 58px — about 10% shorter. Drop this to 10px for
-   a 48px row if you want the list denser. */
-@table-row-padding-y: 15px;
+   a second line), then 58px. 7px here matches the padding on a result table's
+   cells, so a list row and a data row are the same shape; a list row is a
+   little taller only because it carries a 28px line of content -- a star, a
+   name and its tags -- where a data row carries text. */
+@table-row-padding-y: 7px;
 
 /* --- Spacing -------------------------------------------------------------- */
 @sp-1: 4px;

@@ -28,6 +28,19 @@
     // Keeps the column names on one line, so the header cannot grow taller
     // than a row while the rows stay put.
     white-space: nowrap;
+
+    // antd moves a sortable column's padding off the th and onto this wrapper,
+    // so that setting the th's padding adds to it rather than replacing it --
+    // which is why the header stayed 63px against a 34px row even after the
+    // cells were made compact. The th above carries the padding; this must not
+    // carry it again.
+    //
+    // antd pads it so the whole sort target is clickable. Nothing is lost here:
+    // prepareColumns puts the sort handler on the th itself, so the entire cell
+    // remains clickable.
+    .ant-table-column-sorters {
+      padding: 0;
+    }
   }
 }
 
