@@ -86,15 +86,7 @@ def refresh_queries():
     logger.info("Refreshing queries...")
     enqueued = []
 
-    # Two ways a query becomes due: its own schedule, or a dashboard it sits on
-    # having one. Deduplicated by id, because a query on a scheduled dashboard
-    # may also be scheduled itself, and running it twice in a pass would spend
-    # a data source's time to get the same answer.
-    due = {query.id: query for query in models.Query.outdated_queries()}
-    for query in models.Query.outdated_dashboard_queries():
-        due.setdefault(query.id, query)
-
-    for query in due.values():
+    for query in models.Query.outdated_queries():
         if not _should_refresh_query(query):
             continue
 

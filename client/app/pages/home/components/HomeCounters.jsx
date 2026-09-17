@@ -49,13 +49,21 @@ export default function HomeCounters({ counters, loading }) {
   const storage = prettySizeWithUnit(c.result_storage_bytes || 0);
 
   return (
-    <div className="home-counters">
-      <Counter label="Queries" value={c.queries} href="queries" loading={loading} />
-      <Counter label="Dashboards" value={c.dashboards} href="dashboards" loading={loading} />
-      <Counter label="Scheduled" value={c.scheduled_queries} href="queries?tab=all" loading={loading} />
-      <Counter label="Alerts" value={c.alerts} href="alerts" loading={loading} />
-      <Counter label="Result storage" value={storage.value} unit={storage.unit} loading={loading} />
-    </div>
+    <section className="home-counters-section">
+      <h2 className="home-section-title">My Desk</h2>
+      {/* These count what this user made, so they lead to the same user's
+          lists -- "queries/my", not every query on the instance. A tile
+          reading 12 that opened a list of 240 would be answering a different
+          question than the one it asked. */}
+      <div className="home-counters">
+        <Counter label="Queries" value={c.queries} href="queries/my" loading={loading} />
+        <Counter label="Dashboards" value={c.dashboards} href="dashboards/my" loading={loading} />
+        <Counter label="Scheduled" value={c.scheduled_queries} href="queries/my" loading={loading} />
+        <Counter label="Alerts" value={c.alerts} href="alerts" loading={loading} />
+        {/* No link: nothing lists results by the space they take. */}
+        <Counter label="Result storage" value={storage.value} unit={storage.unit} loading={loading} />
+      </div>
+    </section>
   );
 }
 

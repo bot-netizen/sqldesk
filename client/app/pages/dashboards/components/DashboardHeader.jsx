@@ -8,8 +8,6 @@ import Menu from "antd/lib/menu";
 import EllipsisOutlinedIcon from "@ant-design/icons/EllipsisOutlined";
 import Modal from "antd/lib/modal";
 import Tooltip from "@/components/Tooltip";
-import ScheduleControl from "@/components/ScheduleControl";
-import useDashboardSchedule from "../hooks/useDashboardSchedule";
 import FavoritesControl from "@/components/FavoritesControl";
 import EditInPlace from "@/components/EditInPlace";
 import ShareDashboardButton from "./ShareDashboardButton";
@@ -114,29 +112,6 @@ RefreshButton.propTypes = {
   dashboardConfiguration: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
 };
 
-// Sits beside the refresh button and is easily mistaken for it, so it is
-// labelled "Schedule". The button next to it re-polls while you watch and is
-// forgotten when the tab closes; this is stored on the dashboard and runs the
-// queries behind its widgets whether anyone is looking or not.
-function DashboardScheduleButton({ dashboardConfiguration }) {
-  const { dashboard, updateDashboard } = dashboardConfiguration;
-  const { refreshOptions, setInterval, editCron } = useDashboardSchedule(dashboard, updateDashboard);
-
-  return (
-    <ScheduleControl
-      label="Schedule"
-      schedule={dashboard.schedule}
-      refreshOptions={refreshOptions}
-      onSelectInterval={setInterval}
-      onEditCron={editCron}
-    />
-  );
-}
-
-DashboardScheduleButton.propTypes = {
-  dashboardConfiguration: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
-};
-
 function DashboardMoreOptionsButton({ dashboardConfiguration }) {
   const {
     dashboard,
@@ -237,15 +212,13 @@ function DashboardControl({ dashboardConfiguration, headerExtra }) {
               <span className="fa fa-paper-plane m-r-5" /> Publish
             </Button>
           )}
-          {canEditDashboard && !dashboard.isNew && (
-            <DashboardScheduleButton dashboardConfiguration={dashboardConfiguration} />
-          )}
           {showRefreshButton && <RefreshButton dashboardConfiguration={dashboardConfiguration} />}
           <ShareDashboardButton
             dashboard={dashboard}
             // The grid, not the page: a shared snapshot should not carry the
             // app's navigation or this header.
             getExportTarget={() => document.getElementById("dashboard-container")}
+            onShowPublicLink={showShareButton ? showShareDashboardDialog : null}
           />
           {showFullscreenButton && (
             <Tooltip className="hidden-xs" title="Enable/Disable Fullscreen display">
@@ -260,19 +233,6 @@ function DashboardControl({ dashboardConfiguration, headerExtra }) {
             </Tooltip>
           )}
           {headerExtra}
-          {showShareButton && (
-            <Tooltip title="Dashboard Sharing Options">
-              <Button
-                className="icon-button m-l-5"
-                type={buttonType(dashboard.publicAccessEnabled)}
-                onClick={showShareDashboardDialog}
-                data-test="OpenShareForm"
-                aria-label="Share"
-              >
-                <i className="zmdi zmdi-share" aria-hidden="true" />
-              </Button>
-            </Tooltip>
-          )}
           {showMoreOptionsButton && <DashboardMoreOptionsButton dashboardConfiguration={dashboardConfiguration} />}
         </span>
       )}

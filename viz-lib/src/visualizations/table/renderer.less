@@ -1,5 +1,36 @@
 @import "../variables";
 
+/*
+  One row height and one font size for this table wherever it renders -- the
+  query editor, a dashboard widget, an alert. It used to be set on the query
+  page only, so the same table was two different sizes depending on where you
+  were looking at it.
+
+  The header is included deliberately. antd pads a th more than a td, which on
+  a compact table made the column names a band roughly twice the height of the
+  rows beneath them.
+*/
+.table-visualization-container {
+  font-size: 13px;
+
+  .ant-table {
+    font-size: inherit;
+  }
+
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td {
+    padding: 7px 12px;
+    line-height: 1.5;
+  }
+
+  .ant-table-thead > tr > th {
+    font-weight: 500;
+    // Keeps the column names on one line, so the header cannot grow taller
+    // than a row while the rows stay put.
+    white-space: nowrap;
+  }
+}
+
 .table-visualization-container {
   .ant-pagination.ant-table-pagination {
     float: none;

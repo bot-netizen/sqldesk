@@ -269,7 +269,6 @@ def serialize_dashboard(obj, with_widgets=False, user=None, with_favorite_state=
         "is_archived": obj.is_archived,
         "is_draft": obj.is_draft,
         "tags": obj.tags or [],
-        "schedule": obj.schedule,
         "updated_at": obj.updated_at,
         "created_at": obj.created_at,
         "version": obj.version,

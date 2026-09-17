@@ -5,6 +5,7 @@ import Button from "antd/lib/button";
 import Dropdown from "antd/lib/dropdown";
 import Menu from "antd/lib/menu";
 import ShareAltOutlinedIcon from "@ant-design/icons/ShareAltOutlined";
+import LinkOutlinedIcon from "@ant-design/icons/LinkOutlined";
 import FilePdfOutlinedIcon from "@ant-design/icons/FilePdfOutlined";
 import FileImageOutlinedIcon from "@ant-design/icons/FileImageOutlined";
 import PlainButton from "@/components/PlainButton";
@@ -22,7 +23,7 @@ import { renderDashboardToPng, renderDashboardToPdf, downloadBlob, filenameFor }
   captured is the dashboard grid rather than the whole page — no header,
   no navigation.
 */
-export default function ShareDashboardButton({ dashboard, getExportTarget }) {
+export default function ShareDashboardButton({ dashboard, getExportTarget, onShowPublicLink }) {
   const [busy, setBusy] = useState(null);
 
   const runExport = useCallback(
@@ -69,6 +70,20 @@ export default function ShareDashboardButton({ dashboard, getExportTarget }) {
       placement="bottomRight"
       overlay={
         <Menu data-test="ShareDashboardMenu">
+          {/* Sharing a link and exporting a file are both "give this to
+              somebody else", and they used to be two buttons side by side --
+              one a dropdown, one an icon -- with no way to tell which was
+              which. The link comes first because it is the one that stays up
+              to date. */}
+          {onShowPublicLink && (
+            <Menu.Item key="link">
+              <PlainButton onClick={onShowPublicLink} data-test="OpenShareForm">
+                <LinkOutlinedIcon className="m-r-5" aria-hidden="true" />
+                Public link&hellip;
+              </PlainButton>
+            </Menu.Item>
+          )}
+          {onShowPublicLink && <Menu.Divider />}
           <Menu.Item key="pdf" disabled={!!busy}>
             <PlainButton onClick={exportPdf} data-test="ExportPdfButton">
               <FilePdfOutlinedIcon className="m-r-5" aria-hidden="true" />
@@ -96,4 +111,11 @@ ShareDashboardButton.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   dashboard: PropTypes.object.isRequired,
   getExportTarget: PropTypes.func.isRequired,
+  // Null when this user cannot share the dashboard, which is not the same as
+  // the menu having no link item to show.
+  onShowPublicLink: PropTypes.func,
+};
+
+ShareDashboardButton.defaultProps = {
+  onShowPublicLink: null,
 };

@@ -133,29 +133,3 @@
 .query-fixed-layout .query-visualization-tabs .visualization-renderer {
   padding: 0;
 }
-
-// Compact results, on the editor page only. This is a working surface -- you
-// are scanning rows to see whether the query did what you meant -- so it is
-// tighter here than the same table in a dashboard widget, where the height
-// somebody dragged was chosen against the roomier spacing and would now show a
-// band of empty card under the rows.
-.query-fixed-layout .query-visualization-tabs {
-  .table-visualization-container {
-    font-size: 13px;
-
-    .ant-table {
-      font-size: inherit;
-    }
-
-    .ant-table-thead > tr > th,
-    .ant-table-tbody > tr > td {
-      padding: 7px 12px;
-    }
-
-    // Keeps the column names in view once the rows outrun the pane, which is
-    // the point of fitting more of them on screen.
-    .ant-table-thead > tr > th {
-      white-space: nowrap;
-    }
-  }
-}

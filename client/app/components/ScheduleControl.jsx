@@ -14,16 +14,15 @@ import "./ScheduleControl.less";
 const NEVER = "never";
 const CUSTOM = "custom";
 
-// The five people actually reach for. The full list this installation allows
+// The ones people actually reach for. The full list this installation allows
 // runs to twenty-one entries, from a minute to a month, which is a scrolling
-// menu to choose something everybody picks from the first handful of. Anything
-// else is a crontab expression, which says it exactly rather than approximately.
-const COMMON_INTERVALS = [300, 600, 900, 1800, 3600];
+// menu to choose something everybody picks from the first handful of.
+const COMMON_INTERVALS = [300, 600, 900, 1800, 3600, 10800, 21600, 86400];
 
 // Shared by the query editor and the dashboard header. A query's schedule runs
 // the query; a dashboard's runs every query behind its widgets. Same shape,
 // same expression, same menu.
-export default function ScheduleControl({ schedule, isNew, label, refreshOptions, onSelectInterval, onEditCron, disabled }) {
+export default function ScheduleControl({ schedule, isNew, label, refreshOptions, onSelectInterval, disabled }) {
   const current = schedule || {};
   const currentCron = current.cron || null;
   const currentInterval = (!currentCron && current.interval) || null;
@@ -48,21 +47,17 @@ export default function ScheduleControl({ schedule, isNew, label, refreshOptions
       );
 
     const onClick = ({ key }) => {
-      if (key === CUSTOM) {
-        onEditCron();
-      } else if (key === NEVER) {
+      if (key === NEVER) {
         onSelectInterval(null);
       } else {
         onSelectInterval(Number(key));
       }
     };
 
-    let selectedKey = NEVER;
-    if (currentCron) {
-      selectedKey = CUSTOM;
-    } else if (currentInterval) {
-      selectedKey = String(currentInterval);
-    }
+    // A crontab schedule set before the menu stopped offering them, or an
+    // interval outside this list, ticks nothing -- but the button still reads
+    // it back, so it is visible rather than silently replaced.
+    const selectedKey = !currentCron && currentInterval ? String(currentInterval) : currentCron ? CUSTOM : NEVER;
 
     return (
       <Menu onClick={onClick} selectedKeys={[selectedKey]}>
@@ -77,14 +72,9 @@ export default function ScheduleControl({ schedule, isNew, label, refreshOptions
             Every {durationHumanize(seconds, { omitSingleValueNumber: true })}
           </Menu.Item>
         ))}
-        <Menu.Divider />
-        <Menu.Item key={CUSTOM} data-test="EditSchedule">
-          {tick(selectedKey === CUSTOM)}
-          Custom&hellip;
-        </Menu.Item>
       </Menu>
     );
-  }, [currentCron, currentInterval, intervals, onSelectInterval, onEditCron]);
+  }, [currentCron, currentInterval, intervals, onSelectInterval]);
 
   return (
     <Dropdown overlay={menu} trigger={["click"]} disabled={disabled} placement="bottomRight">
@@ -106,7 +96,6 @@ ScheduleControl.propTypes = {
   label: PropTypes.string,
   refreshOptions: PropTypes.arrayOf(PropTypes.number),
   onSelectInterval: PropTypes.func,
-  onEditCron: PropTypes.func,
   disabled: PropTypes.bool,
 };
 
@@ -116,6 +105,5 @@ ScheduleControl.defaultProps = {
   label: "Refresh",
   refreshOptions: [],
   onSelectInterval: () => {},
-  onEditCron: () => {},
   disabled: false,
 };

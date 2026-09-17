@@ -4,7 +4,7 @@ import Dropdown from "antd/lib/dropdown";
 import ScheduleControl from "./ScheduleControl";
 
 // What a stock installation allows: a minute to a month, twenty-one entries.
-const ALL_INTERVALS = [60, 300, 600, 900, 1800, 3600, 7200, 86400, 604800, 2592000];
+const ALL_INTERVALS = [60, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 86400, 604800, 2592000];
 
 function getWrapper({ schedule = null, ...props } = {}) {
   return mount(
@@ -13,7 +13,6 @@ function getWrapper({ schedule = null, ...props } = {}) {
       isNew={false}
       refreshOptions={ALL_INTERVALS}
       onSelectInterval={() => {}}
-      onEditCron={() => {}}
       {...props}
     />
   );
@@ -44,7 +43,7 @@ function clickItem(menu, label) {
 }
 
 describe("ScheduleControl", () => {
-  it("offers five intervals and nothing longer than an hour", () => {
+  it("offers the intervals people reach for, and nothing else", () => {
     expect(labels(getMenu(getWrapper()))).toEqual([
       "Never",
       "Every 5 minutes",
@@ -52,7 +51,9 @@ describe("ScheduleControl", () => {
       "Every 15 minutes",
       "Every 30 minutes",
       "Every hour",
-      "Custom…",
+      "Every 3 hours",
+      "Every 6 hours",
+      "Every day",
     ]);
   });
 
@@ -61,7 +62,7 @@ describe("ScheduleControl", () => {
     // worse than a shorter menu.
     const menu = getMenu(getWrapper({ refreshOptions: [1800, 3600] }));
 
-    expect(labels(menu)).toEqual(["Never", "Every 30 minutes", "Every hour", "Custom…"]);
+    expect(labels(menu)).toEqual(["Never", "Every 30 minutes", "Every hour"]);
   });
 
   it("reports the chosen interval in seconds", () => {
@@ -79,13 +80,13 @@ describe("ScheduleControl", () => {
     expect(onSelectInterval).toHaveBeenCalledWith(null);
   });
 
-  it("opens the crontab dialog for anything else", () => {
-    const onEditCron = jest.fn();
-    const onSelectInterval = jest.fn();
-    clickItem(getMenu(getWrapper({ onEditCron, onSelectInterval })), "Custom…");
+  it("reads back a crontab schedule set before the menu dropped them", () => {
+    // The expression is no longer offered, but a query that already carries one
+    // still runs on it, so the button has to say so rather than read "Never".
+    const wrapper = getWrapper({ schedule: { interval: null, cron: "0 9 * * 1-5" } });
 
-    expect(onEditCron).toHaveBeenCalled();
-    expect(onSelectInterval).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("0 9 * * 1-5");
+    expect(labels(getMenu(wrapper))).not.toContain("Custom…");
   });
 
   it("marks the interval currently in force", () => {
@@ -93,14 +94,6 @@ describe("ScheduleControl", () => {
 
     expect(menu.find(Dropdown).length).toBe(0); // sanity: we have the menu, not the button
     expect(menu.find("li.ant-menu-item-selected").text().trim()).toBe("Every 30 minutes");
-  });
-
-  it("marks Custom when a crontab expression is in force", () => {
-    // Even though the expression may happen to mean every 30 minutes, it is the
-    // custom entry that describes where it was set.
-    const menu = getMenu(getWrapper({ schedule: { interval: null, cron: "*/30 * * * *" } }));
-
-    expect(menu.find("li.ant-menu-item-selected").text().trim()).toBe("Custom…");
   });
 
   it("shows the expression on the button", () => {
