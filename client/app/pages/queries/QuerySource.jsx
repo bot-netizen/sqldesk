@@ -1,5 +1,5 @@
-import { extend, find, includes, isEmpty, map } from "lodash";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { clamp, extend, find, includes, isEmpty, map, size as sizeOf } from "lodash";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import cx from "classnames";
 import { useDebouncedCallback } from "use-debounce";
@@ -19,6 +19,7 @@ import * as queryFormat from "@/lib/queryFormat";
 import QueryPageHeader from "./components/QueryPageHeader";
 import QueryMetadata from "./components/QueryMetadata";
 import QueryScheduleControl from "./components/QueryScheduleControl";
+import QueryPageActions from "./components/QueryPageActions";
 import QueryVisualizationTabs from "./components/QueryVisualizationTabs";
 import QueryExecutionStatus from "./components/QueryExecutionStatus";
 import QuerySourceAlerts from "./components/QuerySourceAlerts";
@@ -37,6 +38,7 @@ import useQueryFlags from "./hooks/useQueryFlags";
 import useQueryParameters from "./hooks/useQueryParameters";
 import useAddNewParameterDialog from "./hooks/useAddNewParameterDialog";
 import useEditScheduleDialog from "./hooks/useEditScheduleDialog";
+import useSetQuerySchedule from "./hooks/useSetQuerySchedule";
 import useAddVisualizationDialog from "./hooks/useAddVisualizationDialog";
 import useEditVisualizationDialog from "./hooks/useEditVisualizationDialog";
 import useDeleteVisualization from "./hooks/useDeleteVisualization";
@@ -52,6 +54,14 @@ function chooseDataSourceId(dataSourceIds, availableDataSources) {
   return find(dataSourceIds, (id) => includes(availableDataSources, id)) || null;
 }
 
+// Sizing the editor to its content. Ace is absolutely positioned inside its
+// container and so contributes no height of its own, which is why this is
+// computed rather than left to the layout.
+const EDITOR_LINE_HEIGHT = 18; // 13px JetBrains Mono as Ace spaces it
+const EDITOR_CHROME_HEIGHT = 76; // wrapper padding plus the control strip
+const EDITOR_MIN_LINES = 3;
+const EDITOR_MAX_LINES = 20;
+
 function QuerySource(props) {
   const { query, setQuery, isDirty, saveQuery } = useQuery(props.query);
   const { dataSourcesLoaded, dataSources, dataSource } = useQueryDataSources(query);
@@ -61,6 +71,11 @@ function QuerySource(props) {
   const [selectedVisualization, setSelectedVisualization] = useVisualizationTabHandler(query.visualizations);
   const { QueryEditor, SchemaBrowser } = getEditorComponents(dataSource && dataSource.type);
   const isMobile = !useMedia({ minWidth: 768 });
+  // Pinned to the 880px breakpoint in assets/less/tealdash/query.less, where
+  // the left rail collapses and the editor's own control strip comes back into
+  // view. Above it Save and Execute live in the page header; below it they stay
+  // under the editor, so there is only ever one of each.
+  const actionsInHeader = useMedia({ minWidth: 881 });
 
   useUnsavedChangesAlert(isDirty);
 
@@ -144,6 +159,7 @@ function QuerySource(props) {
   }, [query.data_source_id, queryFlags.isNew, dataSourcesLoaded, dataSources, handleDataSourceChange]);
 
   const editSchedule = useEditScheduleDialog(query, setQuery);
+  const { refreshOptions, setInterval: setScheduleInterval } = useSetQuerySchedule(query, setQuery);
   const openAddNewParameterDialog = useAddNewParameterDialog(query, (newQuery, param) => {
     if (editorRef.current) {
       editorRef.current.paste(param.toQueryTextFragment());
@@ -192,8 +208,41 @@ function QuerySource(props) {
   const editVisualization = useEditVisualizationDialog(query, queryResult, (newQuery) => setQuery(newQuery));
   const deleteVisualization = useDeleteVisualization(query, setQuery);
 
+  // Defined once and handed to whichever of the two places is rendering them.
+  const saveButtonProps = queryFlags.canEdit && {
+    text: (
+      <React.Fragment>
+        <span className="hidden-xs">Save</span>
+        {isDirty && !isQuerySaving ? "*" : null}
+      </React.Fragment>
+    ),
+    shortcut: "mod+s",
+    onClick: doSaveQuery,
+    loading: isQuerySaving,
+  };
+
+  const executeButtonProps = {
+    disabled: !queryFlags.canExecute || isQueryExecuting || areParametersDirty,
+    shortcut: "mod+enter, alt+enter, ctrl+enter, shift+enter",
+    onClick: doExecuteQuery,
+    text: <span className="hidden-xs">{selectedText === null ? "Execute" : "Execute Selected"}</span>,
+  };
+
+  // The editor used to be a flat 300px whatever the query was, which on a
+  // one-line query is most of a screen of nothing sitting on top of the
+  // results. This is only the default: Resizable writes flex-basis straight
+  // onto the element when the handle is dragged, and an inline style outranks
+  // the rule this variable feeds, so a size somebody chose is never overridden.
+  const editorHeight = useMemo(() => {
+    const lines = clamp(sizeOf((query.query || "").split("\n")), EDITOR_MIN_LINES, EDITOR_MAX_LINES);
+    return lines * EDITOR_LINE_HEIGHT + EDITOR_CHROME_HEIGHT;
+  }, [query.query]);
+
   return (
-    <div className={cx("query-page-wrapper", { "query-fixed-layout": !isMobile })}>
+    <div
+      className={cx("query-page-wrapper", { "query-fixed-layout": !isMobile })}
+      style={{ "--query-editor-height": `${editorHeight}px` }}
+    >
       <QuerySourceAlerts query={query} dataSourcesAvailable={!dataSourcesLoaded || dataSources.length > 0} />
       <div className="container w-100 p-b-10">
         <QueryPageHeader
@@ -206,28 +255,19 @@ function QuerySource(props) {
               {!queryFlags.isNew && (
                 <QueryScheduleControl
                   query={query}
+                  refreshOptions={refreshOptions}
+                  onSelectInterval={setScheduleInterval}
                   onEditSchedule={editSchedule}
                   disabled={!queryFlags.canEdit || !queryFlags.canSchedule}
                 />
+              )}
+              {actionsInHeader && (
+                <QueryPageActions saveButtonProps={saveButtonProps} executeButtonProps={executeButtonProps} />
               )}
             </DynamicComponent>
           }
           onChange={setQuery}
         />
-        {!queryFlags.isNew && (
-          <div className="query-page-query-description">
-            <EditInPlace
-              className="w-100"
-              isEditable={queryFlags.canEdit}
-              ignoreBlanks={false}
-              placeholder="Add description"
-              value={query.description}
-              onDone={updateQueryDescription}
-              editorProps={{ autoSize: { minRows: 2, maxRows: 4 } }}
-              multiline
-            />
-          </div>
-        )}
       </div>
       <main className="query-fullscreen">
         <Resizable direction="horizontal" sizeAttribute="flex-basis" toggleShortcut="Alt+Shift+D, Alt+D">
@@ -256,9 +296,25 @@ function QuerySource(props) {
               />
             </div>
 
-            {/* Only lineage stays in the rail: the description moved under the
-                title, and the schedule became a header action. */}
+            {/* The description sat under the title for a while, which read well
+                but pushed the SQL and everything below it down the page on every
+                query that had one. Down here it is still in view without
+                spending height the results need. */}
             {!query.isNew() && <QueryMetadata layout="table" query={query} showSchedule={false} />}
+            {!queryFlags.isNew && (
+              <div className="query-page-query-description">
+                <EditInPlace
+                  className="w-100"
+                  isEditable={queryFlags.canEdit}
+                  ignoreBlanks={false}
+                  placeholder="Add description"
+                  value={query.description}
+                  onDone={updateQueryDescription}
+                  editorProps={{ autoSize: { minRows: 2, maxRows: 6 } }}
+                  multiline
+                />
+              </div>
+            )}
           </nav>
         </Resizable>
 
@@ -296,27 +352,8 @@ function QuerySource(props) {
                         shortcut: isFormatQueryAvailable ? "mod+shift+f" : null,
                         onClick: formatQuery,
                       }}
-                      saveButtonProps={
-                        queryFlags.canEdit && {
-                          text: (
-                            <React.Fragment>
-                              <span className="hidden-xs">Save</span>
-                              {isDirty && !isQuerySaving ? "*" : null}
-                            </React.Fragment>
-                          ),
-                          shortcut: "mod+s",
-                          onClick: doSaveQuery,
-                          loading: isQuerySaving,
-                        }
-                      }
-                      executeButtonProps={{
-                        disabled: !queryFlags.canExecute || isQueryExecuting || areParametersDirty,
-                        shortcut: "mod+enter, alt+enter, ctrl+enter, shift+enter",
-                        onClick: doExecuteQuery,
-                        text: (
-                          <span className="hidden-xs">{selectedText === null ? "Execute" : "Execute Selected"}</span>
-                        ),
-                      }}
+                      saveButtonProps={!actionsInHeader && saveButtonProps}
+                      executeButtonProps={!actionsInHeader && executeButtonProps}
                       autocompleteToggleProps={{
                         available: autocompleteAvailable,
                         enabled: autocompleteEnabled,

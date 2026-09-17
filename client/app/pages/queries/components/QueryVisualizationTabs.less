@@ -71,7 +71,10 @@
     border-radius: 0 var(--radius-card) var(--radius-card) var(--radius-card);
 
     .ant-tabs-tabpane {
-      padding: 16px;
+      // 16px here used to stack with 15px on .visualization-renderer below,
+      // insetting every result table by 31px on all four sides. One inset,
+      // applied once, in one place.
+      padding: 12px;
       background: var(--color-surface);
       // The pane is inset to the holder's padding box, so its own background
       // would square off the corners the holder just rounded. Clipping the
@@ -117,6 +120,35 @@
   display: none;
 }
 
+// The tab pane above already insets its contents. This added another 15px on
+// top, so a result table sat 31px in from the card on all four sides and lost
+// roughly two rows to padding alone.
 .query-fixed-layout .query-visualization-tabs .visualization-renderer {
-  padding: 15px;
+  padding: 0;
+}
+
+// Compact results, on the editor page only. This is a working surface -- you
+// are scanning rows to see whether the query did what you meant -- so it is
+// tighter here than the same table in a dashboard widget, where the height
+// somebody dragged was chosen against the roomier spacing and would now show a
+// band of empty card under the rows.
+.query-fixed-layout .query-visualization-tabs {
+  .table-visualization-container {
+    font-size: 13px;
+
+    .ant-table {
+      font-size: inherit;
+    }
+
+    .ant-table-thead > tr > th,
+    .ant-table-tbody > tr > td {
+      padding: 7px 12px;
+    }
+
+    // Keeps the column names in view once the rows outrun the pane, which is
+    // the point of fitting more of them on screen.
+    .ant-table-thead > tr > th {
+      white-space: nowrap;
+    }
+  }
 }

@@ -72,17 +72,21 @@
   }
 }
 
-// The description used to sit at the foot of the left rail, below the schema
-// browser, where it was easy to miss. It now reads directly under the query
-// title -- but that puts it above the SQL, so it is capped and scrolls rather
-// than pushing the editor down the page.
+// The description sits at the foot of the left rail. It spent a while under the
+// query title instead, which read better but cost every query that had one
+// about 45px at the top of the page -- above the SQL, so it pushed the results
+// down too. Here it is still in view and costs the results nothing.
 .query-page-query-description {
-  margin-top: 2px;
+  padding: 12px 15px;
+  border-top: 1px solid var(--color-border);
+  flex: 0 0 auto;
 
   .edit-in-place {
     display: block;
-    max-height: 90px;
+    max-height: 120px;
     overflow: auto;
+    font-size: 12px;
+    line-height: 1.5;
     color: var(--color-text-muted);
 
     &.active {

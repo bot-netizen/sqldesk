@@ -275,7 +275,10 @@ body.fixed-layout {
 
       min-height: 10px;
       max-height: 70vh;
-      flex: 0 0 300px;
+      // QuerySource sets --query-editor-height from the number of lines in the
+      // query. Dragging the handle writes flex-basis inline, which outranks
+      // this, so a chosen size sticks.
+      flex: 0 0 var(--query-editor-height, 300px);
     }
 
     .row {
