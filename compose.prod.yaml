@@ -62,7 +62,13 @@ services:
       POSTGRES_DB: tealdash
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
-      - tealdash-postgres:/var/lib/postgresql/data
+      # Mounted at /var/lib/postgresql, not .../data. Postgres 18 keeps its
+      # data in a major-version subdirectory (/var/lib/postgresql/18/docker)
+      # so that pg_upgrade --link can work across a major version without the
+      # old and new data directories straddling a mount point. A volume on
+      # .../data is the pre-18 layout: the image sees a mount that is not
+      # PGDATA, refuses to start, and restart-loops.
+      - tealdash-postgres:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tealdash -d tealdash"]
       interval: 5s
