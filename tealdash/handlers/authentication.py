@@ -272,7 +272,14 @@ def client_config():
     else:
         client_config = {}
 
-    if current_user.has_permission("admin") and current_org.get_setting("beacon_consent") is None:
+    # Only worth asking when there is a version-check endpoint to send the
+    # counts to. With none configured -- the default -- the setting governs
+    # nothing, so the prompt would be asking about something that cannot happen.
+    if (
+        settings.VERSION_CHECK_URL
+        and current_user.has_permission("admin")
+        and current_org.get_setting("beacon_consent") is None
+    ):
         client_config["showBeaconConsentMessage"] = True
 
     defaults = {

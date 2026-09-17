@@ -2,7 +2,7 @@ import React from "react";
 import Form from "antd/lib/form";
 import Checkbox from "antd/lib/checkbox";
 import Skeleton from "antd/lib/skeleton";
-import HelpTrigger from "@/components/HelpTrigger";
+import Typography from "antd/lib/typography";
 import DynamicComponent from "@/components/DynamicComponent";
 import { SettingsEditorPropTypes, SettingsEditorDefaultProps } from "../prop-types";
 
@@ -11,24 +11,26 @@ export default function BeaconConsentSettings(props) {
 
   return (
     <DynamicComponent name="OrganizationSettings.BeaconConsentSettings" {...props}>
-      <Form.Item
-        label={
-          <span>
-            Anonymous Usage Data Sharing
-            <HelpTrigger className="m-l-5 m-r-5" type="USAGE_DATA_SHARING" />
-          </span>
-        }
-      >
+      <Form.Item label="Usage Counts in Version Check">
         {loading ? (
           <Skeleton title={{ width: 300 }} paragraph={false} active />
         ) : (
-          <Checkbox
-            name="beacon_consent"
-            checked={values.beacon_consent}
-            onChange={(e) => onChange({ beacon_consent: e.target.checked })}
-          >
-            Help Tealdash improve by automatically sending anonymous usage data
-          </Checkbox>
+          <React.Fragment>
+            <Checkbox
+              name="beacon_consent"
+              checked={values.beacon_consent}
+              onChange={(e) => onChange({ beacon_consent: e.target.checked })}
+            >
+              Include aggregate counts when checking for new versions
+            </Checkbox>
+            <div className="m-t-5">
+              <Typography.Text type="secondary">
+                Counts of users, queries, dashboards, alerts, widgets, visualizations and data source types — no query
+                text, names, results or credentials. They go only to the endpoint set in{" "}
+                <code>TEALDASH_VERSION_CHECK_URL</code>, and nothing is sent when that is unset.
+              </Typography.Text>
+            </div>
+          </React.Fragment>
         )}
       </Form.Item>
     </DynamicComponent>
