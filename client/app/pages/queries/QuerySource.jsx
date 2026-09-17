@@ -397,7 +397,11 @@ function QuerySource(props) {
                     />
                   </div>
                 )}
-                {(executionError || isQueryExecuting) && (
+                {/* The in-progress status is reported in the footer instead, so
+                    it does not push the results down on every run. This is what
+                    is left: an error, which has to be read, and the very first
+                    run of a query, when there is no footer yet to report into. */}
+                {(executionError || (isQueryExecuting && !queryResult)) && (
                   <div className="query-alerts">
                     <QueryExecutionStatus
                       status={executionStatus}
@@ -454,6 +458,10 @@ function QuerySource(props) {
                 queryResult={queryResult}
                 selectedVisualization={selectedVisualization}
                 isQueryExecuting={isQueryExecuting}
+                executionStatus={executionStatus}
+                executionStartedAt={updatedAt}
+                isCancelling={isExecutionCancelling}
+                onCancel={cancelExecution}
                 showEditVisualizationButton={!queryFlags.isNew && queryFlags.canEdit}
                 onEditVisualization={editVisualization}
               />

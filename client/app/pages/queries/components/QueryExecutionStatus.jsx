@@ -5,34 +5,37 @@ import Alert from "antd/lib/alert";
 import Button from "antd/lib/button";
 import Timer from "@/components/Timer";
 
+// Shared with QueryExecutionMetadata, which shows the same words in the footer
+// while a query runs. Two places saying "Executing query..." slightly
+// differently would be two places to keep in step.
+export function executionStatusMessage(status, isCancelling) {
+  if (isCancelling) {
+    return "Cancelling\u2026";
+  }
+  switch (status) {
+    case "waiting":
+      return "Query in queue\u2026";
+    case "processing":
+      return "Executing query\u2026";
+    case "loading-result":
+      return "Loading results\u2026";
+    default:
+      return null;
+  }
+}
+
 export default function QueryExecutionStatus({ status, updatedAt, error, isCancelling, onCancel }) {
   const alertType = status === "failed" ? "error" : "info";
   const showTimer = status !== "failed" && updatedAt;
   const isCancelButtonAvailable = includes(["waiting", "processing"], status);
-  let message = isCancelling ? <React.Fragment>Cancelling&hellip;</React.Fragment> : null;
+  let message = executionStatusMessage(status, isCancelling);
 
-  switch (status) {
-    case "waiting":
-      if (!isCancelling) {
-        message = <React.Fragment>Query in queue&hellip;</React.Fragment>;
-      }
-      break;
-    case "processing":
-      if (!isCancelling) {
-        message = <React.Fragment>Executing query&hellip;</React.Fragment>;
-      }
-      break;
-    case "loading-result":
-      message = <React.Fragment>Loading results&hellip;</React.Fragment>;
-      break;
-    case "failed":
-      message = (
-        <React.Fragment>
-          Error running query: <strong>{error}</strong>
-        </React.Fragment>
-      );
-      break;
-    // no default
+  if (status === "failed") {
+    message = (
+      <React.Fragment>
+        Error running query: <strong>{error}</strong>
+      </React.Fragment>
+    );
   }
 
   return (

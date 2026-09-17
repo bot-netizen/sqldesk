@@ -196,6 +196,10 @@ function QueryView(props) {
                 queryResult={queryResult}
                 selectedVisualization={selectedVisualization}
                 isQueryExecuting={isExecuting}
+                executionStatus={executionStatus}
+                executionStartedAt={updatedAt}
+                isCancelling={isExecutionCancelling}
+                onCancel={cancelExecution}
                 showEditVisualizationButton={queryFlags.canEdit}
                 onEditVisualization={editVisualization}
                 extraActions={
@@ -211,7 +215,9 @@ function QueryView(props) {
                 }
               />
             )}
-            {(executionError || isExecuting) && (
+            {/* See QuerySource: the running status goes in the footer, and only
+                an error or a query with no result yet needs a block here. */}
+            {(executionError || (isExecuting && !queryResult)) && (
               <div className="query-execution-status">
                 <QueryExecutionStatus
                   status={executionStatus}
