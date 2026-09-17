@@ -128,6 +128,15 @@ EOF
 COPY --chown=sqldesk . /app
 COPY --from=frontend-builder --chown=sqldesk /frontend/client/dist /app/client/dist
 RUN chown sqldesk /app
+
+# Created here, owned by the user the container runs as, because
+# compose.prod.yaml mounts a named volume over it. Docker seeds a volume's
+# ownership from the directory already in the image; with no such directory it
+# creates the mount point owned by root, and this container is not root -- so
+# saving an upload fails with EACCES. The directory has to exist in the image
+# even though nothing in the image puts anything in it.
+RUN mkdir -p /app/uploads && chown sqldesk:sqldesk /app/uploads
+
 USER sqldesk
 
 ENTRYPOINT ["/app/bin/docker-entrypoint"]
