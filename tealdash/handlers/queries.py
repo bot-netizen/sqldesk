@@ -66,6 +66,23 @@ def format_sql_query(org_slug=None):
     return jsonify({"query": sqlparse.format(query, **settings.SQLPARSE_FORMAT_OPTIONS)})
 
 
+def require_valid_schedule(query_def):
+    """Reject a cron expression croniter cannot read.
+
+    Without this the expression is stored happily and only fails later, inside
+    outdated_queries -- which reacts by disabling the query's schedule and
+    logging. The query then quietly stops refreshing and the person who set it
+    is told nothing.
+    """
+    schedule = query_def.get("schedule")
+    if not isinstance(schedule, dict):
+        return
+
+    cron = schedule.get("cron")
+    if cron and not models.is_valid_cron(cron):
+        abort(400, message="'{}' is not a valid cron expression.".format(cron))
+
+
 class QuerySearchResource(BaseResource):
     @require_permission("view_query")
     def get(self):
@@ -225,6 +242,7 @@ class QueryListResource(BaseQueryListResource):
         :>json number runtime: Runtime of last query execution, in seconds (may be null)
         """
         query_def = request.get_json(force=True)
+        require_valid_schedule(query_def)
         data_source = models.DataSource.get_by_id_and_org(query_def.pop("data_source_id"), self.current_org)
         require_access(data_source, self.current_user, not_view_only)
         require_access_to_dropdown_queries(self.current_user, query_def)
@@ -335,6 +353,7 @@ class QueryResource(BaseResource):
         """
         query = get_object_or_404(models.Query.get_by_id_and_org, query_id, self.current_org)
         query_def = request.get_json(force=True)
+        require_valid_schedule(query_def)
 
         require_object_modify_permission(query, self.current_user)
         require_access_to_dropdown_queries(self.current_user, query_def)

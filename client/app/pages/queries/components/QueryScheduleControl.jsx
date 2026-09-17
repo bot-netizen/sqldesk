@@ -1,4 +1,4 @@
-import { map } from "lodash";
+import { includes, map } from "lodash";
 import React, { useMemo } from "react";
 import PropTypes from "prop-types";
 import Button from "antd/lib/button";
@@ -14,19 +14,40 @@ import "./QueryScheduleControl.less";
 const NEVER = "never";
 const CUSTOM = "custom";
 
+// The five people actually reach for. The full list this installation allows
+// runs to twenty-one entries, from a minute to a month, which is a scrolling
+// menu to choose something everybody picks from the first handful of. Anything
+// else is a crontab expression, which says it exactly rather than approximately.
+const COMMON_INTERVALS = [300, 600, 900, 1800, 3600];
+
 // The editor's left rail is for things you read while writing SQL (schema,
 // lineage). A refresh schedule is something you act on, so it lives with the
 // other header actions instead.
-//
-// Picking an interval is the whole job nine times out of ten, so it happens in
-// the menu. The dialog stays for what a menu cannot hold: a time of day, a
-// weekday, and an end date.
-export default function QueryScheduleControl({ query, refreshOptions, onSelectInterval, onEditSchedule, disabled }) {
-  const currentInterval = (query.schedule && query.schedule.interval) || null;
+export default function QueryScheduleControl({
+  query,
+  refreshOptions,
+  onSelectInterval,
+  onEditCron,
+  disabled,
+}) {
+  const schedule = query.schedule || {};
+  const currentCron = schedule.cron || null;
+  const currentInterval = (!currentCron && schedule.interval) || null;
+
+  // An installation can narrow what it allows, and a policy can narrow it
+  // further; offering an interval that would be refused is worse than a shorter
+  // menu. An empty list means no restriction has been expressed.
+  const intervals = useMemo(
+    () =>
+      refreshOptions && refreshOptions.length > 0
+        ? COMMON_INTERVALS.filter((seconds) => includes(refreshOptions, seconds))
+        : COMMON_INTERVALS,
+    [refreshOptions]
+  );
 
   const menu = useMemo(() => {
-    const selected = (value) =>
-      value === currentInterval ? (
+    const tick = (isSelected) =>
+      isSelected ? (
         <CheckOutlinedIcon className="query-schedule-control-check" aria-hidden="true" />
       ) : (
         <span className="query-schedule-control-check-placeholder" aria-hidden="true" />
@@ -34,7 +55,7 @@ export default function QueryScheduleControl({ query, refreshOptions, onSelectIn
 
     const onClick = ({ key }) => {
       if (key === CUSTOM) {
-        onEditSchedule();
+        onEditCron();
       } else if (key === NEVER) {
         onSelectInterval(null);
       } else {
@@ -42,27 +63,34 @@ export default function QueryScheduleControl({ query, refreshOptions, onSelectIn
       }
     };
 
+    let selectedKey = NEVER;
+    if (currentCron) {
+      selectedKey = CUSTOM;
+    } else if (currentInterval) {
+      selectedKey = String(currentInterval);
+    }
+
     return (
-      <Menu onClick={onClick} selectedKeys={[currentInterval ? String(currentInterval) : NEVER]}>
+      <Menu onClick={onClick} selectedKeys={[selectedKey]}>
         <Menu.Item key={NEVER}>
-          {selected(null)}
+          {tick(selectedKey === NEVER)}
           Never
         </Menu.Item>
         <Menu.Divider />
-        {map(refreshOptions, (seconds) => (
+        {map(intervals, (seconds) => (
           <Menu.Item key={String(seconds)}>
-            {selected(seconds)}
+            {tick(selectedKey === String(seconds))}
             Every {durationHumanize(seconds, { omitSingleValueNumber: true })}
           </Menu.Item>
         ))}
         <Menu.Divider />
         <Menu.Item key={CUSTOM} data-test="EditSchedule">
-          <span className="query-schedule-control-check-placeholder" aria-hidden="true" />
-          At a set time&hellip;
+          {tick(selectedKey === CUSTOM)}
+          Custom&hellip;
         </Menu.Item>
       </Menu>
     );
-  }, [currentInterval, refreshOptions, onSelectInterval, onEditSchedule]);
+  }, [currentCron, currentInterval, intervals, onSelectInterval, onEditCron]);
 
   return (
     <Dropdown overlay={menu} trigger={["click"]} disabled={disabled} placement="bottomRight">
@@ -85,13 +113,13 @@ QueryScheduleControl.propTypes = {
   }).isRequired,
   refreshOptions: PropTypes.arrayOf(PropTypes.number),
   onSelectInterval: PropTypes.func,
-  onEditSchedule: PropTypes.func,
+  onEditCron: PropTypes.func,
   disabled: PropTypes.bool,
 };
 
 QueryScheduleControl.defaultProps = {
   refreshOptions: [],
   onSelectInterval: () => {},
-  onEditSchedule: () => {},
+  onEditCron: () => {},
   disabled: false,
 };

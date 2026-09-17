@@ -7,6 +7,7 @@ import re
 import time
 
 import pytz
+from croniter import CroniterBadCronError, croniter
 from sqlalchemy import UniqueConstraint, and_, cast, distinct, func, or_
 from sqlalchemy.dialects.postgresql import ARRAY, DOUBLE_PRECISION, JSONB
 from sqlalchemy.event import listens_for
@@ -512,11 +513,42 @@ class QueryResult(db.Model, BelongsToOrgMixin):
         return self.data_source.groups
 
 
-def should_schedule_next(previous_iteration, now, interval, time=None, day_of_week=None, failures=0):
+def is_valid_cron(expression):
+    """Whether croniter will accept this expression.
+
+    Worth checking before a schedule is stored: outdated_queries disables the
+    schedule of any query whose next run it cannot work out, so an expression
+    that does not parse would silently stop the query refreshing rather than
+    report anything.
+    """
+    if not isinstance(expression, str) or not expression.strip():
+        return False
+    try:
+        croniter(expression.strip())
+    except (CroniterBadCronError, ValueError, KeyError):
+        return False
+    return True
+
+
+def should_schedule_next(previous_iteration, now, interval, time=None, day_of_week=None, failures=0, cron=None):
     # if previous_iteration is None, it means the query has never been run before
     # so we should schedule it immediately
     if previous_iteration is None:
         return True
+
+    if cron:
+        # get_next returns the first match strictly after the datetime it is
+        # given, which is the question being asked: has another slot come round
+        # since the query last ran. interval, time and day_of_week are ignored
+        # -- the expression says everything.
+        next_iteration = croniter(cron, previous_iteration).get_next(datetime.datetime)
+        if failures:
+            try:
+                next_iteration += datetime.timedelta(minutes=2**failures)
+            except OverflowError:
+                return False
+        return now > next_iteration
+
     # if time exists then interval > 23 hours (82800s)
     # if day_of_week exists then interval > 6 days (518400s)
     if time is None:
@@ -737,7 +769,7 @@ class Query(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model):
                 if all(value is None for value in query.schedule.values()):
                     continue
 
-                if query.schedule["until"]:
+                if query.schedule.get("until"):
                     schedule_until = pytz.utc.localize(datetime.datetime.strptime(query.schedule["until"], "%Y-%m-%d"))
 
                     if schedule_until <= now:
@@ -747,13 +779,17 @@ class Query(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model):
                     query.latest_query_data and query.latest_query_data.retrieved_at
                 )
 
+                # .get() rather than []: a cron schedule carries no interval,
+                # and a KeyError here is caught below and disables the
+                # schedule outright.
                 if should_schedule_next(
                     retrieved_at,
                     now,
-                    query.schedule["interval"],
-                    query.schedule["time"],
-                    query.schedule["day_of_week"],
+                    query.schedule.get("interval"),
+                    query.schedule.get("time"),
+                    query.schedule.get("day_of_week"),
                     query.schedule_failures,
+                    cron=query.schedule.get("cron"),
                 ):
                     key = "{}:{}".format(query.query_hash, query.data_source_id)
                     outdated_queries[key] = query

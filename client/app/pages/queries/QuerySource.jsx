@@ -37,7 +37,7 @@ import useQueryDataSources from "./hooks/useQueryDataSources";
 import useQueryFlags from "./hooks/useQueryFlags";
 import useQueryParameters from "./hooks/useQueryParameters";
 import useAddNewParameterDialog from "./hooks/useAddNewParameterDialog";
-import useEditScheduleDialog from "./hooks/useEditScheduleDialog";
+import useEditCronDialog from "./hooks/useEditCronDialog";
 import useSetQuerySchedule from "./hooks/useSetQuerySchedule";
 import useAddVisualizationDialog from "./hooks/useAddVisualizationDialog";
 import useEditVisualizationDialog from "./hooks/useEditVisualizationDialog";
@@ -158,7 +158,7 @@ function QuerySource(props) {
     }
   }, [query.data_source_id, queryFlags.isNew, dataSourcesLoaded, dataSources, handleDataSourceChange]);
 
-  const editSchedule = useEditScheduleDialog(query, setQuery);
+  const editSchedule = useEditCronDialog(query, setQuery);
   const { refreshOptions, setInterval: setScheduleInterval } = useSetQuerySchedule(query, setQuery);
   const openAddNewParameterDialog = useAddNewParameterDialog(query, (newQuery, param) => {
     if (editorRef.current) {
@@ -257,7 +257,7 @@ function QuerySource(props) {
                   query={query}
                   refreshOptions={refreshOptions}
                   onSelectInterval={setScheduleInterval}
-                  onEditSchedule={editSchedule}
+                  onEditCron={editSchedule}
                   disabled={!queryFlags.canEdit || !queryFlags.canSchedule}
                 />
               )}

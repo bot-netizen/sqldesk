@@ -26,6 +26,58 @@ class DashboardTest(BaseTestCase):
         self.assertNotEqual(d2.slug, d3.slug)
 
 
+class CronScheduleTest(TestCase):
+    def test_runs_when_a_slot_has_come_round_since_the_last_run(self):
+        now = date_parse("2015-10-16 05:30")
+        last_run = date_parse("2015-10-15 05:00")
+        # every day at 05:00
+        self.assertTrue(models.should_schedule_next(last_run, now, None, cron="0 5 * * *"))
+
+    def test_does_not_run_twice_in_the_same_slot(self):
+        now = date_parse("2015-10-16 05:30")
+        last_run = date_parse("2015-10-16 05:00")
+        self.assertFalse(models.should_schedule_next(last_run, now, None, cron="0 5 * * *"))
+
+    def test_honours_the_day_of_week_field(self):
+        # 2015-10-16 was a Friday, 2015-10-19 a Monday.
+        friday = date_parse("2015-10-16 09:05")
+        saturday = date_parse("2015-10-17 09:05")
+        monday = date_parse("2015-10-19 09:05")
+        # 09:00 on Mondays only
+        self.assertFalse(models.should_schedule_next(friday, saturday, None, cron="0 9 * * 1"))
+        self.assertTrue(models.should_schedule_next(friday, monday, None, cron="0 9 * * 1"))
+
+    def test_cron_wins_over_interval(self):
+        # A schedule carrying both is not something the UI produces, but the
+        # expression is the more specific statement of intent.
+        now = date_parse("2015-10-16 05:30")
+        last_run = date_parse("2015-10-16 05:29")
+        # the interval alone would be long overdue; the cron slot is not
+        self.assertFalse(models.should_schedule_next(last_run, now, "60", cron="0 5 * * *"))
+
+    def test_backs_off_after_failures(self):
+        now = date_parse("2015-10-16 05:01")
+        last_run = date_parse("2015-10-15 05:00")
+        # due at 05:00, but three failures push it 8 minutes out
+        self.assertFalse(models.should_schedule_next(last_run, now, None, failures=3, cron="0 5 * * *"))
+
+    def test_a_query_that_never_ran_is_due_immediately(self):
+        self.assertTrue(models.should_schedule_next(None, utcnow(), None, cron="0 5 * * *"))
+
+
+class IsValidCronTest(TestCase):
+    def test_accepts_ordinary_expressions(self):
+        for expression in ["* * * * *", "0 5 * * *", "*/15 * * * *", "0 9 * * 1-5", "30 3 1 * *"]:
+            self.assertTrue(models.is_valid_cron(expression), expression)
+
+    def test_tolerates_surrounding_whitespace(self):
+        self.assertTrue(models.is_valid_cron("  0 5 * * *  "))
+
+    def test_rejects_what_croniter_cannot_read(self):
+        for expression in ["", "   ", "not a cron", "0 5 * *", "99 5 * * *", "0 5 * * 9", None, 300]:
+            self.assertFalse(models.is_valid_cron(expression), repr(expression))
+
+
 class ShouldScheduleNextTest(TestCase):
     def test_interval_schedule_that_needs_reschedule(self):
         now = utcnow()

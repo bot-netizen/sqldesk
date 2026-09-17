@@ -5,7 +5,7 @@ import PlainButton from "@/components/PlainButton";
 import { localizeTime, durationHumanize } from "@/lib/utils";
 import { RefreshScheduleType, RefreshScheduleDefault } from "../proptypes";
 
-import "./ScheduleDialog.css";
+import "./SchedulePhrase.less";
 
 export default class SchedulePhrase extends React.Component {
   static propTypes = {
@@ -22,7 +22,16 @@ export default class SchedulePhrase extends React.Component {
   };
 
   get content() {
-    const { interval: seconds } = this.props.schedule || SchedulePhrase.defaultProps.schedule;
+    const schedule = this.props.schedule || SchedulePhrase.defaultProps.schedule;
+
+    // A custom schedule is shown as what was typed. Nothing here turns cron
+    // into prose: a half-right paraphrase of "0 9 * * 1-5" is worse than the
+    // expression, because the person who wrote it can read it back and check.
+    if (schedule.cron) {
+      return [schedule.cron, `Refreshes on the crontab schedule ${schedule.cron} (UTC)`];
+    }
+
+    const { interval: seconds } = schedule;
     if (!seconds) {
       return ["Never"];
     }

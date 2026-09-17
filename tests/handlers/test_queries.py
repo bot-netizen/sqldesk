@@ -75,6 +75,45 @@ class TestQueryResourceGet(BaseTestCase):
 
 
 class TestQueryResourcePost(BaseTestCase):
+    def test_accepts_a_crontab_schedule(self):
+        admin = self.factory.create_admin()
+        query = self.factory.create_query()
+
+        rv = self.make_request(
+            "post",
+            "/api/queries/{0}".format(query.id),
+            user=admin,
+            data={
+                "schedule": {
+                    "interval": None,
+                    "time": None,
+                    "day_of_week": None,
+                    "until": None,
+                    "cron": "0 9 * * 1-5",
+                }
+            },
+        )
+
+        self.assertEqual(rv.status_code, 200)
+        self.assertEqual(rv.json["schedule"]["cron"], "0 9 * * 1-5")
+
+    def test_rejects_a_crontab_expression_that_cannot_be_read(self):
+        # Storing it would not fail here -- it would fail later inside
+        # outdated_queries, which reacts by disabling the schedule silently.
+        admin = self.factory.create_admin()
+        query = self.factory.create_query()
+
+        rv = self.make_request(
+            "post",
+            "/api/queries/{0}".format(query.id),
+            user=admin,
+            data={"schedule": {"cron": "every weekday at nine"}},
+        )
+
+        self.assertEqual(rv.status_code, 400)
+        query = models.Query.query.get(query.id)
+        self.assertIsNone(query.schedule)
+
     def test_update_query(self):
         admin = self.factory.create_admin()
         query = self.factory.create_query()

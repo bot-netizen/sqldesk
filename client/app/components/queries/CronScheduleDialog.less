@@ -1,0 +1,47 @@
+.cron-schedule-dialog {
+  .ant-input {
+    font-family: var(--font-mono);
+  }
+
+  .cron-schedule-dialog-help {
+    margin-top: 6px;
+    font-size: 12px;
+    min-height: 18px; // holds its line so the dialog does not jump on an error
+  }
+
+  // Expression on the left, what it means on the right. A definition list
+  // rather than a table: these are terms and their meanings, and a screen
+  // reader reads the pairing that way without any extra markup.
+  .cron-schedule-dialog-examples {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 12px;
+    row-gap: 4px;
+    margin: 14px 0 0;
+    font-size: 12px;
+
+    dt {
+      font-weight: normal;
+
+      code {
+        font-family: var(--font-mono);
+        color: var(--color-text);
+        background: var(--color-surface-sunken);
+        padding: 1px 5px;
+        border-radius: var(--radius-chip);
+      }
+    }
+
+    dd {
+      margin: 0;
+      color: var(--color-text-muted);
+      align-self: center;
+    }
+  }
+
+  .cron-schedule-dialog-note {
+    display: block;
+    margin-top: 14px;
+    font-size: 12px;
+  }
+}

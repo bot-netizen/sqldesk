@@ -33,7 +33,7 @@ import useQueryExecute from "./hooks/useQueryExecute";
 import useUpdateQueryDescription from "./hooks/useUpdateQueryDescription";
 import useQueryFlags from "./hooks/useQueryFlags";
 import useQueryParameters from "./hooks/useQueryParameters";
-import useEditScheduleDialog from "./hooks/useEditScheduleDialog";
+import useEditCronDialog from "./hooks/useEditCronDialog";
 import useEditVisualizationDialog from "./hooks/useEditVisualizationDialog";
 import useDeleteVisualization from "./hooks/useDeleteVisualization";
 import useFullscreenHandler from "../../lib/hooks/useFullscreenHandler";
@@ -66,7 +66,7 @@ function QueryView(props) {
   const queryResultData = useQueryResultData(queryResult);
 
   const updateQueryDescription = useUpdateQueryDescription(query, setQuery);
-  const editSchedule = useEditScheduleDialog(query, setQuery);
+  const editSchedule = useEditCronDialog(query, setQuery);
   const addVisualization = useEditVisualizationDialog(query, queryResult, (newQuery, visualization) => {
     setQuery(newQuery);
     setSelectedVisualization(visualization.id);
