@@ -15,7 +15,7 @@
 # matching TEALDASH_HOST) in .env, or turn AirPlay Receiver off.
 
 x-tealdash-service: &tealdash-service
-  image: ${TEALDASH_IMAGE:-ghcr.io/tdot-labs/tealdash:0.1.1}
+  image: ${TEALDASH_IMAGE:-ghcr.io/tdot-labs/tealdash:0.2.0}
   depends_on:
     postgres:
       condition: service_healthy

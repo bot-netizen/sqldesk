@@ -1,5 +1,51 @@
 # Changelog
 
+## 0.2.0
+
+Scheduling, a home page that says something, and an editor that gives the
+results room.
+
+### Scheduling
+
+- **A refresh schedule can be a crontab expression.** The menu offers five
+  intervals, 5 to 60 minutes; anything else is written as `0 9 * * 1-5`, which
+  says "09:00 on weekdays" in one field where the old dialog needed four. That
+  dialog is gone, and with it the end-date option -- schedules that already
+  carry one are still honoured, but nothing sets a new one.
+- **Dashboards can carry a schedule too.** A dashboard has no data of its own,
+  so its schedule refreshes the queries behind its widgets, and it runs with
+  nobody watching. The refresh-rate button beside it is unchanged: that is a
+  timer in your browser, for a display somebody is looking at.
+- Nothing records when a dashboard last refreshed. Each query is measured
+  against when it last ran, so there is no second clock to drift, and a query
+  on two scheduled dashboards refreshes on whichever slot comes first.
+- An expression the server cannot read is refused when it is saved. Stored, it
+  would have failed later in the scheduler, which responds by disabling the
+  schedule -- the query would have stopped refreshing with nobody told.
+
+### Home
+
+- Once the setup steps are done, the home page shows your own numbers: queries,
+  dashboards, scheduled queries, alerts, and what your cached results occupy on
+  disk. Below that, favourites on one side and your scheduled queries on the
+  other, slowest first, with data source, runtime, result size and schedule.
+- Inviting people is no longer a setup step. It is not something you do before
+  the tool is useful, and being a step kept the welcome panel on screen
+  permanently for anyone working alone.
+
+### Query editor
+
+- **Roughly six more rows of results before you scroll.** The editor sizes
+  itself to the query instead of being a fixed 300px; result tables were inset
+  31px on every side by two stacked paddings and are now inset once; the
+  description moved to the left rail; rows, controls and tabs are scaled to
+  each other rather than to three different defaults.
+- **A running query reports itself in the footer corner**, where "Refreshed 20
+  minutes ago" already sits, instead of an alert that appeared above the
+  results and pushed the visualization down the page on every single run.
+- The SQL editor uses the same monospace font as the rest of the application.
+  It had been falling back to whatever the browser calls `monospace`.
+
 ## 0.1.1
 
 A fix release. **The install documented in 0.1.0 could not work.**
