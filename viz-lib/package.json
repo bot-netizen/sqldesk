@@ -1,6 +1,6 @@
 {
   "name": "@sqldesk/viz",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "SQLDesk visualizations",
   "main": "dist/sqldesk-visualizations.js",
   "scripts": {

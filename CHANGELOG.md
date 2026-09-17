@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.3.0
+
+**Tealdash is now SQLDesk.** The project moved to
+[bot-netizen/sqldesk](https://github.com/bot-netizen/sqldesk) and the image to
+`ghcr.io/bot-netizen/sqldesk`. Nothing else about it changed.
+
+### Upgrading
+
+- The image is `ghcr.io/bot-netizen/sqldesk` now. Pull from there.
+- Environment variables are `SQLDESK_*`. **Your existing `.env` keeps working
+  without edits** -- `TEALDASH_*` and `REDASH_*` are both still read, with the
+  most recent name winning.
+- Run `manage db upgrade`. 0.2.0 added a column to `dashboards` and this
+  release moves saved chart palettes to the new name; charts work either way,
+  because both former names resolve to the default palette.
+- SAML group attributes: `SQLDeskGroups` is read first, then
+  `TealdashGroups`, then `RedashGroups`. No identity-provider change needed.
+
+### Fixed
+
+- **Uploading a file and then querying it failed in Docker.** The server saves
+  an upload to its own container, and the worker -- a different container --
+  is what runs the query, so DuckDB looked for the file where it did not
+  exist. `compose.prod.yaml` gave those services no volumes at all. They now
+  share one, which also keeps uploads across a `compose up` that recreates a
+  container; before, they lived in the container's writable layer and went
+  with it. Development was unaffected, because `compose.yaml` bind-mounts the
+  working tree into every service.
+- An image built from a working copy no longer carries that copy's `.env` or
+  its uploaded files. `.dockerignore` listed only build noise, so `COPY . /app`
+  took both. Images published from CI were never affected -- it builds from a
+  clean checkout, where neither file is tracked.
+
 ## 0.2.0
 
 Scheduling, a home page that says something, and an editor that gives the

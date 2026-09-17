@@ -2622,70 +2622,8 @@ wheels = [
 ]
 
 [[package]]
-name = "sqlparse"
-version = "0.5.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/50/26/5da251cd090ccd580f5cfaa7d36cdd8b2471e49fffce60ed520afc27f4bc/sqlparse-0.5.0.tar.gz", hash = "sha256:714d0a4932c059d16189f58ef5411ec2287a4360f17cdd0edd2d09d4c5087c93", size = 83475, upload-time = "2024-04-13T12:37:09.316Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/43/5d/a0fdd88fd486b39ae1fd1a75ff75b4e29a0df96c0304d462fd407b82efe0/sqlparse-0.5.0-py3-none-any.whl", hash = "sha256:c204494cd97479d0e39f28c93d46c0b2d5959c7b9ab904762ea6c7af211c8663", size = 43971, upload-time = "2024-04-13T12:37:11.177Z" },
-]
-
-[[package]]
-name = "sshtunnel"
-version = "0.1.5"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "paramiko" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c5/5c/4b320d7ec4b0d5d4d6df1fdf66a5799625b3623d0ce4efe81719c6f8dfb3/sshtunnel-0.1.5.tar.gz", hash = "sha256:c813fdcda8e81c3936ffeac47cb69cfb2d1f5e77ad0de656c6dab56aeebd9249", size = 49345, upload-time = "2019-06-13T10:39:09.605Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/38/7d/6f19be1ee49cee9593c5ac3aa1fb38fe30eaf1520114e08dee2ab2a45855/sshtunnel-0.1.5-py2.py3-none-any.whl", hash = "sha256:5eee2e414c3fd9e9ef5d058bebece272a6aae928849ef7f2d9561b7fffab7aea", size = 23264, upload-time = "2020-09-25T14:59:37.779Z" },
-]
-
-[[package]]
-name = "statsd"
-version = "3.3.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/2d/f2/48ffc8d0051849e4417e809dc9420e76084c8a62749b3442915402127caa/statsd-3.3.0.tar.gz", hash = "sha256:e3e6db4c246f7c59003e51c9720a51a7f39a396541cb9b147ff4b14d15b5dd1f", size = 259045, upload-time = "2018-08-22T14:19:46.874Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/47/33/c824f799128dfcfce2142f18d9bc6c55c46a939f6e4250639134222d99eb/statsd-3.3.0-py2.py3-none-any.whl", hash = "sha256:c610fb80347fca0ef62666d241bce64184bd7cc1efe582f9690e045c25535eaa", size = 11990, upload-time = "2018-08-22T14:19:48.492Z" },
-]
-
-[[package]]
-name = "supervisor"
-version = "4.1.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/de/87/ee1ad8fa533a4b5f2c7623f4a2b585d3c1947af7bed8e65bc7772274320e/supervisor-4.1.0.tar.gz", hash = "sha256:2dc86fe0476e945e61483d614ceb2cf4f93b95282eb243bdf792621994360383", size = 459020, upload-time = "2019-10-19T17:58:28.94Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ca/1f/07713b0e1e34c312450878801d496bce8b9eff5ea9e70d41ff4e299b2df5/supervisor-4.1.0-py2.py3-none-any.whl", hash = "sha256:a76b2f77a560f2dc411c0254a4eb15f555e99faac48621b0f1fc9ab013944f47", size = 318422, upload-time = "2019-10-19T17:58:26.052Z" },
-]
-
-[[package]]
-name = "supervisor-checks"
-version = "0.8.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "psutil" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/67/09/8ba7cc405f4b098ec3690bc21af86f98cfa4750884b606f17a83ab454f01/supervisor_checks-0.8.1.tar.gz", hash = "sha256:1474150aed0acdea726cc9ffdf6b728e2ed8aa8ef89d8d979cd2fb8f4444d987", size = 11184, upload-time = "2018-08-01T18:19:49.342Z" }
-
-[[package]]
-name = "td-client"
-version = "1.5.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "msgpack" },
-    { name = "python-dateutil" },
-    { name = "urllib3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/fc/aa/9ef3cd3074a4f64dd8e8e436e0723b57db7865b700c568a392e47192a907/td_client-1.5.0.tar.gz", hash = "sha256:9c2180b7815e6db245932df24c0afb30f76950f3d31bb48f44ef3e669bfa559d", size = 44457, upload-time = "2025-08-14T05:49:17.782Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f7/55/95f28865fb75ae1eec3e672a950a2f1d89e96a1bde9ea97fd3f1cde709cd/td_client-1.5.0-py3-none-any.whl", hash = "sha256:1f09f607d2a030f41b301921c09cf1876d02d64c20a0ad371453ff9daed51e64", size = 56275, upload-time = "2025-08-14T05:49:16.356Z" },
-]
-
-[[package]]
 name = "sqldesk"
-version = "0.2.0"
+version = "0.3.0"
 source = { virtual = "." }
 dependencies = [
     { name = "advocate" },
@@ -2973,6 +2911,68 @@ dev = [
     { name = "watchdog", specifier = "==3.0.0" },
 ]
 ldap3 = [{ name = "ldap3", specifier = "==2.9.1" }]
+
+[[package]]
+name = "sqlparse"
+version = "0.5.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/50/26/5da251cd090ccd580f5cfaa7d36cdd8b2471e49fffce60ed520afc27f4bc/sqlparse-0.5.0.tar.gz", hash = "sha256:714d0a4932c059d16189f58ef5411ec2287a4360f17cdd0edd2d09d4c5087c93", size = 83475, upload-time = "2024-04-13T12:37:09.316Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/43/5d/a0fdd88fd486b39ae1fd1a75ff75b4e29a0df96c0304d462fd407b82efe0/sqlparse-0.5.0-py3-none-any.whl", hash = "sha256:c204494cd97479d0e39f28c93d46c0b2d5959c7b9ab904762ea6c7af211c8663", size = 43971, upload-time = "2024-04-13T12:37:11.177Z" },
+]
+
+[[package]]
+name = "sshtunnel"
+version = "0.1.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "paramiko" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c5/5c/4b320d7ec4b0d5d4d6df1fdf66a5799625b3623d0ce4efe81719c6f8dfb3/sshtunnel-0.1.5.tar.gz", hash = "sha256:c813fdcda8e81c3936ffeac47cb69cfb2d1f5e77ad0de656c6dab56aeebd9249", size = 49345, upload-time = "2019-06-13T10:39:09.605Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/38/7d/6f19be1ee49cee9593c5ac3aa1fb38fe30eaf1520114e08dee2ab2a45855/sshtunnel-0.1.5-py2.py3-none-any.whl", hash = "sha256:5eee2e414c3fd9e9ef5d058bebece272a6aae928849ef7f2d9561b7fffab7aea", size = 23264, upload-time = "2020-09-25T14:59:37.779Z" },
+]
+
+[[package]]
+name = "statsd"
+version = "3.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2d/f2/48ffc8d0051849e4417e809dc9420e76084c8a62749b3442915402127caa/statsd-3.3.0.tar.gz", hash = "sha256:e3e6db4c246f7c59003e51c9720a51a7f39a396541cb9b147ff4b14d15b5dd1f", size = 259045, upload-time = "2018-08-22T14:19:46.874Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/47/33/c824f799128dfcfce2142f18d9bc6c55c46a939f6e4250639134222d99eb/statsd-3.3.0-py2.py3-none-any.whl", hash = "sha256:c610fb80347fca0ef62666d241bce64184bd7cc1efe582f9690e045c25535eaa", size = 11990, upload-time = "2018-08-22T14:19:48.492Z" },
+]
+
+[[package]]
+name = "supervisor"
+version = "4.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/de/87/ee1ad8fa533a4b5f2c7623f4a2b585d3c1947af7bed8e65bc7772274320e/supervisor-4.1.0.tar.gz", hash = "sha256:2dc86fe0476e945e61483d614ceb2cf4f93b95282eb243bdf792621994360383", size = 459020, upload-time = "2019-10-19T17:58:28.94Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ca/1f/07713b0e1e34c312450878801d496bce8b9eff5ea9e70d41ff4e299b2df5/supervisor-4.1.0-py2.py3-none-any.whl", hash = "sha256:a76b2f77a560f2dc411c0254a4eb15f555e99faac48621b0f1fc9ab013944f47", size = 318422, upload-time = "2019-10-19T17:58:26.052Z" },
+]
+
+[[package]]
+name = "supervisor-checks"
+version = "0.8.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "psutil" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/67/09/8ba7cc405f4b098ec3690bc21af86f98cfa4750884b606f17a83ab454f01/supervisor_checks-0.8.1.tar.gz", hash = "sha256:1474150aed0acdea726cc9ffdf6b728e2ed8aa8ef89d8d979cd2fb8f4444d987", size = 11184, upload-time = "2018-08-01T18:19:49.342Z" }
+
+[[package]]
+name = "td-client"
+version = "1.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "msgpack" },
+    { name = "python-dateutil" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fc/aa/9ef3cd3074a4f64dd8e8e436e0723b57db7865b700c568a392e47192a907/td_client-1.5.0.tar.gz", hash = "sha256:9c2180b7815e6db245932df24c0afb30f76950f3d31bb48f44ef3e669bfa559d", size = 44457, upload-time = "2025-08-14T05:49:17.782Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f7/55/95f28865fb75ae1eec3e672a950a2f1d89e96a1bde9ea97fd3f1cde709cd/td_client-1.5.0-py3-none-any.whl", hash = "sha256:1f09f607d2a030f41b301921c09cf1876d02d64c20a0ad371453ff9daed51e64", size = 56275, upload-time = "2025-08-14T05:49:16.356Z" },
+]
 
 [[package]]
 name = "tenacity"
