@@ -43,7 +43,7 @@ make backend-unit-tests           # brings up postgres/redis, creates test DB, r
 docker compose run --rm server tests                     # run full suite directly (after `make up` + `make test_db`)
 docker compose run --rm server tests tests/test_models.py            # single file
 docker compose run --rm server tests tests/test_models.py::TestQuery::test_something  # single test
-docker compose run --rm server tests --junitxml=junit.xml --cov=tealdash --cov-config=.coveragerc tests/  # matches CI invocation
+docker compose run --rm server tests --junitxml=junit.xml --cov=tealdash tests/  # matches CI invocation
 
 make lint                          # ruff check . && black --check . --diff
 ruff check .                       # lint only
@@ -104,7 +104,7 @@ make test              # backend-unit-tests + frontend-unit-tests + lint
 
 - `tealdash/worker.py` sets up the RQ `job` decorator (with StatsD instrumentation) and default queues: `periodic`, `emails`, `default` (operational) and `scheduled_queries`, `queries`, `schemas` (query-related).
 - `tealdash/tasks/` holds the actual jobs: `tasks/queries/execution.py` (running a query against a data source, called both for ad-hoc "run now" and scheduled runs), `tasks/queries/maintenance.py` (scheduling/refresh logic), `tasks/alerts.py` (alert evaluation after query execution), `tasks/schedule.py` (periodic job registration via rq-scheduler), `tasks/general.py` (misc jobs like emails).
-- Workers, the scheduler, and the web server are separate processes (see `bin/run` / `worker.conf` / `compose.yaml`) — a change to task logic requires restarting the worker container, not just the server.
+- Workers, the scheduler, and the web server are separate processes (see `bin/run` / `bin/worker.conf` / `compose.yaml`) — a change to task logic requires restarting the worker container, not just the server.
 
 ### Frontend structure
 

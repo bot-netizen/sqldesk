@@ -54,7 +54,7 @@ jobs:
       - name: List Enabled Query Runners
         run: docker compose -p tealdash run --rm tealdash manage ds list_types
       - name: Run Tests
-        run: docker compose -p tealdash run --name tests tealdash tests --junitxml=junit.xml --cov-report=xml --cov=tealdash --cov-config=.coveragerc tests/
+        run: docker compose -p tealdash run --name tests tealdash tests --junitxml=junit.xml --cov-report=xml --cov=tealdash tests/
       - name: Copy Test Results
         run: |
           mkdir -p /tmp/test-results/unit-tests

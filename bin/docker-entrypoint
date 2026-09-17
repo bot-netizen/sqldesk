@@ -19,7 +19,7 @@ worker() {
   export WORKERS_COUNT=${WORKERS_COUNT:-2}
   export QUEUES=${QUEUES:-}
 
-  exec supervisord -c worker.conf
+  exec supervisord -c bin/worker.conf
 }
 
 workers_healthcheck() {
