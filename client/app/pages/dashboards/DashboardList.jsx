@@ -12,7 +12,12 @@ import { ResourceItemsSource } from "@/components/items-list/classes/ItemsSource
 import { UrlStateStorage } from "@/components/items-list/classes/StateStorage";
 import * as Sidebar from "@/components/items-list/components/Sidebar";
 import { Shell, Header, ViewTabs, TagChips } from "@/components/items-list/components/ListPage";
-import { FilterControl, ColumnsControl, useHiddenColumns } from "@/components/items-list/components/ListPageControls";
+import {
+  FilterControl,
+  ColumnsControl,
+  useHiddenColumns,
+  visibleColumns,
+} from "@/components/items-list/components/ListPageControls";
 import ItemsTable, { Columns } from "@/components/items-list/components/ItemsTable";
 import ListItemActions from "@/components/items-list/components/ListItemActions";
 import useItemsListExtraActions from "@/components/items-list/hooks/useItemsListExtraActions";
@@ -141,9 +146,11 @@ function DashboardList({ controller }) {
   }
   usedListColumns = [...usedListColumns, getActionsColumn(controllerRef)];
   const [hiddenColumns, toggleColumn] = useHiddenColumns("dashboards");
-  usedListColumns = usedListColumns.filter(
-    (column) => typeof column.title !== "string" || !hiddenColumns.includes(column.title)
-  );
+  // allListColumns is what the Columns menu lists; usedListColumns is what the
+  // table renders. They have to stay distinct, or hiding a column removes it
+  // from the menu that would bring it back.
+  const allListColumns = usedListColumns;
+  usedListColumns = visibleColumns(allListColumns, hiddenColumns);
 
   const sortLabel = useMemo(() => {
     const labels = { name: "name", created_at: "created", starred_at: "starred" };
@@ -170,7 +177,7 @@ function DashboardList({ controller }) {
             placeholder="Search dashboards…"
             label="Search dashboards"
           />
-          <ColumnsControl columns={usedListColumns} hidden={hiddenColumns} onToggle={toggleColumn} />
+          <ColumnsControl columns={allListColumns} hidden={hiddenColumns} onToggle={toggleColumn} />
           {currentUser.hasPermission("create_dashboard") && (
             <Button type="primary" onClick={() => CreateDashboardDialog.showModal()}>
               <i className="fa fa-plus m-r-5" aria-hidden="true" />

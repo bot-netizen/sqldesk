@@ -19,7 +19,12 @@ import { UrlStateStorage } from "@/components/items-list/classes/StateStorage";
 
 import * as Sidebar from "@/components/items-list/components/Sidebar";
 import { Shell, Header, ViewTabs, TagChips } from "@/components/items-list/components/ListPage";
-import { FilterControl, ColumnsControl, useHiddenColumns } from "@/components/items-list/components/ListPageControls";
+import {
+  FilterControl,
+  ColumnsControl,
+  useHiddenColumns,
+  visibleColumns,
+} from "@/components/items-list/components/ListPageControls";
 import ItemsTable, { Columns } from "@/components/items-list/components/ItemsTable";
 import ListItemActions from "@/components/items-list/components/ListItemActions";
 
@@ -194,9 +199,11 @@ function QueriesList({ controller }) {
   }
   usedListColumns = [...usedListColumns, getActionsColumn(controllerRef)];
   const [hiddenColumns, toggleColumn] = useHiddenColumns("queries");
-  usedListColumns = usedListColumns.filter(
-    (column) => typeof column.title !== "string" || !hiddenColumns.includes(column.title)
-  );
+  // allListColumns is what the Columns menu lists; usedListColumns is what the
+  // table renders. They have to stay distinct, or hiding a column removes it
+  // from the menu that would bring it back.
+  const allListColumns = usedListColumns;
+  usedListColumns = visibleColumns(allListColumns, hiddenColumns);
   const {
     areExtraActionsAvailable,
     listColumns: tableColumns,
@@ -251,7 +258,7 @@ function QueriesList({ controller }) {
             placeholder="Search queries…"
             label="Search queries"
           />
-          <ColumnsControl columns={usedListColumns} hidden={hiddenColumns} onToggle={toggleColumn} />
+          <ColumnsControl columns={allListColumns} hidden={hiddenColumns} onToggle={toggleColumn} />
           {currentUser.hasPermission("create_query") && (
             <Link.Button type="primary" href="queries/new">
               <i className="fa fa-plus m-r-5" aria-hidden="true" />

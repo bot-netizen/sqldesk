@@ -24,7 +24,11 @@ import "./ListPageControls.less";
 
 export function FilterControl({ value, onChange, placeholder, label }) {
   const overlay = (
-    <div className="list-page-filter-panel">
+    // A click anywhere in a Dropdown's overlay closes it, which for a panel
+    // built around a text field means the field vanishes the moment you try to
+    // type in it. Only clicks outside should close this one.
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
+    <div className="list-page-filter-panel" onClick={(event) => event.stopPropagation()}>
       <div className="list-page-filter-label">{label}</div>
       <Input
         allowClear
@@ -78,10 +82,35 @@ export function useHiddenColumns(storageKey) {
   return [hidden, toggle];
 }
 
+/*
+  Whether a column is the user's to hide.
+
+  One definition, used by both the menu and the filtering, so the only columns
+  that can be hidden are the ones the menu offers to bring back. A column with
+  no title is structural -- the favourites star, the row actions -- and hiding
+  it would take away the menu itself with nothing left to restore it.
+*/
+function isToggleable(column) {
+  return typeof column.title === "string" && column.title !== "";
+}
+
+/*
+  The columns a list should actually render.
+
+  Exported as a pair with ColumnsControl so the two readings of "columns" stay
+  apart: the control is given every column the list can show, and the table is
+  given this. Doing the filtering inline at the call site is how a hidden
+  column came to be missing from the menu that was supposed to bring it back.
+*/
+export function visibleColumns(columns, hidden) {
+  return columns.filter((column) => !isToggleable(column) || !includes(hidden, column.title));
+}
+
 export function ColumnsControl({ columns, hidden, onToggle }) {
-  // Columns with no title are structural (favourites star, row actions) and
-  // are not the user's to hide.
-  const toggleable = useMemo(() => columns.filter((c) => typeof c.title === "string" && c.title !== ""), [columns]);
+  // `columns` must be every column the list can show, not the ones it is
+  // showing: a hidden column has to stay in this menu or there is no way to
+  // bring it back.
+  const toggleable = useMemo(() => columns.filter(isToggleable), [columns]);
 
   const overlay = (
     <Menu className="list-page-columns-menu">
