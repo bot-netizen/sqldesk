@@ -139,7 +139,9 @@ describe("Textbox", () => {
             // changed it without changing any widget's place on the grid.
             cy.getByTestId(firstTestId).then(($first) => {
               const first = $first.offset();
-              const columnWidth = $first.width() + 15; // widget width plus the margin between columns
+              // Both textboxes span `sizeX` columns, so one column is that
+              // width plus its margin divided by how many columns it covers.
+              const columnWidth = ($first.width() + 15) / txb1Pos.sizeX;
 
               cy.getByTestId(secondTestId).should(($second) => {
                 const second = $second.offset();

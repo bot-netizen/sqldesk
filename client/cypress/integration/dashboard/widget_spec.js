@@ -169,7 +169,9 @@ describe("Widget", () => {
             cy.getByTestId("ParameterApplyButton").click();
             cy.wait("@FreshResults");
 
-            cy.get("@widget").invoke("height").should("eq", resizedHeight);
+            cy.get("@widget")
+              .invoke("height")
+              .should("be.closeTo", resizedHeight, 2); // a drag can land a pixel off; a grid row is 50
           });
       });
     });
