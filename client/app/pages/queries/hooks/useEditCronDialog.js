@@ -1,7 +1,5 @@
 import { useCallback } from "react";
 import CronScheduleDialog from "@/components/queries/CronScheduleDialog";
-import recordEvent from "@/services/recordEvent";
-import useUpdateQuery from "./useUpdateQuery";
 import useQueryFlags from "./useQueryFlags";
 import useSetQuerySchedule from "./useSetQuerySchedule";
 
