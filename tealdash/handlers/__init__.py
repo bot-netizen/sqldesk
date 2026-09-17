@@ -27,6 +27,7 @@ def init_app(app):
         admin,
         authentication,
         embed,
+        home,
         organization,
         queries,
         setup,

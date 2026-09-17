@@ -5,3 +5,133 @@
 .home-favorites-list {
   margin-top: -20px;
 }
+
+.home-muted {
+  color: var(--color-text-muted);
+}
+
+// ---------------------------------------------------------------- counters --
+
+// auto-fit rather than a fixed five: the tiles reflow to three and two on a
+// laptop instead of being squeezed to the width of their own labels.
+.home-counters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.home-counter {
+  display: block;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  color: var(--color-text);
+  transition: border-color 0.15s ease-in-out;
+
+  // Several of these are links; none of them should look like one until you go
+  // near it, or the row reads as five buttons.
+  &:hover,
+  &:focus {
+    color: var(--color-text);
+    text-decoration: none;
+    border-color: var(--color-action);
+  }
+}
+
+.home-counter-value {
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+
+  .ant-skeleton {
+    display: block;
+  }
+
+  .ant-skeleton-title {
+    margin: 6px 0 4px !important;
+    height: 20px !important;
+  }
+}
+
+.home-counter-unit {
+  margin-left: 4px;
+  font-size: 13px;
+  font-weight: normal;
+  color: var(--color-text-muted);
+}
+
+.home-counter-label {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+// ----------------------------------------------------------------- columns --
+
+.home-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+
+  // The scheduled table needs real width for five columns; below this the two
+  // halves stack rather than both being too narrow to read.
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.home-column {
+  min-width: 0; // lets the table inside shrink instead of overflowing the grid
+
+  // The favourites list ships as two side-by-side halves of a full-width row.
+  // In half the page that leaves two very narrow columns, so they stack.
+  .home-favorites-list > [class*="col-sm-"] {
+    width: 100%;
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  .tile {
+    margin-bottom: 0;
+  }
+}
+
+.home-panel {
+  padding: 15px;
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  box-shadow: 0 1px 3px rgba(102, 136, 153, 0.15);
+}
+
+.home-panel-title {
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: 14px;
+}
+
+.home-scheduled-table {
+  .ant-table {
+    font-size: 13px;
+  }
+
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td {
+    padding: 7px 10px;
+  }
+
+  .ant-table-thead > tr > th {
+    white-space: nowrap;
+    color: var(--color-text-muted);
+    font-weight: normal;
+  }
+
+  // Runtime and result size are read against each other down the column, so
+  // they line up on the digit rather than the word.
+  td.ant-table-cell[class*="ant-table-cell"] {
+    font-variant-numeric: tabular-nums;
+  }
+}
