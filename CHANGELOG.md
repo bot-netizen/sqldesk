@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.3.2
+
+Fixes from using it.
+
+### Fixed
+
+- **The Filter field on the Queries and Dashboards lists closed as you clicked
+  into it**, so there was no way to type a search. antd closes a dropdown when
+  its overlay is clicked, which is right for a menu and wrong for a panel built
+  around a text field.
+- **Hiding a column on those lists lost it for good.** The column disappeared
+  from the Columns menu as well as the table, leaving nothing to tick to bring
+  it back. The page was filtering its column list and then handing the filtered
+  list to the menu.
+- **The results table header was about twice the height of its rows.** antd
+  pads a header cell more than a body cell, and only the body had been made
+  compact.
+
+### Changed
+
+- **One table density everywhere.** The compact rows added in 0.2.0 applied to
+  the query editor only, so the same table looked one way there and another in
+  a dashboard widget or an alert. It is now a property of the table itself.
+- **The home page is titled "My Desk"**, and each counter opens that user's own
+  list rather than everybody's.
+- **Dashboards lost the schedule control** added in 0.2.0. The refresh-rate
+  button beside it already did what people wanted, and two adjacent controls
+  both answering "how often" was the problem. Existing dashboard schedules stop
+  running; nothing else changes.
+- **One Share button on dashboards** instead of two side by side. Public link,
+  export as PDF and export as image are one menu.
+- **Refresh intervals gain 3 hours, 6 hours and daily**, and lose the crontab
+  entry. A query already set to an expression keeps running on it and still
+  shows it -- the server never stopped understanding them -- but the menu no
+  longer offers new ones.
+- The query editor has the same rounded corners as everything else on the page.
+
 ## 0.3.1
 
 Fixes uploading a file, which 0.3.0 made worse rather than better.

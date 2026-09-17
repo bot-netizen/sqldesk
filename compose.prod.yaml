@@ -15,7 +15,7 @@
 # matching SQLDESK_HOST) in .env, or turn AirPlay Receiver off.
 
 x-sqldesk-service: &sqldesk-service
-  image: ${SQLDESK_IMAGE:-ghcr.io/bot-netizen/sqldesk:0.3.1}
+  image: ${SQLDESK_IMAGE:-ghcr.io/bot-netizen/sqldesk:0.3.2}
   depends_on:
     postgres:
       condition: service_healthy
