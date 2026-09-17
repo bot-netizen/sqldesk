@@ -122,21 +122,35 @@ describe("Textbox", () => {
     const id = this.dashboardId;
     const txb1Pos = { col: 0, row: 0, sizeX: 3, sizeY: 2 };
     const txb2Pos = { col: 1, row: 1, sizeX: 3, sizeY: 4 };
+    const GRID_ROW_HEIGHT = 50;
 
     cy.viewport(1215, 800);
     cy.addTextbox(id, "x", { position: txb1Pos })
-      .then(() => cy.addTextbox(id, "x", { position: txb2Pos }))
       .then(getWidgetTestId)
-      .then((elTestId) => {
-        cy.visit(this.dashboardUrl);
-        return cy.getByTestId(elTestId);
-      })
-      .should(($el) => {
-        const { top, left } = $el.offset();
-        expect(top).to.be.oneOf([162, 162.015625]);
-        expect(left).to.eq(188);
-        expect($el.width()).to.eq(265);
-        expect($el.height()).to.eq(185);
+      .then((firstTestId) => {
+        cy.addTextbox(id, "x", { position: txb2Pos })
+          .then(getWidgetTestId)
+          .then((secondTestId) => {
+            cy.visit(this.dashboardUrl);
+
+            // Positions are compared between the two widgets rather than
+            // against the viewport: how far the grid sits from the top of the
+            // page is page chrome, and moving the navigation to a top bar
+            // changed it without changing any widget's place on the grid.
+            cy.getByTestId(firstTestId).then(($first) => {
+              const first = $first.offset();
+              const columnWidth = $first.width() + 15; // widget width plus the margin between columns
+
+              cy.getByTestId(secondTestId).should(($second) => {
+                const second = $second.offset();
+
+                expect(second.left - first.left, "one column to the right").to.be.closeTo(columnWidth, 1);
+                expect(second.top - first.top, "one row down").to.be.closeTo(GRID_ROW_HEIGHT, 1);
+                expect($second.width(), "same width, both are three columns").to.eq($first.width());
+                expect($second.height(), "four grid rows tall").to.eq(4 * GRID_ROW_HEIGHT - 15);
+              });
+            });
+          });
       });
   });
 });

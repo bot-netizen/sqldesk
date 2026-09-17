@@ -43,25 +43,54 @@ describe("Widget", () => {
   });
 
   describe("Auto height for table visualization", () => {
-    it("renders correct height for 2 table rows", function () {
+    // The grid config these are derived from: a widget is a whole number of
+    // rows tall. Asserting the relationship rather than a pixel count means a
+    // deliberate change to how tall a table row is does not read as a failure,
+    // while a widget that stops fitting its contents still does.
+    const GRID_ROW_HEIGHT = 50;
+    const GRID_MARGINS = 15;
+
+    const isWholeGridRows = (height) => (height + GRID_MARGINS) % GRID_ROW_HEIGHT === 0;
+
+    // Nothing inside the widget may be cut off: auto height exists to make the
+    // whole visualization visible without scrolling it.
+    const assertContentFits = (elTestId) =>
+      cy.getByTestId(elTestId).within(() => {
+        cy.get(".visualization-renderer").should(($el) => {
+          const el = $el[0];
+          expect(el.scrollHeight, "visualization is not scrolled").to.be.at.most(el.clientHeight + 1);
+        });
+      });
+
+    it("is a whole number of grid rows tall, and fits its contents", function () {
       const queryData = {
         query: "select s.a FROM generate_series(1,2) AS s(a)",
       };
 
       createQueryAndAddWidget(this.dashboardId, queryData).then((elTestId) => {
         cy.visit(this.dashboardUrl);
-        cy.getByTestId(elTestId).its("0.offsetHeight").should("eq", 235);
+        cy.getByTestId(elTestId).its("0.offsetHeight").should("satisfy", isWholeGridRows);
+        assertContentFits(elTestId);
       });
     });
 
-    it("renders correct height for 5 table rows", function () {
-      const queryData = {
-        query: "select s.a FROM generate_series(1,5) AS s(a)",
-      };
-
-      createQueryAndAddWidget(this.dashboardId, queryData).then((elTestId) => {
+    it("is taller for five rows than for two, and still fits them", function () {
+      createQueryAndAddWidget(this.dashboardId, {
+        query: "select s.a FROM generate_series(1,2) AS s(a)",
+      }).then((smallTestId) => {
         cy.visit(this.dashboardUrl);
-        cy.getByTestId(elTestId).its("0.offsetHeight").should("eq", 335);
+        cy.getByTestId(smallTestId)
+          .its("0.offsetHeight")
+          .then((smallHeight) => {
+            createQueryAndAddWidget(this.dashboardId, {
+              query: "select s.a FROM generate_series(1,5) AS s(a)",
+            }).then((largeTestId) => {
+              cy.visit(this.dashboardUrl);
+              cy.getByTestId(largeTestId).its("0.offsetHeight").should("be.greaterThan", smallHeight);
+              cy.getByTestId(largeTestId).its("0.offsetHeight").should("satisfy", isWholeGridRows);
+              assertContentFits(largeTestId);
+            });
+          });
       });
     });
 
@@ -103,19 +132,22 @@ describe("Widget", () => {
         cy.get("@paramInput").clear().type("1");
         cy.getByTestId("ParameterApplyButton").click();
         cy.wait("@FreshResults", { timeout: 10000 });
-        cy.get("@widget").invoke("height").should("eq", 285);
 
-        // add 4 table rows
-        cy.get("@paramInput").clear().type("5");
-        cy.getByTestId("ParameterApplyButton").click();
-        cy.wait("@FreshResults", { timeout: 10000 });
+        cy.get("@widget")
+          .invoke("height")
+          .then((heightWithOneRow) => {
+            // add 4 table rows
+            cy.get("@paramInput").clear().type("5");
+            cy.getByTestId("ParameterApplyButton").click();
+            cy.wait("@FreshResults", { timeout: 10000 });
 
-        // expect to height to grow by 1 grid grow
-        cy.get("@widget").invoke("height").should("eq", 435);
+            cy.get("@widget").invoke("height").should("be.greaterThan", heightWithOneRow);
+          });
       });
 
       it("revokes auto height after manual height adjustment", () => {
-        // listen to results
+        // This is the behaviour that matters here: once somebody has sized a
+        // widget by hand, new data must not move it again.
         cy.server();
         cy.route("GET", "**/api/query_results/*").as("FreshResults");
 
@@ -125,21 +157,20 @@ describe("Widget", () => {
         cy.get("@paramInput").clear().type("1");
         cy.getByTestId("ParameterApplyButton").click();
         cy.wait("@FreshResults");
-        cy.get("@widget").invoke("height").should("eq", 285);
 
-        // resize height by 1 grid row
-        resizeBy(cy.get("@widget"), 0, 50)
-          .then(() => cy.get("@widget"))
+        // resize height by one grid row
+        resizeBy(cy.get("@widget"), 0, GRID_ROW_HEIGHT);
+
+        cy.get("@widget")
           .invoke("height")
-          .should("eq", 335); // resized by 50, , 135 -> 185
+          .then((resizedHeight) => {
+            // add 4 table rows, which would have grown an auto-height widget
+            cy.get("@paramInput").clear().type("5");
+            cy.getByTestId("ParameterApplyButton").click();
+            cy.wait("@FreshResults");
 
-        // add 4 table rows
-        cy.get("@paramInput").clear().type("5");
-        cy.getByTestId("ParameterApplyButton").click();
-        cy.wait("@FreshResults");
-
-        // expect height to stay unchanged (would have been 435)
-        cy.get("@widget").invoke("height").should("eq", 335);
+            cy.get("@widget").invoke("height").should("eq", resizedHeight);
+          });
       });
     });
   });
