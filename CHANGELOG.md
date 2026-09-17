@@ -14,15 +14,21 @@ Fixes from using it.
   from the Columns menu as well as the table, leaving nothing to tick to bring
   it back. The page was filtering its column list and then handing the filtered
   list to the menu.
-- **The results table header was about twice the height of its rows.** antd
-  pads a header cell more than a body cell, and only the body had been made
-  compact.
+- **The results table header stood roughly twice the height of its rows** --
+  63px against 34px. antd moves a sortable column's padding off the header cell
+  and onto a wrapper inside it, so setting the cell's padding added to that
+  rather than replacing it and the header carried it twice.
 
 ### Changed
 
 - **One table density everywhere.** The compact rows added in 0.2.0 applied to
   the query editor only, so the same table looked one way there and another in
   a dashboard widget or an alert. It is now a property of the table itself.
+- **The Queries and Dashboards lists match.** They were still on the roomier
+  58px row from before the result tables were tightened; they are 42px now,
+  with the same cell padding and the same 13px body text. A list row stays a
+  little taller because it carries a star, a name and its tags where a data row
+  carries text.
 - **The home page is titled "My Desk"**, and each counter opens that user's own
   list rather than everybody's.
 - **Dashboards lost the schedule control** added in 0.2.0. The refresh-rate
