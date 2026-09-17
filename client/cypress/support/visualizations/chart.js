@@ -24,6 +24,11 @@ function countSeriesPixels($canvases) {
   return count;
 }
 
+// The assertions below go inside `should` rather than `then` on purpose. A
+// chart is drawn asynchronously -- on a dashboard the widget renders well after
+// the page is ready -- and `then` runs once, so it reads a canvas that is still
+// blank and fails for good. `should` with a callback is retried until it passes.
+
 /**
  * Asserts whether the visualization preview has actually plotted something.
  * @param should "exist" to require plotted data, "not.exist" to require none
@@ -32,7 +37,7 @@ export function assertPlotPreview(should = "exist") {
   cy.getByTestId("VisualizationPreview")
     .find("canvas")
     .should("exist")
-    .then(($canvases) => {
+    .should(($canvases) => {
       const drawn = countSeriesPixels($canvases);
       if (should === "not.exist") {
         expect(drawn, "pixels drawn in a series colour").to.equal(0);
@@ -46,7 +51,7 @@ export function assertPlotPreview(should = "exist") {
 export function assertWidgetPlotted() {
   cy.get("canvas")
     .should("exist")
-    .then(($canvases) => {
+    .should(($canvases) => {
       expect(countSeriesPixels($canvases), "pixels drawn in a series colour").to.be.greaterThan(0);
     });
 }
