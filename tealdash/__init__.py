@@ -14,7 +14,7 @@ from tealdash.app import create_app  # noqa
 from tealdash.destinations import import_destinations
 from tealdash.query_runner import import_query_runners
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 
 if os.environ.get("REMOTE_DEBUG"):

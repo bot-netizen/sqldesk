@@ -1,6 +1,6 @@
 {
   "name": "@tealdash/viz",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Tealdash visualizations",
   "main": "dist/tealdash-visualizations.js",
   "scripts": {

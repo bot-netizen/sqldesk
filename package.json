@@ -1,6 +1,6 @@
 {
   "name": "tealdash-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The frontend part of Tealdash.",
   "main": "index.js",
   "scripts": {

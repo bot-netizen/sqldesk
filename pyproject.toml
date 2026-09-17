@@ -1,6 +1,6 @@
 [project]
 name = "tealdash"
-version = "0.1.0"
+version = "0.1.1"
 description = "Make Your Company Data Driven. Connect to any data source, easily visualize, dashboard and share your data."
 authors = [
     { name = "Tealdash contributors" }
