@@ -1,14 +1,63 @@
-client/.tmp/
-node_modules/
-viz-lib/node_modules/
-.tmp/
-.venv/
-venv/
+# Anything here is excluded from the build context, so `COPY . /app` cannot put
+# it in the image. Two of these are not merely noise:
+#
+#   .env      held the developer's SQLDESK_SECRET_KEY and SQLDESK_COOKIE_SECRET
+#             and was copied into every published image, where `docker pull`
+#             made it readable by anyone.
+#   uploads/  is where uploaded files are written at runtime. The developer's
+#             own uploads shipped inside the image, and because a named volume
+#             mounted over a non-empty directory is seeded from it, every fresh
+#             deployment would start with those files present and no database
+#             rows to match.
+#
+# Keep this in step with .gitignore: anything not worth committing is generally
+# not worth shipping either.
+
+# --- secrets and runtime state ---
+.env
+.env.*
+!.env.example
+/uploads/
+dump.rdb
+
+# --- version control and CI ---
 .git/
-/.codeclimate.yml
-/.coverage
-/coverage.xml
+.github/
 /.circleci/
-/.github/
+/.codeclimate.yml
 /netlify.toml
 /setup/
+
+# --- dependencies and build output ---
+node_modules/
+viz-lib/node_modules/
+client/.tmp/
+.tmp/
+client/dist
+_build
+.venv/
+venv/
+.cache
+.sass-cache
+
+# --- test and coverage artefacts ---
+/.coverage
+.coverage.*
+/coverage.xml
+coverage
+.coveralls.yml
+.nyc_output
+client/cypress/screenshots
+client/cypress/videos
+/test_orders.parquet
+
+# --- editor and OS noise ---
+.idea
+.vscode
+.DS_Store
+*.pyc
+__pycache__/
+npm-debug.log
+.tool-versions
+.#*
+*~
