@@ -147,7 +147,12 @@ describe("Textbox", () => {
                 const second = $second.offset();
 
                 expect(second.left - first.left, "one column to the right").to.be.closeTo(columnWidth, 1);
-                expect(second.top - first.top, "one row down").to.be.closeTo(GRID_ROW_HEIGHT, 1);
+
+                // The second textbox asks for row 1, but the first is two rows
+                // tall and they share columns -- so the grid puts it on the
+                // next free row instead of letting them overlap. It lands
+                // directly beneath, a margin clear of the one above.
+                expect(second.top - first.top, "clear of the widget above").to.be.closeTo($first.height() + 15, 1);
                 expect($second.width(), "same width, both are three columns").to.eq($first.width());
                 expect($second.height(), "four grid rows tall").to.eq(4 * GRID_ROW_HEIGHT - 15);
               });
