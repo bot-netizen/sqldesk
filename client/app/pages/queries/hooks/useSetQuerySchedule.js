@@ -1,19 +1,8 @@
-import { isArray, intersection } from "lodash";
 import { useCallback, useMemo } from "react";
-import { clientConfig } from "@/services/auth";
-import { policy } from "@/services/policy";
 import recordEvent from "@/services/recordEvent";
+import { getRefreshOptions } from "@/services/schedule";
 import useUpdateQuery from "./useUpdateQuery";
 import useQueryFlags from "./useQueryFlags";
-
-// The intervals this installation offers, narrowed to what the policy allows.
-// Kept here rather than read straight from clientConfig at the point of use,
-// so the menu and anything else offering intervals narrow them the same way.
-export function getRefreshOptions() {
-  const intervals = clientConfig.queryRefreshIntervals;
-  const allowedIntervals = policy.getQueryRefreshIntervals();
-  return isArray(allowedIntervals) ? intersection(intervals, allowedIntervals) : intervals;
-}
 
 // Setting an interval straight from the header menu, without opening the
 // dialog. Anything needing a time of day, a weekday or an end date still goes

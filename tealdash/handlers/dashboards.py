@@ -11,6 +11,7 @@ from tealdash.handlers.base import (
     paginate,
 )
 from tealdash.handlers.base import order_results as _order_results
+from tealdash.handlers.queries import require_valid_schedule
 from tealdash.permissions import (
     can_modify,
     require_admin_or_owner,
@@ -216,6 +217,8 @@ class DashboardResource(BaseResource):
 
         require_object_modify_permission(dashboard, self.current_user)
 
+        require_valid_schedule(dashboard_properties)
+
         updates = project(
             dashboard_properties,
             (
@@ -227,6 +230,7 @@ class DashboardResource(BaseResource):
                 "is_archived",
                 "dashboard_filters_enabled",
                 "options",
+                "schedule",
             ),
         )
 

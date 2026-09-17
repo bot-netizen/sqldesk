@@ -18,7 +18,7 @@ import * as queryFormat from "@/lib/queryFormat";
 
 import QueryPageHeader from "./components/QueryPageHeader";
 import QueryMetadata from "./components/QueryMetadata";
-import QueryScheduleControl from "./components/QueryScheduleControl";
+import ScheduleControl from "@/components/ScheduleControl";
 import QueryVisualizationTabs from "./components/QueryVisualizationTabs";
 import QueryExecutionStatus from "./components/QueryExecutionStatus";
 import QuerySourceAlerts from "./components/QuerySourceAlerts";
@@ -248,8 +248,9 @@ function QuerySource(props) {
           headerExtra={
             <DynamicComponent name="QuerySource.HeaderExtra" query={query}>
               {!queryFlags.isNew && (
-                <QueryScheduleControl
-                  query={query}
+                <ScheduleControl
+                  schedule={query.schedule}
+                  isNew={query.isNew()}
                   refreshOptions={refreshOptions}
                   onSelectInterval={setScheduleInterval}
                   onEditCron={editSchedule}

@@ -8,6 +8,8 @@ import Menu from "antd/lib/menu";
 import EllipsisOutlinedIcon from "@ant-design/icons/EllipsisOutlined";
 import Modal from "antd/lib/modal";
 import Tooltip from "@/components/Tooltip";
+import ScheduleControl from "@/components/ScheduleControl";
+import useDashboardSchedule from "../hooks/useDashboardSchedule";
 import FavoritesControl from "@/components/FavoritesControl";
 import EditInPlace from "@/components/EditInPlace";
 import ShareDashboardButton from "./ShareDashboardButton";
@@ -112,6 +114,29 @@ RefreshButton.propTypes = {
   dashboardConfiguration: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
 };
 
+// Sits beside the refresh button and is easily mistaken for it, so it is
+// labelled "Schedule". The button next to it re-polls while you watch and is
+// forgotten when the tab closes; this is stored on the dashboard and runs the
+// queries behind its widgets whether anyone is looking or not.
+function DashboardScheduleButton({ dashboardConfiguration }) {
+  const { dashboard, updateDashboard } = dashboardConfiguration;
+  const { refreshOptions, setInterval, editCron } = useDashboardSchedule(dashboard, updateDashboard);
+
+  return (
+    <ScheduleControl
+      label="Schedule"
+      schedule={dashboard.schedule}
+      refreshOptions={refreshOptions}
+      onSelectInterval={setInterval}
+      onEditCron={editCron}
+    />
+  );
+}
+
+DashboardScheduleButton.propTypes = {
+  dashboardConfiguration: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+};
+
 function DashboardMoreOptionsButton({ dashboardConfiguration }) {
   const {
     dashboard,
@@ -211,6 +236,9 @@ function DashboardControl({ dashboardConfiguration, headerExtra }) {
             <Button className="m-r-5 hidden-xs" onClick={togglePublished}>
               <span className="fa fa-paper-plane m-r-5" /> Publish
             </Button>
+          )}
+          {canEditDashboard && !dashboard.isNew && (
+            <DashboardScheduleButton dashboardConfiguration={dashboardConfiguration} />
           )}
           {showRefreshButton && <RefreshButton dashboardConfiguration={dashboardConfiguration} />}
           <ShareDashboardButton

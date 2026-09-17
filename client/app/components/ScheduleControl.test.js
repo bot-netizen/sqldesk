@@ -1,16 +1,16 @@
 import React from "react";
 import { mount } from "enzyme";
 import Dropdown from "antd/lib/dropdown";
-import QueryScheduleControl from "./QueryScheduleControl";
+import ScheduleControl from "./ScheduleControl";
 
 // What a stock installation allows: a minute to a month, twenty-one entries.
 const ALL_INTERVALS = [60, 300, 600, 900, 1800, 3600, 7200, 86400, 604800, 2592000];
 
 function getWrapper({ schedule = null, ...props } = {}) {
-  const query = { schedule, isNew: () => false };
   return mount(
-    <QueryScheduleControl
-      query={query}
+    <ScheduleControl
+      schedule={schedule}
+      isNew={false}
       refreshOptions={ALL_INTERVALS}
       onSelectInterval={() => {}}
       onEditCron={() => {}}
@@ -43,7 +43,7 @@ function clickItem(menu, label) {
   item.simulate("click");
 }
 
-describe("QueryScheduleControl", () => {
+describe("ScheduleControl", () => {
   it("offers five intervals and nothing longer than an hour", () => {
     expect(labels(getMenu(getWrapper()))).toEqual([
       "Never",

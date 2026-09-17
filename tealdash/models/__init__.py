@@ -807,6 +807,63 @@ class Query(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model):
         return list(outdated_queries.values())
 
     @classmethod
+    def outdated_dashboard_queries(cls):
+        """Queries due for a refresh because a dashboard they sit on is scheduled.
+
+        A dashboard's schedule is not tracked against the dashboard: each query
+        is measured against when *it* last ran, using the dashboard's
+        expression. That means no last-run column to keep in step, nothing to
+        reset when a widget is added, and a query on two scheduled dashboards
+        simply refreshes on whichever slot comes round first -- which is what
+        somebody who scheduled both dashboards asked for.
+        """
+        now = utils.utcnow()
+        dashboards = Dashboard.query.filter(
+            Dashboard.is_archived.is_(False),
+            Dashboard.schedule.isnot(None),
+        ).all()
+
+        outdated = {}
+        for dashboard in dashboards:
+            schedule = dashboard.schedule or {}
+            if schedule.get("disabled"):
+                continue
+
+            interval, cron = schedule.get("interval"), schedule.get("cron")
+            if not interval and not cron:
+                continue
+
+            for query in dashboard.scheduled_widget_queries():
+                if query.id in outdated:
+                    continue
+                retrieved_at = query.latest_query_data and query.latest_query_data.retrieved_at
+                try:
+                    due = should_schedule_next(
+                        retrieved_at,
+                        now,
+                        interval,
+                        failures=query.schedule_failures,
+                        cron=cron,
+                    )
+                except Exception as e:
+                    # Matching outdated_queries: a schedule that cannot be read
+                    # is turned off rather than left to raise on every pass.
+                    dashboard.schedule["disabled"] = True
+                    db.session.commit()
+                    message = (
+                        "Could not determine if dashboard %d is due due to %s. Its schedule has been disabled."
+                        % (dashboard.id, repr(e))
+                    )
+                    logging.info(message)
+                    sentry.capture_exception(type(e)(message).with_traceback(e.__traceback__))
+                    break
+
+                if due:
+                    outdated[query.id] = query
+
+        return list(outdated.values())
+
+    @classmethod
     def _do_multi_byte_search(cls, all_queries, term, limit=None):
         # term examples:
         #    - word
@@ -1291,9 +1348,26 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
     widgets = db.relationship("Widget", backref="dashboard", lazy="dynamic")
     tags = Column("tags", MutableList.as_mutable(ARRAY(db.Unicode)), nullable=True)
     options = Column(MutableDict.as_mutable(JSONB), default={})
+    # Same shape as Query.schedule. A dashboard has no data of its own, so this
+    # means "refresh the queries behind these widgets on this cadence".
+    schedule = Column(MutableDict.as_mutable(JSONB), nullable=True)
 
     __tablename__ = "dashboards"
     __mapper_args__ = {"version_id_col": version}
+
+    def scheduled_widget_queries(self):
+        """The distinct, live queries behind this dashboard's widgets.
+
+        Textbox widgets have no visualization and archived queries are not
+        refreshed, so both are left out.
+        """
+        return (
+            Query.query.join(Visualization, Visualization.query_id == Query.id)
+            .join(Widget, Widget.visualization_id == Visualization.id)
+            .filter(Widget.dashboard_id == self.id, Query.is_archived.is_(False))
+            .distinct()
+            .all()
+        )
 
     def __str__(self):
         return "%s=%s" % (self.id, self.name)
