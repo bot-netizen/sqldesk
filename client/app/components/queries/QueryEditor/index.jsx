@@ -10,6 +10,12 @@ import QuerySnippet from "@/services/query-snippet";
 import QueryEditorControls from "./QueryEditorControls";
 import "./index.less";
 
+// Mirrors @font-mono in assets/less/inc/tokens.less. Ace cannot take a CSS
+// custom property here: it measures the font before it is applied to anything
+// that would resolve one.
+const FONT_MONO =
+  '"JetBrains Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace';
+
 const editorProps = { $blockScrolling: Infinity };
 
 const QueryEditor = React.forwardRef(function (
@@ -41,6 +47,13 @@ const QueryEditor = React.forwardRef(function (
       enableBasicAutocompletion: true,
       enableLiveAutocompletion: autocompleteEnabled,
       autoScrollEditorIntoView: true,
+      // Set here rather than in CSS. Ace measures one character once and
+      // positions the cursor, the selection and the gutter from that number,
+      // so a font applied underneath it in a stylesheet leaves everything
+      // sitting beside the text it is meant to mark. Going through setOptions
+      // makes Ace re-measure.
+      fontFamily: FONT_MONO,
+      fontSize: 13,
     }),
     [autocompleteEnabled]
   );
