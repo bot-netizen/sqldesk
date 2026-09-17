@@ -54,6 +54,11 @@ docker compose -f compose.prod.yaml up -d
 Tealdash comes up on `http://localhost:5000`. Set `TEALDASH_IMAGE` in `.env` to
 pin a different tag.
 
+> On macOS, port 5000 is taken by AirPlay Receiver and `up` fails with "address
+> already in use". Set `TEALDASH_PORT` and `TEALDASH_HOST` in `.env` to another
+> port, or turn AirPlay Receiver off under System Settings > General > AirDrop
+> & Handoff.
+
 > Keep `TEALDASH_SECRET_KEY`. Data-source passwords are encrypted with it, so
 > changing it makes every stored credential unreadable.
 

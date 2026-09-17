@@ -275,6 +275,14 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
     </div>
 
     <p class="sub" style="margin-top:14px">
+      On macOS, port 5000 belongs to AirPlay Receiver and <code>up</code> fails
+      with &ldquo;address already in use&rdquo;. Set <code>TEALDASH_PORT</code>
+      and <code>TEALDASH_HOST</code> in <code>.env</code> to another port, or
+      turn AirPlay Receiver off under System Settings &rsaquo; General &rsaquo;
+      AirDrop &amp; Handoff.
+    </p>
+
+    <p class="sub" style="margin-top:14px">
       Images are published to
       <code>ghcr.io/tdot-labs/tealdash</code> for amd64 and arm64. To build from
       source instead, <code>compose.yaml</code> is the development setup —

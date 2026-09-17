@@ -10,6 +10,9 @@
 #   docker compose -f compose.prod.yaml up -d
 #
 # Tealdash is then on http://localhost:5000.
+#
+# macOS holds port 5000 for AirPlay Receiver, so set TEALDASH_PORT (and the
+# matching TEALDASH_HOST) in .env, or turn AirPlay Receiver off.
 
 x-tealdash-service: &tealdash-service
   image: ${TEALDASH_IMAGE:-ghcr.io/tdot-labs/tealdash:0.1.0}
