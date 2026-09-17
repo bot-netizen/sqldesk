@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from tealdash.query_runner import (
+from sqldesk.query_runner import (
     TYPE_BOOLEAN,
     TYPE_DATETIME,
     TYPE_FLOAT,

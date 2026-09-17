@@ -8,7 +8,7 @@ import Input from "antd/lib/input";
 import Tooltip from "@/components/Tooltip";
 import Divider from "antd/lib/divider";
 import Link from "@/components/Link";
-import HtmlContent from "@tealdash/viz/lib/components/HtmlContent";
+import HtmlContent from "@sqldesk/viz/lib/components/HtmlContent";
 import { wrap as wrapDialog, DialogPropType } from "@/components/DialogWrapper";
 import notification from "@/services/notification";
 

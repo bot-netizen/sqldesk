@@ -1,6 +1,6 @@
 from funcy import pairwise
 
-from tealdash.models import DataSource
+from sqldesk.models import DataSource
 from tests import BaseTestCase
 
 

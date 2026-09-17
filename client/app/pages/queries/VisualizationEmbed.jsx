@@ -21,8 +21,8 @@ import VisualizationRenderer from "@/components/visualizations/VisualizationRend
 import FileOutlinedIcon from "@ant-design/icons/FileOutlined";
 import FileExcelOutlinedIcon from "@ant-design/icons/FileExcelOutlined";
 
-import { VisualizationType } from "@tealdash/viz/lib";
-import HtmlContent from "@tealdash/viz/lib/components/HtmlContent";
+import { VisualizationType } from "@sqldesk/viz/lib";
+import HtmlContent from "@sqldesk/viz/lib/components/HtmlContent";
 
 import { formatDateTime } from "@/lib/utils";
 import useImmutableCallback from "@/lib/hooks/useImmutableCallback";
@@ -30,13 +30,13 @@ import { Query } from "@/services/query";
 import location from "@/services/location";
 import routes from "@/services/routes";
 
-import logoUrl from "@/assets/images/tealdash_icon.svg";
+import logoUrl from "@/assets/images/sqldesk_icon.svg";
 
 function VisualizationEmbedHeader({ queryName, queryDescription, visualization }) {
   return (
     <div className="embed-heading p-b-10 p-r-15 p-l-15">
       <h3>
-        <img src={logoUrl} alt="Tealdash" style={{ height: "24px", verticalAlign: "text-bottom" }} />
+        <img src={logoUrl} alt="SQLDesk" style={{ height: "24px", verticalAlign: "text-bottom" }} />
         <VisualizationName visualization={visualization} /> {queryName}
         {queryDescription && (
           <small>
@@ -121,10 +121,10 @@ function VisualizationEmbedFooter({
       )}
       {queryUrl && (
         <span className="hidden-print">
-          <Tooltip title="Open in Tealdash">
+          <Tooltip title="Open in SQLDesk">
             <Link.Button className="icon-button" href={queryUrl} target="_blank">
               <i className="fa fa-external-link" aria-hidden="true" />
-              <span className="sr-only">Open in Tealdash</span>
+              <span className="sr-only">Open in SQLDesk</span>
             </Link.Button>
           </Tooltip>
           {!query.hasParameters() && (

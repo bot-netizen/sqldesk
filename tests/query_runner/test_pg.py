@@ -1,12 +1,12 @@
 from unittest import TestCase
 
-from tealdash.query_runner.pg import _parse_dsn, build_schema
+from sqldesk.query_runner.pg import _parse_dsn, build_schema
 
 
 class TestParameters(TestCase):
     def test_parse_dsn(self):
-        configuration = {"dsn": "application_name=tealdash connect_timeout=5"}
-        self.assertDictEqual(_parse_dsn(configuration), {"application_name": "tealdash", "connect_timeout": "5"})
+        configuration = {"dsn": "application_name=sqldesk connect_timeout=5"}
+        self.assertDictEqual(_parse_dsn(configuration), {"application_name": "sqldesk", "connect_timeout": "5"})
 
     def test_parse_dsn_not_permitted(self):
         configuration = {"dsn": "password=xyz"}

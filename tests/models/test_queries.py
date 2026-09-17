@@ -3,8 +3,8 @@ import datetime
 import mock
 import pytest
 
-from tealdash.models import Event, Group, Query, QueryResult, db
-from tealdash.utils import gen_query_hash, utcnow
+from sqldesk.models import Event, Group, Query, QueryResult, db
+from sqldesk.utils import gen_query_hash, utcnow
 from tests import BaseTestCase
 
 

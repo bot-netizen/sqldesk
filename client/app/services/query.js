@@ -28,7 +28,7 @@ import localOptions from "@/lib/localOptions";
 
 Mustache.escape = identity; // do not html-escape values
 
-const logger = debug("tealdash:services:query");
+const logger = debug("sqldesk:services:query");
 
 function collectParams(parts) {
   let parameters = [];

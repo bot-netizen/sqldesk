@@ -1,5 +1,5 @@
-from tealdash.models import AccessPermission
-from tealdash.permissions import ACCESS_TYPE_MODIFY, ACCESS_TYPE_VIEW
+from sqldesk.models import AccessPermission
+from sqldesk.permissions import ACCESS_TYPE_MODIFY, ACCESS_TYPE_VIEW
 from tests import BaseTestCase
 
 

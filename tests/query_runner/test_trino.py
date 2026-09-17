@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from trino.types import NamedRowTuple
 
-from tealdash.query_runner.trino import Trino, _convert_row_types
+from sqldesk.query_runner.trino import Trino, _convert_row_types
 
 
 class TestTrino(TestCase):
@@ -62,8 +62,8 @@ class TestTrino(TestCase):
         self.assertEqual(catalogs, expected_catalogs)
 
     def test_get_client_tags_parses_comma_separated_values(self):
-        runner = Trino({"client_tags": "finance,  tealdash  , ,analytics"})
-        self.assertEqual(runner._get_client_tags(), ["finance", "tealdash", "analytics"])
+        runner = Trino({"client_tags": "finance,  sqldesk  , ,analytics"})
+        self.assertEqual(runner._get_client_tags(), ["finance", "sqldesk", "analytics"])
 
     def test_get_client_tags_returns_none_when_empty(self):
         runner = Trino({"client_tags": " ,  , "})

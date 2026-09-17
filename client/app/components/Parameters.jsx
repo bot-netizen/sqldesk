@@ -1,7 +1,7 @@
 import { size, filter, forEach, extend, isEmpty } from "lodash";
 import React from "react";
 import PropTypes from "prop-types";
-import { SortableContainer, SortableElement, DragHandle } from "@tealdash/viz/lib/components/sortable";
+import { SortableContainer, SortableElement, DragHandle } from "@sqldesk/viz/lib/components/sortable";
 import location from "@/services/location";
 import { Parameter, createParameter } from "@/services/parameters";
 import ParameterApplyButton from "@/components/ParameterApplyButton";

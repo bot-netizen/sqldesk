@@ -3,8 +3,8 @@ from unittest import TestCase
 
 import pytest
 
-from tealdash import create_app
-from tealdash.query_runner import (
+from sqldesk import create_app
+from sqldesk.query_runner import (
     TYPE_BOOLEAN,
     TYPE_DATE,
     TYPE_DATETIME,
@@ -12,7 +12,7 @@ from tealdash.query_runner import (
     TYPE_INTEGER,
     TYPE_STRING,
 )
-from tealdash.utils import (
+from sqldesk.utils import (
     build_url,
     collect_parameters_from_request,
     filter_none,
@@ -20,7 +20,7 @@ from tealdash.utils import (
     json_dumps,
     render_template,
 )
-from tealdash.utils.pandas import pandas_installed
+from sqldesk.utils.pandas import pandas_installed
 
 DummyRequest = namedtuple("DummyRequest", ["host", "scheme"])
 
@@ -30,7 +30,7 @@ if pandas_installed:
     import numpy as np
     import pandas as pd
 
-    from tealdash.utils.pandas import get_column_types_from_dataframe, pandas_to_result
+    from sqldesk.utils.pandas import get_column_types_from_dataframe, pandas_to_result
 
 
 class TestBuildUrl(TestCase):

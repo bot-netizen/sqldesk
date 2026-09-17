@@ -10,6 +10,6 @@ describe("Logout", () => {
     cy.wait(500); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.getByTestId("LogOutButton").should("be.visible").click();
 
-    cy.title().should("eq", "Login to Tealdash");
+    cy.title().should("eq", "Login to SQLDesk");
   });
 });

@@ -5,17 +5,17 @@ from freezegun import freeze_time
 from mock import patch
 from pytz import utc
 
-from tealdash.query_runner import TYPE_INTEGER, TYPE_STRING
-from tealdash.query_runner.mongodb import (
+from sqldesk.query_runner import TYPE_INTEGER, TYPE_STRING
+from sqldesk.query_runner.mongodb import (
     MongoDB,
     _get_column_by_name,
     parse_query_json,
     parse_results,
 )
-from tealdash.utils import json_dumps, parse_human_time
+from sqldesk.utils import json_dumps, parse_human_time
 
 
-@patch("tealdash.query_runner.mongodb.pymongo.MongoClient")
+@patch("sqldesk.query_runner.mongodb.pymongo.MongoClient")
 class TestMongoDB(TestCase):
     def test_username_password_present_overrides_username_from_uri(self, mongo_client):
         config = {

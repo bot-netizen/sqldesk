@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import ErrorBoundary, { ErrorBoundaryContext } from "@tealdash/viz/lib/components/ErrorBoundary";
+import ErrorBoundary, { ErrorBoundaryContext } from "@sqldesk/viz/lib/components/ErrorBoundary";
 import { Auth } from "@/services/auth";
 import { policy } from "@/services/policy";
 import { CurrentRoute } from "@/services/routes";

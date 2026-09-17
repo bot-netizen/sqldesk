@@ -1,11 +1,11 @@
 from influxdb.resultset import ResultSet
 
-from tealdash.query_runner import (
+from sqldesk.query_runner import (
     TYPE_FLOAT,
     TYPE_INTEGER,
     TYPE_STRING,
 )
-from tealdash.query_runner.influx_db import _transform_result
+from sqldesk.query_runner.influx_db import _transform_result
 
 raw = {
     "series": [

@@ -1,7 +1,7 @@
 import json
 
-from tealdash.serializers import serialize_query_result, serialize_query_result_json
-from tealdash.utils import json_dumps
+from sqldesk.serializers import serialize_query_result, serialize_query_result_json
+from sqldesk.utils import json_dumps
 from tests import BaseTestCase
 
 
@@ -45,7 +45,7 @@ class QueryResultJsonTest(BaseTestCase):
     def test_payload_containing_the_slot_marker_is_not_corrupted(self):
         # The marker is spliced with a single replace, so a payload that happens
         # to contain the marker text must not be able to displace it.
-        marker = "tealdash-payload"
+        marker = "sqldesk-payload"
         data = {"columns": [], "rows": [{"note": marker}]}
         qr = self._result(data)
 
@@ -63,7 +63,7 @@ class QueryResultJsonTest(BaseTestCase):
         # that would decode the payload.
         from sqlalchemy import inspect
 
-        from tealdash.models import QueryResult, db
+        from sqldesk.models import QueryResult, db
 
         qr = self._result({"columns": [], "rows": [{"n": 1}]})
         db.session.commit()

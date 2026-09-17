@@ -1,8 +1,8 @@
 import textwrap
 from unittest import TestCase
 
-from tealdash import settings
-from tealdash.models import OPERATORS, Alert, db, next_state
+from sqldesk import settings
+from sqldesk.models import OPERATORS, Alert, db, next_state
 from tests import BaseTestCase
 
 

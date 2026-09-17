@@ -2,10 +2,10 @@ from mock import call, patch
 from rq import Connection
 from rq.job import JobStatus
 
-from tealdash import rq_redis_connection
-from tealdash.tasks import Queue, Worker
-from tealdash.tasks.queries.execution import enqueue_query
-from tealdash.worker import default_queues, job
+from sqldesk import rq_redis_connection
+from sqldesk.tasks import Queue, Worker
+from sqldesk.tasks.queries.execution import enqueue_query
+from sqldesk.worker import default_queues, job
 from tests import BaseTestCase
 
 

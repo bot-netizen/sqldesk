@@ -5,7 +5,7 @@ import { QueryResultError } from "@/services/query";
 import { Auth } from "@/services/auth";
 import { isString, uniqBy, each, isNumber, includes, extend, forOwn, get } from "lodash";
 
-const logger = debug("tealdash:services:QueryResult");
+const logger = debug("sqldesk:services:QueryResult");
 const filterTypes = ["filter", "multi-filter", "multiFilter"];
 
 function defer() {

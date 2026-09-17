@@ -10,7 +10,7 @@ export interface CurrentRoute<P> {
   routeParams: P;
 }
 
-export interface TealdashRoute<P = {}, C extends Context = Context, R = any> extends UniversalRouterRoute<C, R> {
+export interface SQLDeskRoute<P = {}, C extends Context = Context, R = any> extends UniversalRouterRoute<C, R> {
   path: string; // we don't use other UniversalRouterRoute options, path should be available and should be a string
   key?: string; // generated in Router.jsx
   title: string;
@@ -18,7 +18,7 @@ export interface TealdashRoute<P = {}, C extends Context = Context, R = any> ext
   getApiKey?: () => string;
 }
 
-interface RouteItem extends TealdashRoute<any> {
+interface RouteItem extends SQLDeskRoute<any> {
   id: string | null;
 }
 
@@ -43,7 +43,7 @@ class Routes {
     return this._items;
   }
 
-  public register<P>(id: string, route: TealdashRoute<P>) {
+  public register<P>(id: string, route: SQLDeskRoute<P>) {
     const idOrNull = isString(id) ? id : null;
     this.unregister(idOrNull);
     if (isObject(route)) {

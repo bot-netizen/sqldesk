@@ -10,7 +10,7 @@ scheduler() {
 dev_scheduler() {
   echo "Starting dev RQ scheduler..."
 
-  exec watchmedo auto-restart --directory=./tealdash/ --pattern=*.py --recursive -- ./manage.py rq scheduler
+  exec watchmedo auto-restart --directory=./sqldesk/ --pattern=*.py --recursive -- ./manage.py rq scheduler
 }
 
 worker() {
@@ -25,7 +25,7 @@ worker() {
 workers_healthcheck() {
   WORKERS_COUNT=${WORKERS_COUNT}
   echo "Checking active workers count against $WORKERS_COUNT..."
-  ACTIVE_WORKERS_COUNT=`echo $(rq info --url $TEALDASH_REDIS_URL -R | grep workers | grep -oP ^[0-9]+)`
+  ACTIVE_WORKERS_COUNT=`echo $(rq info --url $SQLDESK_REDIS_URL -R | grep workers | grep -oP ^[0-9]+)`
   if [ "$ACTIVE_WORKERS_COUNT" -lt "$WORKERS_COUNT"  ]; then
     echo "$ACTIVE_WORKERS_COUNT workers are active, Exiting"
     exit 1
@@ -38,16 +38,16 @@ workers_healthcheck() {
 dev_worker() {
   echo "Starting dev RQ worker..."
 
-  exec watchmedo auto-restart --directory=./tealdash/ --pattern=*.py --recursive -- ./manage.py rq worker $QUEUES
+  exec watchmedo auto-restart --directory=./sqldesk/ --pattern=*.py --recursive -- ./manage.py rq worker $QUEUES
 }
 
 server() {
   # Recycle gunicorn workers every n-th request. See http://docs.gunicorn.org/en/stable/settings.html#max-requests for more details.
   MAX_REQUESTS=${MAX_REQUESTS:-1000}
   MAX_REQUESTS_JITTER=${MAX_REQUESTS_JITTER:-100}
-  TIMEOUT=${TEALDASH_GUNICORN_TIMEOUT:-60}
-  BIND_ADDRESS=${TEALDASH_GUNICORN_BIND:-[::]:5000}
-  exec /usr/local/bin/gunicorn -b "$BIND_ADDRESS" --name tealdash -w${TEALDASH_WEB_WORKERS:-4} tealdash.wsgi:app --max-requests $MAX_REQUESTS --max-requests-jitter $MAX_REQUESTS_JITTER --timeout $TIMEOUT --limit-request-line ${TEALDASH_GUNICORN_LIMIT_REQUEST_LINE:-0}
+  TIMEOUT=${SQLDESK_GUNICORN_TIMEOUT:-60}
+  BIND_ADDRESS=${SQLDESK_GUNICORN_BIND:-[::]:5000}
+  exec /usr/local/bin/gunicorn -b "$BIND_ADDRESS" --name sqldesk -w${SQLDESK_WEB_WORKERS:-4} sqldesk.wsgi:app --max-requests $MAX_REQUESTS --max-requests-jitter $MAX_REQUESTS_JITTER --timeout $TIMEOUT --limit-request-line ${SQLDESK_GUNICORN_LIMIT_REQUEST_LINE:-0}
 }
 
 create_db() {
@@ -55,12 +55,12 @@ create_db() {
 }
 
 help() {
-  echo "Tealdash Docker."
+  echo "SQLDesk Docker."
   echo ""
   echo "Usage:"
   echo ""
 
-  echo "server -- start Tealdash server (with gunicorn)"
+  echo "server -- start SQLDesk server (with gunicorn)"
   echo "worker -- start a single RQ worker"
   echo "dev_worker -- start a single RQ worker with code reloading"
   echo "scheduler -- start an rq-scheduler instance"
@@ -70,12 +70,12 @@ help() {
   echo "dev_server -- start Flask development server with debugger and auto reload"
   echo "debug -- start Flask development server with remote debugger via debugpy"
   echo "create_db -- create database tables"
-  echo "manage -- CLI to manage tealdash"
+  echo "manage -- CLI to manage sqldesk"
   echo "tests -- run tests"
 }
 
 tests() {
-  export TEALDASH_DATABASE_URL="postgresql://postgres@postgres/tests"
+  export SQLDESK_DATABASE_URL="postgresql://postgres@postgres/tests"
 
   if [ $# -eq 0 ]; then
     TEST_ARGS=tests/

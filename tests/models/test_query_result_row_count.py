@@ -1,4 +1,4 @@
-from tealdash.models import QueryResult, _row_count_of
+from sqldesk.models import QueryResult, _row_count_of
 from tests import BaseTestCase
 
 

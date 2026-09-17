@@ -2,7 +2,7 @@ import React, { useCallback } from "react";
 import Tooltip from "@/components/Tooltip";
 import Button from "antd/lib/button";
 import PropTypes from "prop-types";
-import "@/tealdash-font/style.less";
+import "@/sqldesk-font/style.less";
 import recordEvent from "@/services/recordEvent";
 
 export default function AutocompleteToggle({ available, enabled, onToggle }) {

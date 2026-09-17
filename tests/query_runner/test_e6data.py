@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
-from tealdash.query_runner import TYPE_INTEGER, TYPE_STRING
-from tealdash.query_runner.e6data import e6data
+from sqldesk.query_runner import TYPE_INTEGER, TYPE_STRING
+from sqldesk.query_runner.e6data import e6data
 
 runner = e6data(
     {

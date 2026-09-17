@@ -3,7 +3,7 @@ import subprocess
 
 from _pytest.monkeypatch import MonkeyPatch
 
-from tealdash.query_runner.script import query_to_script_path, run_script
+from sqldesk.query_runner.script import query_to_script_path, run_script
 from tests import BaseTestCase
 
 

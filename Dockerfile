@@ -8,13 +8,13 @@ ARG skip_frontend_build
 ENV CYPRESS_INSTALL_BINARY=0
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 
-RUN useradd -m -d /frontend tealdash
-USER tealdash
+RUN useradd -m -d /frontend sqldesk
+USER sqldesk
 
 WORKDIR /frontend
-COPY --chown=tealdash package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc /frontend/
-COPY --chown=tealdash viz-lib /frontend/viz-lib
-COPY --chown=tealdash scripts /frontend/scripts
+COPY --chown=sqldesk package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc /frontend/
+COPY --chown=sqldesk viz-lib /frontend/viz-lib
+COPY --chown=sqldesk scripts /frontend/scripts
 
 # Controls whether to instrument code for coverage information
 ARG code_coverage
@@ -25,8 +25,8 @@ RUN --mount=type=cache,id=pnpm-store,target=/frontend/.cache/pnpm,uid=1001,gid=1
   pnpm config set store-dir /frontend/.cache/pnpm && \
   if [ "x$skip_frontend_build" = "x" ] ; then pnpm install --frozen-lockfile; fi
 
-COPY --chown=tealdash client /frontend/client
-COPY --chown=tealdash webpack.config.js /frontend/
+COPY --chown=sqldesk client /frontend/client
+COPY --chown=sqldesk webpack.config.js /frontend/
 
 # Use the same cache mount for the build step
 RUN --mount=type=cache,id=pnpm-store,target=/frontend/.cache/pnpm,uid=1001,gid=1001 <<EOF
@@ -43,7 +43,7 @@ FROM python:3.13-slim-bookworm
 
 EXPOSE 5000
 
-RUN useradd --create-home tealdash
+RUN useradd --create-home sqldesk
 
 # Ubuntu packages
 RUN apt-get update && \
@@ -125,10 +125,10 @@ RUN --mount=type=cache,target=/root/.cache/uv <<EOF
   uv sync $UV_OPTIONS $group_flags
 EOF
 
-COPY --chown=tealdash . /app
-COPY --from=frontend-builder --chown=tealdash /frontend/client/dist /app/client/dist
-RUN chown tealdash /app
-USER tealdash
+COPY --chown=sqldesk . /app
+COPY --from=frontend-builder --chown=sqldesk /frontend/client/dist /app/client/dist
+RUN chown sqldesk /app
+USER sqldesk
 
 ENTRYPOINT ["/app/bin/docker-entrypoint"]
 CMD ["server"]

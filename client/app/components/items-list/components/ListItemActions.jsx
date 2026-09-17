@@ -20,7 +20,7 @@ import "./ListItemActions.less";
   enforces: POST/DELETE on an object's ACL calls require_admin_or_owner, so
   an owner can still change sharing through the object's own page or the
   API directly. Hiding the entry is presentation, not enforcement — if
-  admin-only is meant to be a real restriction, tealdash/handlers/permissions.py
+  admin-only is meant to be a real restriction, sqldesk/handlers/permissions.py
   has to change too.
 */
 export function canManagePermissions() {

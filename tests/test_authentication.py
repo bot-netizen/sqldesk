@@ -11,8 +11,8 @@ from flask import request
 from mock import Mock, patch
 from sqlalchemy.orm.exc import NoResultFound
 
-from tealdash import models, settings
-from tealdash.authentication import (
+from sqldesk import models, settings
+from sqldesk.authentication import (
     api_key_load_user_from_request,
     get_login_url,
     hmac_load_user_from_request,
@@ -20,7 +20,7 @@ from tealdash.authentication import (
     org_settings,
     sign,
 )
-from tealdash.authentication.google_oauth import (
+from sqldesk.authentication.google_oauth import (
     create_and_login_user,
     verify_profile,
 )
@@ -181,7 +181,7 @@ class TestCreateAndLoginUser(BaseTestCase):
     def test_logins_valid_user(self):
         user = self.factory.create_user(email="test@example.com")
 
-        with patch("tealdash.authentication.login_user") as login_user_mock:
+        with patch("sqldesk.authentication.login_user") as login_user_mock:
             create_and_login_user(self.factory.org, user.name, user.email)
             login_user_mock.assert_called_once_with(user, remember=True)
 
@@ -189,7 +189,7 @@ class TestCreateAndLoginUser(BaseTestCase):
         email = "test@example.com"
         name = "Test User"
 
-        with patch("tealdash.authentication.login_user") as login_user_mock:
+        with patch("sqldesk.authentication.login_user") as login_user_mock:
             create_and_login_user(self.factory.org, name, email)
 
             self.assertTrue(login_user_mock.called)
@@ -199,7 +199,7 @@ class TestCreateAndLoginUser(BaseTestCase):
     def test_updates_user_name(self):
         user = self.factory.create_user(email="test@example.com")
 
-        with patch("tealdash.authentication.login_user") as login_user_mock:
+        with patch("sqldesk.authentication.login_user") as login_user_mock:
             create_and_login_user(self.factory.org, "New Name", user.email)
             login_user_mock.assert_called_once_with(user, remember=True)
 
@@ -360,7 +360,7 @@ class TestRedirectToUrlAfterLoggingIn(BaseTestCase):
 
 
 class TestRemoteUserAuth(BaseTestCase):
-    DEFAULT_SETTING_OVERRIDES = {"TEALDASH_REMOTE_USER_LOGIN_ENABLED": "true"}
+    DEFAULT_SETTING_OVERRIDES = {"SQLDESK_REMOTE_USER_LOGIN_ENABLED": "true"}
 
     def setUp(self):
         # Apply default setting overrides to every test
@@ -420,7 +420,7 @@ class TestRemoteUserAuth(BaseTestCase):
         return models.User.get_by_email_and_org(email, org or self.factory.org)
 
     def test_remote_login_disabled(self):
-        self.override_settings({"TEALDASH_REMOTE_USER_LOGIN_ENABLED": "false"})
+        self.override_settings({"SQLDESK_REMOTE_USER_LOGIN_ENABLED": "false"})
 
         self.get_request(
             "/remote_user/login",
@@ -441,7 +441,7 @@ class TestRemoteUserAuth(BaseTestCase):
         self.assert_correct_user_attributes(self.get_test_user())
 
     def test_remote_login_custom_header(self):
-        self.override_settings({"TEALDASH_REMOTE_USER_HEADER": "X-Custom-User"})
+        self.override_settings({"SQLDESK_REMOTE_USER_HEADER": "X-Custom-User"})
 
         self.get_request(
             "/remote_user/login",
@@ -456,7 +456,7 @@ class TestUserForgotPassword(BaseTestCase):
     def test_user_should_receive_password_reset_link(self):
         user = self.factory.create_user()
 
-        with patch("tealdash.handlers.authentication.send_password_reset_email") as send_password_reset_email_mock:
+        with patch("sqldesk.handlers.authentication.send_password_reset_email") as send_password_reset_email_mock:
             response = self.post_request("/forgot", org=user.org, data={"email": user.email})
             self.assertEqual(response.status_code, 200)
             send_password_reset_email_mock.assert_called_with(user)
@@ -468,9 +468,9 @@ class TestUserForgotPassword(BaseTestCase):
         self.db.session.commit()
 
         with patch(
-            "tealdash.handlers.authentication.send_password_reset_email"
+            "sqldesk.handlers.authentication.send_password_reset_email"
         ) as send_password_reset_email_mock, patch(
-            "tealdash.handlers.authentication.send_user_disabled_email"
+            "sqldesk.handlers.authentication.send_user_disabled_email"
         ) as send_user_disabled_email_mock:
             response = self.post_request("/forgot", org=user.org, data={"email": user.email})
             self.assertEqual(response.status_code, 200)

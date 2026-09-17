@@ -71,9 +71,9 @@ A fix release. **The install documented in 0.1.0 could not work.**
 
 ### Changed
 
-- The usage-data prompt said data would be shared with "the Tealdash team".
+- The usage-data prompt said data would be shared with "the SQLDesk team".
   There is no such collection: the counts only ever go to an endpoint the
-  operator sets in `TEALDASH_VERSION_CHECK_URL`, which is empty by default. The
+  operator sets in `SQLDESK_VERSION_CHECK_URL`, which is empty by default. The
   wording now says what the setting does, and the prompt appears only when an
   endpoint is configured — otherwise it was asking about something that could
   not happen.
@@ -96,9 +96,9 @@ A fix release. **The install documented in 0.1.0 could not work.**
 
 ## 0.1.0
 
-First release of Tealdash.
+First release of SQLDesk.
 
-Tealdash is a fork of Redash. This changelog starts here; the inherited work is
+SQLDesk is a fork of Redash. This changelog starts here; the inherited work is
 described in [NOTICE](NOTICE), and the upstream project keeps its own history.
 What follows is what is different in this release.
 
@@ -140,7 +140,7 @@ What follows is what is different in this release.
 - Relicensed under the Apache License 2.0. The inherited BSD 2-Clause notice is
   preserved verbatim in [LICENSE.redash](LICENSE.redash).
 - Telemetry removed. Nothing is reported anywhere; version checking is off
-  unless `TEALDASH_VERSION_CHECK_URL` is set to an endpoint you control.
-- Configuration reads `TEALDASH_*` environment variables, with `REDASH_*`
+  unless `SQLDESK_VERSION_CHECK_URL` is set to an endpoint you control.
+- Configuration reads `SQLDESK_*` environment variables, with `REDASH_*`
   honoured as a fallback so existing deployments keep working.
-- Published as a container image at `ghcr.io/tdot-labs/tealdash`.
+- Published as a container image at `ghcr.io/bot-netizen/sqldesk`.

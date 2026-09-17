@@ -2,9 +2,9 @@ import datetime
 
 from mock import patch
 
-from tealdash.models import Query
-from tealdash.tasks import empty_schedules
-from tealdash.utils import utcnow
+from sqldesk.models import Query
+from sqldesk.tasks import empty_schedules
+from sqldesk.utils import utcnow
 from tests import BaseTestCase
 
 

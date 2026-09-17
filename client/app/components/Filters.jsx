@@ -5,8 +5,8 @@ import PropTypes from "prop-types";
 import Select from "antd/lib/select";
 import { formatColumnValue } from "@/lib/utils";
 
-const ALL_VALUES = "###Tealdash::Filters::SelectAll###";
-const NONE_VALUES = "###Tealdash::Filters::Clear###";
+const ALL_VALUES = "###SQLDesk::Filters::SelectAll###";
+const NONE_VALUES = "###SQLDesk::Filters::Clear###";
 
 export const FilterType = PropTypes.shape({
   name: PropTypes.string.isRequired,

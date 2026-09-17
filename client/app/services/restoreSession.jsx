@@ -3,7 +3,7 @@ import React from "react";
 import Modal from "antd/lib/modal";
 import { Auth } from "@/services/auth";
 
-const SESSION_RESTORED_MESSAGE = "tealdash_session_restored";
+const SESSION_RESTORED_MESSAGE = "sqldesk_session_restored";
 
 export function notifySessionRestored() {
   if (window.opener) {

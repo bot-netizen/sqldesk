@@ -1,4 +1,4 @@
-from tealdash import models
+from sqldesk import models
 from tests import BaseTestCase
 
 

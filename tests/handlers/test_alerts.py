@@ -2,8 +2,8 @@ import datetime
 
 from mock import patch
 
-from tealdash.models import Alert, AlertSubscription, db
-from tealdash.utils import utcnow
+from sqldesk.models import Alert, AlertSubscription, db
+from sqldesk.utils import utcnow
 from tests import BaseTestCase
 
 
@@ -45,7 +45,7 @@ class TestAlertResourcePost(BaseTestCase):
 
 
 class TestAlertEvaluateResource(BaseTestCase):
-    @patch("tealdash.handlers.alerts.notify_subscriptions")
+    @patch("sqldesk.handlers.alerts.notify_subscriptions")
     def test_evaluates_alert_and_notifies(self, mock_notify_subscriptions):
         query = self.factory.create_query(
             data_source=self.factory.create_data_source(group=self.factory.create_group())

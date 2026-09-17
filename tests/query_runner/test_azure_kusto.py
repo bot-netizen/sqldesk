@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import patch
 
-from tealdash.query_runner.azure_kusto import AzureKusto
+from sqldesk.query_runner.azure_kusto import AzureKusto
 
 
 class TestAzureKusto(TestCase):

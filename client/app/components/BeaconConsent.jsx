@@ -42,7 +42,7 @@ function BeaconConsent() {
             </ul>
           </div>
           <Text>
-            Counts only — no query text, names, results or credentials. Nothing is sent to the Tealdash project, which
+            Counts only — no query text, names, results or credentials. Nothing is sent to the SQLDesk project, which
             runs no servers and collects nothing.
           </Text>
           <div className="m-t-5">

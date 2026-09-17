@@ -6,8 +6,8 @@ from google.auth.exceptions import TransportError
 from gspread.exceptions import APIError
 from mock import MagicMock, patch
 
-from tealdash.query_runner import TYPE_DATETIME, TYPE_FLOAT
-from tealdash.query_runner.google_spreadsheets import (
+from sqldesk.query_runner import TYPE_DATETIME, TYPE_FLOAT
+from sqldesk.query_runner.google_spreadsheets import (
     TYPE_BOOLEAN,
     TYPE_STRING,
     GoogleSpreadsheet,
@@ -178,8 +178,8 @@ class TestIsUrlKey(TestCase):
 
 
 class TestConnection(TestCase):
-    @patch("tealdash.query_runner.google_spreadsheets.google.auth.default")
-    @patch("tealdash.query_runner.google_spreadsheets.gspread.Client")
+    @patch("sqldesk.query_runner.google_spreadsheets.google.auth.default")
+    @patch("sqldesk.query_runner.google_spreadsheets.gspread.Client")
     def test_connect_succuess(self, mock_client, _mock_auth_default):
         try:
             qr_gspread = GoogleSpreadsheet({})
@@ -189,14 +189,14 @@ class TestConnection(TestCase):
         except Exception:
             self.fail("test_connection failed")
 
-    @patch("tealdash.query_runner.google_spreadsheets.google.auth.default")
+    @patch("sqldesk.query_runner.google_spreadsheets.google.auth.default")
     def test_connect_fail_with_transport_error(self, mock_auth_default):
         mock_auth_default.side_effect = TransportError("Connection Refused")
         qr_gspread = GoogleSpreadsheet({})
         with pytest.raises(Exception):
             qr_gspread.test_connection()
 
-    @patch("tealdash.query_runner.google_spreadsheets.google.auth.default")
+    @patch("sqldesk.query_runner.google_spreadsheets.google.auth.default")
     def test_connect_fail_with_api_error(self, mock_auth_default):
         mock_response = MagicMock()
         mock_response.json.return_value = {"error": {"message": "Sheet API is disabled"}}

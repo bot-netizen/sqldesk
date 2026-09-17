@@ -1,7 +1,7 @@
 import datetime
 from unittest import TestCase
 
-from tealdash.query_runner.ignite import Ignite
+from sqldesk.query_runner.ignite import Ignite
 
 
 class TestIgnite(TestCase):

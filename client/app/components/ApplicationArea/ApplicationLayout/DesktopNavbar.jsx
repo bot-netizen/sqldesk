@@ -11,7 +11,7 @@ import CreateDashboardDialog from "@/components/dashboards/CreateDashboardDialog
 import { useCurrentRoute } from "@/components/ApplicationArea/Router";
 import { Auth, currentUser } from "@/services/auth";
 import settingsMenu from "@/services/settingsMenu";
-import logoUrl from "@/assets/images/tealdash_icon.svg";
+import logoUrl from "@/assets/images/sqldesk_icon.svg";
 
 import PlusOutlinedIcon from "@ant-design/icons/PlusOutlined";
 import QuestionCircleOutlinedIcon from "@ant-design/icons/QuestionCircleOutlined";
@@ -131,9 +131,9 @@ export default function DesktopNavbar() {
 
   return (
     <nav className="desktop-navbar" aria-label="Main">
-      <Link href="./" className="desktop-navbar-brand" aria-label="Tealdash home">
+      <Link href="./" className="desktop-navbar-brand" aria-label="SQLDesk home">
         <img src={logoUrl} alt="" />
-        <span className="desktop-navbar-wordmark">Tealdash</span>
+        <span className="desktop-navbar-wordmark">SQLDesk</span>
       </Link>
 
       <div className="desktop-navbar-links">

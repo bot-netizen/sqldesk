@@ -17,12 +17,12 @@ describe("Edit Profile", () => {
   });
 
   it("updates the user after Save", () => {
-    fillProfileDataAndSave("Jian Yang", "jian.yang@tealdash.io");
+    fillProfileDataAndSave("Jian Yang", "jian.yang@sqldesk.io");
     cy.logout();
-    cy.login("jian.yang@tealdash.io").its("status").should("eq", 200);
+    cy.login("jian.yang@sqldesk.io").its("status").should("eq", 200);
     cy.visit("/users/me");
     cy.contains("Jian Yang");
-    fillProfileDataAndSave("Example Admin", "admin@tealdash.io");
+    fillProfileDataAndSave("Example Admin", "admin@sqldesk.io");
   });
 
   it("regenerates API Key", () => {

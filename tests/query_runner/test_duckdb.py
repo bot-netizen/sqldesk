@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import patch
 
-from tealdash.query_runner.duckdb import DuckDB
+from sqldesk.query_runner.duckdb import DuckDB
 
 
 class TestDuckDBSchema(TestCase):

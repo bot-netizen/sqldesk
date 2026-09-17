@@ -1,4 +1,4 @@
-import logoUrl from "@/assets/images/tealdash_icon.svg";
+import logoUrl from "@/assets/images/sqldesk_icon.svg";
 
 /*
   Lays the captured dashboard onto a branded page.
@@ -77,8 +77,8 @@ export default async function composeExportCanvas({
 
   ctx.font = `600 ${17 * scale}px ${sans}`;
   ctx.fillStyle = readToken("--color-text", "#1c1b1a");
-  ctx.fillText("Tealdash", cursor, baseline);
-  cursor += ctx.measureText("Tealdash").width + 12 * scale;
+  ctx.fillText("SQLDesk", cursor, baseline);
+  cursor += ctx.measureText("SQLDesk").width + 12 * scale;
 
   /*
     Provenance, right-aligned on the same band. Drawn BEFORE the dashboard

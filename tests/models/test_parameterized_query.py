@@ -4,7 +4,7 @@ from unittest import TestCase
 import pytest
 from mock import patch
 
-from tealdash.models.parameterized_query import (
+from sqldesk.models.parameterized_query import (
     InvalidParameterError,
     ParameterizedQuery,
     QueryDetachedFromDataSourceError,
@@ -57,7 +57,7 @@ class TestParameterizedQuery(TestCase):
         with pytest.raises(InvalidParameterError):
             query.apply({"bar": 7})
 
-    @patch("tealdash.models.parameterized_query._is_number", side_effect=ArithmeticError)
+    @patch("sqldesk.models.parameterized_query._is_number", side_effect=ArithmeticError)
     def test_raises_on_unexpected_validation_error(self, _):
         schema = [{"name": "bar", "type": "number"}]
         query = ParameterizedQuery("foo", schema)
@@ -185,7 +185,7 @@ class TestParameterizedQuery(TestCase):
         self.assertEqual("foo 'qux','baz'", query.text)
 
     @patch(
-        "tealdash.models.parameterized_query.dropdown_values",
+        "sqldesk.models.parameterized_query.dropdown_values",
         return_value=[{"value": "1"}],
     )
     def test_validation_accepts_integer_values_for_dropdowns(self, _):
@@ -196,7 +196,7 @@ class TestParameterizedQuery(TestCase):
 
         self.assertEqual("foo 1", query.text)
 
-    @patch("tealdash.models.parameterized_query.dropdown_values")
+    @patch("sqldesk.models.parameterized_query.dropdown_values")
     def test_raises_on_invalid_query_parameters(self, _):
         schema = [{"name": "bar", "type": "query", "queryId": 1}]
         query = ParameterizedQuery("foo", schema)
@@ -205,7 +205,7 @@ class TestParameterizedQuery(TestCase):
             query.apply({"bar": 7})
 
     @patch(
-        "tealdash.models.parameterized_query.dropdown_values",
+        "sqldesk.models.parameterized_query.dropdown_values",
         return_value=[{"value": "baz"}],
     )
     def test_raises_on_unlisted_query_value_parameters(self, _):
@@ -216,7 +216,7 @@ class TestParameterizedQuery(TestCase):
             query.apply({"bar": "shlomo"})
 
     @patch(
-        "tealdash.models.parameterized_query.dropdown_values",
+        "sqldesk.models.parameterized_query.dropdown_values",
         return_value=[{"value": "baz"}],
     )
     def test_validates_query_parameters(self, _):
@@ -268,7 +268,7 @@ class TestParameterizedQuery(TestCase):
         self.assertTrue(query.is_safe)
 
     @patch(
-        "tealdash.models.parameterized_query._load_result",
+        "sqldesk.models.parameterized_query._load_result",
         return_value={
             "columns": [{"name": "id"}, {"name": "Name"}, {"name": "Value"}],
             "rows": [{"id": 5, "Name": "John", "Value": "John Doe"}],
@@ -279,7 +279,7 @@ class TestParameterizedQuery(TestCase):
         self.assertEqual(values, [{"name": "John", "value": "John Doe"}])
 
     @patch(
-        "tealdash.models.parameterized_query._load_result",
+        "sqldesk.models.parameterized_query._load_result",
         return_value={
             "columns": [{"name": "id"}, {"name": "fish"}, {"name": "poultry"}],
             "rows": [{"fish": "Clown", "id": 5, "poultry": "Hen"}],
@@ -290,7 +290,7 @@ class TestParameterizedQuery(TestCase):
         self.assertEqual(values, [{"name": 5, "value": "5"}])
 
     @patch(
-        "tealdash.models.parameterized_query._load_result",
+        "sqldesk.models.parameterized_query._load_result",
         return_value={
             "columns": [{"name": "ID"}, {"name": "fish"}, {"name": "poultry"}],
             "rows": [{"fish": "Clown", "ID": 5, "poultry": "Hen"}],
@@ -301,7 +301,7 @@ class TestParameterizedQuery(TestCase):
         self.assertEqual(values, [{"name": 5, "value": "5"}])
 
     @patch(
-        "tealdash.models.Query.get_by_id_and_org",
+        "sqldesk.models.Query.get_by_id_and_org",
         return_value=namedtuple("Query", "data_source")(None),
     )
     def test_dropdown_values_raises_when_query_is_detached_from_data_source(self, _):

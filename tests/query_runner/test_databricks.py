@@ -1,7 +1,7 @@
 from unittest import TestCase
 
-from tealdash.query_runner import split_sql_statements
-from tealdash.query_runner.databricks import Databricks
+from sqldesk.query_runner import split_sql_statements
+from sqldesk.query_runner.databricks import Databricks
 
 
 class TestDatabricksQueryAnnotation(TestCase):

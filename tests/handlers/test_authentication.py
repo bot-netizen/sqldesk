@@ -2,9 +2,9 @@ import time
 
 import mock
 
-from tealdash import limiter, settings
-from tealdash.authentication.account import invite_token
-from tealdash.models import User
+from sqldesk import limiter, settings
+from sqldesk.authentication.account import invite_token
+from sqldesk.models import User
 from tests import BaseTestCase
 
 

@@ -4,7 +4,7 @@ from unittest import TestCase
 
 import mock
 
-from tealdash.query_runner.prometheus import (
+from sqldesk.query_runner.prometheus import (
     Prometheus,
     get_instant_rows,
     get_range_rows,
@@ -85,14 +85,14 @@ class TestPrometheus(TestCase):
         rows = get_range_rows(self.range_query_result)
         self.assertEqual(range_rows, rows)
 
-    @mock.patch("tealdash.query_runner.prometheus.datetime")
+    @mock.patch("sqldesk.query_runner.prometheus.datetime")
     def test_get_datetime_now(self, datetime_mock: mock.MagicMock):
         prometheus = Prometheus({"url": "url"})
         datetime_mock.now.return_value = datetime(2023, 12, 12, 11, 00)
         now = prometheus._get_datetime_now()
         self.assertEqual(now, datetime(2023, 12, 12, 11, 00))
 
-    @mock.patch("tealdash.query_runner.prometheus.Prometheus._create_cert_file")
+    @mock.patch("sqldesk.query_runner.prometheus.Prometheus._create_cert_file")
     def test_get_prometheus_kwargs(self, create_cert_file_mock: mock.MagicMock):
         # 1. case: without ssl attributes
         prometheus = Prometheus({"url": "url"})
@@ -140,7 +140,7 @@ class TestPrometheus(TestCase):
             [mock.call("ca_cert_File"), mock.call("cert_File"), mock.call("cert_key_File")]
         )
 
-    @mock.patch("tealdash.query_runner.prometheus.NamedTemporaryFile")
+    @mock.patch("sqldesk.query_runner.prometheus.NamedTemporaryFile")
     def test_create_cert_file(self, named_temporary_file_mock: mock.MagicMock):
         # 1. case: with none value
         prometheus = Prometheus({"url": "url"})
@@ -165,7 +165,7 @@ class TestPrometheus(TestCase):
         assert cert_file_name == "cert_file_name"
         context_manager_mock.write.assert_called_once_with("value")
 
-    @mock.patch("tealdash.query_runner.prometheus.os")
+    @mock.patch("sqldesk.query_runner.prometheus.os")
     def test_cleanup_cert_files(self, os_mock: mock.MagicMock):
         # 1. case: no file found or verify is bool
         prometheus = Prometheus(
@@ -217,8 +217,8 @@ class TestPrometheus(TestCase):
     def test_enabled(self):
         assert Prometheus.enabled() is True
 
-    @mock.patch("tealdash.query_runner.prometheus.requests.get")
-    @mock.patch("tealdash.query_runner.prometheus.Prometheus._cleanup_cert_files")
+    @mock.patch("sqldesk.query_runner.prometheus.requests.get")
+    @mock.patch("sqldesk.query_runner.prometheus.Prometheus._cleanup_cert_files")
     def test_test_connection(
         self,
         cleanup_cert_files_mock: mock.MagicMock,
@@ -268,8 +268,8 @@ class TestPrometheus(TestCase):
         requests_get_mock.assert_called_once_with("url", **prometheus_kwargs)
         cleanup_cert_files_mock.assert_called_once_with(prometheus_kwargs)
 
-    @mock.patch("tealdash.query_runner.prometheus.requests.get")
-    @mock.patch("tealdash.query_runner.prometheus.Prometheus._cleanup_cert_files")
+    @mock.patch("sqldesk.query_runner.prometheus.requests.get")
+    @mock.patch("sqldesk.query_runner.prometheus.Prometheus._cleanup_cert_files")
     def test_get_schema(
         self,
         cleanup_cert_files_mock: mock.MagicMock,
@@ -319,8 +319,8 @@ class TestPrometheus(TestCase):
         requests_get_mock.assert_called_once_with("url/api/v1/label/__name__/values", **prometheus_kwargs)
         cleanup_cert_files_mock.assert_called_once_with(prometheus_kwargs)
 
-    @mock.patch("tealdash.query_runner.prometheus.requests.get")
-    @mock.patch("tealdash.query_runner.prometheus.Prometheus._cleanup_cert_files")
+    @mock.patch("sqldesk.query_runner.prometheus.requests.get")
+    @mock.patch("sqldesk.query_runner.prometheus.Prometheus._cleanup_cert_files")
     def test_run_query(
         self,
         cleanup_cert_files_mock: mock.MagicMock,
@@ -502,7 +502,7 @@ class TestPrometheus(TestCase):
             json=mock.Mock(return_value={"data": {"result": self.range_query_result}})
         )
 
-        with mock.patch("tealdash.query_runner.prometheus.Prometheus._get_datetime_now") as get_datetime_now_mock:
+        with mock.patch("sqldesk.query_runner.prometheus.Prometheus._get_datetime_now") as get_datetime_now_mock:
             get_datetime_now_mock.return_value = now_datetime
             data, error = prometheus.run_query("http_requests_total&start=2018-01-26T00:00:00.000Z&step=60s", "user")
 

@@ -1,10 +1,10 @@
 from passlib.apps import custom_app_context as pwd_context
 
-import tealdash.models
-from tealdash.models import db
-from tealdash.permissions import ACCESS_TYPE_MODIFY
-from tealdash.utils import gen_query_hash, utcnow
-from tealdash.utils.configuration import ConfigurationContainer
+import sqldesk.models
+from sqldesk.models import db
+from sqldesk.permissions import ACCESS_TYPE_MODIFY
+from sqldesk.utils import gen_query_hash, utcnow
+from sqldesk.utils.configuration import ConfigurationContainer
 
 
 class ModelFactory:
@@ -42,7 +42,7 @@ class Sequence:
 
 
 user_factory = ModelFactory(
-    tealdash.models.User,
+    sqldesk.models.User,
     name="John Doe",
     email=Sequence("test{}@example.com"),
     password_hash=pwd_context.hash("test1234"),
@@ -51,14 +51,14 @@ user_factory = ModelFactory(
 )
 
 org_factory = ModelFactory(
-    tealdash.models.Organization,
+    sqldesk.models.Organization,
     name=Sequence("Org {}"),
     slug=Sequence("org{}.example.com"),
     settings={},
 )
 
 data_source_factory = ModelFactory(
-    tealdash.models.DataSource,
+    sqldesk.models.DataSource,
     name=Sequence("Test {}"),
     type="pg",
     # If we don't use lambda here it will reuse the same options between tests:
@@ -67,7 +67,7 @@ data_source_factory = ModelFactory(
 )
 
 dashboard_factory = ModelFactory(
-    tealdash.models.Dashboard,
+    sqldesk.models.Dashboard,
     name="test",
     user=user_factory.create,
     layout=[],
@@ -75,10 +75,10 @@ dashboard_factory = ModelFactory(
     org=1,
 )
 
-api_key_factory = ModelFactory(tealdash.models.ApiKey, object=dashboard_factory.create)
+api_key_factory = ModelFactory(sqldesk.models.ApiKey, object=dashboard_factory.create)
 
 query_factory = ModelFactory(
-    tealdash.models.Query,
+    sqldesk.models.Query,
     name="Query",
     description="",
     query_text="SELECT 1",
@@ -91,7 +91,7 @@ query_factory = ModelFactory(
 )
 
 query_with_params_factory = ModelFactory(
-    tealdash.models.Query,
+    sqldesk.models.Query,
     name="New Query with Params",
     description="",
     query_text="SELECT {{param1}}",
@@ -104,16 +104,16 @@ query_with_params_factory = ModelFactory(
 )
 
 access_permission_factory = ModelFactory(
-    tealdash.models.AccessPermission,
+    sqldesk.models.AccessPermission,
     object_id=query_factory.create,
-    object_type=tealdash.models.Query.__name__,
+    object_type=sqldesk.models.Query.__name__,
     access_type=ACCESS_TYPE_MODIFY,
     grantor=user_factory.create,
     grantee=user_factory.create,
 )
 
 alert_factory = ModelFactory(
-    tealdash.models.Alert,
+    sqldesk.models.Alert,
     name=Sequence("Alert {}"),
     query_rel=query_factory.create,
     user=user_factory.create,
@@ -121,7 +121,7 @@ alert_factory = ModelFactory(
 )
 
 query_result_factory = ModelFactory(
-    tealdash.models.QueryResult,
+    sqldesk.models.QueryResult,
     data={"columns": {}, "rows": []},
     runtime=1,
     retrieved_at=utcnow,
@@ -132,7 +132,7 @@ query_result_factory = ModelFactory(
 )
 
 visualization_factory = ModelFactory(
-    tealdash.models.Visualization,
+    sqldesk.models.Visualization,
     type="CHART",
     query_rel=query_factory.create,
     name="Chart",
@@ -141,7 +141,7 @@ visualization_factory = ModelFactory(
 )
 
 widget_factory = ModelFactory(
-    tealdash.models.Widget,
+    sqldesk.models.Widget,
     width=1,
     options={},
     dashboard=dashboard_factory.create,
@@ -149,7 +149,7 @@ widget_factory = ModelFactory(
 )
 
 destination_factory = ModelFactory(
-    tealdash.models.NotificationDestination,
+    sqldesk.models.NotificationDestination,
     org_id=1,
     user=user_factory.create,
     name=Sequence("Destination {}"),
@@ -158,14 +158,14 @@ destination_factory = ModelFactory(
 )
 
 alert_subscription_factory = ModelFactory(
-    tealdash.models.AlertSubscription,
+    sqldesk.models.AlertSubscription,
     user=user_factory.create,
     destination=destination_factory.create,
     alert=alert_factory.create,
 )
 
 query_snippet_factory = ModelFactory(
-    tealdash.models.QuerySnippet,
+    sqldesk.models.QuerySnippet,
     trigger=Sequence("trigger {}"),
     description="description",
     snippet="snippet",
@@ -174,7 +174,7 @@ query_snippet_factory = ModelFactory(
 
 class Factory:
     def __init__(self):
-        self.org, self.admin_group, self.default_group = tealdash.models.init_db()
+        self.org, self.admin_group, self.default_group = sqldesk.models.init_db()
         self._data_source = None
         self._user = None
 
@@ -191,16 +191,16 @@ class Factory:
     def data_source(self):
         if self._data_source is None:
             self._data_source = data_source_factory.create(org=self.org)
-            db.session.add(tealdash.models.DataSourceGroup(group=self.default_group, data_source=self._data_source))
+            db.session.add(sqldesk.models.DataSourceGroup(group=self.default_group, data_source=self._data_source))
 
         return self._data_source
 
     def create_org(self, **kwargs):
         org = org_factory.create(**kwargs)
-        self.create_group(org=org, type=tealdash.models.Group.BUILTIN_GROUP, name="default")
+        self.create_group(org=org, type=sqldesk.models.Group.BUILTIN_GROUP, name="default")
         self.create_group(
             org=org,
-            type=tealdash.models.Group.BUILTIN_GROUP,
+            type=sqldesk.models.Group.BUILTIN_GROUP,
             name="admin",
             permissions=["admin"],
         )
@@ -236,7 +236,7 @@ class Factory:
 
         args.update(kwargs)
 
-        g = tealdash.models.Group(**args)
+        g = sqldesk.models.Group(**args)
         return g
 
     def create_alert(self, **kwargs):
@@ -265,7 +265,7 @@ class Factory:
         data_source = data_source_factory.create(**args)
 
         if group:
-            db.session.add(tealdash.models.DataSourceGroup(group=group, data_source=data_source, view_only=view_only))
+            db.session.add(sqldesk.models.DataSourceGroup(group=group, data_source=data_source, view_only=view_only))
 
         return data_source
 

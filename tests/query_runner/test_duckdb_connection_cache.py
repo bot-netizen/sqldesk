@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from tealdash.query_runner.duckdb import DuckDB, enabled
+from sqldesk.query_runner.duckdb import DuckDB, enabled
 
 
 class DuckDBConnectionCacheTest(TestCase):

@@ -4,9 +4,9 @@ from unittest import TestCase
 
 from dateutil.parser import parse as date_parse
 
-from tealdash import models
-from tealdash.models import db
-from tealdash.utils import gen_query_hash, utcnow
+from sqldesk import models
+from sqldesk.models import db
+from sqldesk.utils import gen_query_hash, utcnow
 from tests import BaseTestCase
 
 

@@ -2,8 +2,8 @@ import dateutil
 import mock
 from freezegun import freeze_time
 
-from tealdash import redis_connection, settings
-from tealdash.tasks.failure_report import (
+from sqldesk import redis_connection, settings
+from sqldesk.tasks.failure_report import (
     key,
     notify_of_failure,
     send_failure_report,
@@ -24,7 +24,7 @@ class TestSendAggregatedErrorsTask(BaseTestCase):
         notify_of_failure(message, query)
         return key(query.user.id)
 
-    @mock.patch("tealdash.tasks.failure_report.render_template", return_value="")
+    @mock.patch("sqldesk.tasks.failure_report.render_template", return_value="")
     def send_email(self, user, render_template):
         send_failure_report(user.id)
 

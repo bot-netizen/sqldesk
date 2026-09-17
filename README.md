@@ -1,14 +1,14 @@
 <div align="center">
-  <h1>Tealdash</h1>
+  <h1>SQLDesk</h1>
   <p><strong>One place for everything you do with data.</strong></p>
   <p>Query 35+ data sources, build dashboards, and share what you find — self-hosted, no per-seat pricing.</p>
   <p>
-    <a href="https://tdot-labs.github.io/tealdash/">Website</a> &middot;
+    <a href="https://bot-netizen.github.io/sqldesk/">Website</a> &middot;
     <a href="CHANGELOG.md">Changelog</a> &middot;
-    <a href="https://github.com/tdot-labs/tealdash/discussions">Discussions</a>
+    <a href="https://github.com/bot-netizen/sqldesk/discussions">Discussions</a>
   </p>
   <p>
-    <a href="https://github.com/tdot-labs/tealdash/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/tdot-labs/tealdash/actions/workflows/ci.yml/badge.svg"></a>
+    <a href="https://github.com/bot-netizen/sqldesk/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/bot-netizen/sqldesk/actions/workflows/ci.yml/badge.svg"></a>
     <a href="LICENSE"><img alt="Licence" src="https://img.shields.io/badge/licence-Apache%202.0-blue"></a>
     <img alt="Version" src="https://img.shields.io/badge/version-0.2.0-teal">
   </p>
@@ -16,7 +16,7 @@
 
 ---
 
-Tealdash lets anyone connect to a data source, write a query, turn the result into a
+SQLDesk lets anyone connect to a data source, write a query, turn the result into a
 visualization, and put it on a dashboard other people can use. SQL users get a fast
 editor with schema browsing and scheduling; everyone else gets dashboards and alerts
 built on that work.
@@ -36,8 +36,8 @@ charge you for them.
 
 ## Running it
 
-Published images are at `ghcr.io/tdot-labs/tealdash`, built for amd64 and arm64.
-Tealdash needs Postgres and Redis alongside it, and `compose.prod.yaml` wires up
+Published images are at `ghcr.io/bot-netizen/sqldesk`, built for amd64 and arm64.
+SQLDesk needs Postgres and Redis alongside it, and `compose.prod.yaml` wires up
 all three:
 
 ```bash
@@ -51,15 +51,15 @@ docker compose -f compose.prod.yaml run --rm server create_db
 docker compose -f compose.prod.yaml up -d
 ```
 
-Tealdash comes up on `http://localhost:5000`. Set `TEALDASH_IMAGE` in `.env` to
+SQLDesk comes up on `http://localhost:5000`. Set `SQLDESK_IMAGE` in `.env` to
 pin a different tag.
 
 > On macOS, port 5000 is taken by AirPlay Receiver and `up` fails with "address
-> already in use". Set `TEALDASH_PORT` and `TEALDASH_HOST` in `.env` to another
+> already in use". Set `SQLDESK_PORT` and `SQLDESK_HOST` in `.env` to another
 > port, or turn AirPlay Receiver off under System Settings > General > AirDrop
 > & Handoff.
 
-> Keep `TEALDASH_SECRET_KEY`. Data-source passwords are encrypted with it, so
+> Keep `SQLDESK_SECRET_KEY`. Data-source passwords are encrypted with it, so
 > changing it makes every stored credential unreadable.
 
 ## Developing
@@ -85,12 +85,12 @@ pnpm start             # webpack dev server + viz-lib watch
 
 ## Configuration
 
-Tealdash reads `TEALDASH_*` environment variables. If you are migrating an existing
+SQLDesk reads `SQLDESK_*` environment variables. If you are migrating an existing
 Redash deployment, your `REDASH_*` variables are still honoured as a fallback — an
-explicitly set `TEALDASH_*` always wins.
+explicitly set `SQLDESK_*` always wins.
 
-Tealdash does not phone home. Version checking is off unless you set
-`TEALDASH_VERSION_CHECK_URL` to an endpoint you control.
+SQLDesk does not phone home. Version checking is off unless you set
+`SQLDESK_VERSION_CHECK_URL` to an endpoint you control.
 
 ## Tests
 
@@ -102,21 +102,21 @@ docker compose run --rm server tests   # backend only
 
 ## Architecture
 
-- **Backend** — `tealdash/` (Python 3.13, Flask, SQLAlchemy, RQ)
+- **Backend** — `sqldesk/` (Python 3.13, Flask, SQLAlchemy, RQ)
 - **Frontend** — `client/` (React, TypeScript, Webpack, Ant Design)
-- **Visualizations** — `viz-lib/` (`@tealdash/viz`, its own pnpm workspace package)
+- **Visualizations** — `viz-lib/` (`@sqldesk/viz`, its own pnpm workspace package)
 
 Workers, the scheduler and the web server are separate processes, so changes to task
 logic need the worker restarted, not just the server.
 
 ## Licence
 
-Tealdash is licensed under the [Apache License 2.0](LICENSE).
+SQLDesk is licensed under the [Apache License 2.0](LICENSE).
 
-Tealdash is a fork of [Redash](https://github.com/getredash/redash), which is
+SQLDesk is a fork of [Redash](https://github.com/getredash/redash), which is
 copyright (c) 2013-2020 Arik Fraimovich and licensed under BSD 2-Clause. That licence
 and its copyright notice are preserved in [LICENSE.redash](LICENSE.redash) and apply
 to all inherited code. See [NOTICE](NOTICE) for full attribution.
 
-Tealdash is an independent project. It is not affiliated with, endorsed by, or
+SQLDesk is an independent project. It is not affiliated with, endorsed by, or
 supported by the Redash project or its contributors.

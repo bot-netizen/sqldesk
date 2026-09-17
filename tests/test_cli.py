@@ -3,10 +3,10 @@ import textwrap
 import mock
 from click.testing import CliRunner
 
-from tealdash.cli import manager
-from tealdash.models import DataSource, Group, Organization, User, db
-from tealdash.query_runner import query_runners
-from tealdash.utils.configuration import ConfigurationContainer
+from sqldesk.cli import manager
+from sqldesk.models import DataSource, Group, Organization, User, db
+from sqldesk.query_runner import query_runners
+from sqldesk.utils.configuration import ConfigurationContainer
 from tests import BaseTestCase
 
 
@@ -496,9 +496,9 @@ class UserCommandTests(BaseTestCase):
         self.assertIn("not found", result.output)
 
     def test_invite(self):
-        admin = self.factory.create_user(email="tealdash-admin@example.com")
+        admin = self.factory.create_user(email="sqldesk-admin@example.com")
         runner = CliRunner()
-        with mock.patch("tealdash.cli.users.invite_user") as iu:
+        with mock.patch("sqldesk.cli.users.invite_user") as iu:
             result = runner.invoke(
                 manager,
                 [
@@ -506,7 +506,7 @@ class UserCommandTests(BaseTestCase):
                     "invite",
                     "foobar@example.com",
                     "Fred Foobar",
-                    "tealdash-admin@example.com",
+                    "sqldesk-admin@example.com",
                 ],
             )
             self.assertFalse(result.exception)

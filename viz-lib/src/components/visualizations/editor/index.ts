@@ -3,8 +3,8 @@ import AntInput from "antd/lib/input";
 import AntInputNumber from "antd/lib/input-number";
 import Checkbox from "antd/lib/checkbox";
 
-import TealdashColorPicker from "@/components/ColorPicker";
-import TealdashTextAlignmentSelect from "@/components/TextAlignmentSelect";
+import SQLDeskColorPicker from "@/components/ColorPicker";
+import SQLDeskTextAlignmentSelect from "@/components/TextAlignmentSelect";
 
 import withControlLabel, { ControlLabel } from "./withControlLabel";
 import createTabbedEditor from "./createTabbedEditor";
@@ -17,5 +17,5 @@ export { Section, ControlLabel, Checkbox, Switch, TextArea, ContextHelp, withCon
 export const Select = withControlLabel(AntSelect);
 export const Input = withControlLabel(AntInput);
 export const InputNumber = withControlLabel(AntInputNumber);
-export const ColorPicker = withControlLabel(TealdashColorPicker);
-export const TextAlignmentSelect = withControlLabel(TealdashTextAlignmentSelect);
+export const ColorPicker = withControlLabel(SQLDeskColorPicker);
+export const TextAlignmentSelect = withControlLabel(SQLDeskTextAlignmentSelect);

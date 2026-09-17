@@ -4,16 +4,16 @@ exports.seedData = [
     type: "form",
     data: {
       name: "Example Admin",
-      email: "admin@tealdash.io",
+      email: "admin@sqldesk.io",
       password: "password",
-      org_name: "Tealdash",
+      org_name: "SQLDesk",
     },
   },
   {
     route: "/login",
     type: "form",
     data: {
-      email: "admin@tealdash.io",
+      email: "admin@sqldesk.io",
       password: "password",
     },
   },

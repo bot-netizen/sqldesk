@@ -1,14 +1,14 @@
 import datetime
 from unittest import TestCase
 
-from tealdash.query_runner import (
+from sqldesk.query_runner import (
     TYPE_BOOLEAN,
     TYPE_DATETIME,
     TYPE_FLOAT,
     TYPE_INTEGER,
     TYPE_STRING,
 )
-from tealdash.query_runner.drill import convert_type, parse_response
+from sqldesk.query_runner.drill import convert_type, parse_response
 
 
 class TestConvertType(TestCase):

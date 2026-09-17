@@ -2,7 +2,7 @@
 
 import "@cypress/code-coverage/support";
 import "./commands";
-import "./tealdash-api/index.js";
+import "./sqldesk-api/index.js";
 
 Cypress.env("dataSourceId", 1);
 

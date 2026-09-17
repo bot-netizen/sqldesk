@@ -1,4 +1,4 @@
-You can use this folder to add scripts and configurations to customize the Tealdash build and development loop.
+You can use this folder to add scripts and configurations to customize the SQLDesk build and development loop.
 
 ## How to customize Webpack
 
@@ -8,13 +8,13 @@ You can override the values of configurable parameters by exporting a `CONFIG` o
 
 Currently the following parameters are supported:
 
-- **staticPath**: Override the location of Tealdash static files (default = `/static/`).
+- **staticPath**: Override the location of SQLDesk static files (default = `/static/`).
 
 #### Example Configuration (`scripts/config.js`):
 
 ```javascript
 module.exports = {
-  staticPath: "my/tealdash/static/path"
+  staticPath: "my/sqldesk/static/path"
 };
 ```
 

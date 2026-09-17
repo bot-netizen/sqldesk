@@ -30,7 +30,7 @@ export function General({ info }) {
 
 export function DatabaseMetrics({ info }) {
   return (
-    <Card title="Tealdash Database" size="small">
+    <Card title="SQLDesk Database" size="small">
       {info.length === 0 && <div className="text-muted text-center">No data</div>}
       {info.length > 0 && (
         <List

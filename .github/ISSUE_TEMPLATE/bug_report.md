@@ -19,7 +19,7 @@ assignees: ''
 
 **Your setup**
 
-* Tealdash version:
+* SQLDesk version:
 * How you installed it (Docker image, Docker Compose, from source):
 * Browser, if the problem is in the UI:
 * Data source type, if the problem is in a query:

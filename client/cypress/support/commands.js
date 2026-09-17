@@ -6,7 +6,7 @@ import "@testing-library/cypress/add-commands";
 
 const { each } = Cypress._;
 
-Cypress.Commands.add("login", (email = "admin@tealdash.io", password = "password") => {
+Cypress.Commands.add("login", (email = "admin@sqldesk.io", password = "password") => {
   let csrf;
   cy.visit("/login");
   cy.getCookie("csrf_token")

@@ -1,8 +1,8 @@
 import mock
 from mock import patch
 
-from tealdash.models import DataSource, Query, QueryResult
-from tealdash.utils.configuration import ConfigurationContainer
+from sqldesk.models import DataSource, Query, QueryResult
+from sqldesk.utils.configuration import ConfigurationContainer
 from tests import BaseTestCase
 
 
@@ -10,7 +10,7 @@ class DataSourceTest(BaseTestCase):
     def test_get_schema(self):
         return_value = [{"name": "table", "columns": []}]
 
-        with mock.patch("tealdash.query_runner.pg.PostgreSQL.get_schema") as patched_get_schema:
+        with mock.patch("sqldesk.query_runner.pg.PostgreSQL.get_schema") as patched_get_schema:
             patched_get_schema.return_value = return_value
 
             schema = self.factory.data_source.get_schema()
@@ -19,7 +19,7 @@ class DataSourceTest(BaseTestCase):
 
     def test_get_schema_uses_cache(self):
         return_value = [{"name": "table", "columns": []}]
-        with mock.patch("tealdash.query_runner.pg.PostgreSQL.get_schema") as patched_get_schema:
+        with mock.patch("sqldesk.query_runner.pg.PostgreSQL.get_schema") as patched_get_schema:
             patched_get_schema.return_value = return_value
 
             self.factory.data_source.get_schema()
@@ -30,7 +30,7 @@ class DataSourceTest(BaseTestCase):
 
     def test_get_schema_skips_cache_with_refresh_true(self):
         return_value = [{"name": "table", "columns": []}]
-        with mock.patch("tealdash.query_runner.pg.PostgreSQL.get_schema") as patched_get_schema:
+        with mock.patch("sqldesk.query_runner.pg.PostgreSQL.get_schema") as patched_get_schema:
             patched_get_schema.return_value = return_value
 
             self.factory.data_source.get_schema()
@@ -79,19 +79,19 @@ class DataSourceTest(BaseTestCase):
             {"name": "zoo", "columns": ["is_cow", "is_snake", "is_zebra"]},
         ]
 
-        with mock.patch("tealdash.query_runner.pg.PostgreSQL.get_schema") as patched_get_schema:
+        with mock.patch("sqldesk.query_runner.pg.PostgreSQL.get_schema") as patched_get_schema:
             patched_get_schema.return_value = orig_schema
 
             out_schema = self.factory.data_source.get_schema()
 
             self.assertEqual(out_schema, sorted_schema)
 
-    @patch("tealdash.redis_connection.set")
+    @patch("sqldesk.redis_connection.set")
     def test_expires_schema(self, mock_redis):
         # default of 30min + 7 days
         expected_ttl = 606600
 
-        with mock.patch("tealdash.query_runner.pg.PostgreSQL.get_schema") as patched_get_schema:
+        with mock.patch("sqldesk.query_runner.pg.PostgreSQL.get_schema") as patched_get_schema:
             patched_get_schema.return_value = None
             self.factory.data_source.get_schema(refresh=True)
 
@@ -162,7 +162,7 @@ class TestDataSourceDelete(BaseTestCase):
         self.assertIsNone(DataSource.query.get(data_source.id))
         self.assertEqual(0, QueryResult.query.filter(QueryResult.data_source == data_source).count())
 
-    @patch("tealdash.redis_connection.delete")
+    @patch("sqldesk.redis_connection.delete")
     def test_deletes_schema(self, mock_redis):
         data_source = self.factory.create_data_source()
         data_source.delete()

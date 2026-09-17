@@ -1,4 +1,4 @@
-from tealdash.models import Change, ChangeTrackingMixin, Query, db
+from sqldesk.models import Change, ChangeTrackingMixin, Query, db
 from tests import BaseTestCase
 
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { VisualizationType, registeredVisualizations } from "@tealdash/viz/lib";
+import { VisualizationType, registeredVisualizations } from "@sqldesk/viz/lib";
 
 import "./VisualizationName.less";
 

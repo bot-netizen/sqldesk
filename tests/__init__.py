@@ -4,24 +4,24 @@ import os
 from contextlib import contextmanager
 from unittest import TestCase
 
-os.environ["TEALDASH_REDIS_URL"] = os.environ.get("TEALDASH_REDIS_URL", "redis://localhost:6379/0").replace("/0", "/5")
+os.environ["SQLDESK_REDIS_URL"] = os.environ.get("SQLDESK_REDIS_URL", "redis://localhost:6379/0").replace("/0", "/5")
 # Use different url for RQ to avoid DB being cleaned up:
-os.environ["RQ_REDIS_URL"] = os.environ.get("TEALDASH_REDIS_URL", "redis://localhost:6379/0").replace("/5", "/6")
+os.environ["RQ_REDIS_URL"] = os.environ.get("SQLDESK_REDIS_URL", "redis://localhost:6379/0").replace("/5", "/6")
 
 # Dummy values for oauth login
-os.environ["TEALDASH_GOOGLE_CLIENT_ID"] = "dummy"
-os.environ["TEALDASH_GOOGLE_CLIENT_SECRET"] = "dummy"
-os.environ["TEALDASH_MULTI_ORG"] = "true"
+os.environ["SQLDESK_GOOGLE_CLIENT_ID"] = "dummy"
+os.environ["SQLDESK_GOOGLE_CLIENT_SECRET"] = "dummy"
+os.environ["SQLDESK_MULTI_ORG"] = "true"
 
 # Make sure rate limit is enabled
-os.environ["TEALDASH_RATELIMIT_ENABLED"] = "true"
+os.environ["SQLDESK_RATELIMIT_ENABLED"] = "true"
 
-os.environ["TEALDASH_ENFORCE_CSRF"] = "false"
+os.environ["SQLDESK_ENFORCE_CSRF"] = "false"
 
-from tealdash import limiter, redis_connection  # noqa: E402
-from tealdash.app import create_app  # noqa: E402
-from tealdash.models import db  # noqa: E402
-from tealdash.utils import json_dumps  # noqa: E402
+from sqldesk import limiter, redis_connection  # noqa: E402
+from sqldesk.app import create_app  # noqa: E402
+from sqldesk.models import db  # noqa: E402
+from sqldesk.utils import json_dumps  # noqa: E402
 from tests.factories import Factory, user_factory  # noqa: E402
 
 logging.disable(logging.INFO)

@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.sql import table
 
-from tealdash.utils import gen_query_hash
+from sqldesk.utils import gen_query_hash
 
 # revision identifiers, used by Alembic.
 revision = '1038c2174f5d'

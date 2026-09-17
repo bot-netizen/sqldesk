@@ -2,12 +2,12 @@ import React from "react";
 import { pick } from "lodash";
 import HelpTrigger from "@/components/HelpTrigger";
 import Link from "@/components/Link";
-import { Renderer as VisRenderer, Editor as VisEditor, updateVisualizationsSettings } from "@tealdash/viz/lib";
+import { Renderer as VisRenderer, Editor as VisEditor, updateVisualizationsSettings } from "@sqldesk/viz/lib";
 import { clientConfig } from "@/services/auth";
 
-import countriesDataUrl from "@tealdash/viz/lib/visualizations/choropleth/maps/countries.geo.json";
-import usaDataUrl from "@tealdash/viz/lib/visualizations/choropleth/maps/usa-albers.geo.json";
-import subdivJapanDataUrl from "@tealdash/viz/lib/visualizations/choropleth/maps/japan.prefectures.geo.json";
+import countriesDataUrl from "@sqldesk/viz/lib/visualizations/choropleth/maps/countries.geo.json";
+import usaDataUrl from "@sqldesk/viz/lib/visualizations/choropleth/maps/usa-albers.geo.json";
+import subdivJapanDataUrl from "@sqldesk/viz/lib/visualizations/choropleth/maps/japan.prefectures.geo.json";
 
 function wrapComponentWithSettings(WrappedComponent) {
   return function VisualizationComponent(props) {

@@ -10,7 +10,7 @@ export default function VersionInfo() {
         <div className="m-t-10">
           {/* eslint-disable react/jsx-no-target-blank */}
           <Link
-            href="https://github.com/tdot-labs/tealdash/releases"
+            href="https://github.com/bot-netizen/sqldesk/releases"
             className="update-available"
             target="_blank"
             rel="noopener"

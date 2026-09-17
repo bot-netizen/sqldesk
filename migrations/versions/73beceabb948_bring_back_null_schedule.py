@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.sql import table
 
-from tealdash.models import MutableDict
+from sqldesk.models import MutableDict
 
 # revision identifiers, used by Alembic.
 revision = "73beceabb948"

@@ -3,7 +3,7 @@ from unittest import TestCase
 from mock import MagicMock
 from werkzeug.exceptions import BadRequest
 
-from tealdash.handlers.base import paginate
+from sqldesk.handlers.base import paginate
 
 
 class DummyResults:

@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from tealdash.query_runner.jql import FieldMapping, parse_issue
+from sqldesk.query_runner.jql import FieldMapping, parse_issue
 
 
 class TestFieldMapping(TestCase):

@@ -1,7 +1,7 @@
 import csv
 import io
 
-from tealdash.serializers import (
+from sqldesk.serializers import (
     serialize_query_result,
     serialize_query_result_to_dsv,
 )

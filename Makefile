@@ -27,7 +27,7 @@ clean:
 	docker compose --project-name cypress rm --stop --force
 	docker image rm --force \
 		cypress-server:latest cypress-worker:latest cypress-scheduler:latest \
-		tealdash-server:latest tealdash-worker:latest tealdash-scheduler:latest
+		sqldesk-server:latest sqldesk-worker:latest sqldesk-scheduler:latest
 	docker container prune --force
 	docker image prune --force
 	docker volume prune --force
@@ -36,7 +36,7 @@ down:
 	docker compose down
 
 .env:
-	printf "TEALDASH_COOKIE_SECRET=`pwgen -1s 32`\nTEALDASH_SECRET_KEY=`pwgen -1s 32`\n" >> .env
+	printf "SQLDESK_COOKIE_SECRET=`pwgen -1s 32`\nSQLDESK_SECRET_KEY=`pwgen -1s 32`\n" >> .env
 
 env: .env
 

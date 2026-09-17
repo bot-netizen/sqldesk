@@ -32,7 +32,7 @@ jobs:
     needs: backend-lint
     env:
       COMPOSE_FILE: .ci/compose.ci.yaml
-      COMPOSE_PROJECT_NAME: tealdash
+      COMPOSE_PROJECT_NAME: sqldesk
       COMPOSE_DOCKER_CLI_BUILD: 1
       DOCKER_BUILDKIT: 1
     steps:
@@ -50,11 +50,11 @@ jobs:
           docker compose up -d
           sleep 10
       - name: Create Test Database
-        run: docker compose -p tealdash run --rm postgres psql -h postgres -U postgres -c "create database tests;"
+        run: docker compose -p sqldesk run --rm postgres psql -h postgres -U postgres -c "create database tests;"
       - name: List Enabled Query Runners
-        run: docker compose -p tealdash run --rm tealdash manage ds list_types
+        run: docker compose -p sqldesk run --rm sqldesk manage ds list_types
       - name: Run Tests
-        run: docker compose -p tealdash run --name tests tealdash tests --junitxml=junit.xml --cov-report=xml --cov=tealdash tests/
+        run: docker compose -p sqldesk run --name tests sqldesk tests --junitxml=junit.xml --cov-report=xml --cov=sqldesk tests/
       - name: Copy Test Results
         run: |
           mkdir -p /tmp/test-results/unit-tests
@@ -121,7 +121,7 @@ jobs:
       - name: Run App Tests
         run: pnpm run test
       - name: Run Visualizations Tests
-        run: pnpm --filter @tealdash/viz test
+        run: pnpm --filter @sqldesk/viz test
       - run: pnpm run lint
 
   frontend-e2e-tests:
@@ -156,7 +156,7 @@ jobs:
           echo "CODE_COVERAGE=true" >> "$GITHUB_ENV"
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
-      - name: Setup Tealdash Server
+      - name: Setup SQLDesk Server
         run: |
           set -x
           pnpm run cypress build

@@ -1,6 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { VisualizationType } from "@tealdash/viz/lib";
+import { VisualizationType } from "@sqldesk/viz/lib";
 import Link from "@/components/Link";
 import VisualizationName from "@/components/visualizations/VisualizationName";
 

@@ -2,8 +2,8 @@ import json
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-from tealdash.query_runner import TYPE_DATETIME, TYPE_INTEGER, TYPE_STRING
-from tealdash.query_runner.tinybird import Tinybird
+from sqldesk.query_runner import TYPE_DATETIME, TYPE_INTEGER, TYPE_STRING
+from sqldesk.query_runner.tinybird import Tinybird
 
 DATASOURCES_RESPONSE = {
     "datasources": [

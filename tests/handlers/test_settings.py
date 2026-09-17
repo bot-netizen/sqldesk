@@ -1,4 +1,4 @@
-from tealdash.models import Organization
+from sqldesk.models import Organization
 from tests import BaseTestCase
 
 

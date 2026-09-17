@@ -77,7 +77,7 @@ class AlertsList extends React.Component {
     Columns.timeAgo.sortable({ title: "Last Updated At", field: "updated_at", width: "1%" }),
     Columns.dateTime.sortable({ title: "Created At", field: "created_at", width: "1%" }),
     // No permissions entry: ACLs exist for queries and dashboards only
-    // (tealdash/handlers/permissions.py maps just those two types), so an
+    // (sqldesk/handlers/permissions.py maps just those two types), so an
     // alert has no sharing to manage.
     Columns.custom(
       (text, alert) => (

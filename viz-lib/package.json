@@ -1,8 +1,8 @@
 {
-  "name": "@tealdash/viz",
+  "name": "@sqldesk/viz",
   "version": "0.2.0",
-  "description": "Tealdash visualizations",
-  "main": "dist/tealdash-visualizations.js",
+  "description": "SQLDesk visualizations",
+  "main": "dist/sqldesk-visualizations.js",
   "scripts": {
     "clean": "rm -rf lib esm dist",
     "type-check": "tsc --noEmit",
@@ -24,9 +24,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tdot-labs/tealdash.git"
+    "url": "git+https://github.com/bot-netizen/sqldesk.git"
   },
-  "author": "Tealdash contributors",
+  "author": "SQLDesk contributors",
   "license": "BSD-2-Clause",
   "peerDependencies": {
     "@ant-design/icons": ">=4.0.0",

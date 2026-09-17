@@ -1,10 +1,10 @@
 from mock import ANY, call, patch
 
-from tealdash.models import Query
-from tealdash.tasks.queries.maintenance import refresh_queries
+from sqldesk.models import Query
+from sqldesk.tasks.queries.maintenance import refresh_queries
 from tests import BaseTestCase
 
-ENQUEUE_QUERY = "tealdash.tasks.queries.maintenance.enqueue_query"
+ENQUEUE_QUERY = "sqldesk.tasks.queries.maintenance.enqueue_query"
 
 
 class TestRefreshQuery(BaseTestCase):

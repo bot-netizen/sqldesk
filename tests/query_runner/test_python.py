@@ -3,7 +3,7 @@ from unittest import TestCase
 
 import mock
 
-from tealdash.query_runner.python import Python
+from sqldesk.query_runner.python import Python
 from tests import BaseTestCase
 
 

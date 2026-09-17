@@ -84,27 +84,27 @@ export const ColorPaletteArray = values(ColorPalette);
 export default ColorPalette;
 
 export const AllColorPalettes = {
-  Tealdash: ColorPalette,
+  SQLDesk: ColorPalette,
   Viridis: Viridis,
   "Tableau 10": Tableau,
   "D3 Category 10": D3Category10,
 };
 
 export const AllColorPaletteArrays = {
-  Tealdash: ColorPaletteArray,
+  SQLDesk: ColorPaletteArray,
   Viridis: values(Viridis),
   "Tableau 10": values(Tableau),
   "D3 Category 10": values(D3Category10),
 };
 
 export const ColorPaletteTypes = {
-  Tealdash: "discrete",
+  SQLDesk: "discrete",
   Viridis: "continuous",
   "Tableau 10": "discrete",
   "D3 Category 10": "discrete",
 };
 
-export const DEFAULT_COLOR_SCHEME = "Tealdash";
+export const DEFAULT_COLOR_SCHEME = "SQLDesk";
 
 // Chart options persist the scheme by name. Charts saved before the rename carry
 // "Redash", and anything imported or created through the API can name a palette
@@ -115,6 +115,7 @@ export const DEFAULT_COLOR_SCHEME = "Tealdash";
 // Aliases live here rather than as extra keys on AllColorPalettes because the
 // editor lists that object's keys; a key would put "Redash" back in the dropdown.
 const LEGACY_COLOR_SCHEMES: { [name: string]: string } = {
+  Tealdash: DEFAULT_COLOR_SCHEME,
   Redash: DEFAULT_COLOR_SCHEME,
 };
 

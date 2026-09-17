@@ -40,16 +40,16 @@ describe("Parameter", () => {
     });
 
     it("updates the results after clicking Apply", () => {
-      cy.getByTestId("ParameterName-test-parameter").find("input").type("Tealdash");
+      cy.getByTestId("ParameterName-test-parameter").find("input").type("SQLDesk");
 
       cy.getByTestId("ParameterApplyButton").click();
 
-      cy.getByTestId("TableVisualization").should("contain", "Tealdash");
+      cy.getByTestId("TableVisualization").should("contain", "SQLDesk");
     });
 
     it("sets dirty state when edited", () => {
       expectDirtyStateChange(() => {
-        cy.getByTestId("ParameterName-test-parameter").find("input").type("Tealdash");
+        cy.getByTestId("ParameterName-test-parameter").find("input").type("SQLDesk");
       });
     });
   });
@@ -482,18 +482,18 @@ describe("Parameter", () => {
 
   describe("Apply Changes", () => {
     const expectAppliedChanges = (apply) => {
-      cy.getByTestId("ParameterName-test-parameter-1").find("input").as("Input").type("Tealdash");
+      cy.getByTestId("ParameterName-test-parameter-1").find("input").as("Input").type("SQLDesk");
 
-      cy.getByTestId("ParameterName-test-parameter-2").find("input").type("Tealdash");
+      cy.getByTestId("ParameterName-test-parameter-2").find("input").type("SQLDesk");
 
-      cy.location("search").should("not.contain", "Tealdash");
+      cy.location("search").should("not.contain", "SQLDesk");
 
       cy.server();
       cy.route("POST", "**/api/queries/*/results").as("Results");
 
       apply(cy.get("@Input"));
 
-      cy.location("search").should("contain", "Tealdash");
+      cy.location("search").should("contain", "SQLDesk");
       cy.wait("@Results");
     };
 
@@ -520,7 +520,7 @@ describe("Parameter", () => {
     it("shows and hides according to parameter dirty state", () => {
       cy.getByTestId("ParameterApplyButton").should("not.be", "visible");
 
-      cy.getByTestId("ParameterName-test-parameter-1").find("input").as("Param").type("Tealdash");
+      cy.getByTestId("ParameterName-test-parameter-1").find("input").as("Param").type("SQLDesk");
 
       cy.getByTestId("ParameterApplyButton").should("be.visible");
 
@@ -530,11 +530,11 @@ describe("Parameter", () => {
     });
 
     it("updates dirty counter", () => {
-      cy.getByTestId("ParameterName-test-parameter-1").find("input").type("Tealdash");
+      cy.getByTestId("ParameterName-test-parameter-1").find("input").type("SQLDesk");
 
       cy.getByTestId("ParameterApplyButton").find(".ant-badge-count p.current").should("contain", "1");
 
-      cy.getByTestId("ParameterName-test-parameter-2").find("input").type("Tealdash");
+      cy.getByTestId("ParameterName-test-parameter-2").find("input").type("SQLDesk");
 
       cy.getByTestId("ParameterApplyButton").find(".ant-badge-count p.current").should("contain", "2");
     });
@@ -552,7 +552,7 @@ describe("Parameter", () => {
     });
 
     it('disables "Execute" button', () => {
-      cy.getByTestId("ParameterName-test-parameter-1").find("input").as("Input").type("Tealdash");
+      cy.getByTestId("ParameterName-test-parameter-1").find("input").as("Input").type("SQLDesk");
       cy.getByTestId("ExecuteButton").should("be.disabled");
 
       cy.get("@Input").clear();

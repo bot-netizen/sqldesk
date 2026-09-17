@@ -1,8 +1,8 @@
 import json
 from unittest import mock
 
-from tealdash.destinations.webhook import Webhook
-from tealdash.models import Alert
+from sqldesk.destinations.webhook import Webhook
+from sqldesk.models import Alert
 
 
 def test_webhook_notify_handles_unicode():
@@ -24,13 +24,13 @@ def test_webhook_notify_handles_unicode():
     query = mock.Mock()
     user = mock.Mock()
     app = mock.Mock()
-    host = "http://tealdash.local"
+    host = "http://sqldesk.local"
     options = {"url": "https://example.com/webhook", "username": "user", "password": "password"}
     metadata = {}
     new_state = Alert.TRIGGERED_STATE
     destination = Webhook(options)
 
-    with mock.patch("tealdash.destinations.webhook.requests.post") as mock_post:
+    with mock.patch("sqldesk.destinations.webhook.requests.post") as mock_post:
         mock_response = mock.Mock()
         mock_response.status_code = 200
         mock_post.return_value = mock_response

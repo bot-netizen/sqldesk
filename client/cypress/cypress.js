@@ -63,7 +63,7 @@ function runCypressCI() {
     CYPRESS_OPTIONS, // eslint-disable-line no-unused-vars
   } = process.env;
 
-  if (GITHUB_REPOSITORY === "tealdash/tealdash" && process.env.CYPRESS_RECORD_KEY) {
+  if (GITHUB_REPOSITORY === "sqldesk/sqldesk" && process.env.CYPRESS_RECORD_KEY) {
     process.env.CYPRESS_OPTIONS = "--record";
   }
 

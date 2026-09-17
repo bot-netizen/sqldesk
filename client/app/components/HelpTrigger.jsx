@@ -12,7 +12,7 @@ import DynamicComponent, { registerComponent } from "@/components/DynamicCompone
 
 import "./HelpTrigger.less";
 
-const DOMAIN = "https://tealdash.github.io/tealdash";
+const DOMAIN = "https://sqldesk.github.io/sqldesk";
 const HELP_PATH = "/help";
 const IFRAME_TIMEOUT = 20000;
 const IFRAME_URL_UPDATE_MESSAGE = "iframe_url";

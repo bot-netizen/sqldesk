@@ -37,7 +37,7 @@ export const currentUser = {
 export const clientConfig = {};
 export const messages = [];
 
-const logger = debug("tealdash:auth");
+const logger = debug("sqldesk:auth");
 const session = { loaded: false };
 
 const AuthUrls = {

@@ -10,7 +10,7 @@ from funcy import flatten, compact
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.sql import text
-from tealdash import models
+from sqldesk import models
 
 
 # revision identifiers, used by Alembic.

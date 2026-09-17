@@ -36,7 +36,7 @@ function NumberFormatSpecs() {
       // @ts-expect-error ts-migrate(2322) FIXME: Type '{ children: Element; type: string; title: st... Remove this comment to see the full error message
       type="NUMBER_FORMAT_SPECS"
       title="Formatting Numbers"
-      href="https://tealdash.github.io/tealdash"
+      href="https://sqldesk.github.io/sqldesk"
       className="visualization-editor-context-help"
     >
       {ContextHelp.defaultIcon}
@@ -62,7 +62,7 @@ function TickFormatSpecs() {
   return (
     <HelpTriggerComponent
       title="Tick Formatting"
-      href="https://tealdash.github.io/tealdash"
+      href="https://sqldesk.github.io/sqldesk"
       className="visualization-editor-context-help"
     >
       {ContextHelp.defaultIcon}

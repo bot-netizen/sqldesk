@@ -1,7 +1,7 @@
 import unittest
 
-from tealdash.query_runner import BaseQueryRunner, BaseSQLQueryRunner
-from tealdash.utils import gen_query_hash
+from sqldesk.query_runner import BaseQueryRunner, BaseSQLQueryRunner
+from sqldesk.utils import gen_query_hash
 
 
 class TestBaseSQLQueryRunner(unittest.TestCase):

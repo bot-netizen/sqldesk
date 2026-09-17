@@ -11,10 +11,10 @@ from sqlalchemy.dialects.postgresql import BYTEA
 from sqlalchemy.sql import table
 from sqlalchemy_utils.types.encrypted.encrypted_type import FernetEngine
 
-from tealdash import settings
-from tealdash.utils.configuration import ConfigurationContainer
-from tealdash.models.base import key_type
-from tealdash.models.types import (
+from sqldesk import settings
+from sqldesk.utils.configuration import ConfigurationContainer
+from sqldesk.models.base import key_type
+from sqldesk.models.types import (
     EncryptedConfiguration,
     Configuration,
 )

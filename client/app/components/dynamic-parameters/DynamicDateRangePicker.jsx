@@ -95,7 +95,7 @@ class DynamicDateRangePicker extends React.Component {
         <DateRangeComponent
           {...dateRangeOptions}
           ref={this.dateRangeComponentRef}
-          className={classNames("tealdash-datepicker date-range-input", type, { "dynamic-value": hasDynamicValue })}
+          className={classNames("sqldesk-datepicker date-range-input", type, { "dynamic-value": hasDynamicValue })}
           onSelect={onSelect}
           suffixIcon={null}
           {...additionalAttributes}

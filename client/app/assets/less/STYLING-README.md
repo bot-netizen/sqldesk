@@ -4,5 +4,5 @@ Some general rules before you add stuff.
 
 - Avoid using inline css
 - If possible, use classes that are already in place instead of adding new
-- Keep less/inc folder untouched, rewrite things in less/tealdash respectively 
+- Keep less/inc folder untouched, rewrite things in less/sqldesk respectively 
 - Try following BEM naming conventions: http://getbem.com/naming/

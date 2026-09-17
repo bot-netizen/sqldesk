@@ -2,10 +2,10 @@ from mock import Mock, patch
 from rq import Connection
 from rq.exceptions import NoSuchJobError
 
-from tealdash import models, rq_redis_connection
-from tealdash.query_runner.pg import PostgreSQL
-from tealdash.tasks import Job
-from tealdash.tasks.queries.execution import (
+from sqldesk import models, rq_redis_connection
+from sqldesk.query_runner.pg import PostgreSQL
+from sqldesk.tasks import Job
+from sqldesk.tasks.queries.execution import (
     QueryExecutionError,
     enqueue_query,
     execute_query,
@@ -30,8 +30,8 @@ def create_job(*args, **kwargs):
     return Job(connection=rq_redis_connection)
 
 
-@patch("tealdash.tasks.queries.execution.Job.fetch", side_effect=fetch_job)
-@patch("tealdash.tasks.queries.execution.Queue.enqueue", side_effect=create_job)
+@patch("sqldesk.tasks.queries.execution.Job.fetch", side_effect=fetch_job)
+@patch("sqldesk.tasks.queries.execution.Queue.enqueue", side_effect=create_job)
 class TestEnqueueTask(BaseTestCase):
     def test_multiple_enqueue_of_same_query(self, enqueue, _):
         query = self.factory.create_query()
@@ -123,7 +123,7 @@ class TestEnqueueTask(BaseTestCase):
 
         self.assertEqual(2, enqueue.call_count)
 
-    @patch("tealdash.settings.dynamic_settings.query_time_limit", return_value=60)
+    @patch("sqldesk.settings.dynamic_settings.query_time_limit", return_value=60)
     def test_limits_query_time(self, _, enqueue, __):
         query = self.factory.create_query()
 
@@ -172,7 +172,7 @@ class TestEnqueueTask(BaseTestCase):
         self.assertEqual(3, enqueue.call_count)
 
 
-@patch("tealdash.tasks.queries.execution.get_current_job", side_effect=fetch_job)
+@patch("sqldesk.tasks.queries.execution.get_current_job", side_effect=fetch_job)
 class QueryExecutorTests(BaseTestCase):
     def test_success(self, _):
         """

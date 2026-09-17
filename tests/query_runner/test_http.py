@@ -2,8 +2,8 @@ from unittest import TestCase
 
 import mock
 
-from tealdash.query_runner import BaseHTTPQueryRunner
-from tealdash.utils.requests_session import (
+from sqldesk.query_runner import BaseHTTPQueryRunner
+from sqldesk.utils.requests_session import (
     ConfiguredSession,
     requests_or_advocate,
 )

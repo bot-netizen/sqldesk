@@ -1,5 +1,5 @@
-from tealdash.handlers.query_results import error_messages, run_query
-from tealdash.models import db
+from sqldesk.handlers.query_results import error_messages, run_query
+from sqldesk.models import db
 from tests import BaseTestCase
 
 

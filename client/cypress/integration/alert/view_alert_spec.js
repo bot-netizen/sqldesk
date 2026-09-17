@@ -39,7 +39,7 @@ describe("View Alert", () => {
       cy.login();
       cy.createUser({
         name: "Example User",
-        email: "user@tealdash.io",
+        email: "user@sqldesk.io",
         password: "password",
       });
     });
@@ -63,7 +63,7 @@ describe("View Alert", () => {
               cy.get(".remove-button").as("RemoveButton").should("exist");
             });
 
-          return cy.logout().then(() => cy.login("user@tealdash.io", "password"));
+          return cy.logout().then(() => cy.login("user@sqldesk.io", "password"));
         })
         .then(() => {
           cy.visit(this.alertUrl);
@@ -79,7 +79,7 @@ describe("View Alert", () => {
       cy.route("GET", "**/api/alerts/*/subscriptions").as("Subscriptions");
 
       cy.logout()
-        .then(() => cy.login("user@tealdash.io", "password"))
+        .then(() => cy.login("user@sqldesk.io", "password"))
         .then(() => cy.addDestinationSubscription(this.alertId, "Test Email Destination"))
         .then(() => {
           cy.visit(this.alertUrl);

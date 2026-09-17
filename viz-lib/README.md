@@ -1,15 +1,15 @@
-# @tealdash/viz
+# @sqldesk/viz
 
-The visualizations used by [Tealdash](https://github.com/tdot-labs/tealdash): charts,
+The visualizations used by [SQLDesk](https://github.com/bot-netizen/sqldesk): charts,
 tables, cohorts, funnels, maps, pivot tables and the rest.
 
-This is a workspace package of the Tealdash repository rather than something
+This is a workspace package of the SQLDesk repository rather than something
 published to npm. `client/` consumes it through pnpm's workspace protocol, and it
 builds to two module formats — `lib/` (CommonJS, which jest can require) and
 `esm/` (which webpack can tree-shake).
 
 ```bash
-pnpm --filter @tealdash/viz test        # its own jest suite
+pnpm --filter @sqldesk/viz test        # its own jest suite
 pnpm run build:viz                      # build both outputs
 ```
 
@@ -26,7 +26,7 @@ Rendering a visualization takes data, options and a type:
 
 ```jsx
 import React, { useState } from "react";
-import { Renderer, Editor } from "@tealdash/viz";
+import { Renderer, Editor } from "@sqldesk/viz";
 
 const exampleData = {
   columns: [
@@ -119,16 +119,16 @@ Available types:
 | allowCustomJSVisualization | Whether to allow the `Custom` chart type                                                        | `boolean`                                                      | `false`                                                                                                                                                                        |
 | hidePlotlyModeBar          | Whether to hide the Plotly Mode Bar on charts                                                   | `boolean`                                                      | `false`                                                                                                                                                                        |
 | choroplethAvailableMaps    | Configure the JSONs used for Choropleth maps (Note: Choropleth won't work without this setting) | `Object` (see example below)                                   | `{}`                                                                                                                                                                           |
-| HelpTriggerComponent       | Component used to render helper links on the Editor                                             | React component with `title` and `href` props                  | Renders a [tooltip with a link](https://github.com/tdot-labs/tealdash/blob/fc246aafc445bdfc3ad2b82560141ef51f8753a9/viz-lib/src/visualizations/visualizationsSettings.js#L6-L33) |
+| HelpTriggerComponent       | Component used to render helper links on the Editor                                             | React component with `title` and `href` props                  | Renders a [tooltip with a link](https://github.com/bot-netizen/sqldesk/blob/fc246aafc445bdfc3ad2b82560141ef51f8753a9/viz-lib/src/visualizations/visualizationsSettings.js#L6-L33) |
 
 Example:
 
 ```jsx
 import React from "react";
-import { Renderer, Editor, updateVisualizationsSettings } from "@tealdash/viz";
+import { Renderer, Editor, updateVisualizationsSettings } from "@sqldesk/viz";
 
-import countriesDataUrl from "@tealdash/viz/lib/visualizations/choropleth/maps/countries.geo.json";
-import subdivJapanDataUrl from "@tealdash/viz/lib/visualizations/choropleth/maps/japan.prefectures.geo.json";
+import countriesDataUrl from "@sqldesk/viz/lib/visualizations/choropleth/maps/countries.geo.json";
+import subdivJapanDataUrl from "@sqldesk/viz/lib/visualizations/choropleth/maps/japan.prefectures.geo.json";
 
 function wrapComponentWithSettings(WrappedComponent) {
   return function VisualizationComponent(props) {
@@ -166,7 +166,7 @@ Usage:
 
 ```jsx
 import React from "react";
-import JsonViewInteractive from "@tealdash/viz/lib/components/json-view-interactive/JsonViewInteractive";
+import JsonViewInteractive from "@sqldesk/viz/lib/components/json-view-interactive/JsonViewInteractive";
 
 const example = { list: ["value1", "value2", "value3"], obj: { prop: "value" } };
 

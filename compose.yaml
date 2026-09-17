@@ -1,5 +1,5 @@
 # This configuration file is for the **development** setup.
-x-tealdash-service: &tealdash-service
+x-sqldesk-service: &sqldesk-service
   build:
     context: .
     args:
@@ -8,21 +8,21 @@ x-tealdash-service: &tealdash-service
     - .:/app
   env_file:
     - .env
-x-tealdash-environment: &tealdash-environment
-  TEALDASH_HOST: http://localhost:5001
-  TEALDASH_LOG_LEVEL: "INFO"
-  TEALDASH_REDIS_URL: "redis://redis:6379/0"
-  TEALDASH_DATABASE_URL: "postgresql://postgres@postgres/postgres"
-  TEALDASH_RATELIMIT_ENABLED: "false"
-  TEALDASH_MAIL_DEFAULT_SENDER: "tealdash@example.com"
-  TEALDASH_MAIL_SERVER: "email"
-  TEALDASH_MAIL_PORT: 1025
-  TEALDASH_ENFORCE_CSRF: "true"
-  TEALDASH_GUNICORN_TIMEOUT: 60
+x-sqldesk-environment: &sqldesk-environment
+  SQLDESK_HOST: http://localhost:5001
+  SQLDESK_LOG_LEVEL: "INFO"
+  SQLDESK_REDIS_URL: "redis://redis:6379/0"
+  SQLDESK_DATABASE_URL: "postgresql://postgres@postgres/postgres"
+  SQLDESK_RATELIMIT_ENABLED: "false"
+  SQLDESK_MAIL_DEFAULT_SENDER: "sqldesk@example.com"
+  SQLDESK_MAIL_SERVER: "email"
+  SQLDESK_MAIL_PORT: 1025
+  SQLDESK_ENFORCE_CSRF: "true"
+  SQLDESK_GUNICORN_TIMEOUT: 60
   # Set secret keys in the .env file
 services:
   server:
-    <<: *tealdash-service
+    <<: *sqldesk-service
     command: dev_server
     depends_on:
       - postgres
@@ -31,22 +31,22 @@ services:
       - "5001:5000"
       - "5678:5678"
     environment:
-      <<: *tealdash-environment
+      <<: *sqldesk-environment
       PYTHONUNBUFFERED: 0
   scheduler:
-    <<: *tealdash-service
+    <<: *sqldesk-service
     command: dev_scheduler
     depends_on:
       - server
     environment:
-      <<: *tealdash-environment
+      <<: *sqldesk-environment
   worker:
-    <<: *tealdash-service
+    <<: *sqldesk-service
     command: dev_worker
     depends_on:
       - server
     environment:
-      <<: *tealdash-environment
+      <<: *sqldesk-environment
       PYTHONUNBUFFERED: 0
   redis:
     image: redis:7-alpine

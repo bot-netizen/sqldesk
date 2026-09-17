@@ -1,6 +1,6 @@
 import unittest
 
-from tealdash.query_runner.oracle import Oracle
+from sqldesk.query_runner.oracle import Oracle
 
 
 class TestOracle(unittest.TestCase):

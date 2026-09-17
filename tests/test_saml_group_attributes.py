@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from tealdash.authentication.saml_auth import get_group_names
+from sqldesk.authentication.saml_auth import get_group_names
 
 
 class SamlGroupAttributeTest(TestCase):
@@ -10,14 +10,14 @@ class SamlGroupAttributeTest(TestCase):
     every group assignment and with it their data source access.
     """
 
-    def test_reads_the_tealdash_attribute(self):
-        self.assertEqual(get_group_names({"TealdashGroups": ["analysts"]}), ["analysts"])
+    def test_reads_the_sqldesk_attribute(self):
+        self.assertEqual(get_group_names({"SQLDeskGroups": ["analysts"]}), ["analysts"])
 
     def test_still_reads_the_attribute_existing_identity_providers_send(self):
         self.assertEqual(get_group_names({"RedashGroups": ["analysts"]}), ["analysts"])
 
     def test_the_new_name_wins_when_both_are_present(self):
-        ava = {"TealdashGroups": ["new"], "RedashGroups": ["old"]}
+        ava = {"SQLDeskGroups": ["new"], "RedashGroups": ["old"]}
         self.assertEqual(get_group_names(ava), ["new"])
 
     def test_no_attribute_means_no_group_change(self):

@@ -8,7 +8,7 @@ module.exports = {
   entry: "./src/index.ts",
   output: {
     path: path.resolve(__dirname, "dist"),
-    filename: "tealdash-visualizations.js",
+    filename: "sqldesk-visualizations.js",
     libraryTarget: "umd",
     assetModuleFilename: 'images/[name][ext]'
   },

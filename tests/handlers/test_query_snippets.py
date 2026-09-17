@@ -1,4 +1,4 @@
-from tealdash.models import QuerySnippet
+from sqldesk.models import QuerySnippet
 from tests import BaseTestCase
 
 

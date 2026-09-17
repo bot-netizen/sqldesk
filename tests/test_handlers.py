@@ -2,7 +2,7 @@ from flask_login import current_user
 from funcy import project
 from mock import patch
 
-from tealdash import models, settings
+from sqldesk import models, settings
 from tests import BaseTestCase, authenticated_user
 
 
@@ -116,7 +116,7 @@ class TestLogin(BaseTestCase):
             settings.LDAP_LOGIN_ENABLED = old_ldap_login_enabled
 
     def test_submit_non_existing_user(self):
-        with patch("tealdash.handlers.authentication.login_user") as login_user_mock:
+        with patch("sqldesk.handlers.authentication.login_user") as login_user_mock:
             rv = self.client.post("/default/login", data={"email": "arik", "password": "password"})
             self.assertEqual(rv.status_code, 200)
             self.assertFalse(login_user_mock.called)
@@ -128,7 +128,7 @@ class TestLogin(BaseTestCase):
         self.db.session.add(user)
         self.db.session.commit()
 
-        with patch("tealdash.handlers.authentication.login_user") as login_user_mock:
+        with patch("sqldesk.handlers.authentication.login_user") as login_user_mock:
             rv = self.client.post("/default/login", data={"email": user.email, "password": "password"})
             self.assertEqual(rv.status_code, 302)
             login_user_mock.assert_called_with(user, remember=False)
@@ -140,7 +140,7 @@ class TestLogin(BaseTestCase):
         self.db.session.add(user)
         self.db.session.commit()
 
-        with patch("tealdash.handlers.authentication.login_user") as login_user_mock:
+        with patch("sqldesk.handlers.authentication.login_user") as login_user_mock:
             rv = self.client.post(
                 "/default/login",
                 data={"email": user.email.upper(), "password": "password"},
@@ -155,7 +155,7 @@ class TestLogin(BaseTestCase):
         self.db.session.add(user)
         self.db.session.commit()
 
-        with patch("tealdash.handlers.authentication.login_user") as login_user_mock:
+        with patch("sqldesk.handlers.authentication.login_user") as login_user_mock:
             rv = self.client.post(
                 "/default/login",
                 data={"email": user.email, "password": "password", "remember": True},
@@ -170,7 +170,7 @@ class TestLogin(BaseTestCase):
         self.db.session.add(user)
         self.db.session.commit()
 
-        with patch("tealdash.handlers.authentication.login_user") as login_user_mock:
+        with patch("sqldesk.handlers.authentication.login_user") as login_user_mock:
             rv = self.client.post(
                 "/default/login?next=/test",
                 data={"email": user.email, "password": "password"},
@@ -180,7 +180,7 @@ class TestLogin(BaseTestCase):
             login_user_mock.assert_called_with(user, remember=False)
 
     def test_submit_incorrect_user(self):
-        with patch("tealdash.handlers.authentication.login_user") as login_user_mock:
+        with patch("sqldesk.handlers.authentication.login_user") as login_user_mock:
             rv = self.client.post("/default/login", data={"email": "non-existing", "password": "password"})
             self.assertEqual(rv.status_code, 200)
             self.assertFalse(login_user_mock.called)
@@ -192,7 +192,7 @@ class TestLogin(BaseTestCase):
         self.db.session.add(user)
         self.db.session.commit()
 
-        with patch("tealdash.handlers.authentication.login_user") as login_user_mock:
+        with patch("sqldesk.handlers.authentication.login_user") as login_user_mock:
             rv = self.client.post(
                 "/default/login",
                 data={"email": user.email, "password": "badbadpassword"},
@@ -203,13 +203,13 @@ class TestLogin(BaseTestCase):
     def test_submit_empty_password(self):
         user = self.factory.user
 
-        with patch("tealdash.handlers.authentication.login_user") as login_user_mock:
+        with patch("sqldesk.handlers.authentication.login_user") as login_user_mock:
             rv = self.client.post("/default/login", data={"email": user.email, "password": ""})
             self.assertEqual(rv.status_code, 200)
             self.assertFalse(login_user_mock.called)
 
     def test_user_already_loggedin(self):
-        with authenticated_user(self.client), patch("tealdash.handlers.authentication.login_user") as login_user_mock:
+        with authenticated_user(self.client), patch("sqldesk.handlers.authentication.login_user") as login_user_mock:
             rv = self.client.get("/default/login")
             self.assertEqual(rv.status_code, 302)
             self.assertFalse(login_user_mock.called)
@@ -223,7 +223,7 @@ class TestLogin(BaseTestCase):
 
         self.factory.org.set_setting("auth_password_login_enabled", False)
 
-        with patch("tealdash.handlers.authentication.login_user"):
+        with patch("sqldesk.handlers.authentication.login_user"):
             rv = self.client.post("/default/login", data={"email": user.email, "password": "password"})
             self.assertEqual(rv.status_code, 200)
             self.assertIn("Password login is not enabled for your organization", str(rv.data))

@@ -1,6 +1,6 @@
 import unittest
 
-from tealdash.query_runner.big_query import BigQuery
+from sqldesk.query_runner.big_query import BigQuery
 
 
 class TestBigQueryQueryRunner(unittest.TestCase):

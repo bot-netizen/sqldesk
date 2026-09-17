@@ -13,7 +13,7 @@ import Filters from "@/components/Filters";
 import { Dashboard } from "@/services/dashboard";
 import routes from "@/services/routes";
 
-import logoUrl from "@/assets/images/tealdash_icon.svg";
+import logoUrl from "@/assets/images/sqldesk_icon.svg";
 
 import useDashboard from "./hooks/useDashboard";
 
@@ -89,11 +89,11 @@ class PublicDashboardPage extends React.Component {
         )}
         <div id="footer">
           <div className="text-center">
-            <Link href="https://tealdash.github.io/tealdash">
-              <img alt="Tealdash" src={logoUrl} width="38" />
+            <Link href="https://sqldesk.github.io/sqldesk">
+              <img alt="SQLDesk" src={logoUrl} width="38" />
             </Link>
           </div>
-          Powered by <Link href="https://tealdash.github.io/tealdash">Tealdash</Link>
+          Powered by <Link href="https://sqldesk.github.io/sqldesk">SQLDesk</Link>
         </div>
       </div>
     );

@@ -7,7 +7,7 @@ from influxdb_client.client.flux_table import (
     TableList,
 )
 
-from tealdash.query_runner.influx_db_v2 import InfluxDBv2
+from sqldesk.query_runner.influx_db_v2 import InfluxDBv2
 
 
 @pytest.fixture()
@@ -44,7 +44,7 @@ def influx_table_list():
 
 
 class TestInfluxDBv2:
-    @mock.patch("tealdash.query_runner.influx_db_v2.InfluxDBv2." "_create_cert_file")
+    @mock.patch("sqldesk.query_runner.influx_db_v2.InfluxDBv2." "_create_cert_file")
     def test_get_influx_kwargs(self, create_cert_file_mock: mock.MagicMock):
         # 1. case: without ssl attributes
         influx_db_v2 = InfluxDBv2({"url": "url", "token": "token", "org": "org"})
@@ -101,7 +101,7 @@ class TestInfluxDBv2:
             [mock.call("cert_File"), mock.call("cert_key_File"), mock.call("ssl_ca_cert_File")]
         )
 
-    @mock.patch("tealdash.query_runner.influx_db_v2.NamedTemporaryFile")
+    @mock.patch("sqldesk.query_runner.influx_db_v2.NamedTemporaryFile")
     def test_create_cert_file(self, named_temporary_file_mock: mock.MagicMock):
         # 1. case: with none value
         influx_db_v2 = InfluxDBv2({"url": "url", "token": "token", "org": "org"})
@@ -126,7 +126,7 @@ class TestInfluxDBv2:
         assert cert_file_name == "cert_file_name"
         context_manager_mock.write.assert_called_once_with("value")
 
-    @mock.patch("tealdash.query_runner.influx_db_v2.os")
+    @mock.patch("sqldesk.query_runner.influx_db_v2.os")
     def test_cleanup_cert_files(self, os_mock: mock.MagicMock):
         # 1. case: no file found
         influx_db_v2 = InfluxDBv2(
@@ -177,9 +177,9 @@ class TestInfluxDBv2:
     def test_enabled(self):
         assert InfluxDBv2.enabled() is True
 
-    @mock.patch("tealdash.query_runner.influx_db_v2.InfluxDBClient")
-    @mock.patch("tealdash.query_runner.influx_db_v2.InfluxDBv2." "_cleanup_cert_files")
-    @mock.patch("tealdash.query_runner.influx_db_v2.logger")
+    @mock.patch("sqldesk.query_runner.influx_db_v2.InfluxDBClient")
+    @mock.patch("sqldesk.query_runner.influx_db_v2.InfluxDBv2." "_cleanup_cert_files")
+    @mock.patch("sqldesk.query_runner.influx_db_v2.logger")
     def test_test_connection(
         self,
         logger_mock: mock.MagicMock,
@@ -272,9 +272,9 @@ class TestInfluxDBv2:
         data = influx_db_v2._get_data_from_tables(TableList())
         assert data == {"columns": [], "rows": []}
 
-    @mock.patch("tealdash.query_runner.influx_db_v2.InfluxDBClient")
-    @mock.patch("tealdash.query_runner.influx_db_v2.InfluxDBv2." "_cleanup_cert_files")
-    @mock.patch("tealdash.query_runner.influx_db_v2.logger")
+    @mock.patch("sqldesk.query_runner.influx_db_v2.InfluxDBClient")
+    @mock.patch("sqldesk.query_runner.influx_db_v2.InfluxDBv2." "_cleanup_cert_files")
+    @mock.patch("sqldesk.query_runner.influx_db_v2.logger")
     def test_run_query(
         self,
         logger_mock: mock.MagicMock,

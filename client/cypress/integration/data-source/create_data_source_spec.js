@@ -40,7 +40,7 @@ describe("Create Data Source", () => {
     cy.getByTestId("SearchSource").type("PostgreSQL");
     cy.getByTestId("CreateSourceDialog").contains("PostgreSQL").click();
 
-    cy.getByTestId("Name").type("Tealdash");
+    cy.getByTestId("Name").type("SQLDesk");
     cy.getByTestId("Host").type("postgres");
     cy.getByTestId("User").type("postgres");
     cy.getByTestId("Password").type("postgres");

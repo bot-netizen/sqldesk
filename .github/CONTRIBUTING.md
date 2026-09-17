@@ -2,7 +2,7 @@
 
 Thank you for taking the time to contribute! :tada::+1:
 
-The following is a set of guidelines for contributing to Tealdash. These are guidelines, not rules, please use your best judgement and feel free to propose changes to this document in a pull request.
+The following is a set of guidelines for contributing to SQLDesk. These are guidelines, not rules, please use your best judgement and feel free to propose changes to this document in a pull request.
 
 :star: If you're already here and love the project, please make sure to press the Star button. :star:
 ## Table of Contents
@@ -22,8 +22,8 @@ The following is a set of guidelines for contributing to Tealdash. These are gui
 
 ## Quick Links:
 
-- [Discussions](https://github.com/tdot-labs/tealdash/discussions)
-- [Documentation](https://tdot-labs.github.io/tealdash/)
+- [Discussions](https://github.com/bot-netizen/sqldesk/discussions)
+- [Documentation](https://bot-netizen.github.io/sqldesk/)
 
 
 ---
@@ -34,14 +34,14 @@ The following is a set of guidelines for contributing to Tealdash. These are gui
 When creating a new bug report, please make sure to:
 
 - Search for existing issues first. If you find a previous report of your issue, please update the existing issue with additional information instead of creating a new one.
-- If you are not sure if your issue is really a bug or just some configuration/setup problem, please start a [Q&A discussion](https://github.com/tdot-labs/tealdash/discussions/new?category=q-a) first. Unless you can provide clear steps to reproduce, it's probably better to start with a discussion and later to open an issue.
+- If you are not sure if your issue is really a bug or just some configuration/setup problem, please start a [Q&A discussion](https://github.com/bot-netizen/sqldesk/discussions/new?category=q-a) first. Unless you can provide clear steps to reproduce, it's probably better to start with a discussion and later to open an issue.
 - If you still decide to open an issue, please review the template and guidelines and include as much details as possible.
 
 ### Suggesting Enhancements / Feature Requests
 
 If you would like to suggest an enhancement or ask for a new feature:
 
-- Please check [the Ideas discussions](https://github.com/tdot-labs/tealdash/discussions/categories/ideas) for existing threads about what you want to suggest/ask. If there is, feel free to upvote it to signal interest or add your comments.
+- Please check [the Ideas discussions](https://github.com/bot-netizen/sqldesk/discussions/categories/ideas) for existing threads about what you want to suggest/ask. If there is, feel free to upvote it to signal interest or add your comments.
 - If there is no open thread, you're welcome to start one to have a discussion about what you want to suggest. Try to provide as much details and context as possible and include information about *the problem you want to solve* rather only *your proposed solution*.
 
 ### Pull Requests
@@ -84,7 +84,7 @@ After your pull request has been approved, a member of the core team will merge 
 
 ### Documentation
 
-The site at [tdot-labs.github.io/tealdash](https://tdot-labs.github.io/tealdash/) is built from the `docs/` directory in this repository and published by GitHub Pages on every push to `main`. Edit the HTML there and open a pull request; there is no separate docs repository and no build step.
+The site at [bot-netizen.github.io/sqldesk](https://bot-netizen.github.io/sqldesk/) is built from the `docs/` directory in this repository and published by GitHub Pages on every push to `main`. Edit the HTML there and open a pull request; there is no separate docs repository and no build step.
 
 ## Additional Notes
 
@@ -92,7 +92,7 @@ The site at [tdot-labs.github.io/tealdash](https://tdot-labs.github.io/tealdash/
 
 We publish a stable release every ~3-4 months, although the goal is to get to a stable release every month. 
 
-Every build of the master branch updates the *tealdash/tealdash:preview* Docker Image. These releases are usually stable, but might contain regressions and therefore recommended for "advanced users" only.
+Every build of the master branch updates the *sqldesk/sqldesk:preview* Docker Image. These releases are usually stable, but might contain regressions and therefore recommended for "advanced users" only.
 
 When we release a new stable release, we also update the *latest* Docker image tag, the EC2 AMIs and GCE images.
 

@@ -1,6 +1,6 @@
 import unittest
 
-from tealdash.query_runner import BaseQueryRunner
+from sqldesk.query_runner import BaseQueryRunner
 
 
 class TestBaseQueryRunner(unittest.TestCase):

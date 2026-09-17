@@ -16,7 +16,7 @@ import {
   getDefaultVisualization,
   newVisualization,
   VisualizationType,
-} from "@tealdash/viz/lib";
+} from "@sqldesk/viz/lib";
 import { Renderer, Editor } from "@/components/visualizations/visualizationComponents";
 
 import "./EditVisualizationDialog.less";

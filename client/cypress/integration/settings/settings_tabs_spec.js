@@ -1,7 +1,7 @@
 describe("Settings Tabs", () => {
   const regularUser = {
     name: "Example User",
-    email: "user@tealdash.io",
+    email: "user@sqldesk.io",
     password: "password",
   };
 

@@ -1,15 +1,15 @@
 {
-  "name": "tealdash-client",
+  "name": "sqldesk-client",
   "version": "0.2.0",
-  "description": "The frontend part of Tealdash.",
+  "description": "The frontend part of SQLDesk.",
   "main": "index.js",
   "scripts": {
     "start": "npm-run-all --parallel watch:viz webpack-dev-server",
     "clean": "rm -rf ./client/dist/",
-    "build:viz": "pnpm --filter @tealdash/viz build:babel",
+    "build:viz": "pnpm --filter @sqldesk/viz build:babel",
     "build": "pnpm run clean && pnpm run build:viz && NODE_ENV=production webpack",
     "watch:app": "webpack watch --progress",
-    "watch:viz": "pnpm --filter @tealdash/viz watch:babel",
+    "watch:viz": "pnpm --filter @sqldesk/viz watch:babel",
     "watch": "npm-run-all --parallel watch:*",
     "webpack-dev-server": "webpack-dev-server",
     "analyze": "pnpm run clean && BUNDLE_ANALYZER=on webpack",
@@ -29,23 +29,23 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tdot-labs/tealdash.git"
+    "url": "git+https://github.com/bot-netizen/sqldesk.git"
   },
   "packageManager": "pnpm@10.30.3",
   "engines": {
     "node": ">=18.0.0 <26.0.0"
   },
-  "author": "Tealdash contributors",
+  "author": "SQLDesk contributors",
   "license": "BSD-2-Clause",
   "bugs": {
-    "url": "https://github.com/tdot-labs/tealdash/issues"
+    "url": "https://github.com/bot-netizen/sqldesk/issues"
   },
-  "homepage": "https://tdot-labs.github.io/tealdash/",
+  "homepage": "https://bot-netizen.github.io/sqldesk/",
   "dependencies": {
     "@ant-design/icons": "^4.2.1",
     "@fontsource-variable/instrument-sans": "5.3.0",
     "@fontsource-variable/jetbrains-mono": "5.3.0",
-    "@tealdash/viz": "workspace:*",
+    "@sqldesk/viz": "workspace:*",
     "ace-builds": "^1.43.3",
     "antd": "4.4.3",
     "axios": "0.27.2",

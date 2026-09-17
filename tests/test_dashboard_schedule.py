@@ -1,8 +1,8 @@
 import datetime
 
-from tealdash import models
-from tealdash.models import db
-from tealdash.utils import utcnow
+from sqldesk import models
+from sqldesk.models import db
+from sqldesk.utils import utcnow
 from tests import BaseTestCase
 
 

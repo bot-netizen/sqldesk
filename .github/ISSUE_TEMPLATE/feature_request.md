@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest something Tealdash should be able to do
+about: Suggest something SQLDesk should be able to do
 title: ''
 labels: enhancement
 assignees: ''

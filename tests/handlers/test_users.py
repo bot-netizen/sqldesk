@@ -1,6 +1,6 @@
 from mock import patch
 
-from tealdash import models
+from sqldesk import models
 from tests import BaseTestCase
 
 
@@ -47,7 +47,7 @@ class TestUserListResourcePost(BaseTestCase):
         self.assertEqual(rv.json["name"], test_user["name"])
         self.assertEqual(rv.json["email"], test_user["email"])
 
-    @patch("tealdash.settings.email_server_is_configured", return_value=False)
+    @patch("sqldesk.settings.email_server_is_configured", return_value=False)
     def test_shows_invite_link_when_email_is_not_configured(self, _):
         admin = self.factory.create_admin()
 
@@ -57,7 +57,7 @@ class TestUserListResourcePost(BaseTestCase):
         self.assertEqual(rv.status_code, 200)
         self.assertTrue("invite_link" in rv.json)
 
-    @patch("tealdash.settings.email_server_is_configured", return_value=True)
+    @patch("sqldesk.settings.email_server_is_configured", return_value=True)
     def test_does_not_show_invite_link_when_email_is_configured(self, _):
         admin = self.factory.create_admin()
 
@@ -255,14 +255,14 @@ class TestUserResourcePost(BaseTestCase):
         )
         self.assertEqual(rv.status_code, 200)
 
-    @patch("tealdash.settings.email_server_is_configured", return_value=True)
+    @patch("sqldesk.settings.email_server_is_configured", return_value=True)
     def test_marks_email_as_not_verified_when_changed(self, _):
         user = self.factory.user
         user.is_email_verified = True
         self.make_request("post", "/api/users/{}".format(user.id), data={"email": "donald@trump.biz"})
         self.assertFalse(user.is_email_verified)
 
-    @patch("tealdash.settings.email_server_is_configured", return_value=False)
+    @patch("sqldesk.settings.email_server_is_configured", return_value=False)
     def test_doesnt_mark_email_as_not_verified_when_changed_and_email_server_is_not_configured(self, _):
         user = self.factory.user
         user.is_email_verified = True
@@ -473,7 +473,7 @@ class TestUserDisable(BaseTestCase):
         self.db.session.add(user)
         self.db.session.commit()
 
-        with patch("tealdash.handlers.authentication.login_user") as login_user_mock:
+        with patch("sqldesk.handlers.authentication.login_user") as login_user_mock:
             rv = self.post_request(
                 "/login",
                 data={"email": user.email, "password": "password"},
@@ -506,7 +506,7 @@ class TestUserDisable(BaseTestCase):
 
         # user should receive email
         user = self.factory.create_user()
-        with patch("tealdash.handlers.users.send_password_reset_email") as send_password_reset_email_mock:
+        with patch("sqldesk.handlers.users.send_password_reset_email") as send_password_reset_email_mock:
             send_password_reset_email_mock.return_value = "reset_token"
             rv = self.make_request("post", "/api/users/{}/reset_password".format(user.id), user=admin_user)
             self.assertEqual(rv.status_code, 200)
@@ -517,7 +517,7 @@ class TestUserDisable(BaseTestCase):
         self.db.session.add(user)
         self.db.session.commit()
 
-        with patch("tealdash.handlers.users.send_password_reset_email") as send_password_reset_email_mock:
+        with patch("sqldesk.handlers.users.send_password_reset_email") as send_password_reset_email_mock:
             send_password_reset_email_mock.return_value = "reset_token"
             rv = self.make_request("post", "/api/users/{}/reset_password".format(user.id), user=admin_user)
             self.assertEqual(rv.status_code, 404)

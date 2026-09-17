@@ -1,7 +1,7 @@
 import ssl
 from unittest import TestCase
 
-from tealdash.query_runner.cass import generate_ssl_options_dict
+from sqldesk.query_runner.cass import generate_ssl_options_dict
 
 
 class TestCassandra(TestCase):

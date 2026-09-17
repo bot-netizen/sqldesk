@@ -35,10 +35,10 @@ const isDevelopment = !isProduction;
 const isHotReloadingEnabled =
   isDevelopment && process.env.HOT_RELOAD === "true";
 
-const tealdashBackend = process.env.TEALDASH_BACKEND || "http://localhost:5001";
+const sqldeskBackend = process.env.SQLDESK_BACKEND || "http://localhost:5001";
 const baseHref = CONFIG.baseHref || "/";
 const staticPath = CONFIG.staticPath || "/static/";
-const htmlTitle = CONFIG.title || "Tealdash";
+const htmlTitle = CONFIG.title || "SQLDesk";
 
 const basePath = path.join(__dirname, "client");
 const appPath = path.join(__dirname, "client", "app");
@@ -50,7 +50,7 @@ const extensionPath = path.join(__dirname, extensionsRelativePath);
 // Function to apply configuration overrides (see scripts/README)
 function maybeApplyOverrides(config) {
   const overridesLocation =
-    process.env.TEALDASH_WEBPACK_OVERRIDES || "./scripts/webpack/overrides";
+    process.env.SQLDESK_WEBPACK_OVERRIDES || "./scripts/webpack/overrides";
   const applyOverrides = optionalRequire(overridesLocation);
   if (!applyOverrides) {
     return config;
@@ -84,11 +84,11 @@ const config = {
     alias: {
       "@": appPath,
       extensions: extensionPath,
-      // The app imports "@tealdash/viz/lib", which babel compiles to CommonJS
+      // The app imports "@sqldesk/viz/lib", which babel compiles to CommonJS
       // so the client's jest can require it. Webpack cannot tree-shake a
       // CommonJS require, and the whole of ECharts was being bundled as a
       // result. Point the bundler at the ESM build of the same source.
-      "@tealdash/viz/lib": path.join(__dirname, "viz-lib/esm"),
+      "@sqldesk/viz/lib": path.join(__dirname, "viz-lib/esm"),
     },
     fallback: {
       fs: false,
@@ -100,7 +100,7 @@ const config = {
     }
   },
   plugins: [
-    new WebpackBuildNotifierPlugin({ title: "Tealdash" }),
+    new WebpackBuildNotifierPlugin({ title: "SQLDesk" }),
     // bundle only default `moment` locale (`en`)
     new webpack.ContextReplacementPlugin(/moment[\/\\]locale$/, /en/),
     new HtmlWebpackPlugin({
@@ -299,7 +299,7 @@ const config = {
           "/api",
           "/oauth"
         ],
-        target: tealdashBackend + "/",
+        target: sqldeskBackend + "/",
         changeOrigin: false,
         secure: false
       },
@@ -308,7 +308,7 @@ const config = {
           // CSS/JS for server-rendered pages should be served from backend
           return /^\/static\/[a-z]+\.[0-9a-fA-F]+\.(css|js)$/.test(path);
         },
-        target: tealdashBackend + "/",
+        target: sqldeskBackend + "/",
         changeOrigin: true,
         secure: false
       }

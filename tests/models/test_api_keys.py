@@ -1,4 +1,4 @@
-from tealdash.models import ApiKey
+from sqldesk.models import ApiKey
 from tests import BaseTestCase
 
 

@@ -32,7 +32,7 @@ function DeprecatedEmbedFeatureAlert() {
           You have enabled <code>ALLOW_PARAMETERS_IN_EMBEDS</code>. This setting is now deprecated and should be turned
           off. Parameters in embeds are supported by default.{" "}
           <Link
-            href="https://tealdash.github.io/tealdash"
+            href="https://sqldesk.github.io/sqldesk"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -111,7 +111,7 @@ export default function Home() {
             working alone. */}
         <DynamicComponent name="Home.EmptyState">
           <EmptyState
-            header="Welcome to Tealdash 👋"
+            header="Welcome to SQLDesk 👋"
             description="Connect to any data source, easily visualize and share your data"
             illustration="dashboard"
             helpMessage={<EmptyStateHelpMessage helpTriggerType="GETTING_STARTED" />}
@@ -145,7 +145,7 @@ routes.register(
   "Home",
   routeWithUserSession({
     path: "/",
-    title: "Tealdash",
+    title: "SQLDesk",
     render: (pageProps) => <Home {...pageProps} />,
   })
 );

@@ -1,6 +1,6 @@
 from funcy import project
 
-from tealdash.models import DataSource, Group, db
+from sqldesk.models import DataSource, Group, db
 from tests import BaseTestCase
 
 

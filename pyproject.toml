@@ -1,13 +1,13 @@
 [project]
-name = "tealdash"
+name = "sqldesk"
 version = "0.2.0"
 description = "Make Your Company Data Driven. Connect to any data source, easily visualize, dashboard and share your data."
 authors = [
-    { name = "Tealdash contributors" }
+    { name = "SQLDesk contributors" }
 ]
 # to be added to/removed from the mailing list, please reach out to Arik via the above email or Discord
 maintainers = [
-    { name = "Tealdash maintainers" }
+    { name = "SQLDesk maintainers" }
 ]
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
@@ -188,7 +188,7 @@ filterwarnings = [
 
 [tool.coverage.run]
 branch = true
-source = ["tealdash"]
+source = ["sqldesk"]
 
 [tool.coverage.report]
 omit = [

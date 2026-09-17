@@ -1,7 +1,7 @@
-from tealdash.models import AccessPermission, ApiKey, Dashboard, db
-from tealdash.permissions import ACCESS_TYPE_MODIFY
-from tealdash.serializers import serialize_dashboard
-from tealdash.utils import json_loads
+from sqldesk.models import AccessPermission, ApiKey, Dashboard, db
+from sqldesk.permissions import ACCESS_TYPE_MODIFY
+from sqldesk.serializers import serialize_dashboard
+from sqldesk.utils import json_loads
 from tests import BaseTestCase
 
 

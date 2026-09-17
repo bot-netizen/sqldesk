@@ -27,7 +27,7 @@ export default function BeaconConsentSettings(props) {
               <Typography.Text type="secondary">
                 Counts of users, queries, dashboards, alerts, widgets, visualizations and data source types — no query
                 text, names, results or credentials. They go only to the endpoint set in{" "}
-                <code>TEALDASH_VERSION_CHECK_URL</code>, and nothing is sent when that is unset.
+                <code>SQLDESK_VERSION_CHECK_URL</code>, and nothing is sent when that is unset.
               </Typography.Text>
             </div>
           </React.Fragment>

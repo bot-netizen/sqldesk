@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from jsonschema import ValidationError
 
-from tealdash.utils.configuration import ConfigurationContainer
+from sqldesk.utils.configuration import ConfigurationContainer
 
 configuration_schema = {
     "type": "object",

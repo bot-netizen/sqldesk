@@ -19,7 +19,7 @@ import {
 import location from "@/services/location";
 import { cloneParameter } from "@/services/parameters";
 import dashboardGridOptions from "@/config/dashboard-grid-options";
-import { registeredVisualizations } from "@tealdash/viz/lib";
+import { registeredVisualizations } from "@sqldesk/viz/lib";
 import { Query } from "./query";
 
 export const WidgetTypeEnum = {

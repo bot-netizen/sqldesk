@@ -6,7 +6,7 @@ from unittest import TestCase
 import mock
 import pytest
 
-from tealdash.query_runner.query_results import (
+from sqldesk.query_runner.query_results import (
     CreateTableError,
     PermissionError,
     _load_query,
@@ -242,7 +242,7 @@ class TestGetQueryResult(BaseTestCase):
         query_result = self.factory.create_query_result()
         query = self.factory.create_query(latest_query_data=query_result)
 
-        from tealdash.query_runner.pg import PostgreSQL
+        from sqldesk.query_runner.pg import PostgreSQL
 
         with mock.patch.object(PostgreSQL, "run_query") as qr:
             query_result_data = {"columns": [], "rows": []}

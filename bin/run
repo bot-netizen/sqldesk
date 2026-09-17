@@ -2,10 +2,10 @@
 
 # Ideally I would use stdin with source, but in older bash versions this
 # wasn't supported properly.
-TEMP_ENV_FILE=`mktemp /tmp/tealdash_env.XXXXXX`
+TEMP_ENV_FILE=`mktemp /tmp/sqldesk_env.XXXXXX`
 # Both prefixes: settings/helpers.py accepts REDASH_* as a fallback for
-# TEALDASH_*, so an .env may legitimately contain either or both.
-sed -E 's/^(TEALDASH|REDASH)/export \1/' .env > $TEMP_ENV_FILE
+# SQLDESK_*, so an .env may legitimately contain either or both.
+sed -E 's/^(SQLDESK|REDASH)/export \1/' .env > $TEMP_ENV_FILE
 source $TEMP_ENV_FILE
 rm $TEMP_ENV_FILE
 

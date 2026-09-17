@@ -1,6 +1,6 @@
-from tealdash import models
-from tealdash.handlers.base import order_results
-from tealdash.models import db
+from sqldesk import models
+from sqldesk.handlers.base import order_results
+from sqldesk.models import db
 from tests import BaseTestCase
 
 

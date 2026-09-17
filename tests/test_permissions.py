@@ -1,7 +1,7 @@
 from collections import namedtuple
 
-from tealdash import models
-from tealdash.permissions import has_access
+from sqldesk import models
+from sqldesk.permissions import has_access
 from tests import BaseTestCase
 
 MockUser = namedtuple("MockUser", ["permissions", "group_ids"])

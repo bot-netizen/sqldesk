@@ -9,7 +9,7 @@ export const query = `
     true AS bool,
     '[{"a": 3.14, "b": "test", "c": [], "d": {}}, false, [null, 123], "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."]' AS json,
     'ukr' AS img,
-    'tealdash' AS link
+    'sqldesk' AS link
 `;
 
 export const config = {

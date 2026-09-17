@@ -2,7 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom";
 
 // Self-hosted via Fontsource rather than loaded from fonts.googleapis.com:
-// Tealdash is frequently deployed air-gapped, where a CDN dependency fails
+// SQLDesk is frequently deployed air-gapped, where a CDN dependency fails
 // outright, and elsewhere it would leak viewer IPs to a third party.
 // Variable fonts, so 400/500/600 all come from one file per subset, and
 // Fontsource sets font-display: swap so text never blocks on them.

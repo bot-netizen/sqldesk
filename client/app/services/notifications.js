@@ -1,9 +1,9 @@
 import { find } from "lodash";
 import debug from "debug";
 import recordEvent from "@/services/recordEvent";
-import logoUrl from "@/assets/images/tealdash_icon.svg";
+import logoUrl from "@/assets/images/sqldesk_icon.svg";
 
-const logger = debug("tealdash:notifications");
+const logger = debug("sqldesk:notifications");
 
 const Notification = window.Notification || null;
 if (!Notification) {

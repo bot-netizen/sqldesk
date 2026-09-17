@@ -1,7 +1,7 @@
-from tealdash import models
-from tealdash.models import db
-from tealdash.permissions import ACCESS_TYPE_MODIFY
-from tealdash.serializers import serialize_query
+from sqldesk import models
+from sqldesk.models import db
+from sqldesk.permissions import ACCESS_TYPE_MODIFY
+from sqldesk.serializers import serialize_query
 from tests import BaseTestCase
 
 

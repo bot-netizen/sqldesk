@@ -2,12 +2,12 @@ import json
 import textwrap
 from unittest import mock
 
-from tealdash.destinations.asana import Asana
-from tealdash.destinations.datadog import Datadog
-from tealdash.destinations.discord import Discord
-from tealdash.destinations.slack import Slack
-from tealdash.destinations.webex import Webex
-from tealdash.models import Alert, NotificationDestination
+from sqldesk.destinations.asana import Asana
+from sqldesk.destinations.datadog import Datadog
+from sqldesk.destinations.discord import Discord
+from sqldesk.destinations.slack import Slack
+from sqldesk.destinations.webex import Webex
+from sqldesk.models import Alert, NotificationDestination
 from tests import BaseTestCase
 
 
@@ -118,7 +118,7 @@ def test_discord_notify_calls_requests_post():
     new_state = Alert.TRIGGERED_STATE
     destination = Discord(options)
 
-    with mock.patch("tealdash.destinations.discord.requests.post") as mock_post:
+    with mock.patch("sqldesk.destinations.discord.requests.post") as mock_post:
         mock_response = mock.Mock()
         mock_response.status_code = 204
         mock_post.return_value = mock_response
@@ -170,7 +170,7 @@ def test_asana_notify_calls_requests_post():
     new_state = Alert.TRIGGERED_STATE
     destination = Asana(options)
 
-    with mock.patch("tealdash.destinations.asana.requests.post") as mock_post:
+    with mock.patch("sqldesk.destinations.asana.requests.post") as mock_post:
         mock_response = mock.Mock()
         mock_response.status_code = 204
         mock_post.return_value = mock_response
@@ -187,7 +187,7 @@ def test_asana_notify_calls_requests_post():
         ).strip()
 
         expected_payload = {
-            "name": f"[Tealdash Alert] TRIGGERED: {alert.name}",
+            "name": f"[SQLDesk Alert] TRIGGERED: {alert.name}",
             "notes": notes,
             "projects": ["1234"],
         }
@@ -222,7 +222,7 @@ def test_slack_notify_calls_requests_post():
     new_state = Alert.TRIGGERED_STATE
     destination = Slack(options)
 
-    with mock.patch("tealdash.destinations.slack.requests.post") as mock_post:
+    with mock.patch("sqldesk.destinations.slack.requests.post") as mock_post:
         mock_response = mock.Mock()
         mock_response.status_code = 204
         mock_post.return_value = mock_response
@@ -279,7 +279,7 @@ def test_webex_notify_calls_requests_post():
     new_state = Alert.TRIGGERED_STATE
     destination = Webex(options)
 
-    with mock.patch("tealdash.destinations.webex.requests.post") as mock_post:
+    with mock.patch("sqldesk.destinations.webex.requests.post") as mock_post:
         mock_response = mock.Mock()
         mock_response.status_code = 200
         mock_post.return_value = mock_response
@@ -347,7 +347,7 @@ def test_webex_notify_handles_blank_entries():
     new_state = Alert.TRIGGERED_STATE
     destination = Webex(options)
 
-    with mock.patch("tealdash.destinations.webex.requests.post") as mock_post:
+    with mock.patch("sqldesk.destinations.webex.requests.post") as mock_post:
         destination.notify(alert, query, user, new_state, app, host, metadata, options)
 
         # Ensure no API calls are made when destinations are blank
@@ -377,7 +377,7 @@ def test_webex_notify_handles_2d_array():
     new_state = Alert.TRIGGERED_STATE
     destination = Webex(options)
 
-    with mock.patch("tealdash.destinations.webex.requests.post") as mock_post:
+    with mock.patch("sqldesk.destinations.webex.requests.post") as mock_post:
         mock_response = mock.Mock()
         mock_response.status_code = 200
         mock_post.return_value = mock_response
@@ -430,7 +430,7 @@ def test_webex_notify_handles_1d_array():
     new_state = Alert.TRIGGERED_STATE
     destination = Webex(options)
 
-    with mock.patch("tealdash.destinations.webex.requests.post") as mock_post:
+    with mock.patch("sqldesk.destinations.webex.requests.post") as mock_post:
         mock_response = mock.Mock()
         mock_response.status_code = 200
         mock_post.return_value = mock_response
@@ -483,7 +483,7 @@ def test_datadog_notify_calls_requests_post():
     new_state = Alert.TRIGGERED_STATE
     destination = Datadog(options)
 
-    with mock.patch("tealdash.destinations.datadog.requests.post") as mock_post:
+    with mock.patch("sqldesk.destinations.datadog.requests.post") as mock_post:
         mock_response = mock.Mock()
         mock_response.status_code = 202
         mock_post.return_value = mock_response
@@ -496,11 +496,11 @@ def test_datadog_notify_calls_requests_post():
             "alert_type": "error",
             "priority": "normal",
             "source_type_name": "postgres",
-            "aggregation_key": "tealdash:https://localhost:5000/alerts/1",
+            "aggregation_key": "sqldesk:https://localhost:5000/alerts/1",
             "tags": [
                 "foo:bar",
                 "zoo:baz",
-                "tealdash",
+                "sqldesk",
                 "query_id:1",
                 "alert_id:1",
             ],

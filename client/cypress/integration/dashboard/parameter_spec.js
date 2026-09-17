@@ -61,11 +61,11 @@ describe("Dashboard Parameters", () => {
     cy.getByTestId(this.widgetTestId).within(() => {
       cy.getByTestId("TableVisualization").should("contain", "example1");
 
-      cy.getByTestId("ParameterName-param1").find("input").type("{selectall}Tealdash");
+      cy.getByTestId("ParameterName-param1").find("input").type("{selectall}SQLDesk");
 
       cy.getByTestId("ParameterApplyButton").click();
 
-      cy.getByTestId("TableVisualization").should("contain", "Tealdash");
+      cy.getByTestId("TableVisualization").should("contain", "SQLDesk");
     });
 
     cy.getByTestId("DashboardParameters").should("not.exist");

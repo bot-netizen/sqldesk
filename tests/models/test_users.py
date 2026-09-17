@@ -1,7 +1,7 @@
-from tealdash import redis_connection
-from tealdash.models import ApiUser, User, db
-from tealdash.models.users import LAST_ACTIVE_KEY, sync_last_active_at
-from tealdash.utils import dt_from_timestamp
+from sqldesk import redis_connection
+from sqldesk.models import ApiUser, User, db
+from sqldesk.models.users import LAST_ACTIVE_KEY, sync_last_active_at
+from sqldesk.utils import dt_from_timestamp
 from tests import BaseTestCase, authenticated_user
 
 

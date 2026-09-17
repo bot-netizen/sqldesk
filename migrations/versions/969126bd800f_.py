@@ -10,7 +10,7 @@ import json
 from alembic import op
 import sqlalchemy as sa
 
-from tealdash.models import Dashboard, Widget, db
+from sqldesk.models import Dashboard, Widget, db
 
 
 # revision identifiers, used by Alembic.

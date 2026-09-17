@@ -1,4 +1,4 @@
-from tealdash.utils import json_dumps, json_loads
+from sqldesk.utils import json_dumps, json_loads
 from tests import BaseTestCase
 
 

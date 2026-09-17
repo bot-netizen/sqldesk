@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import useQueryResultData from "@/lib/useQueryResultData";
 import useImmutableCallback from "@/lib/hooks/useImmutableCallback";
 import Filters, { FiltersType, filterData } from "@/components/Filters";
-import { VisualizationType } from "@tealdash/viz/lib";
+import { VisualizationType } from "@sqldesk/viz/lib";
 import { Renderer } from "@/components/visualizations/visualizationComponents";
 
 function combineFilters(localFilters, globalFilters) {

@@ -3,12 +3,12 @@ from unittest import mock
 
 import yaml
 
-from tealdash.query_runner.yandex_disk import enabled
+from sqldesk.query_runner.yandex_disk import enabled
 
 if enabled:
     import pandas as pd
 
-    from tealdash.query_runner.yandex_disk import EXTENSIONS_READERS, YandexDisk
+    from sqldesk.query_runner.yandex_disk import EXTENSIONS_READERS, YandexDisk
 
     test_df = pd.DataFrame(
         [
@@ -128,7 +128,7 @@ def test_run_query(mocked_requests, mock_yandex_disk):
         ],
     }
 
-    with mock.patch.dict("tealdash.query_runner.yandex_disk.EXTENSIONS_READERS", mock_readers, clear=True):
+    with mock.patch.dict("sqldesk.query_runner.yandex_disk.EXTENSIONS_READERS", mock_readers, clear=True):
         data, error = mock_yandex_disk.run_query(yaml.dump({"path": "/tmp/file.csv"}), "user")
 
     assert error is None
@@ -197,7 +197,7 @@ def test_run_query_multiple_sheets(mocked_requests, mock_yandex_disk):
     mock_readers = EXTENSIONS_READERS.copy()
     mock_readers["xlsx"] = mock_ext_readers_return_multiple_sheets
 
-    with mock.patch.dict("tealdash.query_runner.yandex_disk.EXTENSIONS_READERS", mock_readers, clear=True):
+    with mock.patch.dict("sqldesk.query_runner.yandex_disk.EXTENSIONS_READERS", mock_readers, clear=True):
         data, error = mock_yandex_disk.run_query(query, "user")
 
     assert error is None

@@ -111,7 +111,7 @@ export function prepareColumns(columns: any, searchInput: any, orderBy: any, onO
   });
 
   tableColumns.push({
-    key: "###Tealdash::Visualizations::Table::Spacer###",
+    key: "###SQLDesk::Visualizations::Table::Spacer###",
     // @ts-expect-error ts-migrate(2322) FIXME: Type 'null' is not assignable to type 'string'.
     dataIndex: null,
     // @ts-expect-error ts-migrate(2322) FIXME: Type 'string' is not assignable to type 'Element'.

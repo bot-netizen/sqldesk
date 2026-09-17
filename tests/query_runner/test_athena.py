@@ -8,7 +8,7 @@ import botocore
 import mock
 from botocore.stub import Stubber
 
-from tealdash.query_runner.athena import Athena
+from sqldesk.query_runner.athena import Athena
 
 
 class TestGlueSchema(TestCase):

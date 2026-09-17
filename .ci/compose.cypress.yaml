@@ -1,20 +1,20 @@
-x-tealdash-service: &tealdash-service
+x-sqldesk-service: &sqldesk-service
   build:
     context: ../
     args:
       install_groups: "main"
       code_coverage: ${CODE_COVERAGE}
-x-tealdash-environment: &tealdash-environment
-  TEALDASH_LOG_LEVEL: "INFO"
-  TEALDASH_REDIS_URL: "redis://redis:6379/0"
+x-sqldesk-environment: &sqldesk-environment
+  SQLDESK_LOG_LEVEL: "INFO"
+  SQLDESK_REDIS_URL: "redis://redis:6379/0"
   POSTGRES_PASSWORD: "FmTKs5vX52ufKR1rd8tn4MoSP7zvCJwb"
-  TEALDASH_DATABASE_URL: "postgresql://postgres:FmTKs5vX52ufKR1rd8tn4MoSP7zvCJwb@postgres/postgres"
-  TEALDASH_RATELIMIT_ENABLED: "false"
-  TEALDASH_ENFORCE_CSRF: "true"
-  TEALDASH_COOKIE_SECRET: "2H9gNG9obnAQ9qnR9BDTQUph6CbXKCzF"
+  SQLDESK_DATABASE_URL: "postgresql://postgres:FmTKs5vX52ufKR1rd8tn4MoSP7zvCJwb@postgres/postgres"
+  SQLDESK_RATELIMIT_ENABLED: "false"
+  SQLDESK_ENFORCE_CSRF: "true"
+  SQLDESK_COOKIE_SECRET: "2H9gNG9obnAQ9qnR9BDTQUph6CbXKCzF"
 services:
   server:
-    <<: *tealdash-service
+    <<: *sqldesk-service
     command: server
     depends_on:
       - postgres
@@ -22,22 +22,22 @@ services:
     ports:
       - "5000:5000"
     environment:
-      <<: *tealdash-environment
+      <<: *sqldesk-environment
       PYTHONUNBUFFERED: 0
   scheduler:
-    <<: *tealdash-service
+    <<: *sqldesk-service
     command: scheduler
     depends_on:
       - server
     environment:
-      <<: *tealdash-environment
+      <<: *sqldesk-environment
   worker:
-    <<: *tealdash-service
+    <<: *sqldesk-service
     command: worker
     depends_on:
       - server
     environment:
-      <<: *tealdash-environment
+      <<: *sqldesk-environment
       PYTHONUNBUFFERED: 0
   cypress:
     ipc: host
