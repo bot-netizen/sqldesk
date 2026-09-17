@@ -41,12 +41,15 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # `latest` is left to the action's default, which puts it on the
+          # highest released version. Adding it for the default branch as well
+          # would make it flip between the newest release and whatever landed on
+          # main an hour ago, which is not what anyone pulling `latest` wants.
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=long
-            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push
         uses: docker/build-push-action@v6
