@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.1
+
+Fixes uploading a file, which 0.3.0 made worse rather than better.
+
+0.3.0 added a shared volume at `/app/uploads` so the worker could read what
+the server wrote. It also stopped shipping `uploads/` inside the image -- and
+Docker takes a volume's ownership from the directory already in the image.
+With no such directory it created the mount point owned by root, and the
+container does not run as root, so saving an upload failed outright. Before
+0.3.0 the upload at least succeeded and only the query failed.
+
+The image now creates `/app/uploads` owned by the user the container runs as.
+
+**Anyone on 0.3.0 should move to this.** No migration, no configuration
+change: pull and restart.
+
 ## 0.3.0
 
 **Tealdash is now SQLDesk.** The project moved to
