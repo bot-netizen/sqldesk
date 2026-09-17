@@ -11,8 +11,16 @@
     justify-content: stretch;
   }
 
+  // This strip is scaled to the results below it rather than to antd's
+  // defaults. At the default 32px button and 14px text it read as the heaviest
+  // thing on the page, sitting between the query and the answer -- neither of
+  // which it is.
   .ant-btn {
-    height: auto;
+    height: 28px;
+    padding: 0 10px;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
 
     .fa + span,
     .zmdi + span {
@@ -22,13 +30,27 @@
   }
 
   .query-editor-controls-checkbox {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     white-space: nowrap;
     margin: auto 5px;
+    font-size: 13px;
+  }
+
+  .ant-select {
+    font-size: 13px;
+
+    .ant-select-selector {
+      height: 28px !important;
+
+      .ant-select-selection-item {
+        line-height: 26px !important;
+      }
+    }
   }
 
   .query-editor-controls-spacer {
     flex: 1 1 auto;
-    height: 35px; // same as Antd <Select>
+    height: 28px; // same as the buttons either side of it
   }
 }

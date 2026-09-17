@@ -19,7 +19,6 @@ import * as queryFormat from "@/lib/queryFormat";
 import QueryPageHeader from "./components/QueryPageHeader";
 import QueryMetadata from "./components/QueryMetadata";
 import QueryScheduleControl from "./components/QueryScheduleControl";
-import QueryPageActions from "./components/QueryPageActions";
 import QueryVisualizationTabs from "./components/QueryVisualizationTabs";
 import QueryExecutionStatus from "./components/QueryExecutionStatus";
 import QuerySourceAlerts from "./components/QuerySourceAlerts";
@@ -71,11 +70,6 @@ function QuerySource(props) {
   const [selectedVisualization, setSelectedVisualization] = useVisualizationTabHandler(query.visualizations);
   const { QueryEditor, SchemaBrowser } = getEditorComponents(dataSource && dataSource.type);
   const isMobile = !useMedia({ minWidth: 768 });
-  // Pinned to the 880px breakpoint in assets/less/tealdash/query.less, where
-  // the left rail collapses and the editor's own control strip comes back into
-  // view. Above it Save and Execute live in the page header; below it they stay
-  // under the editor, so there is only ever one of each.
-  const actionsInHeader = useMedia({ minWidth: 881 });
 
   useUnsavedChangesAlert(isDirty);
 
@@ -208,7 +202,8 @@ function QuerySource(props) {
   const editVisualization = useEditVisualizationDialog(query, queryResult, (newQuery) => setQuery(newQuery));
   const deleteVisualization = useDeleteVisualization(query, setQuery);
 
-  // Defined once and handed to whichever of the two places is rendering them.
+  // Hoisted out of the JSX purely for legibility; only the editor strip
+  // renders them.
   const saveButtonProps = queryFlags.canEdit && {
     text: (
       <React.Fragment>
@@ -260,9 +255,6 @@ function QuerySource(props) {
                   onEditCron={editSchedule}
                   disabled={!queryFlags.canEdit || !queryFlags.canSchedule}
                 />
-              )}
-              {actionsInHeader && (
-                <QueryPageActions saveButtonProps={saveButtonProps} executeButtonProps={executeButtonProps} />
               )}
             </DynamicComponent>
           }
@@ -352,8 +344,8 @@ function QuerySource(props) {
                         shortcut: isFormatQueryAvailable ? "mod+shift+f" : null,
                         onClick: formatQuery,
                       }}
-                      saveButtonProps={!actionsInHeader && saveButtonProps}
-                      executeButtonProps={!actionsInHeader && executeButtonProps}
+                      saveButtonProps={saveButtonProps}
+                      executeButtonProps={executeButtonProps}
                       autocompleteToggleProps={{
                         available: autocompleteAvailable,
                         enabled: autocompleteEnabled,
