@@ -7,17 +7,20 @@
  * every series colour is saturated, so saturation separates "a chart with data"
  * from "an empty pair of axes".
  */
-function countSeriesPixels($canvas) {
-  const canvas = $canvas[0];
-  const context = canvas.getContext("2d");
-  const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+function countSeriesPixels($canvases) {
   let count = 0;
-  for (let i = 0; i < data.length; i += 4) {
-    const [r, g, b, a] = [data[i], data[i + 1], data[i + 2], data[i + 3]];
-    if (a > 10 && Math.max(r, g, b) - Math.min(r, g, b) > 30) {
-      count += 1;
+  // ECharts draws on more than one canvas when it needs layers, and which layer
+  // holds the series is not fixed -- so count across all of them rather than
+  // assuming the first one is the interesting one.
+  $canvases.each((_, canvas) => {
+    const { data } = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < data.length; i += 4) {
+      const [r, g, b, a] = [data[i], data[i + 1], data[i + 2], data[i + 3]];
+      if (a > 10 && Math.max(r, g, b) - Math.min(r, g, b) > 30) {
+        count += 1;
+      }
     }
-  }
+  });
   return count;
 }
 
@@ -29,8 +32,8 @@ export function assertPlotPreview(should = "exist") {
   cy.getByTestId("VisualizationPreview")
     .find("canvas")
     .should("exist")
-    .then(($canvas) => {
-      const drawn = countSeriesPixels($canvas);
+    .then(($canvases) => {
+      const drawn = countSeriesPixels($canvases);
       if (should === "not.exist") {
         expect(drawn, "pixels drawn in a series colour").to.equal(0);
       } else {
@@ -43,8 +46,8 @@ export function assertPlotPreview(should = "exist") {
 export function assertWidgetPlotted() {
   cy.get("canvas")
     .should("exist")
-    .then(($canvas) => {
-      expect(countSeriesPixels($canvas), "pixels drawn in a series colour").to.be.greaterThan(0);
+    .then(($canvases) => {
+      expect(countSeriesPixels($canvases), "pixels drawn in a series colour").to.be.greaterThan(0);
     });
 }
 

@@ -2,7 +2,8 @@
 
 import { getWidgetTestId } from "../../support/dashboard";
 
-const menuWidth = 80;
+// Navigation is a top bar, so nothing is reserved to the left of the content.
+const menuWidth = 0;
 
 describe("Dashboard", () => {
   beforeEach(() => {

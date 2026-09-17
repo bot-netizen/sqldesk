@@ -1,6 +1,7 @@
 /* global cy */
 
 import { getWidgetTestId } from "../../support/dashboard";
+import { assertPlotPreview, assertWidgetPlotted } from "../../support/visualizations/chart";
 
 const SQL = `
   SELECT 'a' AS s1, 'a1' AS s2, 'a2' AS s3, null AS s4, null AS s5, 11 AS value UNION ALL
@@ -36,7 +37,7 @@ describe("Sankey and Sunburst", () => {
       const visualizationName = "Sunburst";
 
       cy.getByTestId("VisualizationName").clear().type(visualizationName);
-      cy.getByTestId("VisualizationPreview").find("svg").should("exist");
+      assertPlotPreview();
 
       cy.getByTestId("EditVisualizationDialog").contains("button", "Save").click();
       cy.getByTestId("QueryPageVisualizationTabs").contains("span", visualizationName).should("exist");
@@ -46,7 +47,7 @@ describe("Sankey and Sunburst", () => {
       const visualizationName = "Sankey";
 
       cy.getByTestId("VisualizationName").clear().type(visualizationName);
-      cy.getByTestId("VisualizationPreview").find("svg").should("exist");
+      assertPlotPreview();
 
       cy.getByTestId("EditVisualizationDialog").contains("button", "Save").click();
       cy.getByTestId("QueryPageVisualizationTabs").contains("span", visualizationName).should("exist");
@@ -93,7 +94,7 @@ describe("Sankey and Sunburst", () => {
         .then((widgets) => {
           cy.visit(this.dashboardUrl);
           widgets.forEach((widget) => {
-            cy.getByTestId(getWidgetTestId(widget)).within(() => cy.get("svg").should("exist"));
+            cy.getByTestId(getWidgetTestId(widget)).within(() => assertWidgetPlotted());
           });
 
           // wait a bit before taking snapshot
@@ -119,7 +120,7 @@ describe("Sankey and Sunburst", () => {
         .then((widgets) => {
           cy.visit(this.dashboardUrl);
           widgets.forEach((widget) => {
-            cy.getByTestId(getWidgetTestId(widget)).within(() => cy.get("svg").should("exist"));
+            cy.getByTestId(getWidgetTestId(widget)).within(() => assertWidgetPlotted());
           });
 
           // wait a bit before taking snapshot
