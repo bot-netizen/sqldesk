@@ -65,3 +65,23 @@ export function washColor(name: string | null | undefined): string {
   }
   return `color-mix(in srgb, ${name} 16%, transparent)`;
 }
+
+/*
+  The neutral colours a canvas chart draws its own furniture in -- text,
+  tracks, rules -- resolved the same way, so a gauge's numbers match the page
+  they sit on.
+*/
+export type UiColor = "ink" | "muted" | "track" | "surface" | "rule";
+
+const UI_COLORS: Record<UiColor, { cssVar: string; fallback: string }> = {
+  ink: { cssVar: "--color-text", fallback: "#1c1b1a" },
+  muted: { cssVar: "--color-text-muted", fallback: "#6f6b66" },
+  track: { cssVar: "--color-surface-sunken", fallback: "#f6f4f1" },
+  surface: { cssVar: "--color-surface", fallback: "#ffffff" },
+  rule: { cssVar: "--color-border", fallback: "#e8e5e1" },
+};
+
+export function uiColor(name: UiColor): string {
+  const c = UI_COLORS[name];
+  return readCssVar(c.cssVar) || c.fallback;
+}

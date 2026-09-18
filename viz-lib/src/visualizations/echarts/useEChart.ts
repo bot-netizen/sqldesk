@@ -4,7 +4,9 @@ import echarts from ".";
 
 function prefersReducedMotion(): boolean {
   return (
-    typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    typeof window !== "undefined" &&
+    !!window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
   );
 }
 
@@ -60,7 +62,10 @@ export default function useEChart(option: any, signature: string): UseEChartResu
       return;
     }
     const sameShape = signatureRef.current === signature;
-    const next = prefersReducedMotion() ? { ...option, animation: false } : option;
+    // Every chart describes itself to screen readers unless it says otherwise:
+    // without this a chart is an unlabelled canvas.
+    const described = { aria: { enabled: true }, ...option };
+    const next = prefersReducedMotion() ? { ...described, animation: false } : described;
     chart.setOption(next, { notMerge: !sameShape, lazyUpdate: true });
     signatureRef.current = signature;
   }, [chart, option, signature]);
