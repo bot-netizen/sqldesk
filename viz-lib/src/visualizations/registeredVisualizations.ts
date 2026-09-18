@@ -11,6 +11,7 @@ import funnelVisualization from "./funnel";
 import gaugeVisualization from "./gauge";
 import mapVisualization from "./map";
 import pivotVisualization from "./pivot";
+import progressVisualization from "./progress";
 import sankeyVisualization from "./sankey";
 import sunburstVisualization from "./sunburst";
 import tableVisualization from "./table";
@@ -89,6 +90,7 @@ each(
     gaugeVisualization,
     mapVisualization,
     pivotVisualization,
+    progressVisualization,
     sankeyVisualization,
     sunburstVisualization,
     tableVisualization,
