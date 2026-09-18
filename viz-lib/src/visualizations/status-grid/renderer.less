@@ -1,0 +1,103 @@
+.status-grid {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(var(--tile-min, 170px), 1fr));
+  align-content: start;
+}
+
+.status-grid-small {
+  --tile-min: 130px;
+}
+.status-grid-medium {
+  --tile-min: 170px;
+}
+.status-grid-large {
+  --tile-min: 240px;
+}
+
+.status-grid-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-control, 8px);
+  border: 1px solid transparent;
+  color: var(--color-text, #1c1b1a);
+}
+
+.status-grid-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #34302b);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-grid-value {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--tile-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-grid-large .status-grid-value {
+  font-size: 28px;
+}
+.status-grid-small .status-grid-value {
+  font-size: 16px;
+}
+
+.status-grid-status {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tile-ink);
+}
+
+.status-grid-detail {
+  font-size: 12px;
+  color: var(--color-text-muted, #6f6b66);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Outlined in the tile's own colour for a moment when its state changes.
+.status-grid-tile-changed {
+  border-color: var(--tile-ink);
+  animation: status-grid-changed 1.6s ease-out;
+}
+
+@keyframes status-grid-changed {
+  from {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--tile-ink) 35%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-grid-tile-changed {
+    animation: none;
+  }
+}
+
+.status-grid-problem {
+  margin: 0;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--color-text-muted, #6f6b66);
+  font-size: 13px;
+}
