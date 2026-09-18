@@ -78,7 +78,8 @@ export default function buildOption(
   // Text scales with the widget: a gauge is read from across a room as often
   // as from a desk.
   const side = Math.max(80, Math.min(size.width, size.height * (options.style === "half" ? 1.6 : 1)));
-  const valueSize = clamp(Math.round(side * 0.13), 14, 56);
+  // 0.11 of the side keeps a unit like " ms" clear of the end tick labels.
+  const valueSize = clamp(Math.round(side * 0.11), 14, 48);
   const labelSize = clamp(Math.round(side * 0.05), 10, 18);
   const tickSize = clamp(Math.round(side * 0.04), 9, 13);
   const width = clamp(Math.round(side * 0.06), 6, 22);
@@ -134,8 +135,8 @@ export default function buildOption(
           fontSize: tickSize,
           formatter: (v: number) => formatValue(v, tickFormat(options, min, max)),
         },
-        title: { ...common.title, offsetCenter: [0, "78%"] },
-        detail: { ...common.detail, offsetCenter: [0, "44%"] },
+        title: { ...common.title, offsetCenter: [0, "80%"] },
+        detail: { ...common.detail, offsetCenter: [0, "52%"] },
         data: [{ value: shown, name: label }],
       },
     ];

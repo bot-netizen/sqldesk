@@ -126,21 +126,33 @@ export default function buildOption(data: ProgressData, options: ProgressOptions
     backgroundStyle: { color: track, borderRadius: 4 },
     itemStyle: { borderRadius: bullet ? 1 : 4 },
     data: rows.map((r) => ({ value: Math.min(measure(r), axisMax), itemStyle: { color: resolveColor(r.color) } })),
+    animationDurationUpdate: 800,
+    animationEasingUpdate: "cubicOut",
+  });
+
+  // Values sit in a column of their own at the right edge, not at the end of
+  // each bar, where they collided with the target tick and the bands.
+  const labelText = rows.map((r) => {
+    const pct = r.ratio !== null ? `  ${Math.round(r.ratio * 100)}%` : "";
+    return `${formatValue(r.value, options.valueFormat)}${pct}`;
+  });
+  const labelWidth = Math.min(160, Math.max(...labelText.map((t) => t.length)) * 7 + 16);
+  series.push({
+    type: "scatter",
+    name: "labels",
+    silent: true,
+    symbolSize: 0,
+    data: rows.map((_, i) => [axisMax, i]),
     label: {
       show: true,
       position: "right",
-      distance: bullet ? 10 : 6,
+      distance: 12,
       color: ink,
       fontFamily: MONO,
       fontSize: 11,
-      formatter: (p: any) => {
-        const r = rows[p.dataIndex];
-        const pct = r.ratio !== null ? `  ${Math.round(r.ratio * 100)}%` : "";
-        return `${formatValue(r.value, options.valueFormat)}${pct}`;
-      },
+      formatter: (p: any) => labelText[p.dataIndex],
     },
-    animationDurationUpdate: 800,
-    animationEasingUpdate: "cubicOut",
+    animation: false,
   });
 
   if (relative) {
@@ -159,7 +171,7 @@ export default function buildOption(data: ProgressData, options: ProgressOptions
 
   const longest = Math.max(...labels.map((l) => l.length), 4);
   const option = {
-    grid: { left: 12, right: 96, top: 8, bottom: 24, containLabel: true },
+    grid: { left: 12, right: labelWidth, top: 8, bottom: 24, containLabel: true },
     tooltip: {
       trigger: "item",
       formatter: (p: any) => {
@@ -182,7 +194,9 @@ export default function buildOption(data: ProgressData, options: ProgressOptions
       min: 0,
       max: axisMax,
       splitLine: { lineStyle: { color: rule } },
+      splitNumber: 4,
       axisLabel: {
+        hideOverlap: true,
         color: muted,
         fontFamily: MONO,
         fontSize: 10,
