@@ -1,5 +1,5 @@
 import moment from "moment";
-import { resolveColor, washColor, toNumber } from "../../shared/valueOptions";
+import { resolveColor, toNumber } from "../../shared/valueOptions";
 
 /*
   What 0.4 adds to cartesian charts:
@@ -197,7 +197,9 @@ export function addReferences(option: any, options: any, horizontal: boolean): v
         {
           [valueKey]: from === null ? "min" : from,
           name: b.label || "",
-          itemStyle: { color: washColor(b.color || "warning"), opacity: 0.9 },
+          // Canvas cannot read CSS color-mix, so the tint is the colour itself
+          // at low opacity rather than a wash.
+          itemStyle: { color: resolveColor(b.color || "warning"), opacity: 0.12 },
           label: { color: resolveColor(b.color || "warning"), fontSize: 11, position: "insideTopLeft" },
         },
         { [valueKey]: to === null ? "max" : to },
