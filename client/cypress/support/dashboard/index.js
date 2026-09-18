@@ -27,7 +27,8 @@ export function editDashboard() {
 export function shareDashboard() {
   cy.clickThrough(
     { button: "Publish" },
-    `OpenShareForm
+    `ShareDashboardButton
+    OpenShareForm
     PublicAccessEnabled`
   );
 

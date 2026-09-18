@@ -30,6 +30,11 @@ describe("Dashboard Sharing", () => {
         // check the feature is disabled
         cy.visit(this.dashboardUrl);
         cy.getByTestId("DashboardMoreButton").should("exist");
+        // The public link lives inside the Share menu, so the menu has to be
+        // open before its absence means anything -- closed, it is absent
+        // whether or not the feature is disabled.
+        cy.getByTestId("ShareDashboardButton").click();
+        cy.getByTestId("ShareDashboardMenu").should("be.visible");
         cy.getByTestId("OpenShareForm").should("not.exist");
 
         cy.logout();
@@ -69,7 +74,8 @@ describe("Dashboard Sharing", () => {
         Publish
       `,
         },
-        `OpenShareForm
+        `ShareDashboardButton
+      OpenShareForm
       PublicAccessEnabled`
       );
 
@@ -194,7 +200,8 @@ describe("Dashboard Sharing", () => {
         Publish
       `,
         },
-        "OpenShareForm"
+        `ShareDashboardButton
+      OpenShareForm`
       );
 
       cy.getByTestId("PublicAccessEnabled").should("be.disabled");
