@@ -26,8 +26,24 @@ describe("Visualizations -> Chart -> ECharts -> buildOption", () => {
     });
 
     test("a value change keeps the signature, so the update is merged and animates", () => {
-      const before = buildOption([series("revenue", [["a", 2], ["b", 3]])], options());
-      const after = buildOption([series("revenue", [["a", 4], ["b", 3]])], options());
+      const before = buildOption(
+        [
+          series("revenue", [
+            ["a", 2],
+            ["b", 3],
+          ]),
+        ],
+        options()
+      );
+      const after = buildOption(
+        [
+          series("revenue", [
+            ["a", 4],
+            ["b", 3],
+          ]),
+        ],
+        options()
+      );
 
       expect(after.signature).toBe(before.signature);
       expect(after.option.series[0].data).toEqual([4, 3]);
@@ -36,7 +52,15 @@ describe("Visualizations -> Chart -> ECharts -> buildOption", () => {
     test("a new category changes the signature, so the chart is replaced instead", () => {
       // Merging here would tween between values that are not the same thing.
       const before = buildOption([series("revenue", [["a", 2]])], options());
-      const after = buildOption([series("revenue", [["a", 2], ["b", 5]])], options());
+      const after = buildOption(
+        [
+          series("revenue", [
+            ["a", 2],
+            ["b", 5],
+          ]),
+        ],
+        options()
+      );
 
       expect(after.signature).not.toBe(before.signature);
     });
@@ -52,7 +76,16 @@ describe("Visualizations -> Chart -> ECharts -> buildOption", () => {
   describe("data shaping", () => {
     test("series are aligned to the shared category list, with gaps left empty", () => {
       const built = buildOption(
-        [series("revenue", [["a", 1], ["b", 2]]), series("profit", [["b", 3], ["c", 4]])],
+        [
+          series("revenue", [
+            ["a", 1],
+            ["b", 2],
+          ]),
+          series("profit", [
+            ["b", 3],
+            ["c", 4],
+          ]),
+        ],
         options()
       );
 
@@ -62,7 +95,16 @@ describe("Visualizations -> Chart -> ECharts -> buildOption", () => {
     });
 
     test("repeated x values are summed", () => {
-      const built = buildOption([series("revenue", [["a", 1], ["a", 2], ["b", 5]])], options());
+      const built = buildOption(
+        [
+          series("revenue", [
+            ["a", 1],
+            ["a", 2],
+            ["b", 5],
+          ]),
+        ],
+        options()
+      );
 
       expect(built.option.xAxis.data).toEqual(["a", "b"]);
       expect(built.option.series[0].data).toEqual([3, 5]);
@@ -89,16 +131,32 @@ describe("Visualizations -> Chart -> ECharts -> buildOption", () => {
     test("numeric x values get a value axis and x/y pairs", () => {
       // A line is a position on a continuum, so its axis stays numeric.
       const built = buildOption(
-        [series("revenue", [[1, 10], [2, 20]])],
+        [
+          series("revenue", [
+            [1, 10],
+            [2, 20],
+          ]),
+        ],
         options({ globalSeriesType: "line", xAxis: { type: "-" } })
       );
 
       expect(built.option.xAxis.type).toBe("value");
-      expect(built.option.series[0].data).toEqual([[1, 10], [2, 20]]);
+      expect(built.option.series[0].data).toEqual([
+        [1, 10],
+        [2, 20],
+      ]);
     });
 
     test("a bar chart turns those numbers into categories, so every bar is labelled", () => {
-      const built = buildOption([series("revenue", [[1, 10], [2, 20]])], options({ xAxis: { type: "-" } }));
+      const built = buildOption(
+        [
+          series("revenue", [
+            [1, 10],
+            [2, 20],
+          ]),
+        ],
+        options({ xAxis: { type: "-" } })
+      );
 
       expect(built.option.xAxis.type).toBe("category");
       expect(built.option.xAxis.data).toEqual(["1", "2"]);
@@ -169,11 +227,22 @@ describe("Visualizations -> Chart -> ECharts -> buildOption", () => {
 
   describe("pie", () => {
     test("builds one slice per point", () => {
-      const built = buildOption([series("sales", [["a", 1], ["b", 2]])], options({ globalSeriesType: "pie" }));
+      const built = buildOption(
+        [
+          series("sales", [
+            ["a", 1],
+            ["b", 2],
+          ]),
+        ],
+        options({ globalSeriesType: "pie" })
+      );
       const [pie] = built.option.series;
 
       expect(pie.type).toBe("pie");
-      expect(pie.data.map((d: any) => [d.name, d.value])).toEqual([["a", 1], ["b", 2]]);
+      expect(pie.data.map((d: any) => [d.name, d.value])).toEqual([
+        ["a", 1],
+        ["b", 2],
+      ]);
       expect(built.option.xAxis).toBeUndefined();
     });
   });

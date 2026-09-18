@@ -8,6 +8,7 @@ import YAxisSettings from "./YAxisSettings";
 import SeriesSettings from "./SeriesSettings";
 import ColorsSettings from "./ColorsSettings";
 import DataLabelsSettings from "./DataLabelsSettings";
+import ReferenceSettings from "./ReferenceSettings";
 
 import "./editor.less";
 
@@ -45,5 +46,11 @@ export default createTabbedEditor([
     key: "DataLabels",
     title: "Data Labels",
     component: DataLabelsSettings,
+  },
+  {
+    key: "References",
+    title: "Lines & Zoom",
+    component: ReferenceSettings,
+    isAvailable: (options: any) => !isPieChart(options) && options.globalSeriesType !== "heatmap",
   },
 ]);

@@ -33,6 +33,12 @@ const DEFAULT_OPTIONS = {
   linkFormat: "", // template like a textFormat
 
   missingValuesAsZero: true,
+
+  // 0.4: goal lines, bands, a rolling window and zoom. All off by default.
+  referenceLines: [],
+  referenceBands: [],
+  window: { mode: "all", points: 50, minutes: 60 },
+  zoom: "none",
 };
 
 export default function getOptions(options: any) {

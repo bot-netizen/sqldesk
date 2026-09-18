@@ -6,6 +6,7 @@ import { cleanNumber, echartsAxisType, getSeriesAxisIndex, normalizeX, seriesId 
 import { DEFAULT_HEAT_RAMP, HEAT_RAMPS } from "./heatRamps";
 import { buildBoxSeries } from "./boxplot";
 import { BAR_LAYOUT, barCentreOffset, buildErrorBarSeries } from "./errorBars";
+import { applyWindow, addReferences, zoomComponents } from "./references";
 
 // Deliberately free of any `echarts` import. Keeping the option builder pure
 // means it is unit-testable without a canvas, and without Jest having to
@@ -420,6 +421,12 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
     };
   }
 
+  // A rolling window trims the data before anything is measured from it, so
+  // categories, axis ranges and statistics describe only what is shown.
+  if (!isPie) {
+    chartData = applyWindow(chartData, options.window);
+  }
+
   const isBox = options.globalSeriesType === "box";
   const hasBars =
     !isPie &&
@@ -528,7 +535,22 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
   };
 
   if (!isPie) {
-    option.grid = { left: 12, right: 12, top: 24, bottom: options.legend.enabled ? 36 : 12, containLabel: true };
+    const zoom = zoomComponents(options.zoom, horizontal);
+    const slider = !!zoom && zoom.some((z) => z.type === "slider");
+    option.grid = {
+      left: 12,
+      right: horizontal && slider ? 40 : 12,
+      top: 24,
+      // Room for the legend, and for a zoom slider under the axis.
+      bottom: (options.legend.enabled ? 36 : 12) + (slider && !horizontal ? 30 : 0),
+      containLabel: true,
+    };
+    if (zoom) {
+      // The slider sits between the axis and the legend.
+      option.dataZoom = zoom.map((z) =>
+        z.type === "slider" && !horizontal ? { ...z, bottom: options.legend.enabled ? 30 : 6 } : z
+      );
+    }
     const measureAxes = (secondPosition: string) => [
       valueAxis(options.yAxis[0]),
       { ...valueAxis(options.yAxis[1] || options.yAxis[0]), position: secondPosition },
@@ -539,12 +561,17 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
     option.yAxis = horizontal ? [categoryAxis] : measureAxes("right");
   }
 
+  if (!isPie) {
+    addReferences(option, options, horizontal);
+  }
+
   const signature = JSON.stringify({
     type: options.globalSeriesType,
     horizontal,
     xAxisType,
     categories,
-    ids: map(series, "id"),
+    ids: map(option.series, "id"),
+    zoom: options.zoom || "none",
   });
 
   return { option, signature };
