@@ -131,6 +131,9 @@ describe("Counter", () => {
 
       VisualizationEditor.Tabs.Format
     `);
+    // A new Stat starts on the standard number format; these are the classic
+    // delimiter controls.
+    cy.getByTestId("Counter.Formatting.Mode").selectAntdOption("Counter.Formatting.Mode.classic");
 
     cy.fillInputs({
       "Counter.Formatting.DecimalPlace": "4",
@@ -156,8 +159,9 @@ describe("Counter", () => {
       Counter.General.TargetValueColumn.b
 
       VisualizationEditor.Tabs.Format
-      Counter.Formatting.FormatTargetValue
     `);
+    cy.getByTestId("Counter.Formatting.Mode").selectAntdOption("Counter.Formatting.Mode.classic");
+    cy.getByTestId("Counter.Formatting.FormatTargetValue").click();
 
     cy.fillInputs({
       "Counter.Formatting.DecimalPlace": "4",
@@ -172,5 +176,19 @@ describe("Counter", () => {
     // wait a bit before taking snapshot
     cy.wait(500); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.percySnapshot("Visualizations - Counter (format target value)", { widths: [viewportWidth] });
+  });
+
+  it("formats a new Stat with the standard number format", () => {
+    cy.clickThrough(`
+      Counter.General.ValueColumn
+      Counter.General.ValueColumn.a
+
+      VisualizationEditor.Tabs.Format
+    `);
+    cy.getByTestId("Counter.Format.Style").selectAntdOption("Counter.Format.Style.compact");
+
+    cy.getByTestId("VisualizationPreview")
+      .find(".counter-visualization-value")
+      .should("have.text", "27.2K");
   });
 });
