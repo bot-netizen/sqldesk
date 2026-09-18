@@ -1,0 +1,55 @@
+.value-options-swatch,
+.value-options-swatch-none {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  vertical-align: -1px;
+  margin-right: 4px;
+}
+
+.value-options-swatch-none {
+  border: 1px dashed var(--color-border, #e8e5e1);
+}
+
+.value-options-color-select {
+  min-width: 128px;
+}
+
+.value-options-rows {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.value-options-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+
+  .ant-input,
+  .ant-input-number {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.value-options-row-label {
+  flex: none;
+  width: 36px;
+  color: var(--color-text-muted, #6f6b66);
+  font-size: 12px;
+}
+
+.value-options-help,
+.value-options-preview {
+  color: var(--color-text-muted, #6f6b66);
+  font-size: 12px;
+  margin: 0 0 8px;
+}
+
+.value-options-example {
+  color: var(--color-text-muted, #6f6b66);
+  font-size: 12px;
+  margin-left: 6px;
+}
