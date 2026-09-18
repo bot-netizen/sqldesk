@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visualization roadmap — SQLDesk</title>
+<meta name="description" content="What SQLDesk draws today, what is being built for live dashboards, and what comes after. Updated as work lands.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+:root{
+  --n-50:#fbfaf9;--n-100:#f6f4f1;--n-200:#f1efec;--n-300:#e8e5e1;--n-600:#8a857e;--n-700:#6f6b66;--n-800:#34302b;--n-900:#1c1b1a;
+  --ac-100:#e4f4f7;--ac-200:#c6e8ee;--ac-400:#6bb4c4;--ac-600:#0a7c93;--ac-700:#086476;
+  --good:#1e7a4c;--warning:#9a6510;--critical:#b4342c;
+  --canvas:var(--n-50);--surface:#fff;--sunken:var(--n-100);--rule:var(--n-300);--rule-soft:var(--n-200);
+  --ink:var(--n-900);--ink-2:var(--n-800);--muted:var(--n-700);--faint:var(--n-600);
+  --accent:var(--ac-600);--accent-ink:var(--ac-700);--accent-wash:var(--ac-100);--accent-edge:var(--ac-200);
+  --good-wash:#e8f3ed;--warning-wash:#f7efdf;
+  --r-chip:6px;--r-control:8px;--r-card:12px;
+  --sans:"Instrument Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --canvas:#121116;--surface:#1b1a21;--sunken:#232229;--rule:#33313c;--rule-soft:#2a2933;
+  --ink:#f4f2ef;--ink-2:#ddd9d3;--muted:#a8a29a;--faint:#8a857e;
+  --accent:var(--ac-400);--accent-ink:#8fcbd8;--accent-wash:#14323a;--accent-edge:#1e4a56;
+  --good:#56b585;--good-wash:#163024;--warning:#d0a04f;--warning-wash:#33280f;--critical:#e37c74;
+  color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --canvas:#121116;--surface:#1b1a21;--sunken:#232229;--rule:#33313c;--rule-soft:#2a2933;
+  --ink:#f4f2ef;--ink-2:#ddd9d3;--muted:#a8a29a;--faint:#8a857e;
+  --accent:var(--ac-400);--accent-ink:#8fcbd8;--accent-wash:#14323a;--accent-edge:#1e4a56;
+  --good:#56b585;--good-wash:#163024;--warning:#d0a04f;--warning-wash:#33280f;--critical:#e37c74;
+  color-scheme:dark;}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink);text-underline-offset:2px}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+.topbar{border-bottom:1px solid var(--rule);background:color-mix(in srgb,var(--canvas) 88%,transparent);backdrop-filter:blur(8px);position:sticky;top:0;z-index:10}
+.topbar-in{display:flex;align-items:center;gap:14px;height:60px}
+.brand{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--ink);font-weight:600;letter-spacing:-.02em;font-size:17px}
+.brand svg{width:26px;height:26px;display:block;color:var(--accent)}
+.topbar nav{margin-left:auto;display:flex;gap:6px}
+.topbar nav a{font-size:14px;color:var(--muted);text-decoration:none;padding:6px 11px;border-radius:var(--r-chip)}
+.topbar nav a:hover,.topbar nav a[aria-current]{color:var(--accent-ink);background:var(--accent-wash)}
+
+.head{padding-block:64px 44px;border-bottom:1px solid var(--rule)}
+.eyebrow{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent-wash);border:1px solid var(--accent-edge);border-radius:999px;padding:5px 12px;margin-bottom:20px}
+h1{font-size:clamp(34px,5.2vw,52px);line-height:1.05;letter-spacing:-.03em;font-weight:600;margin:0 0 16px;text-wrap:balance;max-width:19ch}
+.lede{font-size:18.5px;line-height:1.6;color:var(--muted);max-width:62ch;margin:0}
+
+section{padding:60px 0;border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:none}
+h2{font-size:clamp(23px,3vw,31px);line-height:1.15;letter-spacing:-.022em;font-weight:600;margin:0 0 12px;text-wrap:balance;max-width:24ch}
+h3{font-size:16px;font-weight:600;margin:26px 0 6px}
+p{margin:0 0 15px;max-width:66ch}
+.sub{color:var(--muted);max-width:64ch}
+code{font-family:var(--mono);font-size:.86em;background:var(--sunken);border:1px solid var(--rule-soft);border-radius:4px;padding:1px 5px;color:var(--ink-2);word-break:break-word}
+
+/* fix cards: number first, because the number is the point */
+.fix{border:1px solid var(--rule);border-radius:var(--r-card);background:var(--surface);overflow:hidden;margin-top:26px}
+.fix-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;padding:18px 22px;border-bottom:1px solid var(--rule-soft);background:var(--sunken)}
+.fix-n{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.09em;color:var(--faint)}
+.fix-t{font-size:17px;font-weight:600;letter-spacing:-.01em;margin:0}
+.fix-body{padding:20px 22px}
+.fix-body p:last-child{margin-bottom:0}
+
+.ba{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:var(--r-control);overflow:hidden;margin:6px 0 20px}
+.ba div{background:var(--surface);padding:14px 16px}
+.ba .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+.ba .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:19px;font-weight:500;letter-spacing:-.02em;display:block}
+.ba .n{font-size:12px;color:var(--muted);display:block;margin-top:3px}
+.ba .before .v{color:var(--critical)}
+.ba .after .v{color:var(--good)}
+.ba .delta .v{color:var(--accent-ink)}
+
+pre{font-family:var(--mono);font-size:12.5px;line-height:1.7;background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-control);padding:15px 17px;overflow-x:auto;margin:0 0 18px;color:var(--ink-2)}
+pre .c{color:var(--faint)}
+pre .hot{color:var(--critical)}
+pre .ok{color:var(--good)}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:var(--r-card);background:var(--surface);margin:22px 0}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--sunken);padding:10px 15px;white-space:nowrap;border-bottom:1px solid var(--rule)}
+td{padding:11px 15px;border-bottom:1px solid var(--rule-soft);vertical-align:top;line-height:1.5}
+tr:last-child td{border-bottom:none}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+td.hot{color:var(--critical)}
+td.ok{color:var(--good)}
+
+.note{border-left:3px solid var(--accent);padding:2px 0 2px 17px;margin:22px 0;font-size:15px}
+.note-h{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:5px}
+.note p:last-child{margin-bottom:0}
+.note.warn{border-color:var(--warning)}
+.note.warn .note-h{color:var(--warning)}
+
+footer{padding:44px 0 64px;font-size:13.5px;color:var(--muted)}
+footer a{color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+/* roadmap */
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;margin:22px 0 0;font-size:13.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.st{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.st-shipped{background:var(--good-wash);color:var(--good)}
+.st-testing{background:var(--accent-wash);color:var(--accent-ink);border:1px solid var(--accent-edge)}
+.st-progress{background:var(--warning-wash);color:var(--warning)}
+.st-planned{background:var(--sunken);color:var(--ink-2);border:1px solid var(--rule)}
+.st-demand{background:transparent;color:var(--faint);border:1px dashed var(--rule)}
+.phase-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 16px;margin-bottom:6px}
+.phase-head h2{margin:0}
+.items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:22px}
+.item{border:1px solid var(--rule);border-radius:var(--r-card);background:var(--surface);padding:16px 18px;display:grid;gap:7px;align-content:start}
+.item-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.item h3{margin:0;font-size:15.5px}
+.item p{margin:0;font-size:14.5px;color:var(--ink-2);max-width:none}
+.item .meta{font-size:12.5px;color:var(--muted)}
+.item .meta b{font-family:var(--mono);font-weight:500;color:var(--ink-2)}
+.item.lead{grid-column:1/-1;border-color:var(--accent-edge)}
+@media (max-width:760px){.items{grid-template-columns:1fr}}
+.compact{list-style:none;margin:18px 0 0;padding:0;display:grid;gap:0;border-top:1px solid var(--rule-soft);max-width:760px}
+.compact li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;padding:11px 0;border-bottom:1px solid var(--rule-soft);font-size:14.5px}
+.compact li span.d{grid-column:1/-1;color:var(--muted);font-size:13.5px}
+.why{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:var(--r-control);overflow:hidden;margin:18px 0 20px}
+.why div{background:var(--surface);padding:14px 16px;font-size:14px}
+.why .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="index.html">Overview</a>
+      <a href="performance.html">Performance</a>
+      <a href="roadmap.html" aria-current="page">Roadmap</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap head">
+  <span class="eyebrow">Roadmap &middot; updated 18 September 2026</span>
+  <h1>Charts that keep up with the data.</h1>
+  <p class="lede">
+    What SQLDesk draws today, what is being built for dashboards that refresh every few seconds, and what comes
+    after. This page changes as work lands; each item says where it stands.
+  </p>
+  <div class="legend" aria-label="Status key">
+    <span><span class="st st-shipped">Shipped</span> in a release</span>
+    <span><span class="st st-testing">In testing</span> in a release candidate</span>
+    <span><span class="st st-progress">In progress</span> being built</span>
+    <span><span class="st st-planned">Planned</span> decided, not started</span>
+    <span><span class="st st-demand">On demand</span> built when someone needs it</span>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <div class="phase-head"><h2>0.4: live dashboards and KPI tiles</h2><span class="st st-progress">In progress</span></div>
+    <p class="sub">Superset, Metabase and Grafana all have a gauge, a progress bar, a number with a trend, table
+    formatting and goal lines. We had none of those five. They are also exactly what people put on a dashboard
+    that refreshes every 30 seconds, so they arrive together with a way to run such a dashboard without every
+    viewer re-running its queries.</p>
+    <div class="items">
+      <div class="item lead"><div class="item-h"><h3>Live dashboards</h3><span class="st st-progress">In progress</span></div><p>Mark a dashboard live and choose how often it updates: every 30 seconds, 1, 2 or 5 minutes. The server runs its queries once for everyone, and only while somebody has it open in a visible tab. Viewers just watch: no refresh button and no parameter changes, so nobody can multiply the load. People with permission can pause and resume it for everyone.</p><p class="meta">Turning a dashboard live needs its own permission, which admins can grant to a group. Viewing needs only normal dashboard access.</p></div><div class="item"><div class="item-h"><h3>Calmer regular dashboards</h3><span class="st st-progress">In progress</span></div><p>Auto-refresh starts at 10 minutes, and it reuses a result that is already fresh enough instead of re-running every query from every open tab. The Refresh button skips anything that ran in the last minute.</p></div><div class="item"><div class="item-h"><h3>Units, formats and thresholds</h3><span class="st st-progress">In progress</span></div><p>One place to set a value's unit, format, decimals, compact form (1.2k), min and max, and threshold colours, read by every visualization. Numbers are formatted by the browser's own Intl rather than an unmaintained library.</p></div><div class="item"><div class="item-h"><h3>Gauge</h3><span class="st st-progress">In progress</span></div><p>A needle, an arc that fills, or a half-arc, with bands from your thresholds. The needle eases to each new value.</p><p class="meta">Also in Superset, Metabase, Grafana</p></div><div class="item"><div class="item-h"><h3>Stat</h3><span class="st st-progress">In progress</span></div><p>The Counter grows a sparkline, a change against the previous row, several rows back or a target, and threshold colours. Existing counters look exactly as they did.</p><p class="meta">Also in Superset, Metabase, Grafana</p></div><div class="item"><div class="item-h"><h3>Progress and bullet bars</h3><span class="st st-progress">In progress</span></div><p>One bar per row against a target, with qualitative bands behind it.</p><p class="meta">Also in Superset, Metabase, Grafana</p></div><div class="item"><div class="item-h"><h3>Status grid</h3><span class="st st-progress">In progress</span></div><p>A tile per row, coloured by thresholds or by a status column, outlined briefly when its state changes.</p><p class="meta">Also in Grafana</p></div><div class="item"><div class="item-h"><h3>Table formatting</h3><span class="st st-progress">In progress</span></div><p>Colour cells by rules or a scale, data bars in numeric columns, sparklines from array columns, and a brief highlight on cells that changed since the last refresh.</p><p class="meta">Also in Superset, Metabase, Grafana</p></div><div class="item"><div class="item-h"><h3>Reference lines and bands</h3><span class="st st-progress">In progress</span></div><p>Goal lines and shaded bands on any chart, from a fixed value or a column.</p><p class="meta">Also in Superset, Metabase, Grafana</p></div><div class="item"><div class="item-h"><h3>Rolling window and zoom</h3><span class="st st-progress">In progress</span></div><p>Show only the last N points or minutes so a live line slides instead of rescaling, and zoom into long series.</p><p class="meta">Also in Superset, Metabase, Grafana</p></div>
+    </div>
+    <div class="note">
+      <div class="note-h">Why live dashboards work this way</div>
+      <p>Until now, auto-refresh re-ran every widget's query from every open browser tab. Ten people watching a
+      twelve-widget dashboard every 30 seconds meant up to 240 query runs a minute against your database. A live
+      dashboard runs those twelve queries once per interval, whoever is watching, and stops when nobody is.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="phase-head"><h2>Next: more ways to read a result</h2><span class="st st-planned">Planned</span></div>
+    <p class="sub">Chart types the other tools have and people ask for. Most need no new code in the chart library
+    at all; they are arrangements of bars, pies and custom series SQLDesk already draws.</p>
+    <ul class="compact"><li><strong>Waterfall</strong><span class="st st-planned">Planned</span><span class="d">Running totals with rises and falls coloured.</span></li><li><strong>Histogram</strong><span class="st st-planned">Planned</span><span class="d">Bins one numeric column, with an adjustable bin count.</span></li><li><strong>Treemap</strong><span class="st st-planned">Planned</span><span class="d">Hierarchy by size, with drill-down.</span></li><li><strong>Calendar heatmap</strong><span class="st st-planned">Planned</span><span class="d">One cell per day across a quarter or a year.</span></li><li><strong>Radar</strong><span class="st st-planned">Planned</span><span class="d">Several measures per item on shared spokes.</span></li><li><strong>Funnel, drawn</strong><span class="st st-planned">Planned</span><span class="d">A real funnel shape; today's table look stays as an option.</span></li><li><strong>State timeline and Gantt</strong><span class="st st-planned">Planned</span><span class="d">Bars of state along time: job runs, service status, bookings.</span></li><li><strong>Nightingale rose</strong><span class="st st-planned">Planned</span><span class="d">A pie whose radius carries the value.</span></li></ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="phase-head"><h2>Specialist charts</h2><span class="st st-demand">On demand</span></div>
+    <p class="sub">Useful for particular jobs rather than everyday dashboards. Each will load only when a chart of
+    its type is opened, so nobody pays for what they do not use. Tell us on GitHub which you need.</p>
+    <ul class="compact"><li><strong>Network graph</strong><span class="st st-demand">On demand</span><span class="d">Force or circular layout from an edge list.</span></li><li><strong>Chord</strong><span class="st st-demand">On demand</span><span class="d">Flows between groups.</span></li><li><strong>Tree</strong><span class="st st-demand">On demand</span><span class="d">Collapsible hierarchies.</span></li><li><strong>Parallel coordinates</strong><span class="st st-demand">On demand</span><span class="d">Many measures per row, one axis each.</span></li><li><strong>Candlestick</strong><span class="st st-demand">On demand</span><span class="d">Open, high, low and close per period.</span></li><li><strong>Beeswarm</strong><span class="st st-demand">On demand</span><span class="d">Box plot points spread without overlapping.</span></li><li><strong>Theme river, pictorial bar, matrix</strong><span class="st st-demand">On demand</span><span class="d">Streams over time, icon bars, correlation grids.</span></li></ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Around the charts</h2>
+    <ul class="compact">
+      <li><strong>Wall display mode</strong><span class="st st-planned">Planned</span><span class="d">Dark theme, no chrome and large type for a screen on the wall, optionally cycling through dashboards.</span></li><li><strong>Push instead of poll</strong><span class="st st-planned">Planned</span><span class="d">Live dashboards receive new results the moment they land, over server-sent events, instead of asking every few seconds.</span></li><li><strong>Leaflet 1.9 for maps</strong><span class="st st-planned">Planned</span><span class="d">The marker and region maps run on Leaflet 1.3.4, from 2018.</span></li><li><strong>Modern editors</strong><span class="st st-planned">Planned</span><span class="d">The visualization editors move to the current Ant Design along with the rest of the interface.</span></li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Why Apache ECharts</h2>
+    <p>Every chart type on this page is built into ECharts, under one API, one theme and one animation model. Its
+    charts are plain JSON configuration, which is how SQLDesk already stores a visualization's settings. It
+    animates from old values to new ones when data refreshes, and it can draw a chart on the server without a
+    browser, which scheduled snapshots will need.</p>
+    <div class="why">
+      <div><span class="k">Licence</span>Apache 2.0, and an Apache Software Foundation project, so no single company can re-license it.</div>
+      <div><span class="k">In good company</span>Superset, Metabase, Evidence and Streamlit all ship ECharts 6.1.</div>
+      <div><span class="k">Cost</span>Only the chart types in use are bundled. The whole of 0.4 adds 28.5 KB, compressed.</div>
+    </div>
+    <p class="sub">Not everything is a chart. Tables, stat tiles and status grids are plain HTML, tiled maps stay on
+    Leaflet, and pivot tables stay on react-pivottable.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Already shipped</h2>
+    <ul class="compact">
+      <li><strong>Charts on Apache ECharts</strong><span class="st st-shipped">0.1</span><span class="d">Every chart type redrawn on ECharts 6, animating between values when data refreshes.</span></li><li><strong>Plotly and d3 v3 removed</strong><span class="st st-shipped">0.1</span><span class="d">Production JavaScript fell from 9.1 MB to 4.3 MB.</span></li><li><strong>Counting counters</strong><span class="st st-shipped">0.1</span><span class="d">A counter counts up to its new value instead of jumping.</span></li><li><strong>One table density</strong><span class="st st-shipped">0.3.2</span><span class="d">The same row height, padding and type size in the query editor, dashboards and alerts.</span></li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>
+      <a href="index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/bot-netizen/sqldesk/issues">Ask for a chart</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/bot-netizen/sqldesk/blob/main/CHANGELOG.md">Changelog</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
