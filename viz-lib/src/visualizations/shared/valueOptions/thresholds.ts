@@ -24,8 +24,9 @@ export interface Thresholds {
 export const DEFAULT_THRESHOLDS: Thresholds = { base: "good", steps: [] };
 
 export function normalizeThresholds(thresholds?: Partial<Thresholds> | null): Thresholds {
-  const base =
-    thresholds && typeof thresholds.base === "string" && thresholds.base ? thresholds.base : DEFAULT_THRESHOLDS.base;
+  // An empty base is kept: it means "no colour below the first step", which
+  // table rules need. Only a missing base takes the default.
+  const base = thresholds && typeof thresholds.base === "string" ? thresholds.base : DEFAULT_THRESHOLDS.base;
   const steps = (thresholds && Array.isArray(thresholds.steps) ? thresholds.steps : [])
     .map((s) => ({ value: toNumber(s && s.value), color: s && typeof s.color === "string" ? s.color : "neutral" }))
     .filter((s): s is ThresholdStep => s.value !== null)

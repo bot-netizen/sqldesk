@@ -13,15 +13,19 @@ type Props = {
   testPrefix: string;
   /** Explains what the colours apply to, in this visualization's terms. */
   description?: React.ReactNode;
+  /** Let the base be "no colour", for cells that should stay plain below the first step. */
+  allowNoneBase?: boolean;
 };
 
 // The next step's colour, so adding one does not start as a copy of the last.
 const ESCALATION = ["warning", "critical", "serious", "critical"];
 
-export default function ThresholdsSection({ thresholds, onChange, testPrefix, description }: Props) {
+export default function ThresholdsSection({ thresholds, onChange, testPrefix, description, allowNoneBase }: Props) {
   // Steps stay in the order they were entered while editing; evaluation sorts
   // them. Re-sorting on every keystroke would move the field being typed in.
-  const base = normalizeThresholds(thresholds).base;
+  // An empty base means "no colour"; offered only where that makes sense.
+  const saved = normalizeThresholds(thresholds).base;
+  const base = saved === "" && !allowNoneBase ? "good" : saved;
   const steps: ThresholdStep[] = Array.isArray(thresholds && thresholds.steps)
     ? (thresholds!.steps as ThresholdStep[])
     : [];
@@ -46,6 +50,7 @@ export default function ThresholdsSection({ thresholds, onChange, testPrefix, de
           <div className="value-options-row">
             <span className="value-options-row-label">Base</span>
             <ColorSelect
+              allowNone={allowNoneBase}
               value={base}
               onChange={(color) => emit(steps, color)}
               data-test={`${testPrefix}.Thresholds.Base`}

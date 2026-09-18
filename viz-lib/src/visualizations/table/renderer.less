@@ -206,3 +206,66 @@
     color: @text-color-secondary;
   }
 }
+
+// Conditional formatting (0.4). A data bar sits behind the number; a changed
+// cell flashes once and carries an arrow for numbers.
+.table-visualization-container {
+  .table-cell-databar {
+    position: relative;
+    display: block;
+
+    > i {
+      position: absolute;
+      top: -2px;
+      bottom: -2px;
+      left: 0;
+      background: var(--color-action-tint, #e4f4f7);
+      border-radius: 3px;
+      transition: width 0.6s ease;
+    }
+
+    > span {
+      position: relative;
+    }
+  }
+
+  .table-cell-changed {
+    display: inline-block;
+    border-radius: 3px;
+    animation: table-cell-changed 1.6s ease-out;
+  }
+
+  .table-cell-change-arrow {
+    font-size: 0.8em;
+  }
+
+  .table-cell-changed-up .table-cell-change-arrow {
+    color: var(--color-good, #1e7a4c);
+  }
+
+  .table-cell-changed-down .table-cell-change-arrow {
+    color: var(--color-critical, #b4342c);
+  }
+
+  .table-cell-sparkline {
+    display: block;
+  }
+
+  @keyframes table-cell-changed {
+    from {
+      background: color-mix(in srgb, var(--color-action, #0a7c93) 26%, transparent);
+    }
+    to {
+      background: transparent;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .table-cell-changed {
+      animation: none;
+    }
+    .table-cell-databar > i {
+      transition: none;
+    }
+  }
+}

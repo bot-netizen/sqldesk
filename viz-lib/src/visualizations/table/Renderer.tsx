@@ -1,12 +1,13 @@
 import { filter, map, get, initial, last, reduce } from "lodash";
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import Table from "antd/lib/table";
 import Input from "antd/lib/input";
 import InfoCircleFilledIcon from "@ant-design/icons/InfoCircleFilled";
 import Popover from "antd/lib/popover";
 import { RendererPropTypes } from "@/visualizations/prop-types";
 
-import { prepareColumns, initRows, filterRows, sortRows } from "./utils";
+import { prepareColumns, initRows, filterRows, sortRows, CellContext } from "./utils";
+import { columnStats, isFormatted, rowIdentity } from "./cellFormat";
 
 import "./renderer.less";
 
@@ -89,19 +90,57 @@ export default function Renderer({ options, data }: any) {
 
   const searchColumns = useMemo(() => filter(options.columns, "allowSearch"), [options.columns]);
 
+  // What conditional formatting needs beyond the cell itself: each formatted
+  // column's range, and every row's values from the previous refresh. The
+  // previous rows move along only when the data does, so sorting or
+  // searching does not count as a change.
+  const formattedColumns = useMemo(
+    () => filter(options.columns, (c: any) => isFormatted(c.cellFormat)),
+    [options.columns]
+  );
+  const lastData = useRef<any>(null);
+  const previousRows = useRef<Map<string, any> | null>(null);
+  const rowKey = useMemo(() => rowIdentity(data.columns, data.rows), [data]);
+  if (lastData.current && lastData.current.data !== data) {
+    const before = lastData.current;
+    previousRows.current = new Map(
+      (before.data.rows as any[]).map((r: any, i: number) => [before.rowKey(r, i), r] as [string, any])
+    );
+  }
+  lastData.current = { data, rowKey };
+
+  const cellContext: CellContext | null = useMemo(() => {
+    if (formattedColumns.length === 0) {
+      return null;
+    }
+    const stats: CellContext["stats"] = {};
+    formattedColumns.forEach((c: any) => {
+      stats[c.name] = columnStats(data.rows, c.name);
+    });
+    return { stats, previous: previousRows.current, rowKey };
+    // previousRows is read when data changes, which is when it moves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formattedColumns, data, rowKey]);
+
   const tableColumns = useMemo(() => {
     const searchInput =
       searchColumns.length > 0 ? (
         // @ts-expect-error ts-migrate(2322) FIXME: Type '(event: any) => void' is not assignable to t... Remove this comment to see the full error message
         <SearchInput searchColumns={searchColumns} onChange={(event: any) => setSearchTerm(event.target.value)} />
       ) : null;
-    return prepareColumns(options.columns, searchInput, orderBy, (newOrderBy: any) => {
-      setOrderBy(newOrderBy);
-      // Remove text selection - may occur accidentally
-      // @ts-expect-error ts-migrate(2531) FIXME: Object is possibly 'null'.
-      document.getSelection().removeAllRanges();
-    });
-  }, [options.columns, searchColumns, orderBy]);
+    return prepareColumns(
+      options.columns,
+      searchInput,
+      orderBy,
+      (newOrderBy: any) => {
+        setOrderBy(newOrderBy);
+        // Remove text selection - may occur accidentally
+        // @ts-expect-error ts-migrate(2531) FIXME: Object is possibly 'null'.
+        document.getSelection().removeAllRanges();
+      },
+      cellContext
+    );
+  }, [options.columns, searchColumns, orderBy, cellContext]);
 
   const preparedRows = useMemo(
     () => sortRows(filterRows(initRows(data.rows), searchTerm, searchColumns), orderBy),

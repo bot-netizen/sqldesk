@@ -144,10 +144,12 @@ export function getStatExtras(
     }
   }
 
-  const valueColor =
+  // An empty base colour means "leave the number alone below the first step".
+  const named =
     hasThresholds(options.thresholds) && currentValue !== null
-      ? resolveColor(thresholdColor(currentValue, options.thresholds))
+      ? thresholdColor(currentValue, options.thresholds)
       : null;
+  const valueColor = named ? resolveColor(named) : null;
 
   return { rows: orderedRows, spark: points, delta, valueColor };
 }
