@@ -1296,6 +1296,9 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
     # dropped by migration, because dropping it would destroy whatever anyone
     # set while it existed, and an unused nullable column costs nothing.
     schedule = Column(MutableDict.as_mutable(JSONB), nullable=True)
+    # A live dashboard: {"interval": seconds, "paused": bool, "paused_by": ...,
+    # "paused_at": ...}. Null for an ordinary one. See sqldesk/live.py.
+    live = Column(MutableDict.as_mutable(JSONB), nullable=True)
 
     __tablename__ = "dashboards"
     __mapper_args__ = {"version_id_col": version}

@@ -7,6 +7,7 @@ from rq.job import Job
 from rq_scheduler import Scheduler
 
 from sqldesk import rq_redis_connection, settings
+from sqldesk.live import refresh_live_dashboards
 from sqldesk.tasks.failure_report import send_aggregated_errors
 from sqldesk.tasks.general import sync_user_details, version_check
 from sqldesk.tasks.queries import (
@@ -57,6 +58,9 @@ def schedule(kwargs):
 def periodic_job_definitions():
     jobs = [
         {"func": refresh_queries, "timeout": 600, "interval": 30, "result_ttl": 600},
+        # Live dashboards: every 10 seconds, so a 30-second dashboard is on time.
+        # Does nothing for a dashboard nobody is watching.
+        {"func": refresh_live_dashboards, "timeout": 60, "interval": 10, "result_ttl": 60},
         {
             "func": remove_ghost_locks,
             "interval": timedelta(minutes=1),

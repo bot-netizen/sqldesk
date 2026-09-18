@@ -409,12 +409,19 @@ SENTRY_ENVIRONMENT = os.environ.get("SQLDESK_SENTRY_ENVIRONMENT")
 
 # Client side toggles:
 ALLOW_SCRIPTS_IN_USER_INPUT = parse_boolean(os.environ.get("SQLDESK_ALLOW_SCRIPTS_IN_USER_INPUT", "false"))
-DASHBOARD_REFRESH_INTERVALS = list(
-    map(
+# An ordinary dashboard's auto-refresh is a timer in every open tab, so it
+# starts at ten minutes; anything faster is what live dashboards are for,
+# which run the queries once on the server however many people watch. Values
+# under the minimum are dropped even when set explicitly.
+DASHBOARD_REFRESH_MINIMUM = 600
+DASHBOARD_REFRESH_INTERVALS = [
+    interval
+    for interval in map(
         int,
-        array_from_string(os.environ.get("SQLDESK_DASHBOARD_REFRESH_INTERVALS", "60,300,600,1800,3600,43200,86400")),
+        array_from_string(os.environ.get("SQLDESK_DASHBOARD_REFRESH_INTERVALS", "600,1800,3600,43200,86400")),
     )
-)
+    if interval >= DASHBOARD_REFRESH_MINIMUM
+]
 QUERY_REFRESH_INTERVALS = list(
     map(
         int,

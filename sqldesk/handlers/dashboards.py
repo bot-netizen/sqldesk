@@ -3,7 +3,7 @@ from flask_restful import abort
 from funcy import partial, project
 from sqlalchemy.orm.exc import StaleDataError
 
-from sqldesk import models
+from sqldesk import live, models
 from sqldesk.handlers.base import (
     BaseResource,
     filter_by_tags,
@@ -292,6 +292,130 @@ class PublicDashboardResource(BaseResource):
             dashboard = self.current_user.object
 
         return public_dashboard(dashboard)
+
+
+class DashboardLiveResource(BaseResource):
+    @require_permission("edit_dashboard")
+    def post(self, dashboard_id):
+        """
+        Turn a dashboard live, change how often it refreshes, pause or resume
+        it, or turn it off.
+
+        :<json number interval: seconds between refreshes (30, 60, 120 or 300),
+                                or null to turn the dashboard off
+        :<json boolean paused: pause or resume a live dashboard for everyone
+        :>json object live: the dashboard's live wanted, or null
+
+        Needs the manage_live_dashboards permission (admins have it) and the
+        right to edit the dashboard.
+        """
+        dashboard = get_object_or_404(models.Dashboard.get_by_id_and_org, dashboard_id, self.current_org)
+        if not live.can_manage_live(self.current_user):
+            abort(403, message="Turning dashboards live needs the manage_live_dashboards permission.")
+        require_object_modify_permission(dashboard, self.current_user)
+
+        body = request.get_json(force=True, silent=True) or {}
+        current = live.live_settings(dashboard)
+        wanted = dict(current) if current else None
+        actions = []
+
+        if "interval" in body:
+            interval = body["interval"]
+            if interval is None:
+                wanted = None
+                actions.append("live_off")
+            elif interval in live.LIVE_INTERVALS:
+                wanted = {**(wanted or {"paused": False}), "interval": interval}
+                actions.append("live_on" if current is None else "live_interval")
+            else:
+                offered = ", ".join(map(str, live.LIVE_INTERVALS))
+                abort(400, message="Interval must be one of {} seconds.".format(offered))
+
+        if "paused" in body:
+            if wanted is None:
+                abort(400, message="Only a live dashboard can be paused.")
+            if body["paused"]:
+                wanted.update(live.pause_record(self.current_user))
+                actions.append("live_pause")
+            else:
+                wanted.update({"paused": False, "paused_by": None, "paused_at": None})
+                actions.append("live_resume")
+
+        if not actions:
+            abort(400, message="Send an interval, or paused.")
+
+        # Written straight to the row rather than through the ORM: the ORM would
+        # bump the dashboard's version, and anyone editing its layout at that
+        # moment would be told their save conflicts with a change they cannot
+        # see. Live wanted are not part of what an editor saves.
+        models.db.session.execute(
+            models.Dashboard.__table__.update().where(models.Dashboard.id == dashboard.id).values(live=wanted)
+        )
+        models.db.session.commit()
+        models.db.session.refresh(dashboard)
+
+        for action in actions:
+            self.record_event({"action": action, "object_id": dashboard.id, "object_type": "dashboard"})
+
+        return {"live": live.describe(dashboard)}
+
+
+class DashboardLiveWatchResource(BaseResource):
+    @require_permission("list_dashboards")
+    def post(self, dashboard_id):
+        """
+        Check in as a viewer of a live dashboard, or say you have left.
+
+        :<json string viewer: an id the viewer's tab keeps for its lifetime
+        :<json boolean leaving: true when the tab is closed or hidden
+        :>json object live: the dashboard's live settings, or null
+        :>json object results: {widget id: newest result id} for the widgets
+                               this user may see
+
+        A live dashboard is refreshed only while at least one viewer has checked
+        in recently; a hidden tab should say it is leaving and stop checking in.
+        """
+        dashboard = get_object_or_404(models.Dashboard.get_by_id_and_org, dashboard_id, self.current_org)
+        return _watch(dashboard, "u{}".format(self.current_user.id), self.current_user)
+
+
+class PublicDashboardLiveWatchResource(BaseResource):
+    decorators = BaseResource.decorators + [csp_allows_embeding]
+
+    def post(self, token):
+        """
+        Check in as a viewer of a live dashboard through its public link.
+        Same body and response as the signed-in version.
+        """
+        if self.current_org.get_setting("disable_public_urls"):
+            abort(400, message="Public URLs are disabled.")
+
+        if not isinstance(self.current_user, models.ApiUser):
+            api_key = get_object_or_404(models.ApiKey.get_by_api_key, token)
+            dashboard = api_key.object
+        else:
+            dashboard = self.current_user.object
+
+        # A public viewer sees every widget, as the public dashboard does.
+        return _watch(dashboard, "public", None)
+
+
+def _watch(dashboard, who, user):
+    body = request.get_json(force=True, silent=True) or {}
+    viewer = str(body.get("viewer") or "")[:64]
+    if not viewer:
+        abort(400, message="Send a viewer id.")
+    member = "{}:{}".format(who, viewer)
+
+    described = live.describe(dashboard) if not dashboard.is_archived else None
+    if body.get("leaving"):
+        live.leave(dashboard.id, member)
+        return {"live": described}
+    if described is None:
+        return {"live": None}
+
+    live.check_in(dashboard.id, member)
+    return {"live": described, "results": live.latest_results(dashboard, user)}
 
 
 class DashboardShareResource(BaseResource):

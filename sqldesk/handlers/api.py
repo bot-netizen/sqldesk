@@ -15,10 +15,13 @@ from sqldesk.handlers.dashboards import (
     DashboardFavoriteListResource,
     DashboardForkResource,
     DashboardListResource,
+    DashboardLiveResource,
+    DashboardLiveWatchResource,
     DashboardResource,
     DashboardShareResource,
     DashboardTagsResource,
     MyDashboardsResource,
+    PublicDashboardLiveWatchResource,
     PublicDashboardResource,
 )
 from sqldesk.handlers.data_sources import (
@@ -50,6 +53,7 @@ from sqldesk.handlers.groups import (
     GroupListResource,
     GroupMemberListResource,
     GroupMemberResource,
+    GroupPermissionsResource,
     GroupResource,
 )
 from sqldesk.handlers.permissions import (
@@ -177,6 +181,7 @@ api.add_org_resource(
 api.add_org_resource(GroupListResource, "/api/groups", endpoint="groups")
 api.add_org_resource(GroupResource, "/api/groups/<group_id>", endpoint="group")
 api.add_org_resource(GroupMemberListResource, "/api/groups/<group_id>/members", endpoint="group_members")
+api.add_org_resource(GroupPermissionsResource, "/api/groups/<group_id>/permissions", endpoint="group_permissions")
 api.add_org_resource(
     GroupMemberResource,
     "/api/groups/<group_id>/members/<user_id>",
@@ -208,6 +213,15 @@ api.add_org_resource(
     endpoint="dashboard_favorite",
 )
 api.add_org_resource(DashboardForkResource, "/api/dashboards/<dashboard_id>/fork", endpoint="dashboard_fork")
+api.add_org_resource(DashboardLiveResource, "/api/dashboards/<dashboard_id>/live", endpoint="dashboard_live")
+api.add_org_resource(
+    DashboardLiveWatchResource, "/api/dashboards/<dashboard_id>/live/watch", endpoint="dashboard_live_watch"
+)
+api.add_org_resource(
+    PublicDashboardLiveWatchResource,
+    "/api/dashboards/public/<token>/live/watch",
+    endpoint="public_dashboard_live_watch",
+)
 
 api.add_org_resource(MyDashboardsResource, "/api/dashboards/my", endpoint="my_dashboards")
 
