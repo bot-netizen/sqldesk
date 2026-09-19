@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.4.0-rc.2
+
+The second release candidate for 0.4: what testing rc.1 found
+([milestone](https://github.com/bot-netizen/sqldesk/milestone/1)). Like
+rc.1, it is published as `ghcr.io/bot-netizen/sqldesk:0.4.0-rc.2` and marked
+as a pre-release; `latest` stays on 0.3.2.
+
+### Upgrading
+
+- From rc.1: pull and `up -d`. No migration.
+- From 0.3.2: as for rc.1 -- run `manage db upgrade`.
+- The scheduler logs "Removing … from schedule" and "Scheduling …" for each
+  periodic job the first time it starts. That is the jobs being re-registered
+  with records that no longer expire, and happens once.
+
+### Fixed
+
+- **Live dashboards stopped refreshing after the computer slept**
+  ([#1](https://github.com/bot-netizen/sqldesk/issues/1)), and so did
+  scheduled query refreshes, result cleanup and lock cleanup. Each periodic
+  job keeps a record in Redis, and after every run that record expired after
+  a set time -- 60 seconds for live dashboards, 10 minutes for scheduled
+  queries. A laptop asleep or a Docker VM paused for longer came back to find
+  the record gone, and the scheduler then dropped the job for good; nothing
+  put it back until the scheduler was restarted. Periodic jobs now keep their
+  record, and the scheduler checks every 30 seconds that each one is still
+  scheduled, puts back any that are not and logs a warning when it has to --
+  which also brings them back after a Redis restart. The weakness came from
+  Redash, whose scheduled-query job has the same 10-minute record.
+
+### Changed
+
+- **A live widget says when it refreshes next** -- "next in 18s", then
+  "refreshing…" while the new result is on its way. Paused, it says how old
+  the result is instead ("updated 2m ago"). One or the other, never both. The
+  countdown runs on the server's clock, so a browser that is a few minutes out
+  still counts right.
+- **Coming back to a live dashboard catches up at once.** The first viewer to
+  arrive at a dashboard nobody was watching -- usually someone returning to a
+  hidden tab -- has the server refresh whatever is stale on the spot, and the
+  tab checks in every 3 seconds until the new results are on screen, instead
+  of showing old numbers for up to 25 seconds. Going live, choosing a new
+  interval and Resume do the same.
+- **Refresh says when there was nothing to do.** On an ordinary dashboard,
+  Refresh reuses anything under a minute old; when that brings back exactly
+  the results already shown, it now says "Already up to date" instead of
+  looking like a button that did nothing.
+
 ## 0.4.0-rc.1
 
 **A release candidate, for testing.** It is tagged and published as
