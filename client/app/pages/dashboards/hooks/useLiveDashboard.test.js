@@ -87,8 +87,8 @@ describe("useLiveDashboard", () => {
     expect(Dashboard.watchLive).toHaveBeenCalledWith({ id: 1 }, { viewer: expect.any(String) });
     // 10 is current, 12 has no result yet; only 11 changed.
     expect(loadWidget).toHaveBeenCalledTimes(1);
-    // Forced, but any stored result will do: a viewer never runs the query.
-    expect(loadWidget).toHaveBeenCalledWith(dashboard.widgets[1], true, -1);
+    // Exactly the result the server named, by id: a viewer never runs the query.
+    expect(loadWidget).toHaveBeenCalledWith(dashboard.widgets[1], true, undefined, 601);
   });
 
   test("checks in again every interval with the same viewer id", async () => {
@@ -141,6 +141,15 @@ describe("useLiveDashboard", () => {
     );
     await flush();
     expect(state.live.paused).toBe(true);
+  });
+
+  test("a public viewer, whose key cannot read results by id, asks for the newest stored one", async () => {
+    Dashboard.watchPublicLive.mockResolvedValue({ live, results: { 11: 601 } });
+    const loadWidget = jest.fn();
+    const dashboard = { live, widgets: [widget(11, 600)] };
+    mountHarness(<Harness dashboard={dashboard} loadWidget={loadWidget} publicToken="abc" onState={() => {}} />);
+    await flush();
+    expect(loadWidget).toHaveBeenCalledWith(dashboard.widgets[0], true, -1);
   });
 
   test("a public viewer checks in through the public link", async () => {

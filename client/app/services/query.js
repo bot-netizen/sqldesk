@@ -109,13 +109,19 @@ export class Query {
       this.latest_query_data_id = null;
     }
 
-    if (this.latest_query_data && maxAge !== 0) {
+    // The result this query already knows about is reused only when the caller
+    // named no age at all -- a page loading. Any explicit age is a question for
+    // the server: 0 runs the query, -1 asks for the newest stored result, and
+    // N for one younger than N seconds. Reusing the cached result for those
+    // too made every refresh after the first quietly show the same result.
+    const useKnownResult = maxAge === undefined || maxAge === null;
+    if (this.latest_query_data && useKnownResult) {
       if (!this.queryResult) {
         this.queryResult = new QueryResult({
           query_result: this.latest_query_data,
         });
       }
-    } else if (this.latest_query_data_id && maxAge !== 0) {
+    } else if (this.latest_query_data_id && useKnownResult) {
       if (!this.queryResult) {
         this.queryResult = QueryResult.getById(this.id, this.latest_query_data_id);
       }

@@ -15,16 +15,12 @@ import ShareDashboardDialog from "../components/ShareDashboardDialog";
 import useFullscreenHandler from "../../../lib/hooks/useFullscreenHandler";
 import useRefreshRateHandler from "./useRefreshRateHandler";
 import useLiveDashboard from "./useLiveDashboard";
-import { autoRefreshMaxAge, nothingWasRun, shownResultIds } from "./refreshResults";
+import { autoRefreshMaxAge } from "./refreshResults";
 import useEditModeHandler from "./useEditModeHandler";
 import useDuplicateDashboard from "./useDuplicateDashboard";
 import { policy } from "@/services/policy";
 
 export { DashboardStatusEnum } from "./useEditModeHandler";
-
-// The Refresh buttons re-run only results older than this, so a room of people
-// pressing Refresh at once runs each query once.
-export const MANUAL_REFRESH_MAX_AGE = 60;
 
 export const MANAGE_LIVE_PERMISSION = "manage_live_dashboards";
 
@@ -43,10 +39,6 @@ function dropUrlParameters() {
   if (Object.keys(drop).length > 0) {
     location.setSearch(drop, true);
   }
-}
-
-function sayUpToDate(description) {
-  notification.info("Already up to date", description);
 }
 
 function getAffectedWidgets(widgets, updatedParameters = []) {
@@ -129,11 +121,11 @@ function useDashboard(dashboardData, { publicToken = null } = {}) {
     updateDashboard({ is_draft: !dashboard.is_draft }, false);
   }, [dashboard, updateDashboard]);
 
-  const loadWidget = useCallback((widget, forceRefresh = false, maxAge = undefined) => {
+  const loadWidget = useCallback((widget, forceRefresh = false, maxAge = undefined, resultId = undefined) => {
     widget.getParametersDefs(); // Force widget to read parameters values from URL
     setDashboard((currentDashboard) => extend({}, currentDashboard));
     return widget
-      .load(forceRefresh, maxAge)
+      .load(forceRefresh, maxAge, resultId)
       .catch((error) => {
         // QueryResultErrors are expected
         if (error instanceof QueryResultError) {
@@ -144,29 +136,9 @@ function useDashboard(dashboardData, { publicToken = null } = {}) {
       .finally(() => setDashboard((currentDashboard) => extend({}, currentDashboard)));
   }, []);
 
-  // The Refresh button accepts a result from the last minute. New parameter
-  // values are a request to run the query with them, so they always run --
-  // the cache is keyed by query text, and a result somebody else made with the
-  // same values a moment ago would otherwise come back instead.
-  const refreshWidget = useCallback(
-    (widget, { parametersChanged = false } = {}) => {
-      if (parametersChanged) {
-        return loadWidget(widget, true);
-      }
-      // A Refresh that brings back the same result would otherwise look like
-      // a button that does nothing.
-      const before = shownResultIds([widget]);
-      return loadWidget(widget, true, MANUAL_REFRESH_MAX_AGE).then((result) => {
-        if (nothingWasRun(before, [widget])) {
-          sayUpToDate(
-            "This result is under a minute old, so the query was not run again. Refresh runs it once the result is older."
-          );
-        }
-        return result;
-      });
-    },
-    [loadWidget]
-  );
+  // Refresh -- the widget's button, or new values for its own parameters --
+  // always runs the query: whoever presses it wants it run now.
+  const refreshWidget = useCallback((widget) => loadWidget(widget, true), [loadWidget]);
 
   const removeWidget = useCallback((widgetId) => {
     setDashboard((currentDashboard) =>
@@ -195,25 +167,12 @@ function useDashboard(dashboardData, { publicToken = null } = {}) {
     [loadWidget]
   );
 
+  // The Refresh button and new parameter values run every affected query.
   const refreshDashboard = useCallback(
     (updatedParameters) => {
       if (!refreshing) {
         setRefreshing(true);
-        // New parameter values are a request to run the query with them, so
-        // they always run. The Refresh button accepts anything from the last
-        // minute.
-        const fromButton = isEmpty(updatedParameters);
-        const widgets = dashboardRef.current.widgets;
-        const before = shownResultIds(widgets);
-        loadDashboard(true, updatedParameters, fromButton ? MANUAL_REFRESH_MAX_AGE : undefined)
-          .then(() => {
-            if (fromButton && nothingWasRun(before, widgets)) {
-              sayUpToDate(
-                "Every result here is under a minute old, so nothing was run again. Refresh runs the queries once their results are older."
-              );
-            }
-          })
-          .finally(() => setRefreshing(false));
+        loadDashboard(true, updatedParameters).finally(() => setRefreshing(false));
       }
     },
     [refreshing, loadDashboard]

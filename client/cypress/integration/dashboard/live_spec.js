@@ -55,6 +55,12 @@ describe("Live dashboards", () => {
     // A value that is different every time the query runs.
     createQueryAndAddWidget(this.dashboardId, { query: "select clock_timestamp()::text as t" }).then((elTestId) => {
       cy.visit(this.dashboardUrl);
+      // Load it once so the query has a result, then again: a dashboard whose
+      // queries already have results is the case that matters. The page then
+      // knows each query's latest result, and a live reload that reused that
+      // instead of fetching the server's new one drew nothing new, ever.
+      cy.getByTestId(elTestId).find(".ant-table-tbody td").should("exist");
+      cy.reload();
       cy.getByTestId(elTestId)
         .find(".ant-table-tbody td")
         .first()
@@ -97,13 +103,18 @@ describe("Live dashboards", () => {
     });
   });
 
-  it("says so when Refresh has nothing newer to show", function () {
-    // A query nobody has run: the page's first load runs it, so its result is
-    // seconds old when Refresh is pressed, and Refresh reuses it.
-    createQueryAndAddWidget(this.dashboardId, { query: `select ${Date.now()} as n` }).then((elTestId) => {
+  it("Refresh runs the queries again, however recent their results", function () {
+    createQueryAndAddWidget(this.dashboardId, { query: "select 4 as n" }).then((elTestId) => {
       cy.visit(this.dashboardUrl);
+      cy.getByTestId(elTestId).find(".ant-table-tbody td").should("exist");
+      // Again, now that the query has a result the page knows about: Refresh
+      // used to fetch that same result instead of running the query.
+      cy.reload();
+      cy.getByTestId(elTestId).find(".ant-table-tbody td").should("exist");
+
+      cy.intercept("POST", "**/api/queries/*/results").as("Run");
       cy.getByTestId(elTestId).within(() => cy.getByTestId("RefreshButton").click());
-      cy.contains(".ant-notification-notice", "Already up to date").should("exist");
+      cy.wait("@Run").its("request.body.max_age").should("equal", 0);
     });
   });
 

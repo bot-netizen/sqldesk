@@ -140,10 +140,15 @@ export default function useLiveDashboard({ dashboard, loadWidget, publicToken = 
             const newest = results[String(widget.id)];
             if (newest && !widget.loading && currentResultId(widget) !== newest) {
               reloaded += 1;
-              // Force a fetch, but accept any stored result: the server has
-              // just said a newer one exists, and a viewer must not run the
-              // query itself.
-              loadWidgetRef.current(widget, true, -1);
+              // Fetch the result the server just named -- by id, which a
+              // view-only viewer may read and which never runs anything. A
+              // public link's key cannot read results by id, so it asks for
+              // the newest stored one instead (max age -1).
+              if (publicToken) {
+                loadWidgetRef.current(widget, true, -1);
+              } else {
+                loadWidgetRef.current(widget, true, undefined, newest);
+              }
             }
           });
           if (reloaded > 0) {
@@ -195,7 +200,7 @@ export default function useLiveDashboard({ dashboard, loadWidget, publicToken = 
       document.removeEventListener("visibilitychange", onVisibilityChange);
       stop();
     };
-  }, [isLive, checkInMs, send]);
+  }, [isLive, checkInMs, send, publicToken]);
 
   return { live, setLive, lastUpdate };
 }

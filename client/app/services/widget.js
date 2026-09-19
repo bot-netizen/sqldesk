@@ -21,6 +21,7 @@ import { cloneParameter } from "@/services/parameters";
 import dashboardGridOptions from "@/config/dashboard-grid-options";
 import { registeredVisualizations } from "@sqldesk/viz/lib";
 import { Query } from "./query";
+import QueryResult from "./query-result";
 
 export const WidgetTypeEnum = {
   TEXTBOX: "textbox",
@@ -141,7 +142,13 @@ class Widget {
     return truncate(this.text, 20);
   }
 
-  load(force, maxAge) {
+  /**
+   * Load the widget's result. `force` fetches again even if one is loaded;
+   * `maxAge` is how old a stored result may be (see Query.getQueryResult);
+   * `resultId` fetches exactly that result -- what a live dashboard does when
+   * the server says which result is newest.
+   */
+  load(force, maxAge, resultId) {
     if (!this.visualization) {
       return Promise.resolve();
     }
@@ -155,14 +162,15 @@ class Widget {
       this.loading = true;
       this.refreshStartedAt = moment();
 
-      // A forced load ignores the cache unless the caller says how old a
-      // result may be: the Refresh button accepts one from the last minute,
-      // auto-refresh one from the last interval, a live dashboard any.
+      // A forced load runs the query unless the caller says how old a stored
+      // result may be: auto-refresh accepts one from the last half interval.
       if (maxAge === undefined) {
         maxAge = force ? 0 : undefined;
       }
 
-      const queryResult = this.getQuery().getQueryResult(maxAge);
+      const queryResult = resultId
+        ? QueryResult.getById(this.getQuery().id, resultId)
+        : this.getQuery().getQueryResult(maxAge);
       this.queryResult = queryResult;
 
       queryResult
