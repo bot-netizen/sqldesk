@@ -52,9 +52,6 @@ describe("Live dashboards", () => {
   });
 
   it("stays live across a reload, and the page checks in as a viewer", function () {
-    cy.server();
-    cy.route("POST", "**/live/watch").as("CheckIn");
-
     createQueryAndAddWidget(this.dashboardId, { query: "select 2 as n" }).then(() => {
       cy.visit(this.dashboardUrl);
       openLiveMenu();
@@ -63,9 +60,14 @@ describe("Live dashboards", () => {
 
       cy.reload();
       cy.getByTestId("LiveBadge").should("contain", "every minute");
-      cy.wait("@CheckIn").then((xhr) => {
-        expect(xhr.request.body.viewer).to.be.a("string").and.not.be.empty;
-        expect(xhr.response.body.live.interval).to.equal(60);
+      // Listen only from here: a check-in the reload cut off has no reply. The
+      // reloaded page checks in again within 15 seconds.
+      cy.intercept("POST", "**/live/watch").as("CheckIn");
+      cy.wait("@CheckIn", { timeout: 30000 }).then(({ request, response }) => {
+        expect(request.body.viewer).to.be.a("string").and.not.be.empty;
+        expect(request.body.leaving).to.be.undefined;
+        expect(response.body.live.interval).to.equal(60);
+        expect(response.body.server_time).to.be.a("string");
       });
     });
   });
