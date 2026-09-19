@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="client/app/assets/images/sqldesk_icon_small.png" alt="" width="88" height="88">
   <h1>SQLDesk</h1>
   <p><strong>One place for everything you do with data.</strong></p>
   <p>Query 35+ data sources, build dashboards, and share what you find — self-hosted, no per-seat pricing.</p>
@@ -12,6 +13,14 @@
     <a href="LICENSE"><img alt="Licence" src="https://img.shields.io/badge/licence-Apache%202.0-blue"></a>
     <img alt="Version" src="https://img.shields.io/badge/version-0.3.2-teal">
   </p>
+</div>
+
+<div align="center">
+  <a href="https://bot-netizen.github.io/sqldesk/#demo">
+    <img src="docs/assets/live-dashboard.jpg" alt="A SQLDesk dashboard refreshing itself: a stat with a sparkline, a gauge, progress against target, and charts with goal lines" width="900">
+  </a>
+  <p><em>A live dashboard, refreshed on the server every 30 seconds — nobody is pressing refresh.<br>
+  <a href="https://bot-netizen.github.io/sqldesk/#demo">Watch the 15-second demo</a></em></p>
 </div>
 
 ---
