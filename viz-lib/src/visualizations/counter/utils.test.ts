@@ -169,6 +169,24 @@ describe("Visualizations -> Counter -> Utils", () => {
           counterValueTooltip: "0",
         });
       });
+
+      test("Empty rows with a target column show no target rather than throwing", () => {
+        // Counting rows against a target is the one way to reach the target
+        // lookup with nothing to look in; it used to index straight into the
+        // empty array and take the widget down with it.
+        const result = getCounterData(
+          [],
+          { countRow: true, targetColName: "population", targetRowNumber: 1 },
+          dummy.visualisationName
+        );
+        expect(result).toEqual({
+          ...dummy.result,
+          counterValue: "0.000",
+          counterValueRaw: 0,
+          counterValueTooltip: "0",
+          showTrend: false,
+        });
+      });
     });
   });
 });

@@ -1,6 +1,7 @@
 import { isNumber, isFinite, toString } from "lodash";
 import numeral from "numeral";
 import { formatValue as formatStandard } from "../shared/valueOptions";
+import { pickRow } from "../shared/rows";
 
 // TODO: allow user to specify number format string instead of delimiters only
 // It will allow to remove this function (move all that weird formatting logic to a migration
@@ -38,18 +39,6 @@ function numberFormat(value: any, decimalPoints: any, decimalDelimiter: any, tho
 
   locale.delimiters = savedDelimiters;
   return result;
-}
-
-// 0 - special case, use first record
-// 1..N - 1-based record number from beginning (wraps if greater than dataset size)
-// -1..-N - 1-based record number from end (wraps if greater than dataset size)
-function getRowNumber(index: any, rowsCount: any) {
-  index = parseInt(index, 10) || 0;
-  if (index === 0) {
-    return index;
-  }
-  const wrappedIndex = (Math.abs(index) - 1) % rowsCount;
-  return index > 0 ? wrappedIndex : rowsCount - wrappedIndex - 1;
 }
 
 function formatValue(value: any, options: any) {
@@ -96,18 +85,21 @@ export function getCounterData(rows: any, options: any, visualizationName: any) 
       // @ts-expect-error ts-migrate(2339) FIXME: Property 'counterValue' does not exist on type '{}... Remove this comment to see the full error message
       result.counterValue = rowsCount;
     } else if (counterColName) {
-      const rowNumber = getRowNumber(options.rowNumber, rowsCount);
+      const row = pickRow<any>(rows, options.rowNumber);
       // @ts-expect-error ts-migrate(2339) FIXME: Property 'counterValue' does not exist on type '{}... Remove this comment to see the full error message
-      result.counterValue = rows[rowNumber][counterColName];
+      result.counterValue = row ? row[counterColName] : undefined;
     }
 
     // @ts-expect-error ts-migrate(2339) FIXME: Property 'showTrend' does not exist on type '{}'.
     result.showTrend = false;
 
     if (targetColName) {
-      const targetRowNumber = getRowNumber(options.targetRowNumber, rowsCount);
+      // `countRow` lets this be reached with no rows at all, where reading
+      // the row straight out of the array threw.
+      const targetRow = pickRow<any>(rows, options.targetRowNumber);
       // @ts-expect-error ts-migrate(2339) FIXME: Property 'targetValue' does not exist on type '{}'... Remove this comment to see the full error message
-      result.targetValue = rows[targetRowNumber][targetColName];
+      // No row to read means no target, the same as no target column at all.
+      result.targetValue = targetRow ? targetRow[targetColName] : null;
 
       // @ts-expect-error ts-migrate(2339) FIXME: Property 'counterValue' does not exist on type '{}... Remove this comment to see the full error message
       if (Number.isFinite(result.counterValue) && isFinite(result.targetValue)) {
@@ -158,10 +150,10 @@ export function isValueNumber(rows: any, options: any) {
 
   const rowsCount = rows.length;
   if (rowsCount > 0) {
-    const rowNumber = getRowNumber(options.rowNumber, rowsCount);
+    const row = pickRow<any>(rows, options.rowNumber);
     const counterColName = options.counterColName;
     if (counterColName) {
-      return isNumber(rows[rowNumber][counterColName]);
+      return !!row && isNumber(row[counterColName]);
     }
   }
 
