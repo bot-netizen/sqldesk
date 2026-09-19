@@ -524,12 +524,15 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
       ? buildBoxSeries(chartData, options, xAxisType, categories, (name, index) => seriesColor(options, name, index))
       : buildCartesianSeries(chartData, options, xAxisType, categories, horizontal);
 
+  // One formatter for both value axes: valueAxis is called once per axis and
+  // the formatter carries a numeral instance, so building it inside meant two.
+  const formatAxisValue = createNumberFormatter(options.numberFormat);
   const valueAxis = (axisOptions: any) => ({
     type: echartsAxisType(axisOptions.type) === "category" ? "value" : echartsAxisType(axisOptions.type),
     name: axisOptions.title ? axisOptions.title.text || axisOptions.title : undefined,
     nameLocation: "middle",
     nameGap: 36,
-    axisLabel: { formatter: createNumberFormatter(options.numberFormat) },
+    axisLabel: { formatter: formatAxisValue },
     scale: !options.series.stacking && !hasBars,
   });
 
