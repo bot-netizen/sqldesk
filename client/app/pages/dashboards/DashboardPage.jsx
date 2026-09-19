@@ -154,6 +154,7 @@ function DashboardComponent(props) {
           filters={filters}
           isEditing={editingLayout}
           isLive={!!live}
+          liveInterval={live && !live.paused ? live.interval : null}
           onLayoutChange={editingLayout ? saveDashboardLayout : () => {}}
           onBreakpointChange={setGridDisabled}
           onLoadWidget={loadWidget}

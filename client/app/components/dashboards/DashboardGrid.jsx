@@ -45,6 +45,7 @@ const DashboardWidget = React.memo(
     canEdit,
     isPublic,
     isLive,
+    liveInterval,
     isLoading,
     filters,
   }) {
@@ -64,6 +65,7 @@ const DashboardWidget = React.memo(
           canEdit={canEdit}
           isPublic={isPublic}
           isLive={isLive}
+          liveInterval={liveInterval}
           isLoading={isLoading}
           onLoad={onLoad}
           onRefresh={onRefresh}
@@ -83,6 +85,7 @@ const DashboardWidget = React.memo(
     prevProps.canEdit === nextProps.canEdit &&
     prevProps.isPublic === nextProps.isPublic &&
     prevProps.isLive === nextProps.isLive &&
+    prevProps.liveInterval === nextProps.liveInterval &&
     prevProps.isLoading === nextProps.isLoading &&
     prevProps.filters === nextProps.filters &&
     prevProps.isEditing === nextProps.isEditing
@@ -94,6 +97,8 @@ class DashboardGrid extends React.Component {
     isPublic: PropTypes.bool,
     // A live dashboard is refreshed by the server; widgets show no refresh button.
     isLive: PropTypes.bool,
+    // Seconds between the server's refreshes; null while paused or not live.
+    liveInterval: PropTypes.number,
     dashboard: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
     widgets: PropTypes.arrayOf(WidgetType).isRequired,
     filters: FiltersType,
@@ -108,6 +113,7 @@ class DashboardGrid extends React.Component {
   static defaultProps = {
     isPublic: false,
     isLive: false,
+    liveInterval: null,
     filters: [],
     onLoadWidget: () => {},
     onRefreshWidget: () => {},
@@ -240,6 +246,7 @@ class DashboardGrid extends React.Component {
       dashboard,
       isPublic,
       isLive,
+      liveInterval,
       isEditing,
       widgets,
     } = this.props;
@@ -278,6 +285,7 @@ class DashboardGrid extends React.Component {
                 filters={filters}
                 isPublic={isPublic}
                 isLive={isLive}
+                liveInterval={liveInterval}
                 isLoading={widget.loading}
                 isEditing={isEditing}
                 canEdit={dashboard.canEdit()}

@@ -21,6 +21,7 @@ import EditParameterMappingsDialog from "@/components/dashboards/EditParameterMa
 import VisualizationRenderer from "@/components/visualizations/VisualizationRenderer";
 
 import Widget from "./Widget";
+import LiveCountdown from "./LiveCountdown";
 
 function visualizationWidgetMenuOptions({ widget, canEditDashboard, onParametersEdit }) {
   const canViewQuery = currentUser.hasPermission("view_query");
@@ -144,9 +145,9 @@ VisualizationWidgetHeader.defaultProps = {
   parameters: [],
 };
 
-function VisualizationWidgetFooter({ widget, isPublic, isLive, onRefresh, onExpand }) {
-  // A live dashboard's results come from the server: no refresh button, but
-  // the time since the last one still shows.
+function VisualizationWidgetFooter({ widget, isPublic, isLive, liveInterval, onRefresh, onExpand }) {
+  // A live dashboard's results come from the server: no refresh button, but a
+  // countdown to the next one (or, paused, how old this one is).
   const canRefresh = !isPublic && !isLive;
   const widgetQueryResult = widget.getQueryResult();
   const updatedAt = invoke(widgetQueryResult, "getUpdatedAt");
@@ -178,7 +179,8 @@ function VisualizationWidgetFooter({ widget, isPublic, isLive, onRefresh, onExpa
         <span className="visible-print">
           <i className="zmdi zmdi-time-restore" aria-hidden="true" /> {formatDateTime(updatedAt)}
         </span>
-        {!canRefresh && (
+        {isLive && updatedAt && <LiveCountdown updatedAt={updatedAt} interval={liveInterval} />}
+        {!canRefresh && !isLive && (
           <span className="small hidden-print">
             <i className="zmdi zmdi-time-restore" aria-hidden="true" /> <TimeAgo date={updatedAt} />
           </span>
@@ -208,11 +210,12 @@ VisualizationWidgetFooter.propTypes = {
   widget: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
   isPublic: PropTypes.bool,
   isLive: PropTypes.bool,
+  liveInterval: PropTypes.number,
   onRefresh: PropTypes.func.isRequired,
   onExpand: PropTypes.func.isRequired,
 };
 
-VisualizationWidgetFooter.defaultProps = { isPublic: false, isLive: false };
+VisualizationWidgetFooter.defaultProps = { isPublic: false, isLive: false, liveInterval: null };
 
 class VisualizationWidget extends React.Component {
   static propTypes = {
@@ -221,6 +224,8 @@ class VisualizationWidget extends React.Component {
     filters: FiltersType,
     isPublic: PropTypes.bool,
     isLive: PropTypes.bool,
+    // Seconds between the server's refreshes; null while paused or not live.
+    liveInterval: PropTypes.number,
     isLoading: PropTypes.bool,
     canEdit: PropTypes.bool,
     isEditing: PropTypes.bool,
@@ -235,6 +240,7 @@ class VisualizationWidget extends React.Component {
     filters: [],
     isPublic: false,
     isLive: false,
+    liveInterval: null,
     isLoading: false,
     canEdit: false,
     isEditing: false,
@@ -328,7 +334,8 @@ class VisualizationWidget extends React.Component {
   }
 
   render() {
-    const { widget, isLoading, isPublic, isLive, canEdit, isEditing, onRefresh, onParametersChange } = this.props;
+    const { widget, isLoading, isPublic, isLive, liveInterval, canEdit, isEditing, onRefresh, onParametersChange } =
+      this.props;
     const { localParameters } = this.state;
     const widgetQueryResult = widget.getQueryResult();
     const isRefreshing = isLoading && !!(widgetQueryResult && widgetQueryResult.getStatus());
@@ -363,6 +370,7 @@ class VisualizationWidget extends React.Component {
             widget={widget}
             isPublic={isPublic}
             isLive={isLive}
+            liveInterval={liveInterval}
             onRefresh={onRefresh}
             onExpand={this.expandWidget}
           />

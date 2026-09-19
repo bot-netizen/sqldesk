@@ -2,18 +2,23 @@ import React from "react";
 import { mount } from "enzyme";
 import { act } from "react-dom/test-utils";
 import { Dashboard } from "@/services/dashboard";
-import useLiveDashboard from "./useLiveDashboard";
+import { resetServerClock, serverNow } from "@/lib/serverClock";
+import useLiveDashboard, { CATCH_UP_LIMIT, CATCH_UP_MS, DUE_GRACE_MS, nextCheckIn } from "./useLiveDashboard";
 
 jest.mock("@/services/dashboard", () => ({
   Dashboard: { watchLive: jest.fn(), watchPublicLive: jest.fn() },
 }));
 
-function widget(id, resultId) {
+function widget(id, resultId, updatedAt = null) {
   return {
     id,
     loading: false,
-    getQueryResult: () => (resultId === null ? null : { getId: () => resultId }),
+    getQueryResult: () => (resultId === null ? null : { getId: () => resultId, getUpdatedAt: () => updatedAt }),
   };
+}
+
+function secondsAgo(seconds) {
+  return new Date(Date.now() - seconds * 1000).toISOString();
 }
 
 function Harness({ dashboard, loadWidget, publicToken, onState }) {
@@ -55,6 +60,7 @@ describe("useLiveDashboard", () => {
   });
 
   afterEach(() => {
+    resetServerClock();
     mounted.forEach((w) => {
       if (w.exists()) {
         w.unmount();
@@ -145,5 +151,92 @@ describe("useLiveDashboard", () => {
     await flush();
     expect(Dashboard.watchPublicLive).toHaveBeenCalledWith({ token: "abc" }, { viewer: expect.any(String) });
     expect(Dashboard.watchLive).not.toHaveBeenCalled();
+  });
+
+  test("coming back to an old result, it checks in every few seconds until the new one is there", async () => {
+    // Hidden for five minutes: the server has only just been told to refresh.
+    const old = widget(10, 500, secondsAgo(300));
+    Dashboard.watchLive.mockResolvedValue({ live, results: { 10: 500 } });
+    mountHarness(<Harness dashboard={{ id: 1, live, widgets: [old] }} loadWidget={jest.fn()} onState={() => {}} />);
+    await flush();
+    expect(Dashboard.watchLive).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      jest.advanceTimersByTime(CATCH_UP_MS);
+    });
+    await flush();
+    expect(Dashboard.watchLive).toHaveBeenCalledTimes(2);
+  });
+
+  test("it checks in just after the next widget falls due", async () => {
+    // Refreshed 20 seconds ago on a 30-second dashboard: due in 10.
+    Dashboard.watchLive.mockResolvedValue({ live, results: { 10: 500 } });
+    mountHarness(
+      <Harness
+        dashboard={{ id: 1, live, widgets: [widget(10, 500, secondsAgo(20))] }}
+        loadWidget={jest.fn()}
+        onState={() => {}}
+      />
+    );
+    await flush();
+
+    act(() => {
+      jest.advanceTimersByTime(10000 + DUE_GRACE_MS - 500);
+    });
+    await flush();
+    expect(Dashboard.watchLive).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+    await flush();
+    expect(Dashboard.watchLive).toHaveBeenCalledTimes(2);
+  });
+
+  test("it takes the server's clock from a check-in", async () => {
+    const serverTime = new Date(Date.now() + 3600 * 1000).toISOString();
+    Dashboard.watchLive.mockResolvedValue({ live, results: {}, server_time: serverTime });
+    mountHarness(<Harness dashboard={{ id: 1, live, widgets: [] }} loadWidget={jest.fn()} onState={() => {}} />);
+    await flush();
+    expect(Math.abs(serverNow() - Date.now() - 3600 * 1000)).toBeLessThan(1000);
+  });
+});
+
+describe("nextCheckIn", () => {
+  const live = { interval: 30, paused: false };
+  const now = Date.parse("2026-09-19T10:00:00Z");
+  const at = (secondsBefore) => new Date(now - secondsBefore * 1000).toISOString();
+  const base = { live, checkInMs: 15000, overdueChecks: 0, now };
+
+  test("the usual interval when nothing is due before it", () => {
+    expect(nextCheckIn({ ...base, widgets: [widget(1, 1, at(0))] })).toEqual({ delay: 15000, overdue: false });
+  });
+
+  test("sooner when a widget falls due first", () => {
+    expect(nextCheckIn({ ...base, widgets: [widget(1, 1, at(25))] }).delay).toBe(5000 + DUE_GRACE_MS);
+  });
+
+  test("the earliest widget decides", () => {
+    const widgets = [widget(1, 1, at(0)), widget(2, 2, at(24))];
+    expect(nextCheckIn({ ...base, widgets }).delay).toBe(6000 + DUE_GRACE_MS);
+  });
+
+  test("every few seconds while overdue, for a while", () => {
+    const widgets = [widget(1, 1, at(90))];
+    expect(nextCheckIn({ ...base, widgets })).toEqual({ delay: CATCH_UP_MS, overdue: true });
+    expect(nextCheckIn({ ...base, widgets, overdueChecks: CATCH_UP_LIMIT })).toEqual({ delay: 15000, overdue: true });
+  });
+
+  test("a widget already loading its new result is not waiting", () => {
+    const loading = { ...widget(1, 1, at(90)), loading: true };
+    expect(nextCheckIn({ ...base, widgets: [loading] }).delay).toBe(15000);
+  });
+
+  test("paused, nothing is coming", () => {
+    const widgets = [widget(1, 1, at(90))];
+    expect(nextCheckIn({ ...base, widgets, live: { ...live, paused: true } })).toEqual({
+      delay: 15000,
+      overdue: false,
+    });
   });
 });

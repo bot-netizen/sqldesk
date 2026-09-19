@@ -27,11 +27,19 @@ describe("Live dashboards", () => {
       cy.getByTestId("LiveInterval.30").click();
 
       cy.getByTestId("LiveBadge").should("contain", "Live").and("contain", "every 30 seconds");
-      // The server refreshes it now; nobody watching can add load.
-      cy.getByTestId(elTestId).within(() => cy.getByTestId("RefreshButton").should("not.exist"));
+      // The server refreshes it now; nobody watching can add load. What the
+      // widget shows instead is when the next refresh comes -- only that.
+      cy.getByTestId(elTestId).within(() => {
+        cy.getByTestId("RefreshButton").should("not.exist");
+        cy.getByTestId("LiveCountdown")
+          .invoke("text")
+          .should("match", /^(next in \d+s|refreshing…)$/);
+      });
 
       cy.getByTestId("LivePauseButton").click();
       cy.getByTestId("LiveBadge").should("contain", "Paused");
+      // Paused, nothing is coming: it says how old the result is instead.
+      cy.getByTestId(elTestId).within(() => cy.getByTestId("LiveCountdown").should("contain", "updated"));
 
       cy.getByTestId("LivePauseButton").click();
       cy.getByTestId("LiveBadge").should("contain", "every 30 seconds");
@@ -59,6 +67,16 @@ describe("Live dashboards", () => {
         expect(xhr.request.body.viewer).to.be.a("string").and.not.be.empty;
         expect(xhr.response.body.live.interval).to.equal(60);
       });
+    });
+  });
+
+  it("says so when Refresh has nothing newer to show", function () {
+    // A query nobody has run: the page's first load runs it, so its result is
+    // seconds old when Refresh is pressed, and Refresh reuses it.
+    createQueryAndAddWidget(this.dashboardId, { query: `select ${Date.now()} as n` }).then((elTestId) => {
+      cy.visit(this.dashboardUrl);
+      cy.getByTestId(elTestId).within(() => cy.getByTestId("RefreshButton").click());
+      cy.contains(".ant-notification-notice", "Already up to date").should("exist");
     });
   });
 

@@ -48,6 +48,7 @@ function PublicDashboard({ dashboard, token }) {
           isEditing={false}
           isPublic
           isLive={!!live}
+          liveInterval={live && !live.paused ? live.interval : null}
           onLoadWidget={loadWidget}
           onRefreshWidget={refreshWidget}
         />
