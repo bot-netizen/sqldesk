@@ -168,53 +168,64 @@ def _skip(query):
     return None
 
 
-def refresh_live_dashboards():
+def refresh_dashboard(dashboard):
     """
-    Enqueue, for every running and watched live dashboard, each widget query
-    whose newest result is older than the dashboard's interval.
+    Enqueue each of a running live dashboard's widget queries whose newest
+    result is older than its interval, and return their query ids.
 
     Queries already running are not stacked: enqueue_query hands back the job
-    already in flight for the same text. Scheduled by the periodic scheduler
-    every 10 seconds; costs one query and one Redis round trip per live
-    dashboard when nothing is due.
+    already in flight for the same text.
     """
     from sqldesk.tasks.queries.execution import enqueue_query
 
+    if not is_running(dashboard):
+        return []
+
+    enqueued = []
+    interval = dashboard.live["interval"]
+    for widget in dashboard.widgets:
+        resolved = widget_query_text(widget)
+        if resolved is None:
+            continue
+        query, text = resolved
+        reason = _skip(query)
+        if reason:
+            logger.debug("Live dashboard %s skips query %s because %s", dashboard.id, query.id, reason)
+            continue
+        fresh = models.QueryResult.get_latest(query.data_source, text, max_age=interval - FRESHNESS_SLACK)
+        if fresh:
+            continue
+        try:
+            enqueue_query(
+                text,
+                query.data_source,
+                dashboard.user_id,
+                metadata={
+                    "query_id": query.id,
+                    "dashboard_id": dashboard.id,
+                    "Username": "Live dashboard {}".format(dashboard.id),
+                },
+            )
+            enqueued.append(query.id)
+        except Exception:  # one bad query must not stop the others
+            logger.exception("Live dashboard %s could not enqueue query %s", dashboard.id, query.id)
+    return enqueued
+
+
+def refresh_live_dashboards():
+    """
+    Refresh every running live dashboard somebody is watching. Scheduled by
+    the periodic scheduler every 10 seconds; costs one query and one Redis
+    round trip per live dashboard when nothing is due.
+    """
     enqueued = []
     now = time.time()
     dashboards = models.Dashboard.query.filter(
         models.Dashboard.live.isnot(None), models.Dashboard.is_archived.is_(False)
     )
     for dashboard in dashboards:
-        if not is_running(dashboard) or not is_watched(dashboard.id, now):
-            continue
-        interval = dashboard.live["interval"]
-        for widget in dashboard.widgets:
-            resolved = widget_query_text(widget)
-            if resolved is None:
-                continue
-            query, text = resolved
-            reason = _skip(query)
-            if reason:
-                logger.debug("Live dashboard %s skips query %s because %s", dashboard.id, query.id, reason)
-                continue
-            fresh = models.QueryResult.get_latest(query.data_source, text, max_age=interval - FRESHNESS_SLACK)
-            if fresh:
-                continue
-            try:
-                enqueue_query(
-                    text,
-                    query.data_source,
-                    dashboard.user_id,
-                    metadata={
-                        "query_id": query.id,
-                        "dashboard_id": dashboard.id,
-                        "Username": "Live dashboard {}".format(dashboard.id),
-                    },
-                )
-                enqueued.append(query.id)
-            except Exception:  # one bad query must not stop the others
-                logger.exception("Live dashboard %s could not enqueue query %s", dashboard.id, query.id)
+        if is_running(dashboard) and is_watched(dashboard.id, now):
+            enqueued.extend(refresh_dashboard(dashboard))
 
     if enqueued:
         logger.info("Live dashboards enqueued %d queries: %s", len(enqueued), enqueued)

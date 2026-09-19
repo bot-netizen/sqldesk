@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import time
 from datetime import datetime, timedelta
 
 from rq.job import Job
@@ -24,10 +25,35 @@ logger = logging.getLogger(__name__)
 
 class StatsdRecordingScheduler(Scheduler):
     """
-    RQ Scheduler Mixin that uses SQLDesk's custom RQ Queue class to increment/modify metrics via Statsd
+    RQ Scheduler Mixin that uses SQLDesk's custom RQ Queue class to increment/modify metrics via Statsd.
+
+    It also keeps the periodic jobs on the schedule. rq-scheduler drops a
+    scheduled job for good when it finds the job's record in Redis gone, and
+    the jobs were only ever scheduled when this process started -- so one lost
+    record stopped that job until somebody restarted the scheduler.
     """
 
     queue_class = Queue
+
+    # Seconds between checks that every periodic job is still scheduled. The
+    # check is a handful of ZSCOREs; recovery waits at most this long.
+    periodic_check_interval = 30
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._periodic_checked_at = None
+
+    def enqueue_jobs(self):
+        # After enqueueing, so a job dropped by this very pass is put back now.
+        jobs = super().enqueue_jobs()
+        now = time.monotonic()
+        if self._periodic_checked_at is None or now - self._periodic_checked_at >= self.periodic_check_interval:
+            self._periodic_checked_at = now
+            try:
+                reschedule_missing_periodic_jobs()
+            except Exception:  # never let the check stop the scheduler itself
+                logger.exception("Could not check the periodic jobs are scheduled.")
+        return jobs
 
 
 rq_scheduler = StatsdRecordingScheduler(connection=rq_redis_connection, queue_name="periodic", interval=5)
@@ -46,7 +72,12 @@ def prep(kwargs):
         interval = int(interval.total_seconds())
 
     kwargs["interval"] = interval
-    kwargs["result_ttl"] = kwargs.get("result_ttl", interval * 2)
+    # A periodic job reuses one record for every run, and rq-scheduler drops the
+    # job for good if that record is ever missing. With a result TTL, Redis
+    # deleted it whenever the next run came later than the TTL -- which is what
+    # happens when a laptop sleeps or Docker's VM is paused: live dashboards,
+    # with a 60-second TTL, stopped after the first nap. -1 keeps it.
+    kwargs["result_ttl"] = -1
 
     return kwargs
 
@@ -57,26 +88,17 @@ def schedule(kwargs):
 
 def periodic_job_definitions():
     jobs = [
-        {"func": refresh_queries, "timeout": 600, "interval": 30, "result_ttl": 600},
+        {"func": refresh_queries, "timeout": 600, "interval": 30},
         # Live dashboards: every 10 seconds, so a 30-second dashboard is on time.
         # Does nothing for a dashboard nobody is watching.
-        {"func": refresh_live_dashboards, "timeout": 60, "interval": 10, "result_ttl": 60},
-        {
-            "func": remove_ghost_locks,
-            "interval": timedelta(minutes=1),
-            "result_ttl": 600,
-        },
+        {"func": refresh_live_dashboards, "timeout": 60, "interval": 10},
+        {"func": remove_ghost_locks, "interval": timedelta(minutes=1)},
         {"func": empty_schedules, "interval": timedelta(minutes=60)},
         {
             "func": refresh_schemas,
             "interval": timedelta(minutes=settings.SCHEMAS_REFRESH_SCHEDULE),
         },
-        {
-            "func": sync_user_details,
-            "timeout": 60,
-            "interval": timedelta(minutes=1),
-            "result_ttl": 600,
-        },
+        {"func": sync_user_details, "timeout": 60, "interval": timedelta(minutes=1)},
         {
             "func": send_aggregated_errors,
             "interval": timedelta(minutes=settings.SEND_FAILURE_EMAIL_INTERVAL),
@@ -118,3 +140,22 @@ def schedule_periodic_jobs(jobs):
             job.get("interval"),
         )
         schedule(job)
+
+
+def reschedule_missing_periodic_jobs(jobs=None):
+    """
+    Schedule again any periodic job that has fallen off the schedule, and
+    return the ones that had. Unlike schedule_periodic_jobs, removes nothing:
+    it runs inside the scheduler's loop, where the definitions cannot have
+    changed.
+    """
+    job_definitions = [prep(job) for job in (periodic_job_definitions() if jobs is None else jobs)]
+    missing = [job for job in job_definitions if job_id(job) not in rq_scheduler]
+    for job in missing:
+        logger.warning(
+            "Periodic job %s (%s) had fallen off the schedule; scheduling it again.",
+            job_id(job),
+            job["func"].__name__,
+        )
+        schedule(job)
+    return missing

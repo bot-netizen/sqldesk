@@ -315,6 +315,51 @@ class TestRefreshingLiveDashboards(BaseTestCase):
         live.refresh_live_dashboards()
         enqueue.assert_not_called()
 
+    def test_the_first_viewer_back_starts_it_at_once(self, enqueue):
+        # Nobody was watching, so nothing was refreshed; the scheduler's next
+        # tick is up to 10 seconds away, and the viewer is looking now.
+        dashboard = _live_dashboard(self.factory)
+        self._widget(dashboard)
+        path = "/api/dashboards/{}/live/watch".format(dashboard.id)
+
+        rv = self.make_request("post", path, data={"viewer": "tab"})
+        self.assertEqual(rv.status_code, 200)
+        enqueue.assert_called_once()
+
+        # Somebody is watching now: the scheduler keeps it going, not check-ins.
+        self.make_request("post", path, data={"viewer": "tab"})
+        self.make_request("post", path, data={"viewer": "another tab"})
+        enqueue.assert_called_once()
+
+    def test_coming_back_to_a_hidden_tab_starts_it_at_once(self, enqueue):
+        dashboard = _live_dashboard(self.factory)
+        self._widget(dashboard)
+        path = "/api/dashboards/{}/live/watch".format(dashboard.id)
+
+        self.make_request("post", path, data={"viewer": "tab"})
+        self.make_request("post", path, data={"viewer": "tab", "leaving": True})
+        self.make_request("post", path, data={"viewer": "tab"})
+
+        self.assertEqual(enqueue.call_count, 2)
+
+    def test_a_check_in_says_what_time_the_server_makes_it(self, enqueue):
+        dashboard = _live_dashboard(self.factory)
+        rv = self.make_request("post", "/api/dashboards/{}/live/watch".format(dashboard.id), data={"viewer": "tab"})
+        server_time = datetime.datetime.fromisoformat(rv.json["server_time"])
+        self.assertLess(abs((utcnow() - server_time).total_seconds()), 5)
+
+    def test_resume_starts_it_at_once_and_pause_does_not(self, enqueue):
+        admin = self.factory.create_admin()
+        dashboard = _live_dashboard(self.factory, user=admin)
+        self._widget(dashboard)
+        path = "/api/dashboards/{}/live".format(dashboard.id)
+
+        self.make_request("post", path, data={"paused": True}, user=admin)
+        enqueue.assert_not_called()
+
+        self.make_request("post", path, data={"paused": False}, user=admin)
+        enqueue.assert_called_once()
+
 
 class TestGrantingLive(BaseTestCase):
     def test_an_admin_grants_and_takes_away(self):

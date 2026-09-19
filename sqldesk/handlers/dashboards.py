@@ -19,6 +19,7 @@ from sqldesk.permissions import (
 )
 from sqldesk.security import csp_allows_embeding
 from sqldesk.serializers import DashboardSerializer, public_dashboard
+from sqldesk.utils import utcnow
 
 # Ordering map for relationships
 order_map = {
@@ -357,6 +358,10 @@ class DashboardLiveResource(BaseResource):
         for action in actions:
             self.record_event({"action": action, "object_id": dashboard.id, "object_type": "dashboard"})
 
+        # Going live, a new interval or Resume: refresh what is stale now, so
+        # the person who pressed it sees it start. Off or paused, a no-op.
+        live.refresh_dashboard(dashboard)
+
         return {"live": live.describe(dashboard)}
 
 
@@ -414,8 +419,20 @@ def _watch(dashboard, who, user):
     if described is None:
         return {"live": None}
 
+    # Nobody was watching, so nothing has been refreshed: the first viewer back
+    # -- often the same person returning to a hidden tab -- starts it now
+    # rather than on the scheduler's next tick.
+    was_watched = live.is_watched(dashboard.id)
     live.check_in(dashboard.id, member)
-    return {"live": described, "results": live.latest_results(dashboard, user)}
+    if not was_watched:
+        live.refresh_dashboard(dashboard)
+    return {
+        "live": described,
+        "results": live.latest_results(dashboard, user),
+        # The viewer counts down to the next refresh from result times the
+        # server wrote, so it needs the server's clock, not its own.
+        "server_time": utcnow().isoformat(),
+    }
 
 
 class DashboardShareResource(BaseResource):
