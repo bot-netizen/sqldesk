@@ -113,8 +113,14 @@ export function fetchDataFromJob(jobId, interval = 1000) {
   });
 }
 
+const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}T/;
+
 export function isDateTime(v) {
-  return isString(v) && moment(v, moment.ISO_8601, true).isValid() && /^\d{4}-\d{2}-\d{2}T/.test(v);
+  // Cheap test first. This runs on every string cell of every result, and a
+  // strict moment parse costs around fifty times what the regex does -- so
+  // asking moment about "acme-corp" before ruling it out on shape was a
+  // quarter of the time spent taking a large result in.
+  return isString(v) && ISO_DATE_TIME.test(v) && moment(v, moment.ISO_8601, true).isValid();
 }
 
 class QueryResult {
