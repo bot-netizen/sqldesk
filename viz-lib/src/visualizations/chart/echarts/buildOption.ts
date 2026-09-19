@@ -327,14 +327,34 @@ function buildBoxTooltipFormatter(options: any) {
   };
 }
 
-function buildPieSeries(chartData: any[], options: any) {
+/**
+ * Where the legend goes. The editor offers Right (saved as "auto", where Plotly
+ * put it) and Below ("below"); the ECharts renderer drew it below either way,
+ * so choosing Right did nothing. On the right it runs down the side, and the
+ * plot gives up the width its names need, up to a cap past which long names
+ * are cut short.
+ */
+const LEGEND_MAX_WIDTH = 160;
+
+export function legendLayout(options: any, names: string[]) {
+  const enabled = !!options.legend.enabled;
+  const right = enabled && options.legend.placement !== "below";
+  const longest = Math.max(0, ...names.map((name) => String(name).length));
+  const width = right ? Math.min(LEGEND_MAX_WIDTH, 36 + 7 * longest) : 0;
+  return { enabled, right, below: enabled && !right, width };
+}
+
+function buildPieSeries(chartData: any[], options: any, legendWidthShare = 0) {
   const palette = paletteFor(options);
+  // Pies are placed by percentage; a legend down the right takes its share
+  // off the width they are spread across.
+  const span = 100 - legendWidthShare;
   return map(chartData, (series, seriesIndex) => ({
     id: seriesId(series.name),
     name: series.name,
     type: "pie",
     radius: chartData.length > 1 ? "55%" : "65%",
-    center: chartData.length > 1 ? [`${((seriesIndex % 2) + 0.5) * 50}%`, "50%"] : ["50%", "50%"],
+    center: chartData.length > 1 ? [`${((seriesIndex % 2) + 0.5) * (span / 2)}%`, "50%"] : [`${span / 2}%`, "50%"],
     data: map(series.data, (point: any, index: number) => ({
       name: String(point.x),
       value: cleanNumber(point.y),
@@ -490,8 +510,16 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
     }
   }
 
+  // A pie's legend lists its slices; every other chart's, its series.
+  const legend = legendLayout(
+    options,
+    isPie
+      ? chartData.flatMap((s: any) => map(s.data, (point: any) => String(point.x)))
+      : map(chartData, (s: any) => String(s.name))
+  );
+
   const series = isPie
-    ? buildPieSeries(chartData, options)
+    ? buildPieSeries(chartData, options, legend.right ? 25 : 0)
     : isBox
       ? buildBoxSeries(chartData, options, xAxisType, categories, (name, index) => seriesColor(options, name, index))
       : buildCartesianSeries(chartData, options, xAxisType, categories, horizontal);
@@ -533,12 +561,22 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
     // a chart that refreshes. Series need stable ids for it (see above).
     ...ECHARTS_MOTION,
     color: paletteFor(options),
-    legend: {
-      show: options.legend.enabled,
-      type: "scroll",
-      bottom: 0,
-      icon: "roundRect",
-    },
+    legend: legend.right
+      ? {
+          show: true,
+          type: "scroll",
+          orient: "vertical",
+          right: 4,
+          top: "middle",
+          icon: "roundRect",
+          textStyle: { width: legend.width - 36, overflow: "truncate" },
+        }
+      : {
+          show: legend.enabled,
+          type: "scroll",
+          bottom: 0,
+          icon: "roundRect",
+        },
     tooltip: {
       trigger: isPie || isBox ? "item" : "axis",
       axisPointer: {
@@ -559,16 +597,16 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
     const slider = !!zoom && zoom.some((z) => z.type === "slider");
     option.grid = {
       left: 12,
-      right: horizontal && slider ? 40 : 12,
+      right: (legend.right ? legend.width + 8 : 12) + (horizontal && slider ? 28 : 0),
       top: 24,
-      // Room for the legend, and for a zoom slider under the axis.
-      bottom: (options.legend.enabled ? 36 : 12) + (slider && !horizontal ? 30 : 0),
+      // Room for a legend below, and for a zoom slider under the axis.
+      bottom: (legend.below ? 36 : 12) + (slider && !horizontal ? 30 : 0),
       containLabel: true,
     };
     if (zoom) {
       // The slider sits between the axis and the legend.
       option.dataZoom = zoom.map((z) =>
-        z.type === "slider" && !horizontal ? { ...z, bottom: options.legend.enabled ? 30 : 6 } : z
+        z.type === "slider" && !horizontal ? { ...z, bottom: legend.below ? 30 : 6 } : z
       );
     }
     const measureAxes = (secondPosition: string) => [

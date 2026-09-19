@@ -247,6 +247,55 @@ describe("Visualizations -> Chart -> ECharts -> buildOption", () => {
     });
   });
 
+  describe("legend placement", () => {
+    const two = () => [series("revenue", [["a", 1]]), series("cost", [["a", 2]])];
+
+    test("Right puts it down the right side, and the plot makes room for it", () => {
+      const built = buildOption(two(), options({ legend: { enabled: true, placement: "auto" } }));
+      expect(built.option.legend.orient).toBe("vertical");
+      expect(built.option.legend.right).toBeDefined();
+      expect(built.option.legend.bottom).toBeUndefined();
+      expect(built.option.grid.right).toBeGreaterThan(36);
+      expect(built.option.grid.bottom).toBeLessThan(36);
+    });
+
+    test("Below puts it under the chart", () => {
+      const built = buildOption(two(), options({ legend: { enabled: true, placement: "below" } }));
+      expect(built.option.legend.bottom).toBe(0);
+      expect(built.option.legend.orient).toBeUndefined();
+      expect(built.option.grid.bottom).toBeGreaterThanOrEqual(36);
+    });
+
+    test("very long names are cut short rather than squeezing the plot away", () => {
+      const long = [series("x".repeat(200), [["a", 1]])];
+      const built = buildOption(long, options({ legend: { enabled: true, placement: "auto" } }));
+      expect(built.option.grid.right).toBeLessThanOrEqual(180);
+      expect(built.option.legend.textStyle.overflow).toBe("truncate");
+    });
+
+    test("a pie moves left of a legend on the right", () => {
+      const pie = [
+        {
+          ...series("share", [
+            ["a", 1],
+            ["b", 2],
+          ]),
+          type: "pie",
+        },
+      ];
+      const right = buildOption(
+        pie,
+        options({ globalSeriesType: "pie", legend: { enabled: true, placement: "auto" } })
+      );
+      const below = buildOption(
+        pie,
+        options({ globalSeriesType: "pie", legend: { enabled: true, placement: "below" } })
+      );
+      expect(parseFloat(right.option.series[0].center[0])).toBeLessThan(50);
+      expect(below.option.series[0].center[0]).toBe("50%");
+    });
+  });
+
   describe("reading a value under the pointer", () => {
     const item = (x: string, y: number, name = "revenue") => ({
       axisValueLabel: x,
