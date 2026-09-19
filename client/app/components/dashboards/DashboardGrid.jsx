@@ -33,55 +33,18 @@ const WidgetType = PropTypes.shape({
 const SINGLE = "single-column";
 const MULTI = "multi-column";
 
-const DashboardWidget = React.memo(
-  function DashboardWidget({
-    widget,
-    dashboard,
-    onLoadWidget,
-    onRefreshWidget,
-    onRemoveWidget,
-    onParameterMappingsChange,
-    isEditing,
-    canEdit,
-    isPublic,
-    isLive,
-    liveInterval,
-    isLoading,
-    filters,
-  }) {
-    const { type } = widget;
-    const onLoad = () => onLoadWidget(widget);
-    const onRefresh = () => onRefreshWidget(widget);
-    const onParametersChange = () => onRefreshWidget(widget, { parametersChanged: true });
-    const onDelete = () => onRemoveWidget(widget.id);
-
-    if (type === WidgetTypeEnum.VISUALIZATION) {
-      return (
-        <VisualizationWidget
-          widget={widget}
-          dashboard={dashboard}
-          filters={filters}
-          isEditing={isEditing}
-          canEdit={canEdit}
-          isPublic={isPublic}
-          isLive={isLive}
-          liveInterval={liveInterval}
-          isLoading={isLoading}
-          onLoad={onLoad}
-          onRefresh={onRefresh}
-          onParametersChange={onParametersChange}
-          onDelete={onDelete}
-          onParameterMappingsChange={onParameterMappingsChange}
-        />
-      );
-    }
-    if (type === WidgetTypeEnum.TEXTBOX) {
-      return <TextboxWidget widget={widget} canEdit={canEdit} isPublic={isPublic} onDelete={onDelete} />;
-    }
-    return <RestrictedWidget widget={widget} />;
-  },
-  (prevProps, nextProps) =>
+/*
+  Widgets are mutated in place -- a reload replaces widget.data but not the
+  widget -- so re-rendering one takes a prop that changes with what it shows.
+  `queryResult` is that: without it, a result that arrived with nothing else
+  changing (a live dashboard's refresh, whose loadWidget renders once before
+  the load starts and once after it ends, "not loading" both times) was fetched
+  but never drawn, and the countdown sat on "refreshing…".
+*/
+export function dashboardWidgetPropsAreEqual(prevProps, nextProps) {
+  return (
     prevProps.widget === nextProps.widget &&
+    prevProps.queryResult === nextProps.queryResult &&
     prevProps.canEdit === nextProps.canEdit &&
     prevProps.isPublic === nextProps.isPublic &&
     prevProps.isLive === nextProps.isLive &&
@@ -89,7 +52,55 @@ const DashboardWidget = React.memo(
     prevProps.isLoading === nextProps.isLoading &&
     prevProps.filters === nextProps.filters &&
     prevProps.isEditing === nextProps.isEditing
-);
+  );
+}
+
+export const DashboardWidget = React.memo(function DashboardWidget({
+  widget,
+  dashboard,
+  onLoadWidget,
+  onRefreshWidget,
+  onRemoveWidget,
+  onParameterMappingsChange,
+  isEditing,
+  canEdit,
+  isPublic,
+  isLive,
+  liveInterval,
+  isLoading,
+  filters,
+}) {
+  const { type } = widget;
+  const onLoad = () => onLoadWidget(widget);
+  const onRefresh = () => onRefreshWidget(widget);
+  const onParametersChange = () => onRefreshWidget(widget, { parametersChanged: true });
+  const onDelete = () => onRemoveWidget(widget.id);
+
+  if (type === WidgetTypeEnum.VISUALIZATION) {
+    return (
+      <VisualizationWidget
+        widget={widget}
+        dashboard={dashboard}
+        filters={filters}
+        isEditing={isEditing}
+        canEdit={canEdit}
+        isPublic={isPublic}
+        isLive={isLive}
+        liveInterval={liveInterval}
+        isLoading={isLoading}
+        onLoad={onLoad}
+        onRefresh={onRefresh}
+        onParametersChange={onParametersChange}
+        onDelete={onDelete}
+        onParameterMappingsChange={onParameterMappingsChange}
+      />
+    );
+  }
+  if (type === WidgetTypeEnum.TEXTBOX) {
+    return <TextboxWidget widget={widget} canEdit={canEdit} isPublic={isPublic} onDelete={onDelete} />;
+  }
+  return <RestrictedWidget widget={widget} />;
+}, dashboardWidgetPropsAreEqual);
 
 class DashboardGrid extends React.Component {
   static propTypes = {
@@ -287,6 +298,7 @@ class DashboardGrid extends React.Component {
                 isLive={isLive}
                 liveInterval={liveInterval}
                 isLoading={widget.loading}
+                queryResult={widget.getQueryResult ? widget.getQueryResult() : null}
                 isEditing={isEditing}
                 canEdit={dashboard.canEdit()}
                 onLoadWidget={onLoadWidget}

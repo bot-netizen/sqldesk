@@ -1,5 +1,5 @@
 import { keys, some } from "lodash";
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import classNames from "classnames";
 import CloseOutlinedIcon from "@ant-design/icons/CloseOutlined";
@@ -83,12 +83,31 @@ function EmptyState({
     inviteUsers: showInviteStep,
   };
 
+  // The counts were fetched once, when the app opened, so a data source or
+  // dashboard made since then still showed as a step to do until the page was
+  // reloaded. Ask again whenever the checklist appears.
+  const [counters, setCounters] = useState(organizationStatus.objectCounters);
+  useEffect(() => {
+    let cancelled = false;
+    organizationStatus
+      .refresh()
+      .then((status) => {
+        if (!cancelled) {
+          setCounters(status.objectCounters);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const isCompleted = {
-    dataSource: organizationStatus.objectCounters.data_sources > 0,
-    query: organizationStatus.objectCounters.queries > 0,
-    alert: organizationStatus.objectCounters.alerts > 0,
-    dashboard: organizationStatus.objectCounters.dashboards > 0,
-    inviteUsers: organizationStatus.objectCounters.users > 1,
+    dataSource: counters.data_sources > 0,
+    query: counters.queries > 0,
+    alert: counters.alerts > 0,
+    dashboard: counters.dashboards > 0,
+    inviteUsers: counters.users > 1,
   };
 
   const showCreateDashboardDialog = useCallback(() => {

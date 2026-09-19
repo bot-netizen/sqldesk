@@ -51,6 +51,31 @@ describe("Live dashboards", () => {
     });
   });
 
+  it("draws each result the server makes, and counts down again, without a reload", function () {
+    // A value that is different every time the query runs.
+    createQueryAndAddWidget(this.dashboardId, { query: "select clock_timestamp()::text as t" }).then((elTestId) => {
+      cy.visit(this.dashboardUrl);
+      cy.getByTestId(elTestId)
+        .find(".ant-table-tbody td")
+        .first()
+        .invoke("text")
+        .then((before) => {
+          openLiveMenu();
+          cy.getByTestId("LiveInterval.30").click();
+          cy.getByTestId("LiveBadge").should("contain", "every 30 seconds");
+
+          // The server refreshes it about 30 seconds after the first result;
+          // the new one has to reach the screen by itself.
+          cy.getByTestId(elTestId)
+            .find(".ant-table-tbody td", { timeout: 90000 })
+            .should(($cells) => {
+              expect($cells.first().text()).not.to.equal(before);
+            });
+          cy.getByTestId(elTestId).within(() => cy.getByTestId("LiveCountdown").should("contain", "next in"));
+        });
+    });
+  });
+
   it("stays live across a reload, and the page checks in as a viewer", function () {
     createQueryAndAddWidget(this.dashboardId, { query: "select 2 as n" }).then(() => {
       cy.visit(this.dashboardUrl);
