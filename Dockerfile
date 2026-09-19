@@ -1,4 +1,7 @@
-FROM node:24-bookworm AS frontend-builder
+# The frontend is JavaScript: the same files whichever platform the image is
+# for, so it is built on the machine's own platform and never under emulation.
+# Built for arm64 on an amd64 machine it took 30 minutes instead of 4.
+FROM --platform=$BUILDPLATFORM node:24-bookworm AS frontend-builder
 
 RUN npm install --global pnpm@10.30.3
 
