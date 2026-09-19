@@ -13,7 +13,8 @@ function ExpandedWidgetDialog({ dialog, widget, filters }) {
       {...dialog.props}
       title={
         <>
-          <VisualizationName visualization={widget.visualization} /> <span>{widget.getQuery().name}</span>
+          <VisualizationName visualization={widget.visualization} queryName={widget.getQuery().name} />{" "}
+          <span>{widget.getQuery().name}</span>
         </>
       }
       width="95%"

@@ -25,7 +25,7 @@ function QueryLink({ query, visualization, readOnly }) {
 
   return (
     <QueryLinkWrapper className="query-link">
-      <VisualizationName visualization={visualization} /> <span>{query.name}</span>
+      <VisualizationName visualization={visualization} queryName={query.name} /> <span>{query.name}</span>
     </QueryLinkWrapper>
   );
 }
