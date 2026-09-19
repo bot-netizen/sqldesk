@@ -65,12 +65,18 @@ importers:
       html-to-image:
         specifier: 1.11.13
         version: 1.11.13
+      lodash:
+        specifier: ^4.17.21
+        version: 4.17.23
       markdown:
         specifier: 0.5.0
         version: 0.5.0
       material-design-iconic-font:
         specifier: ^2.2.0
         version: 2.2.0
+      moment:
+        specifier: ^2.30.1
+        version: 2.30.1
       mousetrap:
         specifier: ^1.6.1
         version: 1.6.5
@@ -279,9 +285,6 @@ importers:
       less-plugin-autoprefix:
         specifier: ^2.0.0
         version: 2.0.0
-      lodash:
-        specifier: ^4.17.21
-        version: 4.17.23
       mini-css-extract-plugin:
         specifier: ^2.10.0
         version: 2.10.0(webpack@5.105.3)
@@ -397,6 +400,9 @@ importers:
       lodash:
         specifier: ^4.17.10
         version: 4.17.23
+      moment:
+        specifier: ^2.30.1
+        version: 2.30.1
       numeral:
         specifier: ^2.0.6
         version: 2.0.6
