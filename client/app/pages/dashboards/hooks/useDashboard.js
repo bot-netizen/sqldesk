@@ -139,7 +139,15 @@ function useDashboard(dashboardData, { publicToken = null } = {}) {
       .finally(() => setDashboard((currentDashboard) => extend({}, currentDashboard)));
   }, []);
 
-  const refreshWidget = useCallback((widget) => loadWidget(widget, true, MANUAL_REFRESH_MAX_AGE), [loadWidget]);
+  // The Refresh button accepts a result from the last minute. New parameter
+  // values are a request to run the query with them, so they always run --
+  // the cache is keyed by query text, and a result somebody else made with the
+  // same values a moment ago would otherwise come back instead.
+  const refreshWidget = useCallback(
+    (widget, { parametersChanged = false } = {}) =>
+      loadWidget(widget, true, parametersChanged ? undefined : MANUAL_REFRESH_MAX_AGE),
+    [loadWidget]
+  );
 
   const removeWidget = useCallback((widgetId) => {
     setDashboard((currentDashboard) =>

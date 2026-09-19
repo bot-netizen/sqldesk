@@ -226,6 +226,7 @@ class VisualizationWidget extends React.Component {
     isEditing: PropTypes.bool,
     onLoad: PropTypes.func,
     onRefresh: PropTypes.func,
+    onParametersChange: PropTypes.func,
     onDelete: PropTypes.func,
     onParameterMappingsChange: PropTypes.func,
   };
@@ -239,6 +240,7 @@ class VisualizationWidget extends React.Component {
     isEditing: false,
     onLoad: () => {},
     onRefresh: () => {},
+    onParametersChange: () => {},
     onDelete: () => {},
     onParameterMappingsChange: () => {},
   };
@@ -267,14 +269,14 @@ class VisualizationWidget extends React.Component {
   };
 
   editParameterMappings = () => {
-    const { widget, dashboard, onRefresh, onParameterMappingsChange } = this.props;
+    const { widget, dashboard, onParametersChange, onParameterMappingsChange } = this.props;
     EditParameterMappingsDialog.showModal({
       dashboard,
       widget,
     }).onClose((valuesChanged) => {
       // refresh widget if any parameter value has been updated
       if (valuesChanged) {
-        onRefresh();
+        onParametersChange();
       }
       onParameterMappingsChange();
       this.setState({ localParameters: widget.getLocalParameters() });
@@ -326,7 +328,7 @@ class VisualizationWidget extends React.Component {
   }
 
   render() {
-    const { widget, isLoading, isPublic, isLive, canEdit, isEditing, onRefresh } = this.props;
+    const { widget, isLoading, isPublic, isLive, canEdit, isEditing, onRefresh, onParametersChange } = this.props;
     const { localParameters } = this.state;
     const widgetQueryResult = widget.getQueryResult();
     const isRefreshing = isLoading && !!(widgetQueryResult && widgetQueryResult.getStatus());
@@ -352,7 +354,7 @@ class VisualizationWidget extends React.Component {
             // A live dashboard's parameters are fixed to what the server runs.
             parameters={isLive ? [] : localParameters}
             isEditing={isEditing}
-            onParametersUpdate={onRefresh}
+            onParametersUpdate={onParametersChange}
             onParametersEdit={onParametersEdit}
           />
         }

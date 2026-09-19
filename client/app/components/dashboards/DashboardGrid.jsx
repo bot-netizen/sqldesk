@@ -51,6 +51,7 @@ const DashboardWidget = React.memo(
     const { type } = widget;
     const onLoad = () => onLoadWidget(widget);
     const onRefresh = () => onRefreshWidget(widget);
+    const onParametersChange = () => onRefreshWidget(widget, { parametersChanged: true });
     const onDelete = () => onRemoveWidget(widget.id);
 
     if (type === WidgetTypeEnum.VISUALIZATION) {
@@ -66,6 +67,7 @@ const DashboardWidget = React.memo(
           isLoading={isLoading}
           onLoad={onLoad}
           onRefresh={onRefresh}
+          onParametersChange={onParametersChange}
           onDelete={onDelete}
           onParameterMappingsChange={onParameterMappingsChange}
         />
