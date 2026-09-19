@@ -88,11 +88,37 @@ export function echartsAxisType(axisType: any, values: any[] = []): "category" |
     case "category":
       return "category";
     default:
-      // "-" means "decide for me", which Plotly did by inspection. Be explicit
-      // rather than guessing per-render: numbers get a value axis, everything
-      // else is categorical.
-      return values.length > 0 && values.every((v) => cleanNumber(v) !== null) ? "value" : "category";
+      // "-" means "decide for me", which Plotly did by inspection, and it is
+      // what the editor saves unless someone changes it. Dates are checked
+      // first: a datetime column arrives as moments, and a moment converts to
+      // a number -- its epoch milliseconds -- so asking "are these numbers?"
+      // first put every time series on a numeric axis running from 0 to
+      // 1.8 trillion, with all its points piled up at the right-hand end.
+      if (values.length === 0) {
+        return "category";
+      }
+      if (values.every(isDateLike)) {
+        return "time";
+      }
+      return values.every((v) => cleanNumber(v) !== null) ? "value" : "category";
   }
+}
+
+/**
+ * A point in time: a moment, a Date, or an ISO 8601 date or date-time string
+ * (what a data source that types every column as text hands over). A bare
+ * number is not one, even though moment would read it as milliseconds.
+ */
+export function isDateLike(value: any): boolean {
+  if (moment.isMoment(value)) {
+    return value.isValid();
+  }
+  if (value instanceof Date) {
+    return !isNaN(value.getTime());
+  }
+  return (
+    typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value) && moment(value, moment.ISO_8601, true).isValid()
+  );
 }
 
 /**

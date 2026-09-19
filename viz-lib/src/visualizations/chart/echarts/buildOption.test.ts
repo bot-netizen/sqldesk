@@ -1,4 +1,6 @@
+import moment from "moment";
 import getOptions from "../getOptions";
+import { echartsAxisType } from "./utils";
 import buildOption from "./buildOption";
 
 function series(name: string, points: [any, any][]) {
@@ -244,6 +246,45 @@ describe("Visualizations -> Chart -> ECharts -> buildOption", () => {
         ["b", 2],
       ]);
       expect(built.option.xAxis).toBeUndefined();
+    });
+  });
+
+  describe("an automatic x axis", () => {
+    const at = (iso: string) => moment.utc(iso);
+
+    test("times get a time axis, not a number line from 1970", () => {
+      // A datetime column arrives as moments, and a moment is also a number
+      // (its epoch milliseconds): checked the other way round, every time
+      // series was drawn as a spike at the right-hand end of 0 to 1.8e12.
+      const line = {
+        ...series("rps", [
+          [at("2026-09-19T20:50:00Z"), 300],
+          [at("2026-09-19T20:51:00Z"), 320],
+        ]),
+        type: "line",
+      };
+      const built = buildOption(
+        [line],
+        options({ globalSeriesType: "line", xAxis: { type: "-", labels: { enabled: true } } })
+      );
+
+      expect(built.option.xAxis.type).toBe("time");
+      expect(built.option.series[0].data[0][0]).toBe(Date.parse("2026-09-19T20:50:00Z"));
+    });
+
+    test("ISO dates in text columns count as times too", () => {
+      expect(echartsAxisType("-", ["2026-09-19 20:50:00", "2026-09-19T20:51:00+00:00", "2026-09-20"])).toBe("time");
+    });
+
+    test("numbers, and numbers in text, still get a value axis", () => {
+      expect(echartsAxisType("-", [1, 2, 3])).toBe("value");
+      expect(echartsAxisType("-", ["1", "2.5"])).toBe("value");
+      expect(echartsAxisType("-", [2024, 2025])).toBe("value");
+    });
+
+    test("anything mixed is categories", () => {
+      expect(echartsAxisType("-", ["2026-09-19", "North"])).toBe("category");
+      expect(echartsAxisType("-", [])).toBe("category");
     });
   });
 
