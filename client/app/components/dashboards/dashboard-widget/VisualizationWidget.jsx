@@ -144,7 +144,10 @@ VisualizationWidgetHeader.defaultProps = {
   parameters: [],
 };
 
-function VisualizationWidgetFooter({ widget, isPublic, onRefresh, onExpand }) {
+function VisualizationWidgetFooter({ widget, isPublic, isLive, onRefresh, onExpand }) {
+  // A live dashboard's results come from the server: no refresh button, but
+  // the time since the last one still shows.
+  const canRefresh = !isPublic && !isLive;
   const widgetQueryResult = widget.getQueryResult();
   const updatedAt = invoke(widgetQueryResult, "getUpdatedAt");
   const [refreshClickButtonId, setRefreshClickButtonId] = useState();
@@ -159,7 +162,7 @@ function VisualizationWidgetFooter({ widget, isPublic, onRefresh, onExpand }) {
   return widgetQueryResult ? (
     <>
       <span>
-        {!isPublic && !!widgetQueryResult && (
+        {canRefresh && !!widgetQueryResult && (
           <PlainButton
             className="refresh-button hidden-print btn btn-sm btn-default btn-transparent"
             onClick={() => refreshWidget(1)}
@@ -175,14 +178,14 @@ function VisualizationWidgetFooter({ widget, isPublic, onRefresh, onExpand }) {
         <span className="visible-print">
           <i className="zmdi zmdi-time-restore" aria-hidden="true" /> {formatDateTime(updatedAt)}
         </span>
-        {isPublic && (
+        {!canRefresh && (
           <span className="small hidden-print">
             <i className="zmdi zmdi-time-restore" aria-hidden="true" /> <TimeAgo date={updatedAt} />
           </span>
         )}
       </span>
       <span>
-        {!isPublic && (
+        {canRefresh && (
           <PlainButton
             className="btn btn-sm btn-default hidden-print btn-transparent btn__refresh"
             onClick={() => refreshWidget(2)}
@@ -204,11 +207,12 @@ function VisualizationWidgetFooter({ widget, isPublic, onRefresh, onExpand }) {
 VisualizationWidgetFooter.propTypes = {
   widget: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
   isPublic: PropTypes.bool,
+  isLive: PropTypes.bool,
   onRefresh: PropTypes.func.isRequired,
   onExpand: PropTypes.func.isRequired,
 };
 
-VisualizationWidgetFooter.defaultProps = { isPublic: false };
+VisualizationWidgetFooter.defaultProps = { isPublic: false, isLive: false };
 
 class VisualizationWidget extends React.Component {
   static propTypes = {
@@ -216,6 +220,7 @@ class VisualizationWidget extends React.Component {
     dashboard: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
     filters: FiltersType,
     isPublic: PropTypes.bool,
+    isLive: PropTypes.bool,
     isLoading: PropTypes.bool,
     canEdit: PropTypes.bool,
     isEditing: PropTypes.bool,
@@ -228,6 +233,7 @@ class VisualizationWidget extends React.Component {
   static defaultProps = {
     filters: [],
     isPublic: false,
+    isLive: false,
     isLoading: false,
     canEdit: false,
     isEditing: false,
@@ -320,7 +326,7 @@ class VisualizationWidget extends React.Component {
   }
 
   render() {
-    const { widget, isLoading, isPublic, canEdit, isEditing, onRefresh } = this.props;
+    const { widget, isLoading, isPublic, isLive, canEdit, isEditing, onRefresh } = this.props;
     const { localParameters } = this.state;
     const widgetQueryResult = widget.getQueryResult();
     const isRefreshing = isLoading && !!(widgetQueryResult && widgetQueryResult.getStatus());
@@ -343,7 +349,8 @@ class VisualizationWidget extends React.Component {
           <VisualizationWidgetHeader
             widget={widget}
             refreshStartedAt={isRefreshing ? widget.refreshStartedAt : null}
-            parameters={localParameters}
+            // A live dashboard's parameters are fixed to what the server runs.
+            parameters={isLive ? [] : localParameters}
             isEditing={isEditing}
             onParametersUpdate={onRefresh}
             onParametersEdit={onParametersEdit}
@@ -353,6 +360,7 @@ class VisualizationWidget extends React.Component {
           <VisualizationWidgetFooter
             widget={widget}
             isPublic={isPublic}
+            isLive={isLive}
             onRefresh={onRefresh}
             onExpand={this.expandWidget}
           />

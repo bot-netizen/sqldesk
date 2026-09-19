@@ -155,7 +155,10 @@ class Widget {
       this.loading = true;
       this.refreshStartedAt = moment();
 
-      if (maxAge === undefined || force) {
+      // A forced load ignores the cache unless the caller says how old a
+      // result may be: the Refresh button accepts one from the last minute,
+      // auto-refresh one from the last interval, a live dashboard any.
+      if (maxAge === undefined) {
         maxAge = force ? 0 : undefined;
       }
 

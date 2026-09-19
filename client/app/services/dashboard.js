@@ -176,6 +176,11 @@ const DashboardService = {
   favorite: ({ id }) => axios.post(`api/dashboards/${id}/favorite`),
   unfavorite: ({ id }) => axios.delete(`api/dashboards/${id}/favorite`),
   fork: ({ id }) => axios.post(`api/dashboards/${id}/fork`, { id }).then(transformResponse),
+  // Live dashboards: turn live, change interval, pause, resume or turn off...
+  setLive: ({ id }, changes) => axios.post(`api/dashboards/${id}/live`, changes),
+  // ...and a viewer checking in, or leaving.
+  watchLive: ({ id }, body) => axios.post(`api/dashboards/${id}/live/watch`, body),
+  watchPublicLive: ({ token }, body) => axios.post(`api/dashboards/public/${token}/live/watch`, body),
 };
 
 _.extend(Dashboard, DashboardService);

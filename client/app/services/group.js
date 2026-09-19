@@ -5,6 +5,8 @@ const Group = {
   get: ({ id }) => axios.get(`api/groups/${id}`),
   create: (data) => axios.post(`api/groups`, data),
   save: (data) => axios.post(`api/groups/${data.id}`, data),
+  // Grant or take away a grantable permission: { manage_live_dashboards: true }.
+  setPermissions: ({ id }, changes) => axios.post(`api/groups/${id}/permissions`, changes),
   delete: (data) => axios.delete(`api/groups/${data.id}`),
   members: ({ id }) => axios.get(`api/groups/${id}/members`),
   addMember: ({ id }, data) => axios.post(`api/groups/${id}/members`, data),

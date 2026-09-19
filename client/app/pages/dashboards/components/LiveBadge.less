@@ -1,0 +1,48 @@
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #e5f1ea;
+  color: var(--color-good, #1e7a4c);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  vertical-align: middle;
+
+  .live-badge-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: live-badge-pulse 1.8s ease-in-out infinite;
+  }
+
+  .live-badge-detail {
+    font-weight: 400;
+    color: var(--color-text-secondary, #34302b);
+  }
+
+  &.live-badge-paused {
+    background: var(--color-surface-sunken, #f6f4f1);
+    color: var(--color-text-muted, #6f6b66);
+
+    .live-badge-dot {
+      animation: none;
+    }
+  }
+}
+
+@keyframes live-badge-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-badge .live-badge-dot {
+    animation: none;
+  }
+}

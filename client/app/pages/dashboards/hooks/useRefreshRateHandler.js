@@ -4,9 +4,14 @@ import location from "@/services/location";
 import { policy } from "@/services/policy";
 import useImmutableCallback from "@/lib/hooks/useImmutableCallback";
 
-function getLimitedRefreshRate(refreshRate) {
+// An ordinary dashboard's auto-refresh is a timer in every open tab, so it
+// never runs faster than every ten minutes -- an old "?refresh=60" link is
+// raised to that. Anything faster is what live dashboards are for.
+export const MINIMUM_REFRESH_RATE = 600;
+
+export function getLimitedRefreshRate(refreshRate) {
   const allowedIntervals = policy.getDashboardRefreshIntervals();
-  return max([30, min(allowedIntervals), refreshRate]);
+  return max([MINIMUM_REFRESH_RATE, min(allowedIntervals), refreshRate]);
 }
 
 function getRefreshRateFromUrl() {
@@ -27,7 +32,9 @@ export default function useRefreshRateHandler(refreshDashboard) {
   useEffect(() => {
     location.setSearch({ refresh: refreshRate || null }, true);
     if (refreshRate) {
-      const refreshTimer = setInterval(doRefreshDashboard, refreshRate * 1000);
+      // The rate goes along so the refresh can accept any result younger than
+      // it -- one tab's refresh then serves every other tab's.
+      const refreshTimer = setInterval(() => doRefreshDashboard(refreshRate), refreshRate * 1000);
       return () => clearInterval(refreshTimer);
     }
   }, [refreshRate, doRefreshDashboard]);

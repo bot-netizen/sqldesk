@@ -6,11 +6,14 @@ import Button from "antd/lib/button";
 import Dropdown from "antd/lib/dropdown";
 import Menu from "antd/lib/menu";
 import EllipsisOutlinedIcon from "@ant-design/icons/EllipsisOutlined";
+import PauseCircleOutlinedIcon from "@ant-design/icons/PauseCircleOutlined";
+import PlayCircleOutlinedIcon from "@ant-design/icons/PlayCircleOutlined";
 import Modal from "antd/lib/modal";
 import Tooltip from "@/components/Tooltip";
 import FavoritesControl from "@/components/FavoritesControl";
 import EditInPlace from "@/components/EditInPlace";
 import ShareDashboardButton from "./ShareDashboardButton";
+import LiveBadge, { LIVE_INTERVAL_LABELS } from "./LiveBadge";
 import PlainButton from "@/components/PlainButton";
 import { DashboardTagsControl } from "@/components/tags-control/TagsControl";
 import getTags from "@/services/getTags";
@@ -89,7 +92,7 @@ function RefreshButton({ dashboardConfiguration }) {
         trigger={["click"]}
         placement="bottomRight"
         overlay={
-          <Menu onClick={onRefreshRateSelected} selectedKeys={[`${refreshRate}`]}>
+          <Menu onClick={onRefreshRateSelected} selectedKeys={[`${refreshRate}`]} data-test="DashboardRefreshRateMenu">
             {refreshRateOptions.map((option) => (
               <Menu.Item key={`${option}`} disabled={!includes(allowedIntervals, option)}>
                 {durationHumanize(option)}
@@ -99,7 +102,7 @@ function RefreshButton({ dashboardConfiguration }) {
           </Menu>
         }
       >
-        <Button className="icon-button hidden-xs" type={buttonType(refreshRate)}>
+        <Button className="icon-button hidden-xs" type={buttonType(refreshRate)} data-test="DashboardRefreshRateButton">
           <i className="fa fa-angle-down" aria-hidden="true" />
           <span className="sr-only">Split button!</span>
         </Button>
@@ -109,6 +112,32 @@ function RefreshButton({ dashboardConfiguration }) {
 }
 
 RefreshButton.propTypes = {
+  dashboardConfiguration: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+};
+
+function LiveControl({ dashboardConfiguration }) {
+  const { live, canManageLive, changeLive } = dashboardConfiguration;
+  return (
+    <span className="live-control">
+      <LiveBadge live={live} />
+      {canManageLive && (
+        <Button className="m-l-5" onClick={() => changeLive({ paused: !live.paused })} data-test="LivePauseButton">
+          {live.paused ? (
+            <React.Fragment>
+              <PlayCircleOutlinedIcon aria-hidden="true" /> Resume
+            </React.Fragment>
+          ) : (
+            <React.Fragment>
+              <PauseCircleOutlinedIcon aria-hidden="true" /> Pause
+            </React.Fragment>
+          )}
+        </Button>
+      )}
+    </span>
+  );
+}
+
+LiveControl.propTypes = {
   dashboardConfiguration: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
 };
 
@@ -123,6 +152,9 @@ function DashboardMoreOptionsButton({ dashboardConfiguration }) {
     isDashboardOwnerOrAdmin,
     isDuplicating,
     duplicateDashboard,
+    live,
+    canManageLive,
+    changeLive,
   } = dashboardConfiguration;
 
   const archive = () => {
@@ -142,7 +174,9 @@ function DashboardMoreOptionsButton({ dashboardConfiguration }) {
       trigger={["click"]}
       placement="bottomRight"
       overlay={
-        <Menu data-test="DashboardMoreButtonMenu">
+        // Submenus open on click: a hover target that moves is hard to hit on
+        // a touch screen, and harder still for a test to drive.
+        <Menu data-test="DashboardMoreButtonMenu" triggerSubMenuAction="click">
           <Menu.Item className={cx({ hidden: gridDisabled })}>
             <PlainButton onClick={() => setEditingLayout(true)}>Edit</PlainButton>
           </Menu.Item>
@@ -158,6 +192,31 @@ function DashboardMoreOptionsButton({ dashboardConfiguration }) {
             <Menu.Item>
               <PlainButton onClick={managePermissions}>Manage Permissions</PlainButton>
             </Menu.Item>
+          )}
+          {canManageLive && (
+            <Menu.SubMenu key="live" title={<span data-test="LiveMenu">{live ? "Live" : "Make live"}</span>}>
+              {Object.keys(LIVE_INTERVAL_LABELS).map((interval) => (
+                <Menu.Item key={`live-${interval}`}>
+                  <PlainButton
+                    onClick={() => changeLive({ interval: Number(interval) })}
+                    data-test={`LiveInterval.${interval}`}
+                  >
+                    {live && live.interval === Number(interval) && (
+                      <i className="fa fa-check m-r-5" aria-hidden="true" />
+                    )}
+                    Refresh {LIVE_INTERVAL_LABELS[interval]}
+                  </PlainButton>
+                </Menu.Item>
+              ))}
+              {live && <Menu.Divider />}
+              {live && (
+                <Menu.Item key="live-off">
+                  <PlainButton onClick={() => changeLive({ interval: null })} data-test="LiveOff">
+                    Turn off live
+                  </PlainButton>
+                </Menu.Item>
+              )}
+            </Menu.SubMenu>
           )}
           {!clientConfig.disablePublish && !dashboard.is_draft && (
             <Menu.Item>
@@ -190,9 +249,11 @@ function DashboardControl({ dashboardConfiguration, headerExtra }) {
     toggleFullscreen,
     showShareDashboardDialog,
     updateDashboard,
+    live,
   } = dashboardConfiguration;
   const showPublishButton = dashboard.is_draft;
-  const showRefreshButton = true;
+  // A live dashboard is refreshed by the server; its header says so instead.
+  const showRefreshButton = !live;
   const showFullscreenButton = !dashboard.is_draft;
   const canShareDashboard = canEditDashboard && !dashboard.is_draft;
   const showShareButton = !clientConfig.disablePublicUrls && (dashboard.publicAccessEnabled || canShareDashboard);
@@ -213,6 +274,7 @@ function DashboardControl({ dashboardConfiguration, headerExtra }) {
             </Button>
           )}
           {showRefreshButton && <RefreshButton dashboardConfiguration={dashboardConfiguration} />}
+          {live && <LiveControl dashboardConfiguration={dashboardConfiguration} />}
           <ShareDashboardButton
             dashboard={dashboard}
             // The grid, not the page: a shared snapshot should not carry the

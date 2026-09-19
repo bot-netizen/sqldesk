@@ -6,7 +6,7 @@ const fakeJpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46,
 
 function asLatin1(bytes) {
   let s = "";
-  bytes.forEach(b => {
+  bytes.forEach((b) => {
     s += String.fromCharCode(b);
   });
   return s;
@@ -54,7 +54,7 @@ describe("buildSingleImagePdf", () => {
   });
 
   test("declares every object it writes", () => {
-    [1, 2, 3, 4, 5, 6].forEach(n => expect(text).toContain(`${n} 0 obj`));
+    [1, 2, 3, 4, 5, 6].forEach((n) => expect(text).toContain(`${n} 0 obj`));
     expect(text).toContain("/Size 7");
   });
 

@@ -14,11 +14,35 @@ import { editableMappingsToParameterMappings, synchronizeWidgetTitles } from "@/
 import ShareDashboardDialog from "../components/ShareDashboardDialog";
 import useFullscreenHandler from "../../../lib/hooks/useFullscreenHandler";
 import useRefreshRateHandler from "./useRefreshRateHandler";
+import useLiveDashboard from "./useLiveDashboard";
 import useEditModeHandler from "./useEditModeHandler";
 import useDuplicateDashboard from "./useDuplicateDashboard";
 import { policy } from "@/services/policy";
 
 export { DashboardStatusEnum } from "./useEditModeHandler";
+
+// The Refresh buttons re-run only results older than this, so a room of people
+// pressing Refresh at once runs each query once.
+export const MANUAL_REFRESH_MAX_AGE = 60;
+
+export const MANAGE_LIVE_PERMISSION = "manage_live_dashboards";
+
+/**
+ * A live dashboard shows the result the server makes, which uses the saved
+ * parameter values. Values a viewer brought in the URL would ask for a
+ * different result nobody is refreshing, so they are dropped.
+ */
+function dropUrlParameters() {
+  const drop = {};
+  Object.keys(location.search || {}).forEach((key) => {
+    if (key.startsWith("p_")) {
+      drop[key] = null;
+    }
+  });
+  if (Object.keys(drop).length > 0) {
+    location.setSearch(drop, true);
+  }
+}
 
 function getAffectedWidgets(widgets, updatedParameters = []) {
   return !isEmpty(updatedParameters)
@@ -35,7 +59,7 @@ function getAffectedWidgets(widgets, updatedParameters = []) {
     : widgets;
 }
 
-function useDashboard(dashboardData) {
+function useDashboard(dashboardData, { publicToken = null } = {}) {
   const [dashboard, setDashboard] = useState(dashboardData);
   const [filters, setFilters] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -100,11 +124,11 @@ function useDashboard(dashboardData) {
     updateDashboard({ is_draft: !dashboard.is_draft }, false);
   }, [dashboard, updateDashboard]);
 
-  const loadWidget = useCallback((widget, forceRefresh = false) => {
+  const loadWidget = useCallback((widget, forceRefresh = false, maxAge = undefined) => {
     widget.getParametersDefs(); // Force widget to read parameters values from URL
     setDashboard((currentDashboard) => extend({}, currentDashboard));
     return widget
-      .load(forceRefresh)
+      .load(forceRefresh, maxAge)
       .catch((error) => {
         // QueryResultErrors are expected
         if (error instanceof QueryResultError) {
@@ -115,7 +139,7 @@ function useDashboard(dashboardData) {
       .finally(() => setDashboard((currentDashboard) => extend({}, currentDashboard)));
   }, []);
 
-  const refreshWidget = useCallback((widget) => loadWidget(widget, true), [loadWidget]);
+  const refreshWidget = useCallback((widget) => loadWidget(widget, true, MANUAL_REFRESH_MAX_AGE), [loadWidget]);
 
   const removeWidget = useCallback((widgetId) => {
     setDashboard((currentDashboard) =>
@@ -129,10 +153,10 @@ function useDashboard(dashboardData) {
   dashboardRef.current = dashboard;
 
   const loadDashboard = useCallback(
-    (forceRefresh = false, updatedParameters = []) => {
+    (forceRefresh = false, updatedParameters = [], maxAge = undefined) => {
       const affectedWidgets = getAffectedWidgets(dashboardRef.current.widgets, updatedParameters);
       const loadWidgetPromises = compact(
-        affectedWidgets.map((widget) => loadWidget(widget, forceRefresh).catch((error) => error))
+        affectedWidgets.map((widget) => loadWidget(widget, forceRefresh, maxAge).catch((error) => error))
       );
 
       return Promise.all(loadWidgetPromises).then(() => {
@@ -148,7 +172,23 @@ function useDashboard(dashboardData) {
     (updatedParameters) => {
       if (!refreshing) {
         setRefreshing(true);
-        loadDashboard(true, updatedParameters).finally(() => setRefreshing(false));
+        // New parameter values are a request to run the query with them, so
+        // they always run. The Refresh button accepts anything from the last
+        // minute.
+        const maxAge = isEmpty(updatedParameters) ? MANUAL_REFRESH_MAX_AGE : undefined;
+        loadDashboard(true, updatedParameters, maxAge).finally(() => setRefreshing(false));
+      }
+    },
+    [refreshing, loadDashboard]
+  );
+
+  // Auto-refresh reuses any result younger than its own interval: whichever
+  // open tab gets there first runs the query, and the rest read its result.
+  const autoRefreshDashboard = useCallback(
+    (refreshRate) => {
+      if (!refreshing) {
+        setRefreshing(true);
+        loadDashboard(true, [], refreshRate).finally(() => setRefreshing(false));
       }
     },
     [refreshing, loadDashboard]
@@ -215,11 +255,41 @@ function useDashboard(dashboardData) {
     );
   }, [dashboard]);
 
-  const [refreshRate, setRefreshRate, disableRefreshRate] = useRefreshRateHandler(refreshDashboard);
+  const [refreshRate, setRefreshRate, disableRefreshRate] = useRefreshRateHandler(autoRefreshDashboard);
+
+  // Live: the server keeps the results fresh; this tab only watches.
+  const { live, setLive, lastUpdate: liveUpdatedAt } = useLiveDashboard({ dashboard, loadWidget, publicToken });
+  const canManageLive = canEditDashboard && (currentUser.isAdmin || currentUser.hasPermission(MANAGE_LIVE_PERMISSION));
+
+  // A tab timer on a live dashboard would only duplicate what the server does.
+  useEffect(() => {
+    if (live && refreshRate) {
+      disableRefreshRate();
+    }
+  }, [live, refreshRate, disableRefreshRate]);
+
+  const changeLive = useCallback(
+    (changes) =>
+      Dashboard.setLive(dashboard, changes)
+        .then((response) => {
+          setLive(response.live || null);
+          setDashboard((currentDashboard) => extend({}, currentDashboard, { live: response.live || null }));
+          if (response.live) {
+            dropUrlParameters();
+          }
+        })
+        .catch((error) => {
+          notification.error("Could not change live settings", get(error, "response.data.message") || error.message);
+        }),
+    [dashboard, setLive]
+  );
   const [fullscreen, toggleFullscreen] = useFullscreenHandler();
   const editModeHandler = useEditModeHandler(!gridDisabled && canEditDashboard, dashboard.widgets);
 
   useEffect(() => {
+    if (dashboardData.live) {
+      dropUrlParameters();
+    }
     setDashboard(dashboardData);
     loadDashboard();
   }, [dashboardData]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -252,6 +322,10 @@ function useDashboard(dashboardData) {
     refreshRate,
     setRefreshRate,
     disableRefreshRate,
+    live,
+    liveUpdatedAt,
+    canManageLive,
+    changeLive,
     ...editModeHandler,
     saveDashboardParameters,
     gridDisabled,

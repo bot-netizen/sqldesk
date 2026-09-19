@@ -87,6 +87,7 @@ function DashboardComponent(props) {
     refreshWidget,
     editingLayout,
     setGridDisabled,
+    live,
   } = dashboardConfiguration;
 
   const [pageContainer, setPageContainer] = useState(null);
@@ -129,7 +130,8 @@ function DashboardComponent(props) {
           />
         }
       />
-      {!isEmpty(globalParameters) && (
+      {/* A live dashboard shows what the server refreshes, with its saved parameter values. */}
+      {!live && !isEmpty(globalParameters) && (
         <div className="dashboard-parameters m-b-10 p-15 bg-white tiled" data-test="DashboardParameters">
           <Parameters
             parameters={globalParameters}
@@ -151,6 +153,7 @@ function DashboardComponent(props) {
           widgets={dashboard.widgets}
           filters={filters}
           isEditing={editingLayout}
+          isLive={!!live}
           onLayoutChange={editingLayout ? saveDashboardLayout : () => {}}
           onBreakpointChange={setGridDisabled}
           onLoadWidget={loadWidget}
