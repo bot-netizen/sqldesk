@@ -1,6 +1,7 @@
 import { formatValue, thresholdBands, thresholdColor, resolveColor, uiColor, toNumber } from "../shared/valueOptions";
 import { pickRow, hasColumn, ColumnLike } from "../shared/rows";
 import { GaugeOptions } from "./getOptions";
+import { ENTER_DURATION, ENTER_EASING, UPDATE_DURATION, UPDATE_EASING } from "../shared/motion";
 
 export interface GaugeData {
   columns: ColumnLike[];
@@ -89,8 +90,12 @@ export default function buildOption(
     type: "gauge",
     min,
     max,
-    animationDurationUpdate: 900,
-    animationEasingUpdate: "cubicOut",
+    // Sweeps up from the minimum when the dashboard opens, and eases to each
+    // new reading after.
+    animationDuration: ENTER_DURATION,
+    animationEasing: ENTER_EASING,
+    animationDurationUpdate: UPDATE_DURATION,
+    animationEasingUpdate: UPDATE_EASING,
     title: {
       color: muted,
       fontFamily: SANS,
@@ -210,7 +215,7 @@ export default function buildOption(
         offsetCenter: [0, `-${Math.round((1 - arcShare - 0.04) * 100)}%`],
         itemStyle: { color: ink },
       },
-      animationDurationUpdate: 900,
+      animationDurationUpdate: UPDATE_DURATION,
       data: [{ value: clamp(target, min, max), name: "target" }],
     });
   }

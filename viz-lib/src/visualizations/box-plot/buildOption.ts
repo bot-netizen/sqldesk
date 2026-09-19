@@ -2,6 +2,7 @@ import { map } from "lodash";
 import { AllColorPaletteArrays, DEFAULT_COLOR_SCHEME } from "@/visualizations/ColorPalette";
 import { boxStats } from "@/visualizations/chart/echarts/boxplot";
 import { cleanNumber } from "@/visualizations/chart/echarts/utils";
+import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
 
 // This visualization draws one box per numeric column, which is what makes it
 // different from the Chart visualization's box type: there, the boxes come from
@@ -92,10 +93,7 @@ export default function buildOption(data: any, options: any): BuiltBoxPlot {
   }
 
   const option = {
-    animation: true,
-    animationDuration: 300,
-    animationDurationUpdate: 450,
-    animationEasingUpdate: "cubicOut",
+    ...ECHARTS_MOTION,
     grid: gridFor(options),
     xAxis: { type: "category", data: columns, ...axisTitle(options.xAxisLabel) },
     yAxis: { type: "value", scale: true, splitArea: { show: true }, ...axisTitle(options.yAxisLabel) },

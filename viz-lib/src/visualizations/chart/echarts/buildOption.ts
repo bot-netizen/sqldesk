@@ -7,6 +7,7 @@ import { DEFAULT_HEAT_RAMP, HEAT_RAMPS } from "./heatRamps";
 import { buildBoxSeries } from "./boxplot";
 import { BAR_LAYOUT, barCentreOffset, buildErrorBarSeries } from "./errorBars";
 import { applyWindow, addReferences, zoomComponents } from "./references";
+import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
 
 // Deliberately free of any `echarts` import. Keeping the option builder pure
 // means it is unit-testable without a canvas, and without Jest having to
@@ -116,6 +117,13 @@ function applyPercentValues(seriesData: any[][], options: any) {
   );
 }
 
+function escapeHtml(text: string): string {
+  return text.replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string
+  );
+}
+
 function buildTooltipFormatter(options: any, horizontal: boolean) {
   const formatNumber = createNumberFormatter(options.numberFormat);
   const formatPercent = createNumberFormatter(options.percentFormat);
@@ -124,17 +132,28 @@ function buildTooltipFormatter(options: any, horizontal: boolean) {
   const valueIndex = horizontal ? 0 : 1;
   return (params: any) => {
     const items = Array.isArray(params) ? params : [params];
-    return map(items, (item) => {
-      const value = Array.isArray(item.value) ? item.value[valueIndex] : item.value;
-      const context = {
-        "@@name": item.seriesName,
-        "@@x": item.axisValueLabel ?? item.name,
-        "@@y": options.series.percentValues ? formatPercent(value) : formatNumber(value),
-        "@@yPercent": formatPercent(value),
-      };
-      const text = options.textFormat ? formatSimpleTemplate(options.textFormat, context) : null;
-      return text || `${item.marker} ${item.seriesName}: ${context["@@y"]}`;
-    }).join("<br/>");
+    // Which x the numbers are for, as a heading: with several series under one
+    // pointer, each line alone says only the series and its value.
+    const first = items[0] || {};
+    const x = first.axisValueLabel ?? first.name;
+    const heading =
+      Array.isArray(params) && x !== undefined && x !== null && x !== ""
+        ? `<div style="font-weight:600;margin-bottom:2px">${escapeHtml(String(x))}</div>`
+        : "";
+    return (
+      heading +
+      map(items, (item) => {
+        const value = Array.isArray(item.value) ? item.value[valueIndex] : item.value;
+        const context = {
+          "@@name": item.seriesName,
+          "@@x": item.axisValueLabel ?? item.name,
+          "@@y": options.series.percentValues ? formatPercent(value) : formatNumber(value),
+          "@@yPercent": formatPercent(value),
+        };
+        const text = options.textFormat ? formatSimpleTemplate(options.textFormat, context) : null;
+        return text || `${item.marker} ${item.seriesName}: ${context["@@y"]}`;
+      }).join("<br/>")
+    );
   };
 }
 
@@ -391,10 +410,7 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
     const { series, xCategories, yCategories, zMax, ramp } = buildHeatmap(chartData, options);
     const categoryAxis = (data: any[]) => ({ type: "category", data, splitArea: { show: true } });
     const option: any = {
-      animation: true,
-      animationDuration: 300,
-      animationDurationUpdate: 450,
-      animationEasingUpdate: "cubicOut",
+      ...ECHARTS_MOTION,
       grid: { left: 12, right: 12, top: 24, bottom: 60, containLabel: true },
       xAxis: categoryAxis(xCategories),
       yAxis: categoryAxis(yCategories),
@@ -512,12 +528,10 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
   };
 
   const option: any = {
-    animation: true,
-    animationDuration: 300,
-    // The update animation is the whole point: when new data arrives for the
-    // same series and categories, ECharts tweens from the old values.
-    animationDurationUpdate: 450,
-    animationEasingUpdate: "cubicOut",
+    // Slow enough to see: a dashboard opening grows from nothing, and a refresh
+    // moves from the old values to the new ones -- which is the whole point of
+    // a chart that refreshes. Series need stable ids for it (see above).
+    ...ECHARTS_MOTION,
     color: paletteFor(options),
     legend: {
       show: options.legend.enabled,
@@ -527,7 +541,13 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
     },
     tooltip: {
       trigger: isPie || isBox ? "item" : "axis",
-      axisPointer: { type: options.globalSeriesType === "column" ? "shadow" : "line" },
+      axisPointer: {
+        type: options.globalSeriesType === "column" ? "shadow" : "line",
+        // The x value under the pointer, drawn on the axis itself, so it can
+        // be read off where the axis labels are -- they are often thinned out
+        // or tilted, and a bar may sit between two of them.
+        label: { show: !isPie && !isBox },
+      },
       confine: true,
       formatter: isBox ? buildBoxTooltipFormatter(options) : buildTooltipFormatter(options, horizontal),
     },

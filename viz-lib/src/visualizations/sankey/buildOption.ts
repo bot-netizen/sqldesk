@@ -1,4 +1,5 @@
 import { every, filter, find, isFinite, isNaN, isNil, isNumber, isString, keys, map, mapValues, sortBy } from "lodash";
+import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
 
 // The data shape is the inherited one: up to five stage columns plus a `value`
 // column, one row per path through the stages. That contract is unchanged --
@@ -173,10 +174,7 @@ export default function buildOption(data: any): BuiltSankey {
   const positioned = map(nodes, (node) => (node.depth === lastDepth ? { ...node, label: { position: "left" } } : node));
 
   const option = {
-    animation: true,
-    animationDuration: 300,
-    animationDurationUpdate: 450,
-    animationEasingUpdate: "cubicOut",
+    ...ECHARTS_MOTION,
     tooltip: {
       trigger: "item",
       confine: true,

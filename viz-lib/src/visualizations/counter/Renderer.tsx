@@ -9,6 +9,7 @@ import { resolveColor } from "../shared/valueOptions";
 import { getCounterData } from "./utils";
 import { orderRows, getStatExtras } from "./stat";
 import useCountUp from "./useCountUp";
+import { ENTER_DURATION, UPDATE_DURATION } from "../shared/motion";
 
 import "./render.less";
 
@@ -50,7 +51,8 @@ function Sparkline({ points, color }: { points: number[]; color: string }) {
             itemStyle: { color, borderColor: "#fff", borderWidth: 2 },
             data: [{ coord: [points.length - 1, points[points.length - 1]] }],
           },
-          animationDurationUpdate: 700,
+          animationDuration: ENTER_DURATION,
+          animationDurationUpdate: UPDATE_DURATION,
         },
       ],
       aria: { enabled: false },

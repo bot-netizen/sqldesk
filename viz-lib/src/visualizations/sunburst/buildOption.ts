@@ -6,6 +6,7 @@
  * the drawing moved.
  */
 import { compact, every, filter, find, first, groupBy, has, identity, keys, map, sortBy } from "lodash";
+import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
 
 // A path that stops early still consumes its share of the parent's arc, so the
 // stop is a real node in the tree. The d3 version filtered these out at draw
@@ -152,10 +153,7 @@ export default function buildOption(data: any): BuiltSunburst {
   const seriesData = map(root.children || [], (child: any) => toSeriesData(child, color, 1));
 
   const option = {
-    animation: true,
-    animationDuration: 300,
-    animationDurationUpdate: 450,
-    animationEasingUpdate: "cubicOut",
+    ...ECHARTS_MOTION,
     tooltip: {
       trigger: "item",
       confine: true,

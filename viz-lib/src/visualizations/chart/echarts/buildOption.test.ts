@@ -247,13 +247,53 @@ describe("Visualizations -> Chart -> ECharts -> buildOption", () => {
     });
   });
 
+  describe("reading a value under the pointer", () => {
+    const item = (x: string, y: number, name = "revenue") => ({
+      axisValueLabel: x,
+      name: x,
+      seriesName: name,
+      marker: "",
+      value: [x, y],
+    });
+
+    test("the x value heads the tooltip, above each series' number", () => {
+      const built = buildOption([series("revenue", [["March", 2100]])], options());
+      const html = built.option.tooltip.formatter([item("March", 2100)]);
+
+      expect(html.indexOf("March")).toBeGreaterThanOrEqual(0);
+      expect(html.indexOf("March")).toBeLessThan(html.indexOf("revenue"));
+    });
+
+    test("a category from the data cannot inject markup into the tooltip", () => {
+      const built = buildOption([series("revenue", [["<b>x</b>", 1]])], options());
+      const html = built.option.tooltip.formatter([item("<b>x</b>", 1)]);
+
+      expect(html).toContain("&lt;b&gt;x&lt;/b&gt;");
+    });
+
+    test("the x value is labelled on the axis under the pointer, for bars, lines and points", () => {
+      ["column", "line", "area", "scatter"].forEach((type) => {
+        const built = buildOption([{ ...series("revenue", [["a", 1]]), type }], options({ globalSeriesType: type }));
+        expect(built.option.tooltip.axisPointer.label.show).toBe(true);
+      });
+    });
+  });
+
   describe("animation defaults", () => {
     test("updates are animated out of the box", () => {
       const built = buildOption([series("a", [["x", 1]])], options());
 
       expect(built.option.animation).toBe(true);
       expect(built.option.animationDurationUpdate).toBeGreaterThan(0);
-      expect(built.option.animationEasingUpdate).toBe("cubicOut");
+      expect(built.option.animationEasingUpdate).toBe("cubicInOut");
+    });
+
+    test("slow enough to see: a first draw and a change each take about a second", () => {
+      // 300 and 450 ms were over before anyone watching a dashboard noticed.
+      const built = buildOption([series("a", [["x", 1]])], options());
+
+      expect(built.option.animationDuration).toBeGreaterThanOrEqual(900);
+      expect(built.option.animationDurationUpdate).toBeGreaterThanOrEqual(900);
     });
   });
 });

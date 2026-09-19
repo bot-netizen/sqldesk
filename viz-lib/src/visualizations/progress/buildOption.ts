@@ -8,6 +8,7 @@ import {
 } from "../shared/valueOptions";
 import { hasColumn, ColumnLike } from "../shared/rows";
 import { ProgressOptions } from "./getOptions";
+import { ENTER_DURATION, ENTER_EASING, UPDATE_DURATION, UPDATE_EASING } from "../shared/motion";
 
 export interface ProgressData {
   columns: ColumnLike[];
@@ -126,8 +127,10 @@ export default function buildOption(data: ProgressData, options: ProgressOptions
     backgroundStyle: { color: track, borderRadius: 4 },
     itemStyle: { borderRadius: bullet ? 1 : 4 },
     data: rows.map((r) => ({ value: Math.min(measure(r), axisMax), itemStyle: { color: resolveColor(r.color) } })),
-    animationDurationUpdate: 800,
-    animationEasingUpdate: "cubicOut",
+    animationDuration: ENTER_DURATION,
+    animationEasing: ENTER_EASING,
+    animationDurationUpdate: UPDATE_DURATION,
+    animationEasingUpdate: UPDATE_EASING,
   });
 
   // Values sit in a column of their own at the right edge, not at the end of

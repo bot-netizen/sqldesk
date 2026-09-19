@@ -4,6 +4,8 @@ import { getOptions } from "./index";
 import { formatCounterValue } from "./utils";
 import { orderRows, getStatExtras, headlineIndex } from "./stat";
 import Renderer from "./Renderer";
+import { act } from "react-dom/test-utils";
+import { ENTER_DURATION } from "../shared/motion";
 
 jest.mock("@/services/resizeObserver", () => ({ __esModule: true, default: () => () => {} }));
 // The shared barrel pulls in ECharts' ESM build, which babel-jest does not
@@ -141,6 +143,33 @@ describe("Visualizations -> Stat -> comparisons", () => {
 describe("Visualizations -> Stat -> renderer", () => {
   const data = { columns, rows };
 
+  // The number counts up when it first appears; let it finish.
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+  function settle(w: any) {
+    act(() => {
+      jest.advanceTimersByTime(ENTER_DURATION + 100);
+    });
+    w.update();
+  }
+
+  test("counts up from zero when it first appears", () => {
+    const options = getOptions({ counterColName: "orders", formatMode: "value" });
+    const w = enzyme.mount(<Renderer data={data} options={options} visualizationName="Orders" />);
+    expect(w.find(".counter-visualization-value").text()).toBe("0");
+
+    act(() => {
+      jest.advanceTimersByTime(ENTER_DURATION / 2);
+    });
+    w.update();
+    const halfway = Number(w.find(".counter-visualization-value").text());
+    expect(halfway).toBeGreaterThan(0);
+    expect(halfway).toBeLessThan(110);
+
+    settle(w);
+    expect(w.find(".counter-visualization-value").text()).toBe("110");
+  });
+
   test("the latest row is the headline with a sparkline, and the change shows", () => {
     const options = getOptions({
       counterColName: "orders",
@@ -149,6 +178,7 @@ describe("Visualizations -> Stat -> renderer", () => {
       comparison: { mode: "previous" },
     });
     const w = enzyme.mount(<Renderer data={data} options={options} visualizationName="Orders" />);
+    settle(w);
     expect(w.find(".counter-visualization-value").text()).toBe("110");
     expect(w.find('[data-test="Counter.Delta"]').text()).toContain("vs previous");
     expect(w.find(".counter-visualization-sparkline")).toHaveLength(1);
@@ -157,6 +187,7 @@ describe("Visualizations -> Stat -> renderer", () => {
   test("a classic counter renders as before: no badge, no sparkline", () => {
     const options = getOptions({ counterColName: "orders", rowNumber: 1, stringDecimal: 0 });
     const w = enzyme.mount(<Renderer data={data} options={options} visualizationName="Orders" />);
+    settle(w);
     expect(w.find(".counter-visualization-value").text()).toBe("110");
     expect(w.find('[data-test="Counter.Delta"]')).toHaveLength(0);
     expect(w.find(".counter-visualization-sparkline")).toHaveLength(0);
