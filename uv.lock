@@ -697,16 +697,16 @@ sdist = { url = "https://files.pythonhosted.org/packages/05/2f/6a545452040c25565
 
 [[package]]
 name = "flask-migrate"
-version = "2.5.2"
+version = "2.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "alembic" },
     { name = "flask" },
     { name = "flask-sqlalchemy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c5/36/906fd843dcd7996bca42ed5bf8e3d70bac64fd81fc492e099aa739c961db/Flask-Migrate-2.5.2.tar.gz", hash = "sha256:a96ff1875a49a40bd3e8ac04fce73fdb0870b9211e6168608cbafa4eb839d502", size = 12127, upload-time = "2019-05-25T19:12:30.674Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0b/d7/5a7e424759a6f6608d722913ae765307459e14f17503740d7fcee0191bd3/Flask-Migrate-2.7.0.tar.gz", hash = "sha256:ae2f05671588762dd83a21d8b18c51fe355e86783e24594995ff8d7380dffe38", size = 12627, upload-time = "2021-02-21T12:38:57.73Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4b/22/d20a105f13c58fe590ef38ac59d5cabc1a917549ea8f90b0ca7b4e84f6be/Flask_Migrate-2.5.2-py2.py3-none-any.whl", hash = "sha256:6fb038be63d4c60727d5dfa5f581a6189af5b4e2925bc378697b4f0a40cfb4e1", size = 13585, upload-time = "2019-05-25T19:12:28.939Z" },
+    { url = "https://files.pythonhosted.org/packages/75/58/88b3f3cdebb5ccd83cb45b21305e69826851299df4cfbcf147272b536527/Flask_Migrate-2.7.0-py2.py3-none-any.whl", hash = "sha256:26871836a4e46d2d590cf8e558c6d60039e1c003079b240689d845726b6b57c0", size = 13387, upload-time = "2021-02-21T12:38:56.313Z" },
 ]
 
 [[package]]
@@ -2785,7 +2785,7 @@ requires-dist = [
     { name = "flask-limiter", specifier = "==3.3.1" },
     { name = "flask-login", specifier = "==0.6.0" },
     { name = "flask-mail", specifier = "==0.9.1" },
-    { name = "flask-migrate", specifier = "==2.5.2" },
+    { name = "flask-migrate", specifier = "==2.7.0" },
     { name = "flask-restful", specifier = "==0.3.10" },
     { name = "flask-sqlalchemy", specifier = "==2.5.1" },
     { name = "flask-talisman", specifier = "==0.7.0" },
