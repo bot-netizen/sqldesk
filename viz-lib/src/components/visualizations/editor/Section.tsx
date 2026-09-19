@@ -3,19 +3,20 @@ import cx from "classnames";
 
 import "./Section.less";
 
-type OwnSectionTitleProps = {
+// Both of these used to declare their props as `OwnProps & typeof defaults`,
+// where `defaults` was `{ className: null, children: null }`. TypeScript
+// infers that object's type literally, so the intersection narrowed
+// `children` to `React.ReactNode & null` -- that is, `null` -- and every
+// `<Section>` with anything inside it became an error. That is where the
+// hundred or so "Section's children type is too narrow" suppressions across
+// the visualization editors came from. The defaults themselves did nothing:
+// `cx` ignores an absent class, and an absent child renders nothing.
+
+type SectionTitleProps = {
   className?: string;
   children?: React.ReactNode;
 };
 
-const sectionTitleDefaultProps = {
-  className: null,
-  children: null,
-};
-
-type SectionTitleProps = OwnSectionTitleProps & typeof sectionTitleDefaultProps;
-
-// @ts-expect-error ts-migrate(2700) FIXME: Rest types may only be created from object types.
 function SectionTitle({ className, children, ...props }: SectionTitleProps) {
   if (!children) {
     return null;
@@ -28,21 +29,11 @@ function SectionTitle({ className, children, ...props }: SectionTitleProps) {
   );
 }
 
-SectionTitle.defaultProps = sectionTitleDefaultProps;
-
-type OwnSectionProps = {
+type SectionProps = {
   className?: string;
   children?: React.ReactNode;
 };
 
-const sectionDefaultProps = {
-  className: null,
-  children: null,
-};
-
-type SectionProps = OwnSectionProps & typeof sectionDefaultProps;
-
-// @ts-expect-error ts-migrate(2700) FIXME: Rest types may only be created from object types.
 export default function Section({ className, children, ...props }: SectionProps) {
   return (
     <div className={cx("visualization-editor-section", className)} {...props}>
@@ -50,7 +41,5 @@ export default function Section({ className, children, ...props }: SectionProps)
     </div>
   );
 }
-
-Section.defaultProps = sectionDefaultProps;
 
 Section.Title = SectionTitle;

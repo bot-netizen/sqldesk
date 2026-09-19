@@ -26,17 +26,13 @@ export function ColumnSelect({ label, value, columns, onChange, noneLabel, ...re
       onChange={(v: any) => onChange(String(v || ""))}
     >
       {noneLabel !== undefined && (
-        // @ts-expect-error Select.Option is added by withControlLabel's wrapped component
         <Select.Option key="" value="">
           {noneLabel}
-          {/* @ts-expect-error see above */}
         </Select.Option>
       )}
       {columns.map((c) => (
-        // @ts-expect-error Select.Option is added by withControlLabel's wrapped component
         <Select.Option key={c.name} value={c.name} data-test={`${rest["data-test"]}.${c.name}`}>
           {c.name}
-          {/* @ts-expect-error see above */}
         </Select.Option>
       ))}
     </Select>

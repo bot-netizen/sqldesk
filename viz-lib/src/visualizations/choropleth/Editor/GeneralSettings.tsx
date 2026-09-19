@@ -26,7 +26,6 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
 
   return (
     <React.Fragment>
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Select
           label="Map"
@@ -35,16 +34,13 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
           onChange={handleMapChange}
         >
           {map(visualizationsSettings.choroplethAvailableMaps, (_, mapType) => (
-            // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
             <Select.Option key={mapType} data-test={`Choropleth.Editor.MapType.${mapType}`}>
               {get(visualizationsSettings, `choroplethAvailableMaps.${mapType}.name`, mapType)}
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
             </Select.Option>
           ))}
         </Select>
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Grid.Row gutter={15}>
           <Grid.Col span={12}>
@@ -57,10 +53,8 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
               onChange={(keyColumn: any) => onOptionsChange({ keyColumn })}
             >
               {map(data.columns, ({ name }) => (
-                // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
                 <Select.Option key={name} data-test={`Choropleth.Editor.KeyColumn.${name}`}>
                   {name}
-                  {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
                 </Select.Option>
               ))}
             </Select>
@@ -76,10 +70,8 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
               onChange={(targetField: any) => onOptionsChange({ targetField })}
             >
               {map(targetFields, (field) => (
-                // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
                 <Select.Option key={field} data-test={`Choropleth.Editor.TargetField.${field}`}>
                   {(fieldNames as any)[field] || field}
-                  {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
                 </Select.Option>
               ))}
             </Select>
@@ -87,7 +79,6 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
         </Grid.Row>
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Select
           label="Value Column"
@@ -97,10 +88,8 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
           onChange={(valueColumn: any) => onOptionsChange({ valueColumn })}
         >
           {map(data.columns, ({ name }) => (
-            // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
             <Select.Option key={name} data-test={`Choropleth.Editor.ValueColumn.${name}`}>
               {name}
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
             </Select.Option>
           ))}
         </Select>

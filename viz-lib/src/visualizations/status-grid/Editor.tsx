@@ -8,7 +8,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
   const columns = data.columns || [];
   return (
     <React.Fragment>
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <ColumnSelect
           label="Name column"
@@ -19,7 +18,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
           data-test="StatusGrid.NameColumn"
         />
       </Section>
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <ColumnSelect
           label="Value column"
@@ -30,7 +28,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
           data-test="StatusGrid.ValueColumn"
         />
       </Section>
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <ColumnSelect
           label="Status column"
@@ -41,7 +38,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
           data-test="StatusGrid.StatusColumn"
         />
       </Section>
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <ColumnSelect
           label="Detail column"
@@ -52,7 +48,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
           data-test="StatusGrid.DetailColumn"
         />
       </Section>
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <Select
           layout="horizontal"
@@ -61,15 +56,11 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
           data-test="StatusGrid.TileSize"
           onChange={(tileSize: any) => onOptionsChange({ tileSize })}
         >
-          {/* @ts-expect-error Select.Option is added by withControlLabel's wrapped component */}
           <Select.Option value="small">Small</Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="medium">Medium</Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="large">Large</Select.Option>
         </Select>
       </Section>
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <Select
           layout="horizontal"
@@ -78,11 +69,8 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
           data-test="StatusGrid.Sort"
           onChange={(sort: any) => onOptionsChange({ sort })}
         >
-          {/* @ts-expect-error Select.Option is added by withControlLabel's wrapped component */}
           <Select.Option value="none">As the query returns them</Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="severity">Worst first</Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="name">By name</Select.Option>
         </Select>
       </Section>

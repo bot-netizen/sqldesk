@@ -24,7 +24,6 @@ export default function ValueFormatSection({ format, onChange, sampleValue, test
 
   return (
     <React.Fragment>
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <Select
           layout="horizontal"
@@ -34,17 +33,14 @@ export default function ValueFormatSection({ format, onChange, sampleValue, test
           onChange={(style: any) => update({ style })}
         >
           {VALUE_STYLES.map((s) => (
-            // @ts-expect-error Select.Option is added by withControlLabel's wrapped component
             <Select.Option key={s.value} value={s.value} data-test={`${testPrefix}.Style.${s.value}`}>
               {s.label} <span className="value-options-example">{s.example}</span>
-              {/* @ts-expect-error see above */}
             </Select.Option>
           ))}
         </Select>
       </Section>
 
       {f.style === "currency" && (
-        // @ts-expect-error Section's children type is too narrow in its declaration
         <Section>
           <Input
             layout="horizontal"
@@ -58,7 +54,6 @@ export default function ValueFormatSection({ format, onChange, sampleValue, test
         </Section>
       )}
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <InputNumber
           layout="horizontal"
@@ -72,7 +67,6 @@ export default function ValueFormatSection({ format, onChange, sampleValue, test
         />
       </Section>
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <Input
           layout="horizontal"
@@ -83,7 +77,6 @@ export default function ValueFormatSection({ format, onChange, sampleValue, test
         />
       </Section>
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <Input
           layout="horizontal"

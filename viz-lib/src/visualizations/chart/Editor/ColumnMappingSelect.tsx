@@ -40,7 +40,6 @@ export default function ColumnMappingSelect({ value, availableColumns, type, onC
   const { label, multiple } = !areAxesSwapped ? MappingTypes[type] : SwappedMappingTypes[type];
 
   return (
-    // @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message
     <Section>
       <Select
         label={label}
@@ -54,10 +53,8 @@ export default function ColumnMappingSelect({ value, availableColumns, type, onC
         onChange={(column: any) => onChange(column || null, type)}
       >
         {map(options, (c) => (
-          // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
           <Select.Option key={c} value={c} data-test={`Chart.ColumnMapping.${type}.${c}`}>
             {c}
-            {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
           </Select.Option>
         ))}
       </Select>

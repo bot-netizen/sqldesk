@@ -24,7 +24,6 @@ export default function ValueMappingsSection({ mappings, onChange, testPrefix, d
     onChange(rows.map((r, j) => (j === i ? { ...r, ...changes } : r)));
 
   return (
-    // @ts-expect-error Section's children type is too narrow in its declaration
     <Section>
       {/* @ts-expect-error ControlLabel's props are declared too narrowly */}
       <ControlLabel label="Value mappings">

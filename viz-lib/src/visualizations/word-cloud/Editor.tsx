@@ -11,7 +11,6 @@ export default function Editor({ options, data, onOptionsChange }: any) {
 
   return (
     <React.Fragment>
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Select
           label="Words Column"
@@ -20,15 +19,12 @@ export default function Editor({ options, data, onOptionsChange }: any) {
           onChange={(column: any) => optionsChanged({ column })}
         >
           {map(data.columns, ({ name }) => (
-            // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
             <Select.Option key={name} data-test={"WordCloud.WordsColumn." + name}>
               {name}
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
             </Select.Option>
           ))}
         </Select>
       </Section>
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Select
           label="Frequencies Column"
@@ -36,21 +32,16 @@ export default function Editor({ options, data, onOptionsChange }: any) {
           value={options.frequenciesColumn}
           onChange={(frequenciesColumn: any) => optionsChanged({ frequenciesColumn })}
         >
-          {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
           <Select.Option key="none" value="">
             <i>(count word frequencies automatically)</i>
-            {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
           </Select.Option>
           {map(data.columns, ({ name }) => (
-            // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
             <Select.Option key={"column-" + name} value={name} data-test={"WordCloud.FrequenciesColumn." + name}>
               {name}
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
             </Select.Option>
           ))}
         </Select>
       </Section>
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         {/* @ts-expect-error ts-migrate(2322) FIXME: Type 'string' is not assignable to type 'null | un... Remove this comment to see the full error message */}
         <ControlLabel label="Words Length Limit">
@@ -77,7 +68,6 @@ export default function Editor({ options, data, onOptionsChange }: any) {
           </Grid.Row>
         </ControlLabel>
       </Section>
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         {/* @ts-expect-error ts-migrate(2322) FIXME: Type 'string' is not assignable to type 'null | un... Remove this comment to see the full error message */}
         <ControlLabel label="Frequencies Limit">

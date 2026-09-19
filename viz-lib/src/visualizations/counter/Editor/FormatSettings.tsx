@@ -8,7 +8,6 @@ import { isValueNumber } from "../utils";
 
 function FormatModeSelect({ options, onOptionsChange }: any) {
   return (
-    // @ts-expect-error Section's children type is too narrow in its declaration
     <Section>
       <Select
         layout="horizontal"
@@ -17,15 +16,11 @@ function FormatModeSelect({ options, onOptionsChange }: any) {
         data-test="Counter.Formatting.Mode"
         onChange={(formatMode: any) => onOptionsChange({ formatMode })}
       >
-        {/* @ts-expect-error Select.Option is added by withControlLabel's wrapped component */}
         <Select.Option value="value" data-test="Counter.Formatting.Mode.value">
           Standard: units, compact, currency
-          {/* @ts-expect-error see above */}
         </Select.Option>
-        {/* @ts-expect-error see above */}
         <Select.Option value="classic" data-test="Counter.Formatting.Mode.classic">
           Classic: decimal and thousands characters
-          {/* @ts-expect-error see above */}
         </Select.Option>
       </Select>
     </Section>
@@ -45,7 +40,6 @@ export default function FormatSettings({ options, data, onOptionsChange }: any) 
           testPrefix="Counter.Format"
           onChange={(valueFormat) => onOptionsChange({ valueFormat }, UpdateOptionsStrategy.shallowMerge)}
         />
-        {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
         <Section>
           {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
           <Switch
@@ -64,7 +58,6 @@ export default function FormatSettings({ options, data, onOptionsChange }: any) 
   return (
     <React.Fragment>
       <FormatModeSelect options={options} onOptionsChange={onOptionsChange} />
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <InputNumber
           layout="horizontal"
@@ -76,7 +69,6 @@ export default function FormatSettings({ options, data, onOptionsChange }: any) 
         />
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Input
           layout="horizontal"
@@ -88,7 +80,6 @@ export default function FormatSettings({ options, data, onOptionsChange }: any) 
         />
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Input
           layout="horizontal"
@@ -100,7 +91,6 @@ export default function FormatSettings({ options, data, onOptionsChange }: any) 
         />
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Input
           layout="horizontal"
@@ -112,7 +102,6 @@ export default function FormatSettings({ options, data, onOptionsChange }: any) 
         />
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Input
           layout="horizontal"
@@ -124,7 +113,6 @@ export default function FormatSettings({ options, data, onOptionsChange }: any) 
         />
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
         <Switch

@@ -51,7 +51,6 @@ export default function BoundsSettings({ options, onOptionsChange }: any) {
 
   return (
     <React.Fragment>
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         {/* @ts-expect-error ts-migrate(2322) FIXME: Type 'string' is not assignable to type 'null | un... Remove this comment to see the full error message */}
         <ControlLabel label="North-East Latitude and Longitude">
@@ -75,7 +74,6 @@ export default function BoundsSettings({ options, onOptionsChange }: any) {
         </ControlLabel>
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         {/* @ts-expect-error ts-migrate(2322) FIXME: Type 'string' is not assignable to type 'null | un... Remove this comment to see the full error message */}
         <ControlLabel label="South-West Latitude and Longitude">

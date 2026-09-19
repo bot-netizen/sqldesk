@@ -17,7 +17,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
   const hasTarget = !!options.targetColumn || options.target !== null;
   return (
     <React.Fragment>
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <Select
           layout="horizontal"
@@ -26,20 +25,15 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
           data-test="Progress.Mode"
           onChange={(mode: any) => onOptionsChange({ mode })}
         >
-          {/* @ts-expect-error Select.Option is added by withControlLabel's wrapped component */}
           <Select.Option value="bullet" data-test="Progress.Mode.bullet">
             Bullet: bar over graded bands, with a target tick
-            {/* @ts-expect-error see above */}
           </Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="bar" data-test="Progress.Mode.bar">
             Progress bar: a filled track
-            {/* @ts-expect-error see above */}
           </Select.Option>
         </Select>
       </Section>
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <ColumnSelect
           label="Label column"
@@ -51,7 +45,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
         />
       </Section>
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <ColumnSelect
           label="Value column"
@@ -62,7 +55,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
         />
       </Section>
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <ColumnSelect
           label="Target column"
@@ -75,7 +67,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
       </Section>
 
       {!options.targetColumn && (
-        // @ts-expect-error Section's children type is too narrow in its declaration
         <Section>
           <InputNumber
             layout="horizontal"
@@ -91,7 +82,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
       )}
 
       {!hasTarget && (
-        // @ts-expect-error Section's children type is too narrow in its declaration
         <Section>
           <InputNumber
             layout="horizontal"

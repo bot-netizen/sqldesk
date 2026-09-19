@@ -9,10 +9,8 @@ export default function YAxisSettings({ options, onOptionsChange }: any) {
 
   return (
     <React.Fragment>
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section.Title>{!options.swappedAxes ? "Left Y Axis" : "X Axis"}</Section.Title>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <AxisSettings
           id="LeftYAxis"
@@ -25,10 +23,8 @@ export default function YAxisSettings({ options, onOptionsChange }: any) {
 
       {options.globalSeriesType !== "heatmap" && !options.swappedAxes && (
         <React.Fragment>
-          {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
           <Section.Title>Right Y Axis</Section.Title>
 
-          {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
           <Section>
             <AxisSettings
               id="RightYAxis"
@@ -39,7 +35,6 @@ export default function YAxisSettings({ options, onOptionsChange }: any) {
             />
           </Section>
 
-          {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
           <Section>
             {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
             <Switch
@@ -59,7 +54,6 @@ export default function YAxisSettings({ options, onOptionsChange }: any) {
 
       {options.globalSeriesType === "heatmap" && (
         <React.Fragment>
-          {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
           <Section>
             {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
             <Switch
@@ -75,7 +69,6 @@ export default function YAxisSettings({ options, onOptionsChange }: any) {
             </Switch>
           </Section>
 
-          {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
           <Section>
             {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
             <Switch

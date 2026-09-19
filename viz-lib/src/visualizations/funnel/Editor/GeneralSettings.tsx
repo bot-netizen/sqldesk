@@ -11,7 +11,6 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
 
   return (
     <React.Fragment>
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Select
           layout="horizontal"
@@ -22,16 +21,13 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
           onChange={(colName: any) => onOptionsChange({ stepCol: { colName: colName || null } })}
         >
           {map(columnNames, (col) => (
-            // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
             <Select.Option key={col} data-test={`Funnel.StepColumn.${col}`}>
               {col}
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
             </Select.Option>
           ))}
         </Select>
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Input
           layout="horizontal"
@@ -42,7 +38,6 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
         />
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Select
           layout="horizontal"
@@ -53,16 +48,13 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
           onChange={(colName: any) => onOptionsChange({ valueCol: { colName: colName || null } })}
         >
           {map(columnNames, (col) => (
-            // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
             <Select.Option key={col} data-test={`Funnel.ValueColumn.${col}`}>
               {col}
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
             </Select.Option>
           ))}
         </Select>
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Input
           layout="horizontal"
@@ -73,7 +65,6 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
         />
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Checkbox
           data-test="Funnel.CustomSort"
@@ -86,7 +77,6 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
 
       {!options.autoSort && (
         <React.Fragment>
-          {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
           <Section>
             <Select
               layout="horizontal"
@@ -98,16 +88,13 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
               onChange={(colName: any) => onOptionsChange({ sortKeyCol: { colName: colName || null } })}
             >
               {map(columnNames, (col) => (
-                // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
                 <Select.Option key={col} data-test={`Funnel.SortColumn.${col}`}>
                   {col}
-                  {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
                 </Select.Option>
               ))}
             </Select>
           </Section>
 
-          {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
           <Section>
             <Select
               layout="horizontal"
@@ -117,15 +104,11 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
               defaultValue={options.sortKeyCol.reverse ? "desc" : "asc"}
               onChange={(order: any) => onOptionsChange({ sortKeyCol: { reverse: order === "desc" } })}
             >
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               <Select.Option value="asc" data-test="Funnel.SortDirection.Ascending">
                 ascending
-                {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               </Select.Option>
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               <Select.Option value="desc" data-test="Funnel.SortDirection.Descending">
                 descending
-                {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               </Select.Option>
             </Select>
           </Section>

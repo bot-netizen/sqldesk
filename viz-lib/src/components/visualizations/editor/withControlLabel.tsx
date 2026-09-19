@@ -59,7 +59,20 @@ export function ControlLabel({ layout, label, labelProps, disabled, children }: 
 
 ControlLabel.defaultProps = controlLabelDefaultProps;
 
-export default function withControlLabel(WrappedControl: any) {
+/**
+ * Everything the wrapped control carries besides being callable -- `Option`
+ * and `OptGroup` on antd's Select, for instance. `hoistNonReactStatics` copies
+ * these across at runtime, but the wrapper's own type knew nothing about them,
+ * so every `<Select.Option>` in every editor needed a suppression. Omitting
+ * the call signatures rather than intersecting the whole type keeps exactly
+ * one signature for JSX to resolve.
+ */
+type Statics<C> = Omit<C, keyof CallableFunction>;
+
+/** A control wrapped by `withControlLabel`, carrying `S` as static members. */
+export type LabelledControl<S = unknown> = ((props: any) => JSX.Element) & S;
+
+export default function withControlLabel<C>(WrappedControl: C): ((props: any) => JSX.Element) & Statics<C> {
   // eslint-disable-next-line react/prop-types
   function ControlWrapper({ className, id, layout, label, labelProps, disabled, ...props }: any) {
     const fallbackId = useMemo(() => `visualization-editor-control-${Math.random().toString(36).substr(2, 10)}`, []);
@@ -82,7 +95,7 @@ export default function withControlLabel(WrappedControl: any) {
   }
 
   // Copy static methods from `WrappedComponent`
-  hoistNonReactStatics(ControlWrapper, WrappedControl);
+  hoistNonReactStatics(ControlWrapper, WrappedControl as any);
 
-  return ControlWrapper;
+  return ControlWrapper as ((props: any) => JSX.Element) & Statics<C>;
 }

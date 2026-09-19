@@ -16,7 +16,6 @@ export default function CellFormatSection({ column, onChange }: Props) {
 
   return (
     <div className="table-visualization-editor-cell-format" data-test={prefix}>
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <Select
           label="Colour cells"
@@ -24,28 +23,21 @@ export default function CellFormatSection({ column, onChange }: Props) {
           data-test={`${prefix}.Color`}
           onChange={(color: any) => update({ color })}
         >
-          {/* @ts-expect-error Select.Option is added by withControlLabel's wrapped component */}
           <Select.Option value="none" data-test={`${prefix}.Color.none`}>
             No
-            {/* @ts-expect-error see above */}
           </Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="rules" data-test={`${prefix}.Color.rules`}>
             {numeric ? "By thresholds" : "By value"}
-            {/* @ts-expect-error see above */}
           </Select.Option>
           {numeric && (
-            // @ts-expect-error see above
             <Select.Option value="scale" data-test={`${prefix}.Color.scale`}>
               As a scale, lowest to highest
-              {/* @ts-expect-error see above */}
             </Select.Option>
           )}
         </Select>
       </Section>
 
       {f.color !== "none" && (
-        // @ts-expect-error Section's children type is too narrow in its declaration
         <Section>
           <Select
             label="Colour the"
@@ -53,9 +45,7 @@ export default function CellFormatSection({ column, onChange }: Props) {
             data-test={`${prefix}.Target`}
             onChange={(colorTarget: any) => update({ colorTarget })}
           >
-            {/* @ts-expect-error Select.Option is added by withControlLabel's wrapped component */}
             <Select.Option value="background">Cell background</Select.Option>
-            {/* @ts-expect-error see above */}
             <Select.Option value="text">Text</Select.Option>
           </Select>
         </Section>
@@ -81,7 +71,6 @@ export default function CellFormatSection({ column, onChange }: Props) {
       )}
 
       {f.color === "scale" && (
-        // @ts-expect-error Section's children type is too narrow in its declaration
         <Section>
           <label className="value-options-help" htmlFor={`${prefix}.ScaleColor`}>
             Colour deepens from the column's lowest value to its highest
@@ -96,7 +85,6 @@ export default function CellFormatSection({ column, onChange }: Props) {
       )}
 
       {numeric && (
-        // @ts-expect-error Section's children type is too narrow in its declaration
         <Section>
           <Checkbox
             data-test={`${prefix}.DataBar`}
@@ -108,7 +96,6 @@ export default function CellFormatSection({ column, onChange }: Props) {
         </Section>
       )}
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <Checkbox
           data-test={`${prefix}.ShowChange`}

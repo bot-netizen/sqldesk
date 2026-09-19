@@ -47,7 +47,6 @@ export default function ColumnEditor({
 
   return (
     <div className={cssClass}>
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         {/* @ts-expect-error ts-migrate(2322) FIXME: Type '{ children: Element[]; gutter: number; type:... Remove this comment to see the full error message */}
         <Grid.Row gutter={15} type="flex" align="middle">
@@ -69,7 +68,6 @@ export default function ColumnEditor({
       </Section>
 
       {showSearch && (
-        /* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */
         <Section>
           <Checkbox
             data-test={`${dataTestPrefix}.UseForSearch`}
@@ -81,7 +79,6 @@ export default function ColumnEditor({
         </Section>
       )}
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Input
           label="Description"
@@ -91,7 +88,6 @@ export default function ColumnEditor({
         />
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Select
           label="Display as:"
@@ -100,10 +96,8 @@ export default function ColumnEditor({
           onChange={(displayAs: any) => handleChange({ displayAs })}
         >
           {map(ColumnTypes, ({ friendlyName }, key) => (
-            // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
             <Select.Option key={key} data-test={`${dataTestPrefix}.DisplayAs.${key}`}>
               {friendlyName}
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
             </Select.Option>
           ))}
         </Select>

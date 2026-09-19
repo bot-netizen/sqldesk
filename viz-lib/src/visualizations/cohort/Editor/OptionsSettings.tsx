@@ -17,7 +17,6 @@ const CohortModes = {
 export default function OptionsSettings({ options, onOptionsChange }: any) {
   return (
     <React.Fragment>
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Select
           layout="horizontal"
@@ -27,16 +26,13 @@ export default function OptionsSettings({ options, onOptionsChange }: any) {
           onChange={(timeInterval: any) => onOptionsChange({ timeInterval })}
         >
           {map(CohortTimeIntervals, (name, value) => (
-            // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
             <Select.Option key={value} data-test={"Cohort.TimeInterval." + value}>
               {name}
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
             </Select.Option>
           ))}
         </Select>
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Select
           layout="horizontal"
@@ -46,10 +42,8 @@ export default function OptionsSettings({ options, onOptionsChange }: any) {
           onChange={(mode: any) => onOptionsChange({ mode })}
         >
           {map(CohortModes, (name, value) => (
-            // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
             <Select.Option key={value} data-test={"Cohort.Mode." + value}>
               {name}
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
             </Select.Option>
           ))}
         </Select>

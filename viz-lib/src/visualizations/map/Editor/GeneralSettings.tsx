@@ -19,7 +19,6 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
 
   return (
     <React.Fragment>
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Select
           label="Latitude Column Name"
@@ -28,16 +27,13 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
           onChange={(latColName: any) => onOptionsChange({ latColName })}
         >
           {map(getColumns(options.latColName, unusedColumns), (col) => (
-            // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
             <Select.Option key={col} data-test={"Map.Editor.LatitudeColumnName." + col}>
               {col}
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
             </Select.Option>
           ))}
         </Select>
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Select
           label="Longitude Column Name"
@@ -46,16 +42,13 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
           onChange={(lonColName: any) => onOptionsChange({ lonColName })}
         >
           {map(getColumns(options.lonColName, unusedColumns), (col) => (
-            // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
             <Select.Option key={col} data-test={"Map.Editor.LongitudeColumnName." + col}>
               {col}
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
             </Select.Option>
           ))}
         </Select>
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Select
           label="Group By"
@@ -66,10 +59,8 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
           onChange={(column: any) => onOptionsChange({ classify: column || null })}
         >
           {map(getColumns(options.classify, unusedColumns), (col) => (
-            // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
             <Select.Option key={col} data-test={"Map.Editor.GroupBy." + col}>
               {col}
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
             </Select.Option>
           ))}
         </Select>

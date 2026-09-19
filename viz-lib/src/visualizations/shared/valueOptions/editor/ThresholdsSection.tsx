@@ -41,7 +41,6 @@ export default function ThresholdsSection({ thresholds, onChange, testPrefix, de
   };
 
   return (
-    // @ts-expect-error Section's children type is too narrow in its declaration
     <Section>
       {/* @ts-expect-error ControlLabel's props are declared too narrowly */}
       <ControlLabel label="Thresholds">

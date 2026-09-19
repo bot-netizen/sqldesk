@@ -18,7 +18,6 @@ export default function TrendSettings({ options, data, onOptionsChange }: any) {
 
   return (
     <React.Fragment>
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <SwitchControl
           data-test="Counter.Trend.Sparkline"
@@ -36,7 +35,6 @@ export default function TrendSettings({ options, data, onOptionsChange }: any) {
       </Section>
 
       {spark.enabled && (
-        // @ts-expect-error Section's children type is too narrow in its declaration
         <Section>
           <ColumnSelect
             label="Time column"
@@ -49,7 +47,6 @@ export default function TrendSettings({ options, data, onOptionsChange }: any) {
         </Section>
       )}
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <Select
           layout="horizontal"
@@ -58,30 +55,20 @@ export default function TrendSettings({ options, data, onOptionsChange }: any) {
           data-test="Counter.Trend.Compare"
           onChange={(mode: any) => setComparison({ mode })}
         >
-          {/* @ts-expect-error Select.Option is added by withControlLabel's wrapped component */}
           <Select.Option value="none" data-test="Counter.Trend.Compare.none">
             Nothing
-            {/* @ts-expect-error see above */}
           </Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="previous" data-test="Counter.Trend.Compare.previous">
             The previous row
-            {/* @ts-expect-error see above */}
           </Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="rowsBack" data-test="Counter.Trend.Compare.rowsBack">
             A number of rows back
-            {/* @ts-expect-error see above */}
           </Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="target" data-test="Counter.Trend.Compare.target">
             The target value
-            {/* @ts-expect-error see above */}
           </Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="previousRefresh" data-test="Counter.Trend.Compare.previousRefresh">
             The last refresh
-            {/* @ts-expect-error see above */}
           </Select.Option>
         </Select>
         {comparison.mode === "target" && !options.targetColName && (
@@ -93,7 +80,6 @@ export default function TrendSettings({ options, data, onOptionsChange }: any) {
       </Section>
 
       {comparison.mode === "rowsBack" && (
-        // @ts-expect-error Section's children type is too narrow in its declaration
         <Section>
           <InputNumber
             layout="horizontal"
@@ -108,7 +94,6 @@ export default function TrendSettings({ options, data, onOptionsChange }: any) {
 
       {comparison.mode !== "none" && (
         <React.Fragment>
-          {/* @ts-expect-error Section's children type is too narrow in its declaration */}
           <Section>
             <Select
               layout="horizontal"
@@ -117,13 +102,10 @@ export default function TrendSettings({ options, data, onOptionsChange }: any) {
               data-test="Counter.Trend.Display"
               onChange={(display: any) => setComparison({ display })}
             >
-              {/* @ts-expect-error Select.Option is added by withControlLabel's wrapped component */}
               <Select.Option value="percent">Percent</Select.Option>
-              {/* @ts-expect-error see above */}
               <Select.Option value="absolute">Difference</Select.Option>
             </Select>
           </Section>
-          {/* @ts-expect-error Section's children type is too narrow in its declaration */}
           <Section>
             <Select
               layout="horizontal"
@@ -132,9 +114,7 @@ export default function TrendSettings({ options, data, onOptionsChange }: any) {
               data-test="Counter.Trend.UpIsGood"
               onChange={(v: any) => setComparison({ upIsGood: v === "good" })}
             >
-              {/* @ts-expect-error Select.Option is added by withControlLabel's wrapped component */}
               <Select.Option value="good">Good (revenue, sign-ups)</Select.Option>
-              {/* @ts-expect-error see above */}
               <Select.Option value="bad">Bad (errors, latency)</Select.Option>
             </Select>
           </Section>

@@ -17,7 +17,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
   const columns = data.columns || [];
   return (
     <React.Fragment>
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <Select
           layout="horizontal"
@@ -26,25 +25,18 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
           data-test="Gauge.Style"
           onChange={(style: any) => onOptionsChange({ style })}
         >
-          {/* @ts-expect-error Select.Option is added by withControlLabel's wrapped component */}
           <Select.Option value="needle" data-test="Gauge.Style.needle">
             Needle
-            {/* @ts-expect-error see above */}
           </Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="ring" data-test="Gauge.Style.ring">
             Progress ring
-            {/* @ts-expect-error see above */}
           </Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="half" data-test="Gauge.Style.half">
             Half arc
-            {/* @ts-expect-error see above */}
           </Select.Option>
         </Select>
       </Section>
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <ColumnSelect
           label="Value column"
@@ -55,7 +47,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
         />
       </Section>
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <InputNumber
           layout="horizontal"
@@ -67,7 +58,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
         <p className="value-options-help">1 is the first row, -1 the last.</p>
       </Section>
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <Input
           layout="horizontal"
@@ -79,7 +69,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
         />
       </Section>
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <InputNumber
           layout="horizontal"
@@ -90,7 +79,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
           onChange={(min: any) => onOptionsChange({ min: numberOrNull(min) ?? 0 })}
         />
       </Section>
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <ColumnSelect
           label="…or from column"
@@ -102,7 +90,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
         />
       </Section>
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <InputNumber
           layout="horizontal"
@@ -113,7 +100,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
           onChange={(max: any) => onOptionsChange({ max: numberOrNull(max) ?? 100 })}
         />
       </Section>
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <ColumnSelect
           label="…or from column"
@@ -125,7 +111,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
         />
       </Section>
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <InputNumber
           layout="horizontal"
@@ -140,7 +125,6 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
           }
         />
       </Section>
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <ColumnSelect
           label="…or from column"

@@ -85,7 +85,6 @@ export default function StyleSettings({ options, onOptionsChange }: any) {
 
   return (
     <React.Fragment>
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Select
           label="Map Tiles"
@@ -94,19 +93,15 @@ export default function StyleSettings({ options, onOptionsChange }: any) {
           onChange={(mapTileUrl: any) => onOptionsChange({ mapTileUrl })}
         >
           {map(mapTiles, ({ name, url }) => (
-            // @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message
             <Select.Option key={url} data-test={"Map.Editor.Tiles." + name}>
               {name}
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
             </Select.Option>
           ))}
         </Select>
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section.Title>Markers</Section.Title>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Checkbox
           data-test="Map.Editor.ClusterMarkers"
@@ -117,7 +112,6 @@ export default function StyleSettings({ options, onOptionsChange }: any) {
         </Checkbox>
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2746) FIXME: This JSX tag's 'children' prop expects a single ch... Remove this comment to see the full error message */}
       <Section>
         <Checkbox
           data-test="Map.Editor.CustomizeMarkers"
@@ -139,7 +133,6 @@ export default function StyleSettings({ options, onOptionsChange }: any) {
 
       {isCustomMarkersStyleAllowed && options.customizeMarkers && (
         <React.Fragment>
-          {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
           <Section>
             <Select
               layout="horizontal"
@@ -148,41 +141,28 @@ export default function StyleSettings({ options, onOptionsChange }: any) {
               value={options.iconShape}
               onChange={(iconShape: any) => onOptionsChange({ iconShape })}
             >
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               <Select.Option key="marker" data-test="Map.Editor.MarkerShape.marker">
                 Marker + Icon
-                {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               </Select.Option>
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               <Select.Option key="doughnut" data-test="Map.Editor.MarkerShape.doughnut">
                 Circle
-                {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               </Select.Option>
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               <Select.Option key="circle-dot" data-test="Map.Editor.MarkerShape.circle-dot">
                 Circle Dot
-                {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               </Select.Option>
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               <Select.Option key="circle" data-test="Map.Editor.MarkerShape.circle">
                 Circle + Icon
-                {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               </Select.Option>
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               <Select.Option key="rectangle-dot" data-test="Map.Editor.MarkerShape.rectangle-dot">
                 Square Dot
-                {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               </Select.Option>
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               <Select.Option key="rectangle" data-test="Map.Editor.MarkerShape.rectangle">
                 Square + Icon
-                {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               </Select.Option>
             </Select>
           </Section>
 
           {showIcon && (
-            // @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message
             <Section>
               <Input
                 layout="horizontal"
@@ -212,7 +192,6 @@ export default function StyleSettings({ options, onOptionsChange }: any) {
           )}
 
           {showIcon && (
-            // @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message
             <Section>
               <ColorPicker
                 layout="horizontal"
@@ -230,7 +209,6 @@ export default function StyleSettings({ options, onOptionsChange }: any) {
           )}
 
           {showBackgroundColor && (
-            // @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message
             <Section>
               <ColorPicker
                 layout="horizontal"
@@ -248,7 +226,6 @@ export default function StyleSettings({ options, onOptionsChange }: any) {
           )}
 
           {showBorderColor && (
-            // @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message
             <Section>
               <ColorPicker
                 layout="horizontal"

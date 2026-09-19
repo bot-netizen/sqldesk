@@ -65,7 +65,6 @@ export default function GeneralSettings({ options, onOptionsChange }: any) {
 
   return (
     <div className="choropleth-visualization-editor-format-settings">
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Grid.Row gutter={15}>
           <Grid.Col span={12}>
@@ -92,7 +91,6 @@ export default function GeneralSettings({ options, onOptionsChange }: any) {
         </Grid.Row>
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Checkbox
           data-test="Choropleth.Editor.LegendVisibility"
@@ -103,7 +101,6 @@ export default function GeneralSettings({ options, onOptionsChange }: any) {
         </Checkbox>
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Grid.Row gutter={15}>
           <Grid.Col span={12}>
@@ -114,25 +111,17 @@ export default function GeneralSettings({ options, onOptionsChange }: any) {
               defaultValue={options.legend.position}
               onChange={(position: any) => onOptionsChange({ legend: { position } })}
             >
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               <Select.Option value="top-left" data-test="Choropleth.Editor.LegendPosition.TopLeft">
                 top / left
-                {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               </Select.Option>
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               <Select.Option value="top-right" data-test="Choropleth.Editor.LegendPosition.TopRight">
                 top / right
-                {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               </Select.Option>
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               <Select.Option value="bottom-left" data-test="Choropleth.Editor.LegendPosition.BottomLeft">
                 bottom / left
-                {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               </Select.Option>
-              {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               <Select.Option value="bottom-right" data-test="Choropleth.Editor.LegendPosition.BottomRight">
                 bottom / right
-                {/* @ts-expect-error ts-migrate(2339) FIXME: Property 'Option' does not exist on type '({ class... Remove this comment to see the full error message */}
               </Select.Option>
             </Select>
           </Grid.Col>
@@ -148,7 +137,6 @@ export default function GeneralSettings({ options, onOptionsChange }: any) {
         </Grid.Row>
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Checkbox
           data-test="Choropleth.Editor.TooltipEnabled"
@@ -159,7 +147,6 @@ export default function GeneralSettings({ options, onOptionsChange }: any) {
         </Checkbox>
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Input
           label={<React.Fragment>Tooltip Template {templateFormatHint}</React.Fragment>}
@@ -170,7 +157,6 @@ export default function GeneralSettings({ options, onOptionsChange }: any) {
         />
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <Checkbox
           data-test="Choropleth.Editor.PopupEnabled"
@@ -181,7 +167,6 @@ export default function GeneralSettings({ options, onOptionsChange }: any) {
         </Checkbox>
       </Section>
 
-      {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
       <Section>
         <TextArea
           label={<React.Fragment>Popup Template {templateFormatHint}</React.Fragment>}

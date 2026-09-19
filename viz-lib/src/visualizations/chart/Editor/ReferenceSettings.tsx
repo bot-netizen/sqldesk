@@ -45,7 +45,6 @@ export default function ReferenceSettings({ options, onOptionsChange }: any) {
 
   return (
     <React.Fragment>
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         {/* @ts-expect-error ControlLabel's props are declared too narrowly */}
         <ControlLabel label="Reference lines">
@@ -147,7 +146,6 @@ export default function ReferenceSettings({ options, onOptionsChange }: any) {
         </ControlLabel>
       </Section>
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         {/* @ts-expect-error ControlLabel's props are declared too narrowly */}
         <ControlLabel label="Bands">
@@ -197,7 +195,6 @@ export default function ReferenceSettings({ options, onOptionsChange }: any) {
         </ControlLabel>
       </Section>
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <Select
           label="Show"
@@ -205,20 +202,14 @@ export default function ReferenceSettings({ options, onOptionsChange }: any) {
           data-test="Chart.Window.Mode"
           onChange={(mode: any) => onOptionsChange({ window: { ...window, mode } }, UpdateOptionsStrategy.shallowMerge)}
         >
-          {/* @ts-expect-error Select.Option is added by withControlLabel's wrapped component */}
           <Select.Option value="all" data-test="Chart.Window.Mode.all">
             Every point
-            {/* @ts-expect-error see above */}
           </Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="points" data-test="Chart.Window.Mode.points">
             The last few points
-            {/* @ts-expect-error see above */}
           </Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="minutes" data-test="Chart.Window.Mode.minutes">
             The last few minutes (time axis)
-            {/* @ts-expect-error see above */}
           </Select.Option>
         </Select>
         {window.mode !== "all" && (
@@ -229,7 +220,6 @@ export default function ReferenceSettings({ options, onOptionsChange }: any) {
       </Section>
 
       {window.mode === "points" && (
-        // @ts-expect-error Section's children type is too narrow in its declaration
         <Section>
           <InputNumber
             label="Points"
@@ -247,7 +237,6 @@ export default function ReferenceSettings({ options, onOptionsChange }: any) {
       )}
 
       {window.mode === "minutes" && (
-        // @ts-expect-error Section's children type is too narrow in its declaration
         <Section>
           <InputNumber
             label="Minutes"
@@ -264,7 +253,6 @@ export default function ReferenceSettings({ options, onOptionsChange }: any) {
         </Section>
       )}
 
-      {/* @ts-expect-error Section's children type is too narrow in its declaration */}
       <Section>
         <Select
           label="Zoom"
@@ -272,13 +260,9 @@ export default function ReferenceSettings({ options, onOptionsChange }: any) {
           data-test="Chart.Zoom"
           onChange={(zoom: any) => onOptionsChange({ zoom })}
         >
-          {/* @ts-expect-error Select.Option is added by withControlLabel's wrapped component */}
           <Select.Option value="none">No</Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="slider">With a slider</Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="inside">With the mouse wheel and dragging</Select.Option>
-          {/* @ts-expect-error see above */}
           <Select.Option value="both">Both</Select.Option>
         </Select>
       </Section>
