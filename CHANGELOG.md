@@ -1,5 +1,78 @@
 # Changelog
 
+## 0.4.0-rc.3
+
+The third release candidate for 0.4, and the one to try: rc.1 and rc.2
+looked right but did not refresh. Published as
+`ghcr.io/bot-netizen/sqldesk:0.4.0-rc.3` and marked as a pre-release;
+`latest` stays on 0.3.2.
+
+### Upgrading
+
+- From rc.1 or rc.2: pull and `up -d`. No migration.
+- From 0.3.2: as before -- run `manage db upgrade`.
+
+### Fixed
+
+- **No dashboard refresh showed anything new.** Since rc.1, Refresh, the
+  auto-refresh timer and live dashboards all quietly reused the result the
+  page already had. The browser's query code reuses a known result whenever
+  the caller says how old a result it will accept, and rc.1 started saying
+  so everywhere: a minute for Refresh, half an interval for auto-refresh,
+  "any" for live. Refresh then announced "Already up to date" about a result
+  an hour old, and a live dashboard sat on "refreshing…" while the server
+  made a new result every 30 seconds. A known result is now reused only when
+  no age is given -- a page loading; every other refresh asks the server.
+- **A live dashboard never drew the results it fetched.** The grid re-renders
+  a widget only when certain things about it change, and a live reload
+  changed none of them, so new data arrived and stayed off screen until the
+  page was reloaded.
+- **Line, area and scatter charts over time were drawn on a number line.**
+  An x axis left on automatic asked "are these numbers?" before "are these
+  dates?", and a timestamp is also a number -- its epoch milliseconds -- so
+  every time series was squeezed against the right-hand edge of an axis
+  running from zero. Bars escaped it, being categorical. Dates are now
+  checked first, including dates that arrive as text.
+- **Time axes were labelled "1789852380000".** They are labelled with times.
+- **Legend placement did nothing.** The editor has always offered Right, and
+  always drew the legend below. Right now runs it down the side, with the
+  plot giving up the width the names need and pies moving over. Charts saved
+  with the default get their legend on the right.
+- **The home page checklist never ticked off.** It read counts fetched once,
+  when the app opened, so a data source or dashboard made since still showed
+  as a step to do until the page was reloaded.
+- **Widget headers said everything twice** when a visualization was named
+  after its query ("Requests per second - Requests per second").
+- **Gauge ticks carried the reading's decimals**: "20.0 40.0 60.0" round a
+  0-100 dial.
+
+### Changed
+
+- **Refresh always runs the queries**, on the dashboard and on each widget.
+  The one-minute reuse rc.1 added, and its "Already up to date" notice, are
+  gone: pressing Refresh means run it now.
+- **Live widgets say what is coming**: "next in 18s", "refreshing…" while the
+  new result is on its way, or "updated 2m ago" while paused -- one of them,
+  never two. The countdown runs on the server's clock.
+- **Coming back to a live dashboard catches up at once.** The first viewer to
+  arrive at a dashboard nobody was watching has the server refresh what is
+  stale there and then, and the tab checks in every few seconds until the new
+  results are on screen, instead of showing old numbers for up to 25 seconds.
+- **Visualizations move at a pace you can see.** A dashboard opening grows
+  from nothing over a second -- bars rising, gauges sweeping up, Stat numbers
+  counting from zero -- and new data moves from the old values to the new
+  over a second. They were 300 and 450 milliseconds, over before anyone
+  looked up.
+- **Hovering a chart says which x you are on**: labelled on the axis under
+  the pointer, and as a heading on the tooltip.
+
+### Development
+
+- The image builds in about four minutes instead of 35. The arm64 image was
+  being built under emulation on an amd64 runner; each platform now builds
+  on a machine of its own architecture, and the frontend -- the same
+  JavaScript for both -- is built once.
+
 ## 0.4.0-rc.2
 
 The second release candidate for 0.4: what testing rc.1 found
