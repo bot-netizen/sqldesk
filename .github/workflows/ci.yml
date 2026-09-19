@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - main
+      # Release candidates are cut from release branches, so they get the full
+      # suite on every push rather than only when a pull request is opened.
+      - "release/**"
   pull_request:
     branches:
       - main

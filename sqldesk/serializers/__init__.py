@@ -9,7 +9,7 @@ from funcy import project
 from rq.job import JobStatus
 from rq.timeouts import JobTimeoutException
 
-from sqldesk import models
+from sqldesk import live, models
 from sqldesk.models.parameterized_query import ParameterizedQuery
 from sqldesk.permissions import has_access, view_only
 from sqldesk.serializers.query_result import (
@@ -63,6 +63,8 @@ def public_dashboard(dashboard):
     )
 
     dashboard_dict["widgets"] = [public_widget(w) for w in widget_list]
+    # A public viewer of a live dashboard watches it the same way.
+    dashboard_dict["live"] = live.describe(dashboard)
     return dashboard_dict
 
 
@@ -272,6 +274,7 @@ def serialize_dashboard(obj, with_widgets=False, user=None, with_favorite_state=
         "updated_at": obj.updated_at,
         "created_at": obj.created_at,
         "version": obj.version,
+        "live": live.describe(obj),
     }
 
     return d

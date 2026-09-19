@@ -16,17 +16,21 @@ import routes from "@/services/routes";
 import logoUrl from "@/assets/images/sqldesk_icon.svg";
 
 import useDashboard from "./hooks/useDashboard";
+import LiveBadge from "./components/LiveBadge";
 
 import "./PublicDashboardPage.less";
 
-function PublicDashboard({ dashboard }) {
-  const { globalParameters, filters, setFilters, refreshDashboard, loadWidget, refreshWidget } =
-    useDashboard(dashboard);
+function PublicDashboard({ dashboard, token }) {
+  const { globalParameters, filters, setFilters, refreshDashboard, loadWidget, refreshWidget, live } = useDashboard(
+    dashboard,
+    { publicToken: token }
+  );
 
   return (
     <div className="container p-t-10 p-b-20">
-      <PageHeader title={dashboard.name} />
-      {!isEmpty(globalParameters) && (
+      <PageHeader title={dashboard.name} actions={live ? <LiveBadge live={live} /> : null} />
+      {/* A live dashboard's parameters are fixed: it shows what the server refreshes. */}
+      {!live && !isEmpty(globalParameters) && (
         <div className="m-b-10 p-15 bg-white tiled">
           <Parameters parameters={globalParameters} onValuesChange={refreshDashboard} />
         </div>
@@ -43,6 +47,7 @@ function PublicDashboard({ dashboard }) {
           filters={filters}
           isEditing={false}
           isPublic
+          isLive={!!live}
           onLoadWidget={loadWidget}
           onRefreshWidget={refreshWidget}
         />
@@ -53,6 +58,7 @@ function PublicDashboard({ dashboard }) {
 
 PublicDashboard.propTypes = {
   dashboard: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+  token: PropTypes.string.isRequired,
 };
 
 class PublicDashboardPage extends React.Component {
@@ -85,7 +91,7 @@ class PublicDashboardPage extends React.Component {
             <BigMessage className="" icon="fa-spinner fa-2x fa-pulse" message="Loading..." />
           </div>
         ) : (
-          <PublicDashboard dashboard={dashboard} />
+          <PublicDashboard dashboard={dashboard} token={this.props.token} />
         )}
         <div id="footer">
           <div className="text-center">

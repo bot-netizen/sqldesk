@@ -1,5 +1,86 @@
 # Changelog
 
+## 0.4.0-rc.1
+
+**A release candidate, for testing.** It is tagged and published as
+`ghcr.io/bot-netizen/sqldesk:0.4.0-rc.1`, but `latest` and `0.4` still point
+at 0.3.2, and it is marked as a pre-release on GitHub. Try it on a copy of your
+data before trusting it with the real thing.
+
+This is the first part of the visualization roadmap
+([sqldesk site → Roadmap](https://bot-netizen.github.io/sqldesk/roadmap.html)):
+charts for dashboards that are watched rather than read, and a live mode for
+the dashboards on the wall.
+
+### Upgrading
+
+- **Run `manage db upgrade`.** This release adds a `live` column to
+  `dashboards`:
+
+  ```bash
+  docker compose -f compose.prod.yaml run --rm server manage db upgrade
+  ```
+
+- Restart the scheduler along with the server and worker (`up -d` does all
+  three). Live dashboards are refreshed by a new periodic job, and a scheduler
+  still running the old image never starts it.
+- **Dashboard auto-refresh now starts at ten minutes.** The 1 and 5 minute
+  choices are gone, and a link carrying `?refresh=60` or `?refresh=300`
+  refreshes every ten. Anything that genuinely needs to move faster than that
+  is what live mode is for. `SQLDESK_DASHBOARD_REFRESH_INTERVALS` still sets
+  the menu, and values under ten minutes are ignored.
+- Nobody can turn live mode on until an admin grants it: open a group, and tick
+  **Members can make dashboards live**. Admins can always do it.
+
+### Added
+
+- **Live dashboards.** Pick 30 seconds, 1, 2 or 5 minutes from a dashboard's
+  menu and the server refreshes it from then on. A live dashboard shows a
+  **Live** badge, hides its Refresh buttons and parameter inputs, and only
+  shows what the server made -- a room full of screens runs each query once
+  per interval, not once per screen. It runs only while somebody is looking:
+  every open tab checks in, a hidden or closed tab says it is leaving, and a
+  dashboard nobody has watched for 45 seconds stops refreshing until someone
+  opens it again. Pause and Resume sit next to the badge, say who paused it,
+  and every viewer sees the change within a check-in. Public links to a live
+  dashboard stay live. Parameters use their saved values: a live dashboard is
+  one result, shared.
+- **Gauge.** One value against a range, as a needle, a ring or a half ring,
+  with coloured threshold bands and an optional target marker. The value
+  eases to its new reading instead of jumping.
+- **Progress Bars.** One bar per row against that row's own target, drawn as
+  a bullet (a thin bar over threshold bands, with a tick at the target) or a
+  filled bar.
+- **Status Grid.** One tile per row, coloured by its state -- `ok`, `warn`,
+  `down` and the usual spellings are understood without setup, and the list is
+  yours to edit. Sort by severity or name. A tile whose state changed since
+  the last refresh is outlined, so a wall screen shows what just moved.
+- **Stat** (the Counter, grown up). A sparkline under the number, a change
+  against a target, the previous row, _n_ rows back or the previous refresh,
+  and a colour from thresholds. Numbers format as plain, compact (`27.2K`),
+  percent, currency, bytes or duration, with prefix and suffix. Existing
+  counters keep their old formatting until you switch them.
+- **Tables** gain conditional formatting (rules or a colour scale, on the text
+  or the cell), data bars, value mappings, a **Sparkline** column type for a
+  column holding a list of numbers, and ▲▼ marks on cells that changed since the
+  last refresh.
+- **Charts** gain reference lines (a constant, a vertical line at an x value,
+  or a series' average, min or max), shaded bands, a rolling window (the last
+  _n_ points or the last _n_ minutes) and zoom (a slider, or scroll to zoom).
+- One set of value options behind all of the above: number format, thresholds
+  and value mappings work the same in Gauge, Progress Bars, Status Grid, Stat
+  and Tables, and colours are named -- good, warning, serious, critical --
+  rather than picked, so they follow the theme.
+- Charts are exposed to screen readers with a generated description.
+
+### Changed
+
+- **The Refresh buttons reuse anything from the last minute.** Several people
+  pressing Refresh on the same dashboard run each query once. Changing a
+  parameter still always runs the query.
+- Dashboard auto-refresh reuses a result younger than its interval, so two
+  tabs on the same dashboard no longer run everything twice.
+
 ## 0.3.2
 
 Fixes from using it.

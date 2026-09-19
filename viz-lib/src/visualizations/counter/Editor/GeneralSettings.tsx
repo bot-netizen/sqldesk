@@ -45,7 +45,8 @@ export default function GeneralSettings({ options, data, visualizationName, onOp
           label="Counter Value Row Number"
           data-test="Counter.General.ValueRowNumber"
           defaultValue={options.rowNumber}
-          disabled={options.countRow}
+          // With a sparkline the latest row is the headline.
+          disabled={options.countRow || (options.sparkline && options.sparkline.enabled)}
           onChange={(rowNumber: any) => onOptionsChange({ rowNumber })}
         />
       </Section>

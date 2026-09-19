@@ -44,12 +44,14 @@ const DashboardWidget = React.memo(
     isEditing,
     canEdit,
     isPublic,
+    isLive,
     isLoading,
     filters,
   }) {
     const { type } = widget;
     const onLoad = () => onLoadWidget(widget);
     const onRefresh = () => onRefreshWidget(widget);
+    const onParametersChange = () => onRefreshWidget(widget, { parametersChanged: true });
     const onDelete = () => onRemoveWidget(widget.id);
 
     if (type === WidgetTypeEnum.VISUALIZATION) {
@@ -61,9 +63,11 @@ const DashboardWidget = React.memo(
           isEditing={isEditing}
           canEdit={canEdit}
           isPublic={isPublic}
+          isLive={isLive}
           isLoading={isLoading}
           onLoad={onLoad}
           onRefresh={onRefresh}
+          onParametersChange={onParametersChange}
           onDelete={onDelete}
           onParameterMappingsChange={onParameterMappingsChange}
         />
@@ -78,6 +82,7 @@ const DashboardWidget = React.memo(
     prevProps.widget === nextProps.widget &&
     prevProps.canEdit === nextProps.canEdit &&
     prevProps.isPublic === nextProps.isPublic &&
+    prevProps.isLive === nextProps.isLive &&
     prevProps.isLoading === nextProps.isLoading &&
     prevProps.filters === nextProps.filters &&
     prevProps.isEditing === nextProps.isEditing
@@ -87,6 +92,8 @@ class DashboardGrid extends React.Component {
   static propTypes = {
     isEditing: PropTypes.bool.isRequired,
     isPublic: PropTypes.bool,
+    // A live dashboard is refreshed by the server; widgets show no refresh button.
+    isLive: PropTypes.bool,
     dashboard: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
     widgets: PropTypes.arrayOf(WidgetType).isRequired,
     filters: FiltersType,
@@ -100,6 +107,7 @@ class DashboardGrid extends React.Component {
 
   static defaultProps = {
     isPublic: false,
+    isLive: false,
     filters: [],
     onLoadWidget: () => {},
     onRefreshWidget: () => {},
@@ -231,6 +239,7 @@ class DashboardGrid extends React.Component {
       filters,
       dashboard,
       isPublic,
+      isLive,
       isEditing,
       widgets,
     } = this.props;
@@ -268,6 +277,7 @@ class DashboardGrid extends React.Component {
                 widget={widget}
                 filters={filters}
                 isPublic={isPublic}
+                isLive={isLive}
                 isLoading={widget.loading}
                 isEditing={isEditing}
                 canEdit={dashboard.canEdit()}

@@ -5,6 +5,7 @@ import initBooleanColumn from "./boolean";
 import initLinkColumn from "./link";
 import initImageColumn from "./image";
 import initJsonColumn from "./json";
+import initSparklineColumn from "./sparkline";
 
 // this map should contain all possible values for `column.displayAs` property
 export default {
@@ -15,4 +16,5 @@ export default {
   link: initLinkColumn,
   image: initImageColumn,
   json: initJsonColumn,
+  sparkline: initSparklineColumn,
 };

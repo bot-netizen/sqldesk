@@ -7,6 +7,7 @@ import Typography from "antd/lib/typography";
 import { sortableElement } from "react-sortable-hoc";
 import { SortableContainer, DragHandle } from "@/components/sortable";
 import PropTypes from "prop-types";
+import { UpdateOptionsStrategy } from "@/components/visualizations/editor/createTabbedEditor";
 
 import EyeOutlinedIcon from "@ant-design/icons/EyeOutlined";
 import EyeInvisibleOutlinedIcon from "@ant-design/icons/EyeInvisibleOutlined";
@@ -21,21 +22,25 @@ type ColumnsSettingsProps = {
   options: any;
   onOptionsChange: any;
   variant: "table" | "details";
+  /** More settings under each column's own, for what only one variant has. */
+  ColumnExtra?: React.ComponentType<{ column: any; onChange: (column: any) => void }>;
 };
 
-export default function ColumnsSettings({ options, onOptionsChange, variant }: ColumnsSettingsProps) {
+export default function ColumnsSettings({ options, onOptionsChange, variant, ColumnExtra }: ColumnsSettingsProps) {
   function handleColumnChange(newColumn: any, event: any) {
     if (event) {
       event.stopPropagation();
     }
     const columns = map(options.columns, (c) => (c.name === newColumn.name ? newColumn : c));
-    onOptionsChange({ columns });
+    // Replaced, not deep-merged: a deep merge combines arrays index by index,
+    // so a formatting rule removed from a column would survive the edit.
+    onOptionsChange({ columns }, UpdateOptionsStrategy.shallowMerge);
   }
 
   function handleColumnsReorder({ oldIndex, newIndex }: any) {
     const columns = [...options.columns];
     columns.splice(newIndex, 0, ...columns.splice(oldIndex, 1));
-    onOptionsChange({ columns });
+    onOptionsChange({ columns }, UpdateOptionsStrategy.shallowMerge);
   }
 
   const helperClass = `${variant}-editor-columns-dragged-item`;
@@ -94,6 +99,9 @@ export default function ColumnsSettings({ options, onOptionsChange, variant }: C
               variant={variant}
               onChange={(changes) => handleColumnChange(changes, undefined)}
             />
+            {ColumnExtra && (
+              <ColumnExtra column={column} onChange={(changed) => handleColumnChange(changed, undefined)} />
+            )}
           </SortableItem>
         ))}
       </Collapse>
@@ -105,4 +113,5 @@ ColumnsSettings.propTypes = {
   options: PropTypes.object.isRequired,
   onOptionsChange: PropTypes.func.isRequired,
   variant: PropTypes.oneOf(["table", "details"]).isRequired,
+  ColumnExtra: PropTypes.elementType,
 };

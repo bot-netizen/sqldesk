@@ -3,6 +3,15 @@ import React from "react";
 import cx from "classnames";
 import Tooltip from "antd/lib/tooltip";
 import ColumnTypes from "../shared/columns";
+import { cellStyle, dataBarWidth, changeBetween, normalizeCellFormat, isFormatted, ColumnStats } from "./cellFormat";
+
+export interface CellContext {
+  /** Min and max per column, over every row -- not just the visible page. */
+  stats: Record<string, ColumnStats | null>;
+  /** Each row's values at the previous refresh, by row identity. */
+  previous: Map<string, any> | null;
+  rowKey: (record: any, index: number) => string;
+}
 
 function nextOrderByDirection(direction: any) {
   switch (direction) {
@@ -50,7 +59,13 @@ function getOrderByInfo(orderBy: any) {
   return result;
 }
 
-export function prepareColumns(columns: any, searchInput: any, orderBy: any, onOrderByChange: any) {
+export function prepareColumns(
+  columns: any,
+  searchInput: any,
+  orderBy: any,
+  onOrderByChange: any,
+  cellContext: CellContext | null = null
+) {
   columns = filter(columns, "visible");
   columns = sortBy(columns, "order");
 
@@ -101,11 +116,59 @@ export function prepareColumns(columns: any, searchInput: any, orderBy: any, onO
     // @ts-expect-error ts-migrate(7053) FIXME: Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
     const initColumn = ColumnTypes[column.displayAs];
     const Component = initColumn(column);
+    const format = normalizeCellFormat(column.cellFormat);
+    const formatted = cellContext !== null && isFormatted(format);
     // @ts-expect-error ts-migrate(2339) FIXME: Property 'render' does not exist on type '{ key: a... Remove this comment to see the full error message
-    result.render = (unused: any, row: any) => ({
-      children: <Component row={row.record} />,
-      props: { className: `display-as-${column.displayAs}` },
-    });
+    result.render = (unused: any, row: any) => {
+      const plain = <Component row={row.record} />;
+      if (!formatted) {
+        return { children: plain, props: { className: `display-as-${column.displayAs}` } };
+      }
+      const ctx = cellContext as CellContext;
+      const value = row.record[column.name];
+      const stats = ctx.stats[column.name] || null;
+      let children = plain;
+
+      if (format.dataBar) {
+        const width = dataBarWidth(value, stats);
+        if (width !== null) {
+          children = (
+            <span className="table-cell-databar">
+              <i style={{ width: `${width}%` }} aria-hidden="true" />
+              <span>{children}</span>
+            </span>
+          );
+        }
+      }
+
+      let change = null;
+      if (format.showChange && ctx.previous) {
+        const before = ctx.previous.get(ctx.rowKey(row.record, row.index));
+        change = changeBetween(before === undefined ? undefined : before[column.name], value);
+        if (change) {
+          children = (
+            // Keyed by the value, so a cell that changes again is a new
+            // element and its highlight plays again.
+            <span key={String(value)} className={cx("table-cell-changed", `table-cell-changed-${change}`)}>
+              {children}
+              {change !== "changed" && (
+                <span className="table-cell-change-arrow" aria-label={change === "up" ? "went up" : "went down"}>
+                  {change === "up" ? " ▲" : " ▼"}
+                </span>
+              )}
+            </span>
+          );
+        }
+      }
+
+      return {
+        children,
+        props: {
+          className: `display-as-${column.displayAs}`,
+          style: cellStyle(value, format, stats),
+        },
+      };
+    };
 
     return result;
   });
@@ -139,7 +202,10 @@ export function prepareColumns(columns: any, searchInput: any, orderBy: any, onO
 }
 
 export function initRows(rows: any) {
-  return map(rows, (record, index) => ({ key: `record${index}`, record }));
+  // `index` is the row's place in the result, which survives sorting and
+  // searching -- what matches a row to itself across refreshes when nothing
+  // better identifies it.
+  return map(rows, (record, index) => ({ key: `record${index}`, record, index }));
 }
 
 export function filterRows(rows: any, searchTerm: any, searchColumns: any) {

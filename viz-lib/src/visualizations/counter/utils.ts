@@ -1,5 +1,6 @@
 import { isNumber, isFinite, toString } from "lodash";
 import numeral from "numeral";
+import { formatValue as formatStandard } from "../shared/valueOptions";
 
 // TODO: allow user to specify number format string instead of delimiters only
 // It will allow to remove this function (move all that weird formatting logic to a migration
@@ -51,7 +52,16 @@ function getRowNumber(index: any, rowsCount: any) {
   return index > 0 ? wrappedIndex : rowsCount - wrappedIndex - 1;
 }
 
-function formatValue(value: any, { stringPrefix, stringSuffix, stringDecimal, stringDecChar, stringThouSep }: any) {
+function formatValue(value: any, options: any) {
+  // "value" is the shared format (units, compact, currency). Counters saved
+  // before it existed have no formatMode and keep the classic delimiters.
+  if (options && options.formatMode === "value") {
+    return formatStandard(value, options.valueFormat);
+  }
+  return formatClassic(value, options);
+}
+
+function formatClassic(value: any, { stringPrefix, stringSuffix, stringDecimal, stringDecChar, stringThouSep }: any) {
   if (isNumber(value)) {
     value = numberFormat(value, stringDecimal, stringDecChar, stringThouSep);
     return toString(stringPrefix) + value + toString(stringSuffix);

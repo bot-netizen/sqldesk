@@ -3,6 +3,7 @@ import {
   BarChart,
   BoxplotChart,
   CustomChart,
+  GaugeChart,
   HeatmapChart,
   LineChart,
   PieChart,
@@ -10,16 +11,32 @@ import {
   ScatterChart,
   SunburstChart,
 } from "echarts/charts";
-import { GridComponent, LegendComponent, TooltipComponent, VisualMapComponent } from "echarts/components";
+import {
+  AriaComponent,
+  DataZoomComponent,
+  GridComponent,
+  LegendComponent,
+  MarkAreaComponent,
+  MarkLineComponent,
+  MarkPointComponent,
+  TitleComponent,
+  TooltipComponent,
+  VisualMapComponent,
+} from "echarts/components";
+import { UniversalTransition } from "echarts/features";
 import { CanvasRenderer } from "echarts/renderers";
 
 // Registered explicitly rather than importing the `echarts` barrel: the full
 // build is 1.07MB minified and most of it is chart types we do not draw. Adding
-// a series type here is a deliberate act with a measurable cost.
+// a series type here is a deliberate act with a measurable cost -- the audit
+// measured each one against this list, and 0.4's additions (gauge, the three
+// mark components, dataZoom, aria, title, universalTransition) come to 28.5KB
+// gzipped.
 //
 // This lives above `chart/` because it is no longer only the chart
-// visualization's: the sankey, sunburst and boxplot visualizations draw with it
-// too, and each needs its own series registered here.
+// visualization's: the sankey, sunburst, boxplot, gauge and progress
+// visualizations draw with it too, and each needs its own series registered
+// here.
 echarts.use([
   BarChart,
   BoxplotChart,
@@ -27,6 +44,7 @@ echarts.use([
   // ECharts ships no error-bar series, and a category axis snaps fractional
   // positions back to the category, so points cannot be offset any other way.
   CustomChart,
+  GaugeChart,
   HeatmapChart,
   LineChart,
   PieChart,
@@ -38,6 +56,18 @@ echarts.use([
   TooltipComponent,
   // Heatmaps map a value onto a colour ramp, which is what visualMap does.
   VisualMapComponent,
+  // Reference lines, threshold bands and min/max markers on any chart.
+  MarkLineComponent,
+  MarkAreaComponent,
+  MarkPointComponent,
+  // Zooming into, and windowing, long series.
+  DataZoomComponent,
+  // Labels drawn inside a chart, which a gauge's centre text needs.
+  TitleComponent,
+  // A text description of each chart for screen readers.
+  AriaComponent,
+  // Lets a series morph rather than cut when its shape changes on refresh.
+  UniversalTransition,
   CanvasRenderer,
 ]);
 

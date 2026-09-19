@@ -1,7 +1,7 @@
 from flask import request
 from flask_restful import abort
 
-from sqldesk import models
+from sqldesk import live, models
 from sqldesk.handlers.base import BaseResource, get_object_or_404
 from sqldesk.permissions import require_admin, require_permission
 
@@ -27,6 +27,42 @@ class GroupListResource(BaseResource):
         self.record_event({"action": "list", "object_id": "groups", "object_type": "group"})
 
         return [g.to_dict() for g in groups]
+
+
+# Permissions an admin may grant or take away from a group one at a time.
+# Everything else about a group's permissions is fixed by its type.
+GRANTABLE_PERMISSIONS = (live.MANAGE_LIVE_PERMISSION,)
+
+
+class GroupPermissionsResource(BaseResource):
+    @require_admin
+    def post(self, group_id):
+        """
+        Grant or take away a grantable permission.
+
+        :<json boolean manage_live_dashboards: whether members may turn
+                                                dashboards live
+        :>json object group: the group, with its permissions
+        """
+        group = models.Group.get_by_id_and_org(group_id, self.current_org)
+        body = request.get_json(force=True, silent=True) or {}
+        unknown = [key for key in body if key not in GRANTABLE_PERMISSIONS]
+        if unknown or not body:
+            abort(400, message="Only these can be granted: {}.".format(", ".join(GRANTABLE_PERMISSIONS)))
+
+        permissions = list(group.permissions or [])
+        for permission, granted in body.items():
+            if granted and permission not in permissions:
+                permissions.append(permission)
+            elif not granted and permission in permissions:
+                permissions.remove(permission)
+        group.permissions = permissions
+        models.db.session.commit()
+
+        self.record_event(
+            {"action": "edit_permissions", "object_id": group.id, "object_type": "group", "changes": body}
+        )
+        return group.to_dict()
 
 
 class GroupResource(BaseResource):
