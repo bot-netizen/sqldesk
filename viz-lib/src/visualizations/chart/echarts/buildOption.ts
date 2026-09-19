@@ -548,10 +548,17 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
       ...(barsWantCategories && categories.length <= MAX_LABELLED_CATEGORIES
         ? { interval: 0, hideOverlap: false, rotate: horizontal ? 0 : categoryLabelRotation(categories) }
         : { hideOverlap: true }),
-      formatter: (value: any) => {
-        const text = String(value);
-        return text.length > AXIS_LABEL_LIMIT ? `${text.slice(0, AXIS_LABEL_LIMIT)}…` : text;
-      },
+      // A time axis formats its own labels -- "20:51", then "Sep 20" where the
+      // day turns -- from the milliseconds it is given. Turned into text here
+      // they read "1789852380000".
+      ...(xAxisType === "time"
+        ? {}
+        : {
+            formatter: (value: any) => {
+              const text = String(value);
+              return text.length > AXIS_LABEL_LIMIT ? `${text.slice(0, AXIS_LABEL_LIMIT)}…` : text;
+            },
+          }),
     },
   };
 

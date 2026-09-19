@@ -26,7 +26,16 @@ function clamp(v: number, lo: number, hi: number) {
 /** Tick labels drop the prefix and suffix and go compact once numbers get long. */
 function tickFormat(options: GaugeOptions, min: number, max: number) {
   const big = Math.max(Math.abs(min), Math.abs(max)) >= 10000;
-  return { ...options.valueFormat, prefix: "", suffix: "", style: big ? "compact" : options.valueFormat.style } as any;
+  // The reading keeps its decimals ("62.9%"); ticks on a wide scale fall on
+  // whole numbers, and "20.0 40.0 60.0" only crowds the arc.
+  const decimals = max - min >= 10 ? 0 : options.valueFormat.decimals;
+  return {
+    ...options.valueFormat,
+    prefix: "",
+    suffix: "",
+    decimals,
+    style: big ? "compact" : options.valueFormat.style,
+  } as any;
 }
 
 function readRange(data: GaugeData, row: any, options: GaugeOptions) {

@@ -65,6 +65,21 @@ function drawnMarks(svg: string) {
 }
 
 describe("Visualizations -> Chart -> ECharts -> rendering for real", () => {
+  test("a time series is labelled with times, spread across the axis", () => {
+    // Left on the editor's automatic axis, a datetime column was drawn on a
+    // number line from 0 and labelled in raw milliseconds.
+    const moment = require("moment"); // eslint-disable-line global-require
+    const start = moment.utc("2026-09-19T20:50:00Z");
+    const points = [0, 1, 2, 3, 4, 5].map((i) => [start.clone().add(i, "minutes"), 300 + i * 10]);
+    const { svg } = render(
+      [{ ...series("rps", points), type: "line" }],
+      options({ globalSeriesType: "line", xAxis: { type: "-", labels: { enabled: true } } })
+    );
+
+    expect(svg).not.toMatch(/>1789\d{9}</);
+    expect(svg).toMatch(/>\d{2}:\d{2}</);
+  });
+
   const cases: [string, any[], any][] = [
     [
       "column",

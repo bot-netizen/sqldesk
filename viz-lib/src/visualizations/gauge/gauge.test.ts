@@ -141,3 +141,21 @@ describe("Visualizations -> Gauge -> registration", () => {
     expect(source).toContain("GaugeChart");
   });
 });
+
+describe("Visualizations -> Gauge -> tick labels", () => {
+  test("a wide scale ticks in whole numbers while the reading keeps its decimals", () => {
+    const { option } = build({ valueColumn: "p95", min: 0, max: 1000, valueFormat: { style: "number", decimals: 1 } });
+    const needle = option.series[0];
+    expect(needle.axisLabel.formatter(200)).toBe("200");
+    expect(needle.detail.formatter(needle.data[0].value)).toBe("212.0");
+  });
+
+  test("a narrow scale keeps the decimals it needs", () => {
+    const share = { columns: [{ name: "share", type: "float" }], rows: [{ share: 0.42 }] };
+    const { option } = build(
+      { valueColumn: "share", min: 0, max: 1, valueFormat: { style: "number", decimals: 1 } },
+      share
+    );
+    expect(option.series[0].axisLabel.formatter(0.2)).toBe("0.2");
+  });
+});

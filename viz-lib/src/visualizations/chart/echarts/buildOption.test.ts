@@ -270,6 +270,8 @@ describe("Visualizations -> Chart -> ECharts -> buildOption", () => {
 
       expect(built.option.xAxis.type).toBe("time");
       expect(built.option.series[0].data[0][0]).toBe(Date.parse("2026-09-19T20:50:00Z"));
+      // ...and ECharts labels it as times, not as "1789852380000".
+      expect(built.option.xAxis.axisLabel.formatter).toBeUndefined();
     });
 
     test("ISO dates in text columns count as times too", () => {
