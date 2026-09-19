@@ -29,7 +29,7 @@ def _unlock(query_hash, data_source_id):
     redis_connection.delete(_job_lock_id(query_hash, data_source_id))
 
 
-def enqueue_query(query, data_source, user_id, is_api_key=False, scheduled_query=None, metadata={}):
+def enqueue_query(query, data_source, user_id, is_api_key=False, scheduled_query=None, metadata={}, queue_name=None):
     query_hash = gen_query_hash(query)
     logger.info("Inserting job for %s with metadata=%s", query_hash, metadata)
     try_count = 0
@@ -72,11 +72,15 @@ def enqueue_query(query, data_source, user_id, is_api_key=False, scheduled_query
             if not job:
                 pipe.multi()
 
+                # A caller may name the queue itself -- live dashboards run on
+                # the scheduled queue without being scheduled queries, which
+                # would otherwise mean failure emails to the query's owner and
+                # a growing backoff on its own schedule.
                 if scheduled_query:
-                    queue_name = data_source.scheduled_queue_name
+                    queue_name = queue_name or data_source.scheduled_queue_name
                     scheduled_query_id = scheduled_query.id
                 else:
-                    queue_name = data_source.queue_name
+                    queue_name = queue_name or data_source.queue_name
                     scheduled_query_id = None
 
                 time_limit = settings.dynamic_settings.query_time_limit(scheduled_query, user_id, data_source.org_id)

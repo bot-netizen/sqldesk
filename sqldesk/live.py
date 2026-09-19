@@ -25,7 +25,7 @@ from sqldesk.models.parameterized_query import (
     InvalidParameterError,
     QueryDetachedFromDataSourceError,
 )
-from sqldesk.utils import utcnow
+from sqldesk.utils import gen_query_hash, utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +168,49 @@ def _skip(query):
     return None
 
 
+def _attempt_key(data_source_id, query_hash):
+    return "sqldesk:live:attempted:{}:{}".format(data_source_id, query_hash)
+
+
+def claim_attempt(data_source, text, interval, now=None):
+    """
+    Whether this refresh is ours to make, marking it as made if so.
+
+    A run that succeeds leaves a result behind and the freshness check below
+    is enough. A run that *fails* leaves nothing, so the freshness check finds
+    nothing every time and the ten-second scheduler asks again on every tick:
+    thirty times the interval on a five-minute dashboard, for ever, against a
+    data source that is already unhappy.
+
+    The mark expires after exactly as long as a result would stay fresh, so a
+    failing query is retried at the dashboard's interval like a working one,
+    and the two clocks cannot drift apart. It is keyed by query text rather
+    than by widget, so two widgets showing the same query ask once between
+    them.
+    """
+    key = _attempt_key(data_source.id, gen_query_hash(text))
+    ttl = max(int(interval - FRESHNESS_SLACK), 1)
+    now = now if now is not None else time.time()
+    return bool(redis_connection.set(key, now, ex=ttl, nx=True))
+
+
+def forget_attempts(dashboard):
+    """
+    Drop the marks for a dashboard's queries, so a refresh asked for by hand
+    -- going live, changing the interval, resuming -- happens now rather than
+    waiting out the last one.
+    """
+    keys = []
+    for widget in dashboard.loaded_widgets():
+        resolved = widget_query_text(widget)
+        if resolved is None:
+            continue
+        query, text = resolved
+        keys.append(_attempt_key(query.data_source_id, gen_query_hash(text)))
+    if keys:
+        redis_connection.delete(*keys)
+
+
 def refresh_dashboard(dashboard):
     """
     Enqueue each of a running live dashboard's widget queries whose newest
@@ -195,6 +238,8 @@ def refresh_dashboard(dashboard):
         fresh = models.QueryResult.get_latest(query.data_source, text, max_age=interval - FRESHNESS_SLACK)
         if fresh:
             continue
+        if not claim_attempt(query.data_source, text, interval):
+            continue
         try:
             enqueue_query(
                 text,
@@ -205,6 +250,10 @@ def refresh_dashboard(dashboard):
                     "dashboard_id": dashboard.id,
                     "Username": "Live dashboard {}".format(dashboard.id),
                 },
+                # The server runs these, not a person waiting on a result, so
+                # they belong beside scheduled refreshes rather than competing
+                # with queries somebody is sitting in front of.
+                queue_name=query.data_source.scheduled_queue_name,
             )
             enqueued.append(query.id)
         except Exception:  # one bad query must not stop the others

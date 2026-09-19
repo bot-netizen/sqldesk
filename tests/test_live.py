@@ -2,7 +2,7 @@ import datetime
 import time
 from unittest import mock
 
-from sqldesk import live, models, settings
+from sqldesk import live, models, redis_connection, settings
 from sqldesk.models import db
 from sqldesk.utils import gen_query_hash, utcnow
 from tests import BaseTestCase
@@ -279,6 +279,74 @@ class TestRefreshingLiveDashboards(BaseTestCase):
         live.refresh_live_dashboards()
         enqueue.assert_called_once()
 
+    def test_a_failing_query_is_not_asked_for_again_on_every_tick(self, enqueue):
+        # A query that fails stores no result, so the freshness check finds
+        # nothing every time. Without a record of the attempt the ten-second
+        # scheduler asks again on every tick -- thirty times the interval on a
+        # five-minute dashboard, against a data source already in trouble.
+        dashboard = _live_dashboard(self.factory, interval=300)
+        self._widget(dashboard)
+        live.check_in(dashboard.id, "tab")
+
+        live.refresh_live_dashboards()
+        self.assertEqual(enqueue.call_count, 1)
+
+        for _ in range(5):
+            live.refresh_live_dashboards()
+        self.assertEqual(enqueue.call_count, 1)
+
+    def test_it_will_ask_again_once_a_result_would_have_gone_stale(self, enqueue):
+        dashboard = _live_dashboard(self.factory, interval=300)
+        self._widget(dashboard)
+        live.check_in(dashboard.id, "tab")
+        live.refresh_live_dashboards()
+
+        # The attempt is remembered for exactly as long as a result would stay
+        # fresh, so a failing query retries on the dashboard's own interval
+        # rather than drifting away from it.
+        key = live._attempt_key(self.factory.data_source.id, gen_query_hash("SELECT 1"))
+        self.assertEqual(redis_connection.ttl(key), 300 - live.FRESHNESS_SLACK)
+
+    def test_two_widgets_on_one_query_ask_between_them(self, enqueue):
+        dashboard = _live_dashboard(self.factory)
+        query = self.factory.create_query(query_text="SELECT 1")
+        self._widget(dashboard, query=query)
+        self._widget(dashboard, query=query)
+        live.check_in(dashboard.id, "tab")
+
+        live.refresh_live_dashboards()
+
+        self.assertEqual(enqueue.call_count, 1)
+
+    def test_refreshes_run_beside_scheduled_queries_not_in_front_of_people(self, enqueue):
+        dashboard = _live_dashboard(self.factory)
+        widget = self._widget(dashboard)
+        live.check_in(dashboard.id, "tab")
+
+        live.refresh_live_dashboards()
+
+        data_source = widget.visualization.query_rel.data_source
+        self.assertEqual(enqueue.call_args[1]["queue_name"], data_source.scheduled_queue_name)
+        self.assertNotEqual(data_source.scheduled_queue_name, data_source.queue_name)
+        # Not *as* a scheduled query, though: that would mail the query's owner
+        # on every failure and back off its own schedule.
+        self.assertIsNone(enqueue.call_args[1].get("scheduled_query"))
+
+    def test_a_new_interval_asks_again_at_once(self, enqueue):
+        admin = self.factory.create_admin()
+        dashboard = _live_dashboard(self.factory, interval=300, user=admin)
+        self._widget(dashboard)
+        live.check_in(dashboard.id, "tab")
+        live.refresh_live_dashboards()
+        enqueue.reset_mock()
+
+        rv = self.make_request(
+            "post", "/api/dashboards/{}/live".format(dashboard.id), data={"interval": 30}, user=admin
+        )
+
+        self.assertEqual(rv.status_code, 200)
+        enqueue.assert_called_once()
+
     def test_parameters_are_the_saved_values_or_the_widgets_fixed_one(self, enqueue):
         dashboard = _live_dashboard(self.factory)
         query = self.factory.create_query(
@@ -338,9 +406,26 @@ class TestRefreshingLiveDashboards(BaseTestCase):
 
         self.make_request("post", path, data={"viewer": "tab"})
         self.make_request("post", path, data={"viewer": "tab", "leaving": True})
+        # Stands in for the attempt ageing out, which it does after one
+        # interval; the tab has been away longer than that.
+        live.forget_attempts(dashboard)
         self.make_request("post", path, data={"viewer": "tab"})
 
         self.assertEqual(enqueue.call_count, 2)
+
+    def test_toggling_a_tab_cannot_force_refreshes(self, enqueue):
+        # Nobody watching means the next viewer back starts it, so a viewer
+        # leaving and returning is the one thing a viewer can do that asks the
+        # server to run something. Doing it repeatedly must not.
+        dashboard = _live_dashboard(self.factory, interval=300)
+        self._widget(dashboard)
+        path = "/api/dashboards/{}/live/watch".format(dashboard.id)
+
+        for _ in range(4):
+            self.make_request("post", path, data={"viewer": "tab"})
+            self.make_request("post", path, data={"viewer": "tab", "leaving": True})
+
+        self.assertEqual(enqueue.call_count, 1)
 
     def test_a_check_in_says_what_time_the_server_makes_it(self, enqueue):
         dashboard = _live_dashboard(self.factory)

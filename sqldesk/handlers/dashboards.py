@@ -360,6 +360,10 @@ class DashboardLiveResource(BaseResource):
 
         # Going live, a new interval or Resume: refresh what is stale now, so
         # the person who pressed it sees it start. Off or paused, a no-op.
+        # Asked for by hand, so it does not wait out the last attempt -- a
+        # query that has been failing should be tried again immediately on a
+        # new interval, not at the end of the old one.
+        live.forget_attempts(dashboard)
         live.refresh_dashboard(dashboard)
 
         return {"live": live.describe(dashboard)}
