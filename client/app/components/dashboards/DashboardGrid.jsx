@@ -73,7 +73,12 @@ export const DashboardWidget = React.memo(function DashboardWidget({
   const { type } = widget;
   const onLoad = () => onLoadWidget(widget);
   const onRefresh = () => onRefreshWidget(widget);
-  const onParametersChange = () => onRefreshWidget(widget, { parametersChanged: true });
+  // Changing a widget's own parameters and pressing Refresh both re-run the
+  // query. They stay separate props because they are separate affordances --
+  // one in the header, one in the footer -- not because they do different
+  // things; the `{ parametersChanged: true }` that used to be passed here had
+  // no reader.
+  const onParametersChange = () => onRefreshWidget(widget);
   const onDelete = () => onRemoveWidget(widget.id);
 
   if (type === WidgetTypeEnum.VISUALIZATION) {

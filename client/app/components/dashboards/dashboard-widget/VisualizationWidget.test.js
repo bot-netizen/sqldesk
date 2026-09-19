@@ -23,7 +23,7 @@ function fakeWidget() {
 }
 
 describe("VisualizationWidget", () => {
-  test("its own parameters run the query; its Refresh button may reuse a recent result", () => {
+  test("its own parameters and its Refresh button go to separate handlers", () => {
     const onRefresh = jest.fn();
     const onParametersChange = jest.fn();
     const wrapper = shallow(
