@@ -56,13 +56,7 @@ def public_dashboard(dashboard):
         ("name", "layout", "dashboard_filters_enabled", "updated_at", "created_at", "options"),
     )
 
-    widget_list = (
-        models.Widget.query.filter(models.Widget.dashboard_id == dashboard.id)
-        .outerjoin(models.Visualization)
-        .outerjoin(models.Query)
-    )
-
-    dashboard_dict["widgets"] = [public_widget(w) for w in widget_list]
+    dashboard_dict["widgets"] = [public_widget(w) for w in dashboard.loaded_widgets()]
     # A public viewer of a live dashboard watches it the same way.
     dashboard_dict["live"] = live.describe(dashboard)
     return dashboard_dict
@@ -231,7 +225,7 @@ def serialize_dashboard(obj, with_widgets=False, user=None, with_favorite_state=
     widgets = []
 
     if with_widgets:
-        for w in obj.widgets:
+        for w in obj.loaded_widgets():
             if w.visualization_id is None:
                 widgets.append(serialize_widget(w))
             elif user and has_access(w.visualization.query_rel, user, view_only):

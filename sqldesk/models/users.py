@@ -171,8 +171,20 @@ class User(TimestampMixin, db.Model, BelongsToOrgMixin, UserMixin, PermissionsCh
 
     @property
     def permissions(self):
-        # TODO: this should be cached.
-        return list(itertools.chain(*[g.permissions for g in Group.query.filter(Group.id.in_(self.group_ids))]))
+        # Read once per access check, and a dashboard checks access once per
+        # widget, so this used to be a statement per widget. Cached against
+        # the group ids it was built from, which is what changes when someone
+        # is moved between groups; a change to a group's own permissions is
+        # picked up on the next request, since the instance does not outlive
+        # one.
+        cached = getattr(self, "_permissions_cache", None)
+        group_ids = tuple(self.group_ids or [])
+        if cached is not None and cached[0] == group_ids:
+            return cached[1]
+
+        permissions = list(itertools.chain(*[g.permissions for g in Group.query.filter(Group.id.in_(group_ids))]))
+        self._permissions_cache = (group_ids, permissions)
+        return permissions
 
     @classmethod
     def get_by_org(cls, org):

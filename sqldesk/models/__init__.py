@@ -18,6 +18,7 @@ from sqlalchemy.orm import (
     defer,
     joinedload,
     load_only,
+    selectinload,
     subqueryload,
 )
 from sqlalchemy.orm.exc import NoResultFound  # noqa: F401
@@ -296,11 +297,14 @@ class DataSource(BelongsToOrgMixin, db.Model):
     def get_by_name(cls, name):
         return cls.query.filter(cls.name == name).one()
 
-    # XXX examine call sites to see if a regular SQLA collection would work better
     @property
     def groups(self):
-        groups = DataSourceGroup.query.filter(DataSourceGroup.data_source == self)
-        return dict([(group.group_id, group.view_only) for group in groups])
+        # Through the relationship rather than a fresh query: every permission
+        # check on every query reads this, and a dashboard asks once per
+        # widget. The relationship is loaded once per session and can be
+        # eager-loaded with the rest of a dashboard (see
+        # Dashboard.loaded_widgets).
+        return dict([(dsg.group_id, dsg.view_only) for dsg in self.data_source_groups])
 
 
 @generic_repr("id", "data_source_id", "group_id", "view_only")
@@ -1309,6 +1313,32 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
     @property
     def name_as_slug(self):
         return utils.slugify(self.name)
+
+    def loaded_widgets(self):
+        """
+        This dashboard's widgets with everything needed to show or refresh
+        them already loaded.
+
+        `widgets` is a dynamic relationship, so iterating it runs a statement
+        every time, and each widget then lazily fetches its visualization, its
+        query, that query's data source and author, and the data source's
+        groups for the permission check. A twelve-widget dashboard cost 65
+        statements to serialize and 74 for every live viewer's check-in, most
+        of them the same rows over and over.
+        """
+        return (
+            self.widgets.options(
+                joinedload(Widget.visualization)
+                .joinedload(Visualization.query_rel)
+                .options(
+                    joinedload(Query.user),
+                    joinedload(Query.last_modified_by),
+                    joinedload(Query.data_source).selectinload(DataSource.data_source_groups),
+                )
+            )
+            .order_by(Widget.id)
+            .all()
+        )
 
     @classmethod
     def all(cls, org, group_ids, user_id):

@@ -143,7 +143,7 @@ def latest_results(dashboard, user=None):
     from sqldesk.permissions import has_access, view_only
 
     results = {}
-    for widget in dashboard.widgets:
+    for widget in dashboard.loaded_widgets():
         if widget.visualization_id is None:
             continue
         resolved = widget_query_text(widget)
@@ -183,7 +183,7 @@ def refresh_dashboard(dashboard):
 
     enqueued = []
     interval = dashboard.live["interval"]
-    for widget in dashboard.widgets:
+    for widget in dashboard.loaded_widgets():
         resolved = widget_query_text(widget)
         if resolved is None:
             continue
