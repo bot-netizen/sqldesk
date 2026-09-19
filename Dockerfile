@@ -115,7 +115,12 @@ ARG install_groups="main,all_ds,dev"
 # Translate the comma-separated install_groups list into uv flags. "main"
 # refers to the project's base dependencies (always installed); every other
 # entry maps to a uv dependency group.
-RUN --mount=type=cache,target=/root/.cache/uv <<EOF
+#
+# One uv cache per platform. The amd64 and arm64 images build side by side, and
+# with one shared cache one build waited on the other's lock on gssapi -- a
+# source build, slow under emulation -- for longer than uv waits (300 s), and
+# failed. Wheels built for one platform are no use to the other anyway.
+RUN --mount=type=cache,target=/root/.cache/uv,id=uv-${TARGETPLATFORM} <<EOF
   group_flags=""
   for group in $(echo "$install_groups" | tr ',' ' '); do
     if [ "$group" != "main" ]; then
