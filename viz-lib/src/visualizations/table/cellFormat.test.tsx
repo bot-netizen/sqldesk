@@ -163,6 +163,27 @@ describe("Visualizations -> Table -> renderer", () => {
     expect(changed.text()).toContain("▼");
   });
 
+  test("a data bar keeps its width when the cell also marks a change", () => {
+    // The bar measures itself against the cell, so it has to stay outside the
+    // change highlight, which shrinks to fit the number. Nested the other way
+    // the bar looked right until the first refresh and then collapsed to a
+    // sliver behind the digits.
+    const o = options({ dataBar: true, showChange: true });
+    const w = enzyme.mount(<Renderer data={{ columns, rows }} options={o} />);
+    expect(ordersCell(w, "EMEA").find(".table-cell-databar i").prop("style")).toEqual({ width: "25%" });
+
+    w.setProps({ data: { columns, rows: [{ ...rows[0], orders: 20 }, rows[1]] } });
+    w.update();
+
+    const cell = ordersCell(w, "EMEA");
+    expect(cell.find(".table-cell-changed")).toHaveLength(1);
+    expect(cell.find(".table-cell-databar i").prop("style")).toEqual({ width: "50%" });
+    // The bar is the outer element: inside the highlight its percentage would
+    // be of the number's width, not the cell's.
+    expect(cell.find(".table-cell-changed .table-cell-databar")).toHaveLength(0);
+    expect(cell.find(".table-cell-databar .table-cell-changed")).toHaveLength(1);
+  });
+
   test("a sparkline column draws its series", () => {
     const w = enzyme.mount(<Renderer data={{ columns, rows }} options={options(undefined, "sparkline")} />);
     expect(w.find("svg.table-cell-sparkline")).toHaveLength(2);

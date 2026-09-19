@@ -129,18 +129,12 @@ export function prepareColumns(
       const stats = ctx.stats[column.name] || null;
       let children = plain;
 
-      if (format.dataBar) {
-        const width = dataBarWidth(value, stats);
-        if (width !== null) {
-          children = (
-            <span className="table-cell-databar">
-              <i style={{ width: `${width}%` }} aria-hidden="true" />
-              <span>{children}</span>
-            </span>
-          );
-        }
-      }
-
+      // The change highlight is applied first so that the data bar, when
+      // there is one, stays the outermost element. The bar is a block that
+      // measures itself against the cell; the highlight is an inline-block
+      // that shrinks to its contents, so wrapping the bar in it made the bar
+      // measure the number instead -- a sliver behind the digits rather than
+      // a bar across the cell, and only ever after the first refresh.
       let change = null;
       if (format.showChange && ctx.previous) {
         const before = ctx.previous.get(ctx.rowKey(row.record, row.index));
@@ -156,6 +150,18 @@ export function prepareColumns(
                   {change === "up" ? " ▲" : " ▼"}
                 </span>
               )}
+            </span>
+          );
+        }
+      }
+
+      if (format.dataBar) {
+        const width = dataBarWidth(value, stats);
+        if (width !== null) {
+          children = (
+            <span className="table-cell-databar">
+              <i style={{ width: `${width}%` }} aria-hidden="true" />
+              <span>{children}</span>
             </span>
           );
         }
