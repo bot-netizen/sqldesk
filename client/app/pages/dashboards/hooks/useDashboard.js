@@ -15,7 +15,7 @@ import ShareDashboardDialog from "../components/ShareDashboardDialog";
 import useFullscreenHandler from "../../../lib/hooks/useFullscreenHandler";
 import useRefreshRateHandler from "./useRefreshRateHandler";
 import useLiveDashboard from "./useLiveDashboard";
-import { nothingWasRun, shownResultIds } from "./refreshResults";
+import { autoRefreshMaxAge, nothingWasRun, shownResultIds } from "./refreshResults";
 import useEditModeHandler from "./useEditModeHandler";
 import useDuplicateDashboard from "./useDuplicateDashboard";
 import { policy } from "@/services/policy";
@@ -219,13 +219,14 @@ function useDashboard(dashboardData, { publicToken = null } = {}) {
     [refreshing, loadDashboard]
   );
 
-  // Auto-refresh reuses any result younger than its own interval: whichever
-  // open tab gets there first runs the query, and the rest read its result.
+  // Auto-refresh reuses a recent result -- whichever open tab gets there first
+  // runs the query, and the rest read its result -- but not one as old as its
+  // own last refresh (see autoRefreshMaxAge).
   const autoRefreshDashboard = useCallback(
     (refreshRate) => {
       if (!refreshing) {
         setRefreshing(true);
-        loadDashboard(true, [], refreshRate).finally(() => setRefreshing(false));
+        loadDashboard(true, [], autoRefreshMaxAge(refreshRate)).finally(() => setRefreshing(false));
       }
     },
     [refreshing, loadDashboard]
