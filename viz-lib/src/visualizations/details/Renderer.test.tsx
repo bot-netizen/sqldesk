@@ -142,7 +142,10 @@ describe("Visualizations -> Details -> Renderer", () => {
 
     const el = mount(emptyData);
 
-    expect(el.html()).toBeNull();
+    // Not null. A blank tile is indistinguishable from a widget that failed,
+    // and a query returning nothing is the ordinary result of a filter that
+    // matched nothing.
+    expect(el.text()).toBe("No rows to show.");
   });
 
   test("Handles null data", () => {
@@ -153,7 +156,7 @@ describe("Visualizations -> Details -> Renderer", () => {
     // Test the component directly with null data instead of using mount helper
     const el = enzyme.mount(<Renderer data={null as any} options={{}} />);
 
-    expect(el.html()).toBeNull();
+    expect(el.text()).toBe("No rows to show.");
 
     // Restore console.error
     console.error = originalError;

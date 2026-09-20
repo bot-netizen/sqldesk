@@ -29,7 +29,10 @@ export default function Renderer({ data, options }: any) {
   }, [options?.columns]);
 
   if (!data || !data.rows || data.rows.length === 0) {
-    return null;
+    // Not null: a blank tile reads as a widget that failed, and a query
+    // returning nothing is the ordinary result of a filter that matched
+    // nothing. Every other visualization says so.
+    return <div className="details-visualization-empty">No rows to show.</div>;
   }
 
   const row = data.rows[page];

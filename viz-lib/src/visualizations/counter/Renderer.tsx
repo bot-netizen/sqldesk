@@ -90,6 +90,8 @@ export default function Renderer({ data, options, visualizationName }: any) {
   const sparkOn = options.sparkline && options.sparkline.enabled;
   const counterOptions = sparkOn ? { ...options, rowNumber: -1 } : options;
 
+  const nothingToShow = !rows.length && !options.countRow;
+
   const {
     showTrend,
     trendPositive,
@@ -134,6 +136,18 @@ export default function Renderer({ data, options, visualizationName }: any) {
   // against the target does, as it always has.
   const useTrend = !extras.valueColor && showTrend;
   const sparkColor = extras.valueColor || resolveColor("accent");
+
+  if (nothingToShow) {
+    // The stat drew an empty value and an empty label, which is a blank tile
+    // -- indistinguishable from a widget that failed. A query returning
+    // nothing is the ordinary result of a filter that matched nothing, and
+    // every other visualization says so.
+    return (
+      <div className="counter-visualization-container">
+        <p className="counter-visualization-empty">No rows to show.</p>
+      </div>
+    );
+  }
 
   return (
     <div

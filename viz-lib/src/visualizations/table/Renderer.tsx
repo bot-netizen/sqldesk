@@ -153,7 +153,10 @@ export default function Renderer({ options, data }: any) {
   }, [options.columns, data.columns]);
 
   if (data.rows.length === 0) {
-    return null;
+    // Not null: a blank tile reads as a widget that failed, and a query
+    // returning nothing is the ordinary result of a filter that matched
+    // nothing. Every other visualization says so, so this one does too.
+    return <div className="table-visualization-empty">No rows to show.</div>;
   }
 
   return (
