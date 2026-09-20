@@ -16,6 +16,7 @@ import {
 } from "echarts/charts";
 import {
   AriaComponent,
+  CalendarComponent,
   DataZoomComponent,
   GridComponent,
   LegendComponent,
@@ -62,6 +63,8 @@ echarts.use([
   SunburstChart,
   TreemapChart,
   GridComponent,
+  // A calendar is a coordinate system of its own: days across, weekdays down.
+  CalendarComponent,
   LegendComponent,
   TooltipComponent,
   // Heatmaps map a value onto a colour ramp, which is what visualMap does.

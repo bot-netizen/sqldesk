@@ -1,0 +1,27 @@
+.calendar-visualization-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.calendar-visualization-chart {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
+.calendar-visualization-problem,
+.calendar-visualization-note {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--color-text-muted, #6f6b66);
+  font-size: 12px;
+}
+
+.calendar-visualization-problem {
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 13px;
+}

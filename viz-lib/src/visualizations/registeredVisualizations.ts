@@ -2,6 +2,7 @@ import { find, flatten, each } from "lodash";
 import PropTypes from "prop-types";
 
 import boxPlotVisualization from "./box-plot";
+import calendarVisualization from "./calendar";
 import chartVisualization from "./chart";
 import choroplethVisualization from "./choropleth";
 import cohortVisualization from "./cohort";
@@ -97,6 +98,7 @@ function registerVisualization(config: any) {
 each(
   flatten([
     boxPlotVisualization,
+    calendarVisualization,
     chartVisualization,
     choroplethVisualization,
     cohortVisualization,
