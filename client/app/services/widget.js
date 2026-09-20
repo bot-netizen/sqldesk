@@ -19,7 +19,7 @@ import {
 import location from "@/services/location";
 import { cloneParameter } from "@/services/parameters";
 import dashboardGridOptions from "@/config/dashboard-grid-options";
-import { registeredVisualizations } from "@sqldesk/viz/lib";
+import { registeredVisualizations, preloadVisualization } from "@sqldesk/viz/lib";
 import { Query } from "./query";
 import QueryResult from "./query-result";
 
@@ -99,6 +99,14 @@ class Widget {
   constructor(data) {
     // Copy properties
     extend(this, data);
+
+    // The drawing code is a separate chunk now, and a dashboard knows which
+    // types it holds well before any query result comes back. Start fetching
+    // here and the chunk has almost always landed by the time there is
+    // anything to draw.
+    if (this.visualization) {
+      preloadVisualization(this.visualization.type);
+    }
 
     const visualizationOptions = calculatePositionOptions(this);
 

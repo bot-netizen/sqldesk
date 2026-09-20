@@ -1,13 +1,10 @@
 import getOptions from "./getOptions";
-import Renderer from "./Renderer";
-import Editor from "./Editor";
 
 export default {
   type: "DETAILS",
   name: "Details View",
   getOptions,
-  Renderer,
-  Editor,
+  load: () => import(/* webpackChunkName: "viz-details" */ "./components"),
   defaultColumns: 8,
   defaultRows: 4,
 };

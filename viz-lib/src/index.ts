@@ -5,4 +5,6 @@ export {
   default as registeredVisualizations,
   getDefaultVisualization,
   newVisualization,
+  loadVisualization,
+  preloadVisualization,
 } from "./visualizations/registeredVisualizations";

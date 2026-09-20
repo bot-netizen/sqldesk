@@ -18,14 +18,27 @@ import sunburstVisualization from "./sunburst";
 import tableVisualization from "./table";
 import wordCloudVisualization from "./word-cloud";
 
+/**
+ * What every visualization brings to the registry.
+ *
+ * Everything here is cheap and loads with the app: a name to put in a menu, a
+ * size for the dashboard grid, and `getOptions`, which is option merging and
+ * nothing more. The drawing code -- the Renderer and the Editor, and behind
+ * them ECharts, Leaflet, a pivot table -- sits behind `load`, so a page pays
+ * for a visualization only once it actually shows one.
+ */
+export type VisualizationComponents = {
+  Renderer: (...args: any[]) => any;
+  Editor?: (...args: any[]) => any;
+};
+
 type VisualizationConfig = {
   type: string;
   name: string;
   getOptions: (...args: any[]) => any;
+  load: () => Promise<VisualizationComponents>;
   isDefault?: boolean;
   isDeprecated?: boolean;
-  Renderer: (...args: any[]) => any;
-  Editor?: (...args: any[]) => any;
   autoHeight?: boolean;
   defaultRows?: number;
   defaultColumns?: number;
@@ -40,10 +53,9 @@ const VisualizationConfig: PropTypes.Requireable<VisualizationConfig> = PropType
   type: PropTypes.string.isRequired,
   name: PropTypes.string.isRequired,
   getOptions: PropTypes.func.isRequired,
+  load: PropTypes.func.isRequired,
   isDefault: PropTypes.bool,
   isDeprecated: PropTypes.bool,
-  Renderer: PropTypes.func.isRequired,
-  Editor: PropTypes.func,
   // other config options
   autoHeight: PropTypes.bool,
   defaultRows: PropTypes.number,
@@ -65,7 +77,6 @@ function validateVisualizationConfig(config: any) {
 function registerVisualization(config: any) {
   validateVisualizationConfig(config);
   config = {
-    Editor: () => null,
     ...config,
     isDefault: config.isDefault && !config.isDeprecated,
   };
@@ -102,6 +113,53 @@ each(
 );
 
 export default registeredVisualizations;
+
+/**
+ * Modules already fetched, so a visualization that has been drawn once can be
+ * drawn again without suspending -- and so `loadVisualization` is safe to call
+ * as often as you like.
+ */
+const loaded = new Map<string, VisualizationComponents>();
+const loading = new Map<string, Promise<VisualizationComponents>>();
+
+/** The components for a type, fetching them if this is the first time. */
+export function loadVisualization(type: string): Promise<VisualizationComponents> {
+  const ready = loaded.get(type);
+  if (ready) {
+    return Promise.resolve(ready);
+  }
+  const inFlight = loading.get(type);
+  if (inFlight) {
+    return inFlight;
+  }
+  // @ts-expect-error ts-migrate(7053) FIXME: Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
+  const config = registeredVisualizations[type];
+  if (!config) {
+    return Promise.reject(new Error(`Visualization ${type} is not registered.`));
+  }
+  const promise = config.load().then((components: VisualizationComponents) => {
+    loaded.set(type, components);
+    loading.delete(type);
+    return components;
+  });
+  // A failed fetch is not remembered: a chunk that 404s because a deploy landed
+  // mid-session may well be there on the next try.
+  promise.catch(() => loading.delete(type));
+  loading.set(type, promise);
+  return promise;
+}
+
+/**
+ * Start fetching a visualization before anything needs to draw it.
+ *
+ * A dashboard knows which types it holds well before its data arrives, and the
+ * fetch costs nothing if it turns out to be unnecessary.
+ */
+export function preloadVisualization(type: string): void {
+  if (type) {
+    loadVisualization(type).catch(() => {});
+  }
+}
 
 export function getDefaultVisualization() {
   // return any visualization explicitly marked as default, or any non-deprecated otherwise

@@ -1,8 +1,5 @@
 import { merge } from "lodash";
 
-import Renderer from "./Renderer";
-import Editor from "./Editor";
-
 const DEFAULT_OPTIONS = {
   controls: {
     enabled: false, // `false` means "show controls" o_O
@@ -19,8 +16,7 @@ export default {
   type: "PIVOT",
   name: "Pivot Table",
   getOptions: (options: any) => merge({}, DEFAULT_OPTIONS, options),
-  Renderer,
-  Editor,
+  load: () => import(/* webpackChunkName: "viz-pivot" */ "./components"),
 
   defaultRows: 20,
   defaultColumns: 12,

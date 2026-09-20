@@ -74,6 +74,10 @@ const config = {
   output: {
     path: path.join(basePath, "./dist"),
     filename: isProduction ? "[name].[chunkhash].js" : "[name].js",
+    // Visualizations are fetched on demand and name their own chunks
+    // ("viz-chart", "viz-map", ...). Without this they would land as bare
+    // numeric ids, which makes a dist listing impossible to read.
+    chunkFilename: isProduction ? "[name].[chunkhash].js" : "[name].js",
     publicPath: staticPath
   },
   node: {
@@ -119,7 +123,10 @@ const config = {
     }),
     isProduction &&
       new MiniCssExtractPlugin({
-        filename: "[name].[chunkhash].css"
+        filename: "[name].[chunkhash].css",
+        // A visualization's styles travel with its chunk and are fetched with
+        // it; named, for the same reason as the JS above.
+        chunkFilename: "[name].[chunkhash].css"
       }),
     new WebpackManifestPlugin({
       fileName: "asset-manifest.json",

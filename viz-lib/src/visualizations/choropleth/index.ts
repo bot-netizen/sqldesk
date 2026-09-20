@@ -1,13 +1,10 @@
 import getOptions from "./getOptions";
-import Renderer from "./Renderer";
-import Editor from "./Editor";
 
 export default {
   type: "CHOROPLETH",
   name: "Map (Choropleth)",
   getOptions,
-  Renderer,
-  Editor,
+  load: () => import(/* webpackChunkName: "viz-choropleth" */ "./components"),
 
   defaultColumns: 12,
   defaultRows: 16,

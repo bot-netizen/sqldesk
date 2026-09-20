@@ -1,14 +1,11 @@
 import getOptions from "./getOptions";
-import Renderer from "./Renderer";
-import Editor from "./Editor";
 
 export default {
   type: "CHART",
   name: "Chart",
   isDefault: true,
   getOptions,
-  Renderer,
-  Editor,
+  load: () => import(/* webpackChunkName: "viz-chart" */ "./components"),
 
   defaultColumns: 12,
   defaultRows: 16,

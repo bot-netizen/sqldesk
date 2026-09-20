@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import PropTypes from "prop-types";
 import cx from "classnames";
 import { find, orderBy } from "lodash";
+import { preloadVisualization } from "@sqldesk/viz/lib";
 import useMedia from "use-media";
 import Tabs from "antd/lib/tabs";
 import Button from "antd/lib/button";
@@ -99,6 +100,13 @@ export default function QueryVisualizationTabs({
     () => (props.visualizations.length > 0 ? props.visualizations : defaultVisualizations),
     [props.visualizations]
   );
+
+  // Every tab is a chunk of its own now, and the query itself usually takes
+  // longer to come back than the fetch does. Start them all as soon as the
+  // tabs are known, rather than when one is clicked.
+  useEffect(() => {
+    visualizations.forEach((visualization) => preloadVisualization(visualization.type));
+  }, [visualizations]);
 
   const tabsProps = {};
   if (find(visualizations, { id: selectedTab })) {

@@ -1,6 +1,3 @@
-import Renderer from "./Renderer";
-import Editor from "./Editor";
-
 export default {
   type: "BOXPLOT",
   name: "Boxplot (Deprecated)",
@@ -8,8 +5,7 @@ export default {
   getOptions: (options: any) => ({
     ...options,
   }),
-  Renderer,
-  Editor,
+  load: () => import(/* webpackChunkName: "viz-box-plot" */ "./components"),
 
   defaultRows: 16,
   minRows: 10,

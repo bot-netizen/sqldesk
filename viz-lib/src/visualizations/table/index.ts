@@ -1,13 +1,10 @@
 import getOptions from "./getOptions";
-import Renderer from "./Renderer";
-import Editor from "./Editor";
 
 export default {
   type: "TABLE",
   name: "Table",
   getOptions,
-  Renderer,
-  Editor,
+  load: () => import(/* webpackChunkName: "viz-table" */ "./components"),
 
   autoHeight: true,
   defaultRows: 28,

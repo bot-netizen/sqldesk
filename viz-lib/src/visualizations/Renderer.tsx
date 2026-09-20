@@ -1,8 +1,9 @@
 import { isEqual } from "lodash";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, Suspense } from "react";
 import ErrorBoundary, { ErrorMessage } from "@/components/ErrorBoundary";
 import { RendererPropTypes } from "@/visualizations/prop-types";
 import registeredVisualizations from "@/visualizations/registeredVisualizations";
+import lazyVisualizationComponent from "@/visualizations/lazyComponents";
 
 /*
 (ts-migrate) TODO: Migrate the remaining prop types
@@ -27,7 +28,9 @@ export default function Renderer({
   const errorHandlerRef = useRef();
 
   // @ts-expect-error ts-migrate(7053) FIXME: Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-  const { Renderer, getOptions } = registeredVisualizations[type];
+  const { getOptions } = registeredVisualizations[type];
+  // Fetched the first time this type is drawn; instant every time after.
+  const Renderer = lazyVisualizationComponent(type, "Renderer");
 
   // Avoid unnecessary updates (which may be expensive or cause issues with
   // internal state of some visualizations like Table) - compare options deeply
@@ -54,7 +57,12 @@ export default function Renderer({
         renderError={() => <ErrorMessage>Error while rendering visualization.</ErrorMessage>}
       >
         <div className="visualization-renderer-wrapper">
-          <Renderer options={options} data={data} visualizationName={visualizationName} {...otherProps} />
+          {/* Blank rather than a spinner: the wait is a chunk fetch, usually
+              already finished by the time the query result arrives, and a
+              second spinner next to the widget's own only flickers. */}
+          <Suspense fallback={<div className="visualization-renderer-loading" />}>
+            <Renderer options={options} data={data} visualizationName={visualizationName} {...otherProps} />
+          </Suspense>
         </div>
       </ErrorBoundary>
       {addonAfter}

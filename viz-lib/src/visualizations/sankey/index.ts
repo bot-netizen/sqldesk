@@ -1,5 +1,3 @@
-import Renderer from "./Renderer";
-import Editor from "./Editor";
 export interface SankeyDataType {
   columns: {
     name: string;
@@ -19,8 +17,7 @@ export default {
   getOptions: (options: {}) => ({
     ...options,
   }),
-  Renderer,
-  Editor,
+  load: () => import(/* webpackChunkName: "viz-sankey" */ "./components"),
 
   defaultRows: 14,
 };

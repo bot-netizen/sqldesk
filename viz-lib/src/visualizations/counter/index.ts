@@ -1,5 +1,3 @@
-import Renderer from "./Renderer";
-import Editor from "./Editor";
 import { DEFAULT_VALUE_FORMAT, normalizeValueFormat } from "../shared/valueOptions";
 import { DEFAULT_SPARKLINE, DEFAULT_COMPARISON } from "./stat";
 
@@ -38,8 +36,7 @@ export default {
   // it has grown into -- a number with its trend.
   name: "Stat",
   getOptions,
-  Renderer,
-  Editor,
+  load: () => import(/* webpackChunkName: "viz-counter" */ "./components"),
 
   defaultColumns: 8,
   defaultRows: 10,
