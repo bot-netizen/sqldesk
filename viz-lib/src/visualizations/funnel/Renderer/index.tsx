@@ -8,6 +8,7 @@ import { createNumberFormatter } from "@/lib/value-format";
 
 import prepareData from "./prepareData";
 import FunnelBar from "./FunnelBar";
+import DrawnFunnel from "./DrawnFunnel";
 import "./index.less";
 
 function generateRowKeyPrefix() {
@@ -89,6 +90,21 @@ export default function Renderer({ data, options }: any) {
 
   if (funnelData.length === 0) {
     return null;
+  }
+
+  if (options.shape === "funnel") {
+    return (
+      <div className="funnel-visualization-container">
+        {/* createNumberFormatter only returns an element when asked to, and
+            the funnel does not ask: these are strings. */}
+        <DrawnFunnel
+          steps={funnelData as any}
+          formatValue={formatValue as (v: any) => string}
+          formatPercentValue={formatPercentValue as (v: any) => string}
+          stepLabel={options.stepCol.displayAs}
+        />
+      </div>
+    );
   }
 
   return (

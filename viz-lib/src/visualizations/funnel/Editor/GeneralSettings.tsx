@@ -14,6 +14,23 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
       <Section>
         <Select
           layout="horizontal"
+          label="Shape"
+          data-test="Funnel.Shape"
+          value={options.shape}
+          onChange={(shape: any) => onOptionsChange({ shape })}
+        >
+          <Select.Option value="bars" data-test="Funnel.Shape.bars">
+            Bars: a table with the exact numbers
+          </Select.Option>
+          <Select.Option value="funnel" data-test="Funnel.Shape.funnel">
+            Funnel: the drawn shape
+          </Select.Option>
+        </Select>
+      </Section>
+
+      <Section>
+        <Select
+          layout="horizontal"
           label="Step Column"
           data-test="Funnel.StepColumn"
           placeholder="Choose column..."

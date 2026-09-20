@@ -3,6 +3,7 @@ import {
   BarChart,
   BoxplotChart,
   CustomChart,
+  FunnelChart,
   GaugeChart,
   HeatmapChart,
   LineChart,
@@ -47,6 +48,7 @@ echarts.use([
   // ECharts ships no error-bar series, and a category axis snaps fractional
   // positions back to the category, so points cannot be offset any other way.
   CustomChart,
+  FunnelChart,
   GaugeChart,
   HeatmapChart,
   LineChart,

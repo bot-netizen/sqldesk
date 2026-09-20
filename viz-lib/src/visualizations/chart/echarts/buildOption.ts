@@ -373,11 +373,18 @@ function buildPieSeries(chartData: any[], options: any, legendWidthShare = 0) {
   // Pies are placed by percentage; a legend down the right takes its share
   // off the width they are spread across.
   const span = 100 - legendWidthShare;
+  // A Nightingale rose is a pie whose slices all take the same angle and carry
+  // their value in how far out they reach, which is easier to compare than
+  // angles are. Every slice needs a floor to stand on, so the inner radius is
+  // not zero.
+  const rose = options.pieStyle === "rose";
+  const outer = chartData.length > 1 ? 55 : 65;
   return map(chartData, (series, seriesIndex) => ({
     id: seriesId(series.name),
     name: series.name,
     type: "pie",
-    radius: chartData.length > 1 ? "55%" : "65%",
+    ...(rose ? { roseType: "area" } : {}),
+    radius: rose ? [`${Math.round(outer * 0.25)}%`, `${outer}%`] : `${outer}%`,
     center: chartData.length > 1 ? [`${((seriesIndex % 2) + 0.5) * (span / 2)}%`, "50%"] : [`${span / 2}%`, "50%"],
     data: map(series.data, (point: any, index: number) => ({
       name: String(point.x),

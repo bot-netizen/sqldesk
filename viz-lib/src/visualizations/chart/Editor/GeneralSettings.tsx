@@ -198,6 +198,19 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
       {includes(["pie"], options.globalSeriesType) && (
         <Section>
           <Select
+            label="Style"
+            data-test="Chart.PieStyle"
+            value={options.pieStyle || "pie"}
+            onChange={(pieStyle: any) => onOptionsChange({ pieStyle })}
+          >
+            <Select.Option value="pie" data-test="Chart.PieStyle.Pie">
+              Pie: the angle carries the value
+            </Select.Option>
+            <Select.Option value="rose" data-test="Chart.PieStyle.Rose">
+              Rose: equal angles, the radius carries the value
+            </Select.Option>
+          </Select>
+          <Select
             label="Direction"
             data-test="Chart.PieDirection"
             defaultValue={options.direction.type}

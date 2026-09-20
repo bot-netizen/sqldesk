@@ -19,6 +19,9 @@ const DEFAULT_OPTIONS = {
   sizemode: "diameter",
   coefficient: 1,
   piesort: true,
+  // "pie" or "rose" -- a Nightingale rose gives every slice the same angle and
+  // puts the value in the radius. Pies saved before this stay pies.
+  pieStyle: "pie",
   color_scheme: DEFAULT_COLOR_SCHEME,
   lineShape: "linear",
 

@@ -1,6 +1,9 @@
 import { isFinite, map, merge, includes } from "lodash";
 
 const DEFAULT_OPTIONS = {
+  // "bars" is the table with a bar in each row, which is what a funnel has
+  // always looked like here; "funnel" is the drawn shape.
+  shape: "bars",
   stepCol: { colName: null, displayAs: "Steps" },
   valueCol: { colName: null, displayAs: "Value" },
   autoSort: true,
@@ -32,6 +35,8 @@ export default function getOptions(options: any, { columns }: any) {
   if (options.itemsLimit < 2) {
     options.itemsLimit = 2;
   }
+
+  options.shape = options.shape === "funnel" ? "funnel" : "bars";
 
   if (options.autoSort) {
     options.sortKeyCol.colName = options.valueCol.colName;
