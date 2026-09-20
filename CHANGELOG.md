@@ -7,6 +7,45 @@ looked right but did not refresh. Published as
 `ghcr.io/bot-netizen/sqldesk:0.4.0-rc.3` and marked as a pre-release;
 `latest` stays on 0.3.2.
 
+### Rebuilt, 19 September 2026
+
+The rc.3 tag and image were moved rather than a fourth candidate cut, so an
+instance that pulls `0.4.0-rc.3` now gets everything below as well. Pull
+again and `up -d`; still no migration.
+
+- **A table's data bar collapsed after the first refresh.** The bar is sized
+  against its cell, and it was being wrapped in the highlight that marks a
+  changed value -- which shrinks to fit the number. From the first change
+  onwards the bar measured the digits rather than the column, leaving a
+  sliver behind the number. It looked right until then, because the highlight
+  only appears once something has changed.
+- **A live dashboard retried a failing query every ten seconds.** A refresh
+  that works leaves a result behind and the next one waits out the interval;
+  a refresh that fails leaves nothing, so the check found nothing on every
+  tick of the ten-second scheduler -- about thirty times the intended rate on
+  a five-minute dashboard, against a data source already in trouble. Live now
+  remembers that it asked, for as long as a result would have stayed fresh.
+  That also closed the one way a viewer could make the server run something
+  repeatedly: leaving a tab and coming back. Live refreshes moved to the
+  scheduled queue, so a wall screen no longer competes with queries somebody
+  is waiting on.
+- **A counter counting rows against a target took the widget down** when the
+  result was empty. It shows no target now, the same as a counter with no
+  target column.
+- **Dashboards are read in one go.** Showing one walked every widget
+  separately -- its visualization, query, author, data source and groups --
+  and re-read the viewer's permissions per widget. On a real dashboard that
+  was 30 statements to serialize and 34 for every live viewer's check-in,
+  four times a minute each; it is now 4 and 8, and serializing no longer
+  grows with the number of widgets.
+- **Large results are taken in faster.** The test for "is this string a
+  date?" ran a full date parse on every string in every cell before the
+  cheap check that rules most of them out.
+- Internal tidying that changes nothing you can see: two type declarations
+  fixed, which removed 336 suppressions across the visualization editors;
+  1,144 lines nothing reached deleted; `moment` and `lodash` declared as the
+  dependencies they always were.
+
 ### Upgrading
 
 - From rc.1 or rc.2: pull and `up -d`. No migration.
