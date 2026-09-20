@@ -10,5 +10,5 @@ export default {
   Editor,
 
   autoHeight: true,
-  defaultRows: 8,
+  defaultRows: 16,
 };

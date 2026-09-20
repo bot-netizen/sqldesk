@@ -17,5 +17,5 @@ export default {
   Renderer,
   Editor,
 
-  defaultRows: 8,
+  defaultRows: 16,
 };

@@ -9,7 +9,7 @@ export default {
   Renderer,
   Editor,
 
-  defaultColumns: 6,
-  defaultRows: 5,
-  minRows: 2,
+  defaultColumns: 12,
+  defaultRows: 10,
+  minRows: 4,
 };

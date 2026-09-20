@@ -8,6 +8,6 @@ export default {
   getOptions,
   Renderer,
   Editor,
-  defaultColumns: 4,
-  defaultRows: 2,
+  defaultColumns: 8,
+  defaultRows: 4,
 };

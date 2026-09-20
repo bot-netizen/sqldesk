@@ -11,6 +11,6 @@ export default {
   Renderer,
   Editor,
 
-  defaultRows: 8,
-  minRows: 5,
+  defaultRows: 16,
+  minRows: 10,
 };

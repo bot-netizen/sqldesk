@@ -10,8 +10,8 @@ export default {
   Renderer,
   Editor,
 
-  defaultColumns: 6,
-  defaultRows: 8,
-  minColumns: 1,
-  minRows: 5,
+  defaultColumns: 12,
+  defaultRows: 16,
+  minColumns: 2,
+  minRows: 10,
 };

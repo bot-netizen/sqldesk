@@ -9,5 +9,5 @@ export default {
   Renderer,
   Editor,
 
-  defaultRows: 10,
+  defaultRows: 20,
 };

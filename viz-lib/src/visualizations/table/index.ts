@@ -10,7 +10,7 @@ export default {
   Editor,
 
   autoHeight: true,
-  defaultRows: 14,
-  defaultColumns: 6,
-  minColumns: 2,
+  defaultRows: 28,
+  defaultColumns: 12,
+  minColumns: 4,
 };
