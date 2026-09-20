@@ -150,6 +150,31 @@ describe("Visualizations -> Gauge -> tick labels", () => {
     expect(needle.detail.formatter(needle.data[0].value)).toBe("212.0");
   });
 
+  test("the half arc's end labels sit clear of the band, not on it", () => {
+    const { option } = build({ valueColumn: "p95", style: "half", min: 0, max: 1000 });
+    const arc = option.series[0];
+    const band = arc.axisLine.lineStyle.width;
+
+    // ECharts draws a label at `radius - splitLine.length - (axisLabel.distance
+    // + splitLine.distance)`, and defaults those two splitLine values to 10
+    // even when the split line is hidden. Left at the defaults the label landed
+    // on the band's outer edge, which is what this pins.
+    expect(arc.splitLine.length).toBe(0);
+    expect(arc.splitLine.distance).toBe(0);
+
+    const labelOffset = arc.splitLine.length + arc.axisLabel.distance + arc.splitLine.distance;
+    // Positive is inward, and it has to clear half the band's thickness.
+    expect(labelOffset).toBeGreaterThan(band / 2);
+  });
+
+  test("only the two ends are labelled", () => {
+    const { option } = build({ valueColumn: "p95", style: "half", min: 0, max: 1000 });
+    const format = option.series[0].axisLabel.formatter;
+    expect(format(0)).toBe("0");
+    expect(format(1000)).toBe("1,000");
+    expect(format(500)).toBe("");
+  });
+
   test("a narrow scale keeps the decimals it needs", () => {
     const share = { columns: [{ name: "share", type: "float" }], rows: [{ share: 0.42 }] };
     const { option } = build(

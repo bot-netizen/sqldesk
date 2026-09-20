@@ -16,6 +16,9 @@ export interface BuiltGauge {
   problem: string | null;
 }
 
+/** Clear air between an end label and the band it sits inside. */
+const LABEL_GAP = 8;
+
 const MONO = '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
 const SANS = '"Instrument Sans Variable", "Instrument Sans", -apple-system, "Segoe UI", sans-serif';
 
@@ -166,16 +169,24 @@ export default function buildOption(
         pointer: { show: false },
         progress: { show: true, overlap: false, roundCap: !half, clip: false, width, itemStyle: { color: valueColor } },
         axisLine: { lineStyle: { width, color: [[1, track]] } },
-        splitLine: { show: false },
+        // Hidden, but the length and distance still count: ECharts places a
+        // label at `radius - splitLine.length - (axisLabel.distance +
+        // splitLine.distance)`, and its defaults for those are 10 and 10. Zero
+        // them and the label's distance means what it says.
+        splitLine: { show: false, length: 0, distance: 0 },
         axisTick: { show: false },
         axisLabel: half
           ? {
               show: true,
-              distance: -width - 4,
+              // Inside the band by a clear margin. Negative put it out past
+              // the arc, where it landed on the band's outer edge -- and
+              // pushing it further out would run it off a widget that is
+              // already 96% of the width.
+              distance: width / 2 + LABEL_GAP,
               color: muted,
               fontFamily: MONO,
               fontSize: tickSize,
-              // Only the two ends: min under the left, max under the right.
+              // Only the two ends: min inside the left, max inside the right.
               formatter: (v: number) => (v === min || v === max ? formatValue(v, tickFormat(options, min, max)) : ""),
             }
           : { show: false },
