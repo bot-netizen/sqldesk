@@ -9,6 +9,30 @@ import { BAR_LAYOUT, barCentreOffset, buildErrorBarSeries } from "./errorBars";
 import { applyWindow, addReferences, zoomComponents } from "./references";
 import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
 
+/** What ECharts asks for on a value axis when nobody tells it otherwise. */
+const ECHARTS_SPLIT_NUMBER = 5;
+
+/** Roughly what the x axis takes out of the plot: labels, tick and gap. */
+const X_AXIS_HEIGHT = 24;
+
+/** Below this, labels stop reading as a scale and start reading as a stack. */
+const LABEL_BREATHING_ROOM = 55;
+
+/**
+ * How many intervals a value axis should be cut into.
+ *
+ * ECharts asks for five whatever the height, so a widget two rows tall ends
+ * up with six labels a dozen pixels apart. This only ever takes labels away:
+ * a tall chart hits the cap and looks exactly as it did before, and a chart
+ * that has not been measured yet is left alone entirely.
+ */
+export function valueAxisSplitNumber(plotHeight: number): number | undefined {
+  if (!plotHeight || plotHeight <= 0) {
+    return undefined;
+  }
+  return Math.min(ECHARTS_SPLIT_NUMBER, Math.max(2, Math.round(plotHeight / LABEL_BREATHING_ROOM)));
+}
+
 // Deliberately free of any `echarts` import. Keeping the option builder pure
 // means it is unit-testable without a canvas, and without Jest having to
 // transform ECharts' ESM build.
@@ -421,7 +445,11 @@ function buildHeatmap(chartData: any[], options: any) {
   return { series, xCategories, yCategories, zMax, ramp };
 }
 
-export default function buildOption(chartData: any[], options: any): BuiltOption {
+export default function buildOption(
+  chartData: any[],
+  options: any,
+  size?: { width: number; height: number }
+): BuiltOption {
   const isPie = options.globalSeriesType === "pie";
   const isHeatmap = options.globalSeriesType === "heatmap";
   const horizontal = !!options.swappedAxes;
@@ -525,6 +553,14 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
       ? buildBoxSeries(chartData, options, xAxisType, categories, (name, index) => seriesColor(options, name, index))
       : buildCartesianSeries(chartData, options, xAxisType, categories, horizontal);
 
+  const zoom = isPie ? undefined : zoomComponents(options.zoom, horizontal);
+  const slider = !!zoom && zoom.some((z: any) => z.type === "slider");
+  // Worked out once and used both by the grid below and to decide how many
+  // labels the value axis can carry without crowding.
+  const gridTop = 14;
+  const gridBottom = (legend.below ? 36 : 10) + (slider && !horizontal ? 30 : 0);
+  const plotHeight = size && size.height ? size.height - gridTop - gridBottom - X_AXIS_HEIGHT : 0;
+
   // One formatter for both value axes: valueAxis is called once per axis and
   // the formatter carries a numeral instance, so building it inside meant two.
   const formatAxisValue = createNumberFormatter(options.numberFormat);
@@ -533,7 +569,10 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
     name: axisOptions.title ? axisOptions.title.text || axisOptions.title : undefined,
     nameLocation: "middle",
     nameGap: 36,
-    axisLabel: { formatter: formatAxisValue },
+    splitNumber: valueAxisSplitNumber(plotHeight),
+    // Catches the other kind of crowding: labels that are wide rather than
+    // numerous, like long currency values on a narrow axis.
+    axisLabel: { formatter: formatAxisValue, hideOverlap: true },
     scale: !options.series.stacking && !hasBars,
   });
 
@@ -604,16 +643,14 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
   };
 
   if (!isPie) {
-    const zoom = zoomComponents(options.zoom, horizontal);
-    const slider = !!zoom && zoom.some((z) => z.type === "slider");
     option.grid = {
       left: 12,
       right: (legend.right ? legend.width + 8 : 12) + (horizontal && slider ? 28 : 0),
       // Nothing is ever drawn above the plot -- the legend goes to the right
       // or below, never on top -- so this is breathing room and no more.
-      top: 14,
+      top: gridTop,
       // Room for a legend below, and for a zoom slider under the axis.
-      bottom: (legend.below ? 36 : 10) + (slider && !horizontal ? 30 : 0),
+      bottom: gridBottom,
       containLabel: true,
     };
     if (zoom) {

@@ -1,7 +1,7 @@
 import moment from "moment";
 import getOptions from "../getOptions";
 import { echartsAxisType } from "./utils";
-import buildOption from "./buildOption";
+import buildOption, { valueAxisSplitNumber } from "./buildOption";
 
 function series(name: string, points: [any, any][]) {
   return {
@@ -307,6 +307,33 @@ describe("Visualizations -> Chart -> ECharts -> buildOption", () => {
       expect(built.option.legend.bottom).toBe(0);
       expect(built.option.legend.orient).toBeUndefined();
       expect(built.option.grid.bottom).toBeGreaterThanOrEqual(36);
+    });
+
+    test("a short chart carries fewer y labels, a tall one is left alone", () => {
+      // Only ever takes labels away. Five is what ECharts asks for anyway, so
+      // anything tall enough is unchanged; a two-row widget stops stacking
+      // six labels a dozen pixels apart.
+      expect(valueAxisSplitNumber(0)).toBeUndefined();
+      expect(valueAxisSplitNumber(60)).toBe(2);
+      expect(valueAxisSplitNumber(130)).toBe(2);
+      expect(valueAxisSplitNumber(176)).toBe(3);
+      expect(valueAxisSplitNumber(280)).toBe(5);
+      expect(valueAxisSplitNumber(900)).toBe(5);
+      [0, 40, 100, 200, 400, 1200].forEach((h) => {
+        const n = valueAxisSplitNumber(h);
+        expect(n === undefined || n <= 5).toBe(true);
+      });
+    });
+
+    test("an unmeasured chart is left entirely to ECharts", () => {
+      const built = buildOption(two(), options({}));
+      expect(built.option.yAxis[0].splitNumber).toBeUndefined();
+    });
+
+    test("a measured, short chart asks for fewer", () => {
+      const built = buildOption(two(), options({}), { width: 400, height: 200 });
+      expect(built.option.yAxis[0].splitNumber).toBe(3);
+      expect(built.option.yAxis[0].axisLabel.hideOverlap).toBe(true);
     });
 
     test("nothing is reserved above the plot, because nothing is drawn there", () => {

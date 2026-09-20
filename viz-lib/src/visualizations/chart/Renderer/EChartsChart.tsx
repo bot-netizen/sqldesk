@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { RendererPropTypes } from "@/visualizations/prop-types";
 import useEChart from "@/visualizations/echarts/useEChart";
+import useElementSize from "@/visualizations/shared/useElementSize";
 import getChartData from "../getChartData";
 import buildOption from "../echarts/buildOption";
 
@@ -10,7 +11,16 @@ export interface EChartsChartProps {
 }
 
 export default function EChartsChart({ options, data }: EChartsChartProps) {
-  const built = useMemo(() => buildOption(getChartData(data.rows, options), options), [data, options]);
+  const [box, setBox] = useState<HTMLDivElement | null>(null);
+  const size = useElementSize(box);
+  // Rounded to 10px, the way the gauge does it, so a widget being dragged
+  // does not rebuild the chart on every pixel. Height is all that is read --
+  // it decides how many y labels fit.
+  const bucket = { width: Math.round(size.width / 10) * 10, height: Math.round(size.height / 10) * 10 };
+  const built = useMemo(
+    () => buildOption(getChartData(data.rows, options), options, bucket.height ? bucket : undefined),
+    [data, options, bucket.height] // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const { setContainer, chart } = useEChart(built.option, built.signature);
 
   useEffect(() => {
@@ -26,7 +36,17 @@ export default function EChartsChart({ options, data }: EChartsChartProps) {
     return () => chart.off("click", handler);
   }, [chart, options.enableLink, options.linkFormat, options.linkOpenNewTab]);
 
-  return <div className="chart-visualization-container" ref={setContainer} />;
+  // The same element is both the measured box and the chart's container;
+  // memoised so React does not detach and reattach it on every render.
+  const setRefs = useCallback(
+    (element: HTMLDivElement | null) => {
+      setBox(element);
+      setContainer(element);
+    },
+    [setContainer]
+  );
+
+  return <div className="chart-visualization-container" ref={setRefs} />;
 }
 
 EChartsChart.propTypes = RendererPropTypes;
