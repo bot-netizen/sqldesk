@@ -1,9 +1,15 @@
 import React, { useMemo, useState } from "react";
 import { RendererPropTypes } from "@/visualizations/prop-types";
+import echarts from "@/visualizations/echarts";
 import useEChart from "@/visualizations/echarts/useEChart";
+import { CalendarComponent } from "echarts/components";
 import useElementSize from "../shared/useElementSize";
 import buildOption from "./buildOption";
 import "./renderer.less";
+
+// Only the calendar uses this coordinate system, so it travels in the
+// calendar's chunk rather than in the one every chart shares.
+echarts.use([CalendarComponent]);
 
 export default function Renderer({ data, options }: any) {
   const [box, setBox] = useState<HTMLDivElement | null>(null);

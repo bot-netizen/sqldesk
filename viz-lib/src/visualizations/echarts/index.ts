@@ -3,27 +3,22 @@ import {
   BarChart,
   BoxplotChart,
   CustomChart,
-  FunnelChart,
   GaugeChart,
   HeatmapChart,
   LineChart,
   PieChart,
-  RadarChart,
   SankeyChart,
   ScatterChart,
   SunburstChart,
-  TreemapChart,
 } from "echarts/charts";
 import {
   AriaComponent,
-  CalendarComponent,
   DataZoomComponent,
   GridComponent,
   LegendComponent,
   MarkAreaComponent,
   MarkLineComponent,
   MarkPointComponent,
-  RadarComponent,
   TitleComponent,
   TooltipComponent,
   VisualMapComponent,
@@ -42,6 +37,14 @@ import { CanvasRenderer } from "echarts/renderers";
 // visualization's: the sankey, sunburst, boxplot, gauge and progress
 // visualizations draw with it too, and each needs its own series registered
 // here.
+//
+// What is here is what more than one visualization needs, so it belongs in the
+// chunk they share. A series only one visualization draws is registered by
+// that visualization instead -- see radar, treemap, calendar and the drawn
+// funnel -- so it travels in that visualization's own chunk and nobody else
+// pays for it. `use` is incremental and idempotent, so registering late is
+// fine as long as it happens before the chart is created, which a module-level
+// call in a Renderer guarantees.
 echarts.use([
   BarChart,
   BoxplotChart,
@@ -49,22 +52,16 @@ echarts.use([
   // ECharts ships no error-bar series, and a category axis snaps fractional
   // positions back to the category, so points cannot be offset any other way.
   CustomChart,
-  FunnelChart,
   GaugeChart,
   HeatmapChart,
   LineChart,
   PieChart,
   // A radar's spokes are a coordinate system of their own, so the series and
   // the component that lays it out are separate registrations.
-  RadarChart,
-  RadarComponent,
   SankeyChart,
   ScatterChart,
   SunburstChart,
-  TreemapChart,
   GridComponent,
-  // A calendar is a coordinate system of its own: days across, weekdays down.
-  CalendarComponent,
   LegendComponent,
   TooltipComponent,
   // Heatmaps map a value onto a colour ramp, which is what visualMap does.

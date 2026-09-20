@@ -1,10 +1,15 @@
 import React, { useMemo } from "react";
+import echarts from "@/visualizations/echarts";
 import useEChart from "@/visualizations/echarts/useEChart";
+import { FunnelChart } from "echarts/charts";
 import { AllColorPaletteArrays, resolveColorScheme, DEFAULT_COLOR_SCHEME } from "@/visualizations/ColorPalette";
 import { uiColor } from "@/visualizations/shared/valueOptions";
 import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
 
 import "./drawn-funnel.less";
+
+// Only the drawn funnel uses this, so it travels in the funnel's chunk.
+echarts.use([FunnelChart]);
 
 interface Step {
   step: string;
