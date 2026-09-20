@@ -11,6 +11,16 @@ import { isFinite } from "lodash";
  *
  * Kept apart from the renderer so it can be tested without loading ECharts.
  */
+/**
+ * A box smaller than this in either direction is not a layout, it is a box
+ * mid-collapse -- a widget being dragged, a tab being switched. Fitting a
+ * number to it means shrinking it to nothing.
+ */
+const MIN_MEASURABLE = 8;
+
+/** Two decimal places, so never rounded all the way down to nothing. */
+const MIN_SCALE = 0.01;
+
 export default function getCounterScale(container: any): string | null {
   const inner = container && container.firstChild;
   if (!inner) {
@@ -20,9 +30,14 @@ export default function getCounterScale(container: any): string | null {
   // not feed into the next measurement.
   const { offsetWidth: boxWidth, offsetHeight: boxHeight } = container;
   const { offsetWidth: innerWidth, offsetHeight: innerHeight } = inner;
-  if (boxWidth <= 0 || boxHeight <= 0 || innerWidth <= 0 || innerHeight <= 0) {
+  if (boxWidth < MIN_MEASURABLE || boxHeight < MIN_MEASURABLE || innerWidth <= 0 || innerHeight <= 0) {
     return null;
   }
   const scale = Math.min(boxWidth / innerWidth, boxHeight / innerHeight);
-  return isFinite(scale) && scale > 0 ? scale.toFixed(2) : null;
+  if (!isFinite(scale) || scale <= 0) {
+    return null;
+  }
+  // toFixed rounds, and a ratio under 0.005 rounds to "0.00" -- which is
+  // scale(0), and the number is gone.
+  return Math.max(scale, MIN_SCALE).toFixed(2);
 }

@@ -33,6 +33,21 @@ describe("getCounterScale", () => {
     expect(getCounterScale(box(0, 200, 400, 400))).toBeNull();
   });
 
+  test("a box mid-collapse is not a layout either", () => {
+    // A widget being dragged or a tab being switched flattens the box to a
+    // pixel or two on the way. Fitting to that is fitting to nothing.
+    expect(getCounterScale(box(130, 1, 247, 230))).toBeNull();
+    expect(getCounterScale(box(1, 130, 247, 230))).toBeNull();
+    expect(getCounterScale(box(7, 7, 247, 230))).toBeNull();
+    expect(getCounterScale(box(8, 8, 247, 230))).not.toBeNull();
+  });
+
+  test("a scale too small to round to two places still shows something", () => {
+    // 20/6000 is 0.0033, which toFixed(2) rounds to "0.00" -- scale(0).
+    expect(getCounterScale(box(20, 20, 6000, 6000))).toBe("0.01");
+    expect(Number(getCounterScale(box(20, 20, 6000, 6000)))).toBeGreaterThan(0);
+  });
+
   test("a number that has not been drawn yet leaves the scale alone", () => {
     expect(getCounterScale(box(200, 200, 0, 0))).toBeNull();
     expect(getCounterScale({ offsetWidth: 200, offsetHeight: 200, firstChild: null })).toBeNull();
