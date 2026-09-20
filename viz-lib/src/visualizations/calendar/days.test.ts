@@ -29,6 +29,19 @@ describe("dayOf", () => {
     [null, undefined, "", "not a date", {}].forEach((value) => expect(dayOf(value)).toBeNull());
   });
 
+  test("a word is refused without troubling moment about it", () => {
+    // Pointing the date column at a text column is an easy mistake, and
+    // moment warns once per row when asked to parse one -- hundreds of
+    // deprecation warnings across a dashboard.
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      ["North", "not a date", "n/a"].forEach((v) => expect(dayOf(v)).toBeNull());
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   test("an invalid date object is no day", () => {
     expect(dayOf(new Date("nonsense"))).toBeNull();
   });

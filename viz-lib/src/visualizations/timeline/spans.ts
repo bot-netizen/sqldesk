@@ -50,6 +50,13 @@ export function timeOf(value: unknown): number | null {
   if (typeof value !== "string" && typeof value !== "number") {
     return null;
   }
+  // A string with no digit in it cannot be a date, and handing it to moment
+  // means a deprecation warning per row on the console -- which is what
+  // pointing a date column at a text column used to produce, hundreds of
+  // times over.
+  if (typeof value === "string" && !/\d/.test(value)) {
+    return null;
+  }
   const parsed = moment(value);
   return parsed.isValid() ? parsed.valueOf() : null;
 }
