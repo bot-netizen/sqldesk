@@ -19,6 +19,9 @@ export interface BuiltGauge {
 /** Clear air between an end label and the band it sits inside. */
 const LABEL_GAP = 8;
 
+/** A character of the mono face is about this much of its size, wide. */
+const MONO_CHAR_WIDTH = 0.6;
+
 const MONO = '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
 const SANS = '"Instrument Sans Variable", "Instrument Sans", -apple-system, "Segoe UI", sans-serif';
 
@@ -97,6 +100,30 @@ export default function buildOption(
   const tickSize = clamp(Math.round(side * 0.04), 9, 13);
   const width = clamp(Math.round(side * 0.06), 6, 22);
 
+  // Where the half style's end labels go.
+  //
+  // Outside the arc, not inside it. Inside they clear the band only by
+  // marching towards the middle, and on a wide, short gauge the reading is
+  // already there -- "0" and "100" ended up sitting on "81.7%". Outside there
+  // is nothing to collide with, so the only question is making room, and the
+  // arc gives up exactly as much radius as the labels need and no more.
+  //
+  // ECharts draws the band inward from the radius, so beyond the radius is
+  // clear air. It also anchors these two labels by their outer edge -- start
+  // on the left, end on the right -- so the text grows back towards the arc
+  // from wherever it is placed. The offset has to be the label's whole width,
+  // not half of it, or the far end of "1,000" lands on the band.
+  const endLabelChars = Math.max(
+    ...[min, max].map((v) => String(formatValue(v, tickFormat(options, min, max))).length)
+  );
+  const endLabelWidth = endLabelChars * tickSize * MONO_CHAR_WIDTH;
+  const endLabelDistance = endLabelWidth + LABEL_GAP;
+  // The anchor is the outermost point, so this is all the room it needs.
+  const labelRoom = endLabelDistance + 2;
+  // ECharts reads a percentage against the smaller side; in pixels it is the
+  // width that has to hold the arc and both labels.
+  const halfRadius = Math.max(40, Math.min((0.96 * Math.min(size.width, size.height)) / 2, size.width / 2 - labelRoom));
+
   const shown = clamp(value, min, max);
   const common = {
     type: "gauge",
@@ -164,7 +191,7 @@ export default function buildOption(
         ...common,
         startAngle: half ? 180 : 90,
         endAngle: half ? 0 : -270,
-        radius: half ? "96%" : "86%",
+        radius: half ? halfRadius : "86%",
         center: half ? ["50%", "72%"] : ["50%", "50%"],
         pointer: { show: false },
         progress: { show: true, overlap: false, roundCap: !half, clip: false, width, itemStyle: { color: valueColor } },
@@ -178,11 +205,9 @@ export default function buildOption(
         axisLabel: half
           ? {
               show: true,
-              // Inside the band by a clear margin. Negative put it out past
-              // the arc, where it landed on the band's outer edge -- and
-              // pushing it further out would run it off a widget that is
-              // already 96% of the width.
-              distance: width / 2 + LABEL_GAP,
+              // Negative is outward, past the band into the room the radius
+              // above gave up for it.
+              distance: -endLabelDistance,
               color: muted,
               fontFamily: MONO,
               fontSize: tickSize,

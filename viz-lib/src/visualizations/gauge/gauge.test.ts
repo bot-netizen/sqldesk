@@ -18,12 +18,12 @@ const rows = [
 ];
 const data = { columns, rows };
 
-function build(options: any, d: any = data) {
-  return buildOption(d, getOptions(options, d), { width: 320, height: 240 });
+function build(options: any, d: any = data, size = { width: 320, height: 240 }) {
+  return buildOption(d, getOptions(options, d), size);
 }
 
-function render(option: any) {
-  const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width: 320, height: 240 });
+function render(option: any, size = { width: 320, height: 240 }) {
+  const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width: size.width, height: size.height });
   try {
     chart.setOption(option);
     return chart.renderToSVGString() as string;
@@ -150,21 +150,51 @@ describe("Visualizations -> Gauge -> tick labels", () => {
     expect(needle.detail.formatter(needle.data[0].value)).toBe("212.0");
   });
 
-  test("the half arc's end labels sit clear of the band, not on it", () => {
-    const { option } = build({ valueColumn: "p95", style: "half", min: 0, max: 1000 });
-    const arc = option.series[0];
-    const band = arc.axisLine.lineStyle.width;
+  test.each([
+    [1000, 650],
+    [700, 200],
+    [320, 240],
+    [220, 160],
+  ])("the half arc's end labels clear the band and stay in the widget at %ix%i", (w, h) => {
+    // Checked against what is drawn, not against arithmetic. Three earlier
+    // attempts passed their own maths while the labels were still on the
+    // band: ECharts draws the band inward from the radius, and anchors these
+    // two labels by their outer edge, so the text grows back towards the arc.
+    const built = build({ valueColumn: "p95", style: "half", min: 0, max: 1000 }, data, { width: w, height: h });
+    const svg = render(built.option, { width: w, height: h });
 
-    // ECharts draws a label at `radius - splitLine.length - (axisLabel.distance
-    // + splitLine.distance)`, and defaults those two splitLine values to 10
-    // even when the split line is hidden. Left at the defaults the label landed
-    // on the band's outer edge, which is what this pins.
-    expect(arc.splitLine.length).toBe(0);
-    expect(arc.splitLine.distance).toBe(0);
+    // `M{leftOuter} {cy}A{outer} ... L{rightInner} {cy}A{inner} ...`
+    const arc = /M([\d.]+) ([\d.]+)A([\d.]+) [\d.]+ 0 1 1 [\d.]+ [\d.]+L([\d.]+) [\d.]+A([\d.]+)/.exec(svg);
+    expect(arc).not.toBeNull();
+    const [leftOuterX, outerR] = [Number(arc![1]), Number(arc![3])];
+    const cx = leftOuterX + outerR;
 
-    const labelOffset = arc.splitLine.length + arc.axisLabel.distance + arc.splitLine.distance;
-    // Positive is inward, and it has to clear half the band's thickness.
-    expect(labelOffset).toBeGreaterThan(band / 2);
+    const labels = [...svg.matchAll(/<text([^>]*)>([^<]*)</g)]
+      .map((m) => ({ attrs: m[1], text: m[2] }))
+      .filter((t) => t.text === "0" || t.text === "1,000")
+      .map(({ attrs, text }) => {
+        const x = Number(/x="([-\d.]+)"/.exec(attrs)![1]);
+        const size = Number(/font-size:([\d.]+)px/.exec(attrs)![1]);
+        const anchor = /text-anchor="(\w+)"/.exec(attrs)![1];
+        // Mono glyphs are about 0.6em wide; generous on purpose.
+        const width = text.length * size * 0.6;
+        const left = anchor === "end" ? x - width : anchor === "start" ? x : x - width / 2;
+        return { text, left, right: left + width };
+      });
+    expect(labels).toHaveLength(2);
+
+    labels.forEach(({ text, left, right }) => {
+      // Entirely outside the arc, on its own side of it. The reading lives
+      // inside the arc, so clearing the band is what keeps them apart.
+      if (left < cx) {
+        expect(right).toBeLessThanOrEqual(cx - outerR);
+      } else {
+        expect(left).toBeGreaterThanOrEqual(cx + outerR);
+      }
+      // And still on the widget.
+      expect(left).toBeGreaterThanOrEqual(0);
+      expect(right).toBeLessThanOrEqual(w);
+    });
   });
 
   test("only the two ends are labelled", () => {
