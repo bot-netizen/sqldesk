@@ -3,6 +3,7 @@ import cx from "classnames";
 import PropTypes from "prop-types";
 import { map, includes } from "lodash";
 import Button from "antd/lib/button";
+import Checkbox from "antd/lib/checkbox";
 import Dropdown from "antd/lib/dropdown";
 import Menu from "antd/lib/menu";
 import EllipsisOutlinedIcon from "@ant-design/icons/EllipsisOutlined";
@@ -309,6 +310,8 @@ DashboardControl.propTypes = {
 
 function DashboardEditControl({ dashboardConfiguration, headerExtra }) {
   const {
+    dashboard,
+    updateDashboard,
     setEditingLayout,
     doneBtnClickedWhileSaving,
     dashboardStatus,
@@ -336,6 +339,19 @@ function DashboardEditControl({ dashboardConfiguration, headerExtra }) {
   }
   return (
     <div className="dashboard-control">
+      {/*
+        Beside Done Editing rather than in a band of its own across the top
+        of the dashboard: it is one checkbox, and that band cost a widget's
+        worth of height for it.
+      */}
+      <Checkbox
+        className="dashboard-filters-toggle"
+        checked={!!dashboard.dashboard_filters_enabled}
+        onChange={({ target }) => updateDashboard({ dashboard_filters_enabled: target.checked })}
+        data-test="DashboardFiltersCheckbox"
+      >
+        Dashboard level filters
+      </Checkbox>
       {status}
       {dashboardStatus === DashboardStatusEnum.SAVING_FAILED ? (
         <Button type="primary" onClick={retrySaveDashboardLayout}>

@@ -4,7 +4,6 @@ import PropTypes from "prop-types";
 import cx from "classnames";
 
 import Button from "antd/lib/button";
-import Checkbox from "antd/lib/checkbox";
 import routeWithUserSession from "@/components/ApplicationArea/routeWithUserSession";
 import DynamicComponent from "@/components/DynamicComponent";
 import DashboardGrid from "@/components/dashboards/DashboardGrid";
@@ -23,25 +22,6 @@ import useDashboard from "./hooks/useDashboard";
 import DashboardHeader from "./components/DashboardHeader";
 
 import "./DashboardPage.less";
-
-function DashboardSettings({ dashboardConfiguration }) {
-  const { dashboard, updateDashboard } = dashboardConfiguration;
-  return (
-    <div className="m-b-10 p-15 bg-white tiled">
-      <Checkbox
-        checked={!!dashboard.dashboard_filters_enabled}
-        onChange={({ target }) => updateDashboard({ dashboard_filters_enabled: target.checked })}
-        data-test="DashboardFiltersCheckbox"
-      >
-        Use Dashboard Level Filters
-      </Checkbox>
-    </div>
-  );
-}
-
-DashboardSettings.propTypes = {
-  dashboardConfiguration: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
-};
 
 function AddWidgetContainer({ dashboardConfiguration, className, ...props }) {
   const { showAddTextboxDialog, showAddWidgetDialog } = dashboardConfiguration;
@@ -146,7 +126,6 @@ function DashboardComponent(props) {
           <Filters filters={filters} onChange={setFilters} />
         </div>
       )}
-      {editingLayout && <DashboardSettings dashboardConfiguration={dashboardConfiguration} />}
       <div id="dashboard-container">
         <DashboardGrid
           dashboard={dashboard}
