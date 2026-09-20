@@ -1,5 +1,5 @@
 import { isFinite } from "lodash";
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import cx from "classnames";
 import resizeObserver from "@/services/resizeObserver";
 import { RendererPropTypes } from "@/visualizations/prop-types";
@@ -9,6 +9,7 @@ import { resolveColor } from "../shared/valueOptions";
 import { getCounterData } from "./utils";
 import { orderRows, getStatExtras } from "./stat";
 import useCountUp from "./useCountUp";
+import getCounterScale from "./scale";
 import { ENTER_DURATION, UPDATE_DURATION } from "../shared/motion";
 
 import "./render.less";
@@ -20,12 +21,6 @@ function getCounterStyles(scale: any) {
     WebkitTransform: `scale(${scale})`,
     transform: `scale(${scale})`,
   };
-}
-
-function getCounterScale(container: any) {
-  const inner = container.firstChild;
-  const scale = Math.min(container.offsetWidth / inner.offsetWidth, container.offsetHeight / inner.offsetHeight);
-  return Number(isFinite(scale) ? scale : 1).toFixed(2); // keep only two decimal places
 }
 
 function Sparkline({ points, color }: { points: number[]; color: string }) {
@@ -68,20 +63,26 @@ export default function Renderer({ data, options, visualizationName }: any) {
   const [scale, setScale] = useState("1.00");
   const [container, setContainer] = useState<any>(null);
 
-  useEffect(() => {
-    if (container) {
-      const unwatch = resizeObserver(container, () => {
-        setScale(getCounterScale(container));
-      });
-      return unwatch;
+  const measure = useCallback(() => {
+    if (!container) {
+      return;
+    }
+    const next = getCounterScale(container);
+    if (next !== null) {
+      setScale(next);
     }
   }, [container]);
 
   useEffect(() => {
-    if (container) {
-      setScale(getCounterScale(container));
+    if (!container) {
+      return;
     }
-  }, [data, options, container]);
+    measure();
+    // Only the box is watched, never the number: resizeObserver measures with
+    // getBoundingClientRect, which the transform we are about to apply would
+    // change, and watching that is a loop.
+    return resizeObserver(container, measure);
+  }, [container, measure]);
 
   // With a sparkline the rows are read oldest first and the latest one is the
   // headline, whatever order the query returned them in.
@@ -122,6 +123,13 @@ export default function Renderer({ data, options, visualizationName }: any) {
   // nothing to animate, so the displayed string is unchanged from before.
   const countingValue = useCountUp(counterValueRaw, options);
 
+  const displayed = countingValue ?? counterValue;
+
+  // The box has not changed, but what is written in it has: the count-up
+  // animation reaches its final, widest number some time after the value
+  // arrived, and a longer number than last refresh needs a smaller scale.
+  useEffect(measure, [measure, displayed, targetValue, counterLabel]);
+
   // Thresholds, when set, decide the colour; otherwise the classic trend
   // against the target does, as it always has.
   const useTrend = !extras.valueColor && showTrend;
@@ -142,7 +150,7 @@ export default function Renderer({ data, options, visualizationName }: any) {
             title={counterValueTooltip}
             style={extras.valueColor ? { color: extras.valueColor } : undefined}
           >
-            {countingValue ?? counterValue}
+            {displayed}
           </div>
           {targetValue && (
             <div className="counter-visualization-target" title={targetValueTooltip}>
