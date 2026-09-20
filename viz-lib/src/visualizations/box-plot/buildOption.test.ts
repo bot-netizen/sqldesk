@@ -36,12 +36,41 @@ describe("Visualizations -> Boxplot (deprecated) -> the option", () => {
     expect(scatter.data).toEqual([[0, 100]]);
   });
 
-  test("a column with nothing numeric in it holds its place without a box", () => {
-    const built = buildOption(data(["label"], [{ label: "n/a" }, { label: "also n/a" }]), {});
+  test("a column with nothing numeric in it is left out, not held open", () => {
+    // It used to keep its place with a null, and ECharts' boxplot series
+    // reads `.value` off every item it is handed -- so any result with a text
+    // or date column beside its numbers took the whole widget down.
+    const built = buildOption(
+      data(
+        ["label", "v"],
+        [
+          { label: "n/a", v: 1 },
+          { label: "also n/a", v: 3 },
+        ]
+      ),
+      {}
+    );
     const [box] = built.option.series;
 
-    expect(built.option.xAxis.data).toEqual(["label"]);
-    expect(box.data).toEqual([null]);
+    expect(built.option.xAxis.data).toEqual(["v"]);
+    // One box, for the one column that had numbers in it.
+    expect(box.data).toHaveLength(1);
+    expect(box.data[0][2]).toBe(2); // median of 1 and 3
+  });
+
+  test("outliers are placed against the boxes drawn, not the columns returned", () => {
+    // With the text column dropped, the numeric one is box zero.
+    const rows = [1, 2, 3, 4, 5, 6, 7, 8, 9, 100].map((latency) => ({ note: "x", latency }));
+    const built = buildOption(data(["note", "latency"], rows), {});
+    const scatter = built.option.series.find((s: any) => s.type === "scatter");
+
+    expect(built.option.xAxis.data).toEqual(["latency"]);
+    expect(scatter.data).toEqual([[0, 100]]);
+  });
+
+  test("nothing numeric at all says so rather than drawing an empty grid", () => {
+    const built = buildOption(data(["label"], [{ label: "n/a" }]), {});
+    expect(built.problem).toBe("No numeric column to draw a box from.");
   });
 
   test("non-numeric values are skipped rather than poisoning the quartiles", () => {

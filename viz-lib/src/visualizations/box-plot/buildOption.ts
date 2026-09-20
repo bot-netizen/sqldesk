@@ -13,6 +13,8 @@ import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
 export interface BuiltBoxPlot {
   option: any;
   signature: string;
+  /** Set when there is nothing to draw a box from. */
+  problem: string | null;
 }
 
 function palette(): string[] {
@@ -47,10 +49,15 @@ export default function buildOption(data: any, options: any): BuiltBoxPlot {
   const columns = map(data.columns, (column: any) => column.name);
   const colors = palette();
 
-  const boxes: any[] = [];
+  // A column with nothing numeric in it is left out entirely rather than
+  // holding an empty place in the row of boxes: ECharts' boxplot series reads
+  // `.value` off every item it is given and throws outright on a null, which
+  // took the whole widget down for any result carrying a text or date column
+  // beside its numbers -- which is most of them.
+  const drawn: { column: string; box: number[] }[] = [];
   const outliers: any[] = [];
 
-  columns.forEach((column, index) => {
+  columns.forEach((column) => {
     const values: number[] = [];
     data.rows.forEach((row: any) => {
       const value = cleanNumber(row[column]);
@@ -61,12 +68,21 @@ export default function buildOption(data: any, options: any): BuiltBoxPlot {
 
     const stats = boxStats(values);
     if (!stats) {
-      boxes.push(null);
       return;
     }
-    boxes.push([stats.low, stats.q1, stats.median, stats.q3, stats.high]);
+    // Outliers are placed against the boxes actually drawn, not against the
+    // columns the result happened to have.
+    const index = drawn.length;
+    drawn.push({ column, box: [stats.low, stats.q1, stats.median, stats.q3, stats.high] });
     stats.outliers.forEach((value) => outliers.push([index, value]));
   });
+
+  const categories = drawn.map((d) => d.column);
+  const boxes = drawn.map((d) => d.box);
+
+  if (!boxes.length) {
+    return { option: {}, signature: "empty", problem: "No numeric column to draw a box from." };
+  }
 
   const series: any[] = [
     {
@@ -95,7 +111,7 @@ export default function buildOption(data: any, options: any): BuiltBoxPlot {
   const option = {
     ...ECHARTS_MOTION,
     grid: gridFor(options),
-    xAxis: { type: "category", data: columns, ...axisTitle(options.xAxisLabel) },
+    xAxis: { type: "category", data: categories, ...axisTitle(options.xAxisLabel) },
     yAxis: { type: "value", scale: true, splitArea: { show: true }, ...axisTitle(options.yAxisLabel) },
     tooltip: {
       trigger: "item",
@@ -106,5 +122,5 @@ export default function buildOption(data: any, options: any): BuiltBoxPlot {
 
   // The columns are the boxes, so a new or renamed column is a different chart
   // rather than new values for the same one.
-  return { option, signature: JSON.stringify(columns) };
+  return { option, signature: JSON.stringify(categories), problem: null };
 }

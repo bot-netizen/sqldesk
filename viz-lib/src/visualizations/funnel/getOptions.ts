@@ -14,7 +14,10 @@ const DEFAULT_OPTIONS = {
   percentFormat: "0[.]00%",
 };
 
-export default function getOptions(options: any, { columns }: any) {
+// The data argument defaults, because a visualization being created has
+// no result yet and destructuring `undefined` throws before anything is
+// drawn -- which takes the page down rather than showing an empty chart.
+export default function getOptions(options: any, { columns }: any = {}) {
   options = merge({}, DEFAULT_OPTIONS, options);
 
   // Validate

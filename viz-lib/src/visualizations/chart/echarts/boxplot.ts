@@ -48,6 +48,9 @@ export function quantile(sorted: number[], p: number): number {
  * Whiskers stop at the most extreme value within 1.5 IQR of the box -- Tukey's
  * rule, which is what Plotly draws and what ECharts' boxplot series expects.
  */
+/** What ECharts draws as nothing while keeping the category's place. */
+export const EMPTY_BOX = "-";
+
 export function boxStats(values: number[]): BoxStats | null {
   const sorted = values.filter((v) => !isNil(v) && isFinite(v)).sort((a, b) => a - b);
   if (sorted.length === 0) {
@@ -155,9 +158,12 @@ export function buildBoxSeries(
       const values = groups.get(category);
       const stats = values ? boxStats(values) : null;
       if (!stats) {
-        // ECharts skips a null entry, which keeps every series aligned to the
-        // same category positions.
-        boxes.push(null);
+        // Every series has to keep a place for every category or the boxes
+        // stop lining up, so the gap is ECharts' own empty value rather than
+        // a missing entry. Not null: a boxplot series reads `.value` off each
+        // item it is given, and threw outright on one -- which took the widget
+        // down whenever a category had no numbers in it.
+        boxes.push(EMPTY_BOX);
         return;
       }
       boxes.push([stats.low, stats.q1, stats.median, stats.q3, stats.high]);

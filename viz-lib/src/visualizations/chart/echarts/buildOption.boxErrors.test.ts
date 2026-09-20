@@ -1,5 +1,9 @@
 import getOptions from "../getOptions";
 import buildOption from "./buildOption";
+import { EMPTY_BOX } from "./boxplot";
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const echarts = require("echarts");
 import { boxStats, quantile } from "./boxplot";
 import { barCentreOffset } from "./errorBars";
 
@@ -152,8 +156,36 @@ describe("Visualizations -> Chart -> ECharts -> box", () => {
       const [first, second] = built.option.series.filter((s: any) => s.type === "boxplot");
 
       expect(built.option.xAxis.data).toEqual(["x1", "x2"]);
-      expect(first.data[1]).toBeNull();
-      expect(second.data[0]).toBeNull();
+      // ECharts' own empty value, not null: a boxplot series reads `.value`
+      // off every item it is handed and throws outright on a null, which took
+      // the widget down whenever a category had no numbers in it.
+      expect(first.data[1]).toBe(EMPTY_BOX);
+      expect(second.data[0]).toBe(EMPTY_BOX);
+    });
+
+    test("an empty slot is something ECharts will actually draw", () => {
+      // The value above is only correct if ECharts accepts it, so it is put
+      // through a real render rather than asserted against on its own.
+      const built = buildOption(
+        [
+          series("a", [
+            ["x1", 1],
+            ["x1", 2],
+          ]),
+          series("b", [
+            ["x2", 5],
+            ["x2", 6],
+          ]),
+        ],
+        boxOptions()
+      );
+      const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width: 400, height: 300 });
+      try {
+        expect(() => chart.setOption({ ...built.option, grid: { containLabel: false } })).not.toThrow();
+        expect(chart.renderToSVGString()).toContain("<path");
+      } finally {
+        chart.dispose();
+      }
     });
 
     test("numeric x values still group, because a box is a distribution per category", () => {

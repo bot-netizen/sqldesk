@@ -7,7 +7,15 @@ import "./renderer.less";
 
 export default function Renderer({ data, options }: any) {
   const built = useMemo(() => buildOption(data, options), [data, options]);
-  const { setContainer } = useEChart(built.option, built.signature);
+  const { setContainer } = useEChart(built.problem ? {} : built.option, built.signature);
+
+  if (built.problem) {
+    return (
+      <div className="box-plot-deprecated-visualization-container">
+        <p className="box-plot-deprecated-visualization-problem">{built.problem}</p>
+      </div>
+    );
+  }
 
   return <div className="box-plot-deprecated-visualization-container" ref={setContainer} />;
 }

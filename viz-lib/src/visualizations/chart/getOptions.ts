@@ -45,6 +45,9 @@ const DEFAULT_OPTIONS = {
 };
 
 export default function getOptions(options: any) {
+  // Options can arrive as null through the API, and the series type is read
+  // below before `merge` has had a chance to supply a default.
+  options = options || {};
   const result = merge(
     {},
     DEFAULT_OPTIONS,
