@@ -13,10 +13,12 @@ import histogramVisualization from "./histogram";
 import mapVisualization from "./map";
 import pivotVisualization from "./pivot";
 import progressVisualization from "./progress";
+import radarVisualization from "./radar";
 import sankeyVisualization from "./sankey";
 import statusGridVisualization from "./status-grid";
 import sunburstVisualization from "./sunburst";
 import tableVisualization from "./table";
+import treemapVisualization from "./treemap";
 import waterfallVisualization from "./waterfall";
 import wordCloudVisualization from "./word-cloud";
 
@@ -106,10 +108,12 @@ each(
     mapVisualization,
     pivotVisualization,
     progressVisualization,
+    radarVisualization,
     sankeyVisualization,
     statusGridVisualization,
     sunburstVisualization,
     tableVisualization,
+    treemapVisualization,
     waterfallVisualization,
     wordCloudVisualization,
   ]),

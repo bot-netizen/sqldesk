@@ -7,9 +7,11 @@ import {
   HeatmapChart,
   LineChart,
   PieChart,
+  RadarChart,
   SankeyChart,
   ScatterChart,
   SunburstChart,
+  TreemapChart,
 } from "echarts/charts";
 import {
   AriaComponent,
@@ -19,6 +21,7 @@ import {
   MarkAreaComponent,
   MarkLineComponent,
   MarkPointComponent,
+  RadarComponent,
   TitleComponent,
   TooltipComponent,
   VisualMapComponent,
@@ -48,9 +51,14 @@ echarts.use([
   HeatmapChart,
   LineChart,
   PieChart,
+  // A radar's spokes are a coordinate system of their own, so the series and
+  // the component that lays it out are separate registrations.
+  RadarChart,
+  RadarComponent,
   SankeyChart,
   ScatterChart,
   SunburstChart,
+  TreemapChart,
   GridComponent,
   LegendComponent,
   TooltipComponent,
