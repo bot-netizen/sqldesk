@@ -155,18 +155,18 @@ describe("Visualizations -> Gauge -> tick labels", () => {
     [700, 200],
     [320, 240],
     [220, 160],
-  ])("the half arc's end labels clear the band and stay in the widget at %ix%i", (w, h) => {
-    // Checked against what is drawn, not against arithmetic. Three earlier
-    // attempts passed their own maths while the labels were still on the
-    // band: ECharts draws the band inward from the radius, and anchors these
-    // two labels by their outer edge, so the text grows back towards the arc.
+  ])("the half arc's end labels sit just under the ends of the arc at %ix%i", (w, h) => {
+    // Read back out of the rendered SVG, not worked out on paper. Three
+    // earlier attempts at placing these passed their own arithmetic while the
+    // labels were still on the band, because a gauge's axis label sits on the
+    // axis and ignores align, verticalAlign and padding alike.
     const built = build({ valueColumn: "p95", style: "half", min: 0, max: 1000 }, data, { width: w, height: h });
     const svg = render(built.option, { width: w, height: h });
 
     // `M{leftOuter} {cy}A{outer} ... L{rightInner} {cy}A{inner} ...`
     const arc = /M([\d.]+) ([\d.]+)A([\d.]+) [\d.]+ 0 1 1 [\d.]+ [\d.]+L([\d.]+) [\d.]+A([\d.]+)/.exec(svg);
     expect(arc).not.toBeNull();
-    const [leftOuterX, outerR] = [Number(arc![1]), Number(arc![3])];
+    const [leftOuterX, cy, outerR, innerR] = [Number(arc![1]), Number(arc![2]), Number(arc![3]), Number(arc![5])];
     const cx = leftOuterX + outerR;
 
     const labels = [...svg.matchAll(/<text([^>]*)>([^<]*)</g)]
@@ -174,23 +174,24 @@ describe("Visualizations -> Gauge -> tick labels", () => {
       .filter((t) => t.text === "0" || t.text === "1,000")
       .map(({ attrs, text }) => {
         const x = Number(/x="([-\d.]+)"/.exec(attrs)![1]);
+        const y = Number(/y="([-\d.]+)"/.exec(attrs)![1]);
         const size = Number(/font-size:([\d.]+)px/.exec(attrs)![1]);
         const anchor = /text-anchor="(\w+)"/.exec(attrs)![1];
-        // Mono glyphs are about 0.6em wide; generous on purpose.
         const width = text.length * size * 0.6;
         const left = anchor === "end" ? x - width : anchor === "start" ? x : x - width / 2;
-        return { text, left, right: left + width };
+        return { text, x, top: y - size / 2, left, right: left + width };
       });
     expect(labels).toHaveLength(2);
 
-    labels.forEach(({ text, left, right }) => {
-      // Entirely outside the arc, on its own side of it. The reading lives
-      // inside the arc, so clearing the band is what keeps them apart.
-      if (left < cx) {
-        expect(right).toBeLessThanOrEqual(cx - outerR);
-      } else {
-        expect(left).toBeGreaterThanOrEqual(cx + outerR);
-      }
+    labels.forEach(({ x, top, left, right }) => {
+      // Below the arc, which is what keeps it off both the band and the
+      // reading inside it -- and close enough to read as belonging to it.
+      expect(top).toBeGreaterThanOrEqual(cy);
+      expect(top - cy).toBeLessThanOrEqual(12);
+      // Anchored under the end of the arc, between the band's two edges.
+      const fromCentre = Math.abs(cx - x);
+      expect(fromCentre).toBeGreaterThanOrEqual(innerR);
+      expect(fromCentre).toBeLessThanOrEqual(outerR);
       // And still on the widget.
       expect(left).toBeGreaterThanOrEqual(0);
       expect(right).toBeLessThanOrEqual(w);
@@ -199,7 +200,10 @@ describe("Visualizations -> Gauge -> tick labels", () => {
 
   test("only the two ends are labelled", () => {
     const { option } = build({ valueColumn: "p95", style: "half", min: 0, max: 1000 });
-    const format = option.series[0].axisLabel.formatter;
+    // The arc itself draws no labels; a second, invisible axis sitting a
+    // little lower draws the two ends.
+    expect(option.series[0].axisLabel.show).toBe(false);
+    const format = option.series[1].axisLabel.formatter;
     expect(format(0)).toBe("0");
     expect(format(1000)).toBe("1,000");
     expect(format(500)).toBe("");

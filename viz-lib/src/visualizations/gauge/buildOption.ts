@@ -16,11 +16,11 @@ export interface BuiltGauge {
   problem: string | null;
 }
 
-/** Clear air between an end label and the band it sits inside. */
-const LABEL_GAP = 8;
+/** Clear air between an end label and the arc above it. */
+const LABEL_GAP = 5;
 
-/** A character of the mono face is about this much of its size, wide. */
-const MONO_CHAR_WIDTH = 0.6;
+/** Where the half arc's centre sits down the widget. */
+const HALF_CENTRE_Y = 0.72;
 
 const MONO = '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
 const SANS = '"Instrument Sans Variable", "Instrument Sans", -apple-system, "Segoe UI", sans-serif';
@@ -100,29 +100,18 @@ export default function buildOption(
   const tickSize = clamp(Math.round(side * 0.04), 9, 13);
   const width = clamp(Math.round(side * 0.06), 6, 22);
 
-  // Where the half style's end labels go.
+  // The half style's end labels go *under* the ends of the arc rather than
+  // out beside them, which keeps the arc its full size and the labels a few
+  // pixels away rather than adrift.
   //
-  // Outside the arc, not inside it. Inside they clear the band only by
-  // marching towards the middle, and on a wide, short gauge the reading is
-  // already there -- "0" and "100" ended up sitting on "81.7%". Outside there
-  // is nothing to collide with, so the only question is making room, and the
-  // arc gives up exactly as much radius as the labels need and no more.
-  //
-  // ECharts draws the band inward from the radius, so beyond the radius is
-  // clear air. It also anchors these two labels by their outer edge -- start
-  // on the left, end on the right -- so the text grows back towards the arc
-  // from wherever it is placed. The offset has to be the label's whole width,
-  // not half of it, or the far end of "1,000" lands on the band.
-  const endLabelChars = Math.max(
-    ...[min, max].map((v) => String(formatValue(v, tickFormat(options, min, max))).length)
-  );
-  const endLabelWidth = endLabelChars * tickSize * MONO_CHAR_WIDTH;
-  const endLabelDistance = endLabelWidth + LABEL_GAP;
-  // The anchor is the outermost point, so this is all the room it needs.
-  const labelRoom = endLabelDistance + 2;
-  // ECharts reads a percentage against the smaller side; in pixels it is the
-  // width that has to hold the arc and both labels.
-  const halfRadius = Math.max(40, Math.min((0.96 * Math.min(size.width, size.height)) / 2, size.width / 2 - labelRoom));
+  // A gauge's axis labels sit on the axis and nowhere else: align,
+  // verticalAlign and padding are all ignored, so there is no way to drop one
+  // below the baseline. What there is, is a second gauge -- the same trick
+  // this file already uses for the target marker -- centred a little lower,
+  // drawing nothing but those two labels.
+  const halfCentreY = HALF_CENTRE_Y * size.height;
+  // Clear of the arc by a few pixels, measured from the text's top edge.
+  const endLabelDrop = tickSize / 2 + LABEL_GAP;
 
   const shown = clamp(value, min, max);
   const common = {
@@ -191,8 +180,8 @@ export default function buildOption(
         ...common,
         startAngle: half ? 180 : 90,
         endAngle: half ? 0 : -270,
-        radius: half ? halfRadius : "86%",
-        center: half ? ["50%", "72%"] : ["50%", "50%"],
+        radius: half ? "96%" : "86%",
+        center: half ? ["50%", `${HALF_CENTRE_Y * 100}%`] : ["50%", "50%"],
         pointer: { show: false },
         progress: { show: true, overlap: false, roundCap: !half, clip: false, width, itemStyle: { color: valueColor } },
         axisLine: { lineStyle: { width, color: [[1, track]] } },
@@ -202,25 +191,50 @@ export default function buildOption(
         // them and the label's distance means what it says.
         splitLine: { show: false, length: 0, distance: 0 },
         axisTick: { show: false },
-        axisLabel: half
-          ? {
-              show: true,
-              // Negative is outward, past the band into the room the radius
-              // above gave up for it.
-              distance: -endLabelDistance,
-              color: muted,
-              fontFamily: MONO,
-              fontSize: tickSize,
-              // Only the two ends: min inside the left, max inside the right.
-              formatter: (v: number) => (v === min || v === max ? formatValue(v, tickFormat(options, min, max)) : ""),
-            }
-          : { show: false },
+        // Drawn by the second series below, which can sit lower than this one.
+        axisLabel: { show: false },
         splitNumber: 1,
         title: { ...common.title, offsetCenter: [0, half ? "22%" : "28%"] },
         detail: { ...common.detail, offsetCenter: [0, half ? "-12%" : "-4%"] },
         data: [{ value: shown, name: label }],
       },
     ];
+    if (half) {
+      // Nothing but the two end labels, on an axis of the same size sitting a
+      // little lower, so they land under the ends of the arc.
+      series.push({
+        type: "gauge",
+        min,
+        max,
+        startAngle: 180,
+        endAngle: 0,
+        radius: "96%",
+        center: ["50%", halfCentreY + endLabelDrop],
+        silent: true,
+        animation: false,
+        axisLine: { show: false },
+        progress: { show: false },
+        pointer: { show: false },
+        anchor: { show: false },
+        splitLine: { show: false, length: 0, distance: 0 },
+        axisTick: { show: false },
+        title: { show: false },
+        detail: { show: false },
+        splitNumber: 1,
+        axisLabel: {
+          show: true,
+          // Half the band, so the label is anchored under the middle of the
+          // arc's end rather than its edge.
+          distance: width / 2,
+          color: muted,
+          fontFamily: MONO,
+          fontSize: tickSize,
+          // Only the two ends.
+          formatter: (v: number) => (v === min || v === max ? formatValue(v, tickFormat(options, min, max)) : ""),
+        },
+        data: [{ value: shown }],
+      });
+    }
   }
 
   if (target !== null && Number.isFinite(target)) {
