@@ -2623,7 +2623,7 @@ wheels = [
 
 [[package]]
 name = "sqldesk"
-version = "0.4.0rc3"
+version = "0.4.0"
 source = { virtual = "." }
 dependencies = [
     { name = "advocate" },

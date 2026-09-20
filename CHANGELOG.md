@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.4.0
+
+Dashboards you watch rather than read.
+
+A dashboard can be made **live**: the server refreshes it every 30 seconds to
+5 minutes, once for everyone looking, and only while somebody has it open. The
+visualizations that go on a wall came with it -- a gauge, a stat with a
+sparkline and a target, progress and bullet bars, a status grid, table cells
+that colour and carry data bars, reference lines and bands, and a rolling
+window so a live chart slides instead of rescaling. Charts are drawn by Apache
+ECharts now rather than Plotly, which is what made the animation between one
+result and the next possible, and cut the production JavaScript from 9.6 MB to
+4.3 MB.
+
+`latest` and `0.4` point here. Published as
+`ghcr.io/bot-netizen/sqldesk:0.4.0`.
+
+The three release candidates below carry the detail of what changed and why;
+this release is rc.3 as rebuilt on 19 September, with no further changes.
+
+### Upgrading
+
+**From 0.3.2:**
+
+- **Run `manage db upgrade`.** 0.4 adds a `live` column to `dashboards`:
+
+  ```bash
+  docker compose -f compose.prod.yaml run --rm server manage db upgrade
+  ```
+
+- Restart the scheduler as well as the server and worker (`up -d` does all
+  three). Live dashboards are refreshed by a periodic job that a scheduler
+  running the old image never starts.
+- **Dashboard auto-refresh now starts at ten minutes.** The 1 and 5 minute
+  choices are gone, and a link carrying `?refresh=60` refreshes every ten
+  instead. Anything that needs to move faster is what live mode is for.
+  `SQLDESK_DASHBOARD_REFRESH_INTERVALS` still sets the menu; values under ten
+  minutes are ignored.
+- **Nobody can turn live mode on until an admin grants it.** Open a group and
+  tick *Members can make dashboards live*. Admins always can.
+- Saved charts keep their appearance. A chart saved as `custom` -- which held
+  JavaScript written against the Plotly API -- is drawn as a column chart,
+  because there is no longer anything to run that code.
+
+**From any 0.4 release candidate:** pull and `up -d`. No migration.
+
+**Going back to 0.3.2:** `manage db downgrade a8e1d0c4b726` while still on the
+0.4 image, then switch the image back.
+
 ## 0.4.0-rc.3
 
 The third release candidate for 0.4, and the one to try: rc.1 and rc.2
