@@ -14,14 +14,18 @@ type OwnProps = {
   children?: React.ReactNode;
 };
 
-const controlLabelDefaultProps = {
+const controlLabelDefaultProps: OwnProps = {
   layout: "vertical",
   label: null,
   disabled: false,
   children: null,
 };
 
-type Props = OwnProps & typeof controlLabelDefaultProps;
+// The defaults are typed as OwnProps rather than intersected in. Inferred,
+// `children: null` narrowed the prop to exactly `null`, so passing a control
+// to the thing whose whole job is to label a control was a type error -- which
+// is why several callers carried a `@ts-expect-error` above them.
+type Props = OwnProps;
 
 export function ControlLabel({ layout, label, labelProps, disabled, children }: Props) {
   if (layout === "vertical" && label) {
@@ -54,7 +58,8 @@ export function ControlLabel({ layout, label, labelProps, disabled, children }: 
     );
   }
 
-  return children;
+  // No label to draw: the control stands on its own.
+  return <React.Fragment>{children}</React.Fragment>;
 }
 
 ControlLabel.defaultProps = controlLabelDefaultProps;
@@ -83,7 +88,7 @@ export default function withControlLabel<C>(WrappedControl: C): ((props: any) =>
 
     return (
       <ControlLabel layout={layout} label={label} labelProps={labelProps} disabled={disabled}>
-        {/* @ts-expect-error ts-migrate(2322) FIXME: Type 'Element' is not assignable to type 'null | u... Remove this comment to see the full error message */}
+        {/* @ts-expect-error `C` is only known to be a component at the call site, not here */}
         <WrappedControl
           className={cx("visualization-editor-input", className)}
           id={labelProps.htmlFor}

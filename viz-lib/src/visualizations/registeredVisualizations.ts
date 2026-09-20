@@ -9,6 +9,7 @@ import counterVisualization from "./counter";
 import detailsVisualization from "./details";
 import funnelVisualization from "./funnel";
 import gaugeVisualization from "./gauge";
+import histogramVisualization from "./histogram";
 import mapVisualization from "./map";
 import pivotVisualization from "./pivot";
 import progressVisualization from "./progress";
@@ -100,6 +101,7 @@ each(
     detailsVisualization,
     funnelVisualization,
     gaugeVisualization,
+    histogramVisualization,
     mapVisualization,
     pivotVisualization,
     progressVisualization,

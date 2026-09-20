@@ -31,7 +31,6 @@ function Editor({ column, onChange }: Props) {
 
       <Section>
         <ControlLabel
-          // @ts-expect-error ts-migrate(2322) FIXME: Type 'Element' is not assignable to type 'null | u... Remove this comment to see the full error message
           label={
             <React.Fragment>
               Size
@@ -43,7 +42,6 @@ function Editor({ column, onChange }: Props) {
             </React.Fragment>
           }
         >
-          {/* @ts-expect-error ts-migrate(2322) FIXME: Type 'Element' is not assignable to type 'null | u... Remove this comment to see the full error message */}
           <div className="image-dimension-selector">
             <Input
               data-test="Table.ColumnEditor.Image.Width"
@@ -76,7 +74,7 @@ function Editor({ column, onChange }: Props) {
         <ContextHelp
           placement="topLeft"
           arrowPointAtCenter
-          // @ts-expect-error ts-migrate(2322) FIXME: Type 'Element' is not assignable to type 'null | u... Remove this comment to see the full error message
+          // @ts-expect-error ContextHelp's `icon` prop is declared too narrowly
           icon={<span style={{ cursor: "default" }}>Format specs {ContextHelp.defaultIcon}</span>}
         >
           <div>

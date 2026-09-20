@@ -25,7 +25,6 @@ export default function ValueMappingsSection({ mappings, onChange, testPrefix, d
 
   return (
     <Section>
-      {/* @ts-expect-error ControlLabel's props are declared too narrowly */}
       <ControlLabel label="Value mappings">
         {description && <p className="value-options-help">{description}</p>}
         <div className="value-options-rows" data-test={`${testPrefix}.Mappings`}>

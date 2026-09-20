@@ -46,7 +46,6 @@ export default function ReferenceSettings({ options, onOptionsChange }: any) {
   return (
     <React.Fragment>
       <Section>
-        {/* @ts-expect-error ControlLabel's props are declared too narrowly */}
         <ControlLabel label="Reference lines">
           <p className="value-options-help">A goal, a limit, or a series' average, drawn across the chart.</p>
           <div className="value-options-rows">
@@ -147,7 +146,6 @@ export default function ReferenceSettings({ options, onOptionsChange }: any) {
       </Section>
 
       <Section>
-        {/* @ts-expect-error ControlLabel's props are declared too narrowly */}
         <ControlLabel label="Bands">
           <p className="value-options-help">A shaded range on the value axis. Leave an end empty to run to the edge.</p>
           <div className="value-options-rows">

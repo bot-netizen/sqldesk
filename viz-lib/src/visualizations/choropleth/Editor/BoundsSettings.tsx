@@ -52,9 +52,7 @@ export default function BoundsSettings({ options, onOptionsChange }: any) {
   return (
     <React.Fragment>
       <Section>
-        {/* @ts-expect-error ts-migrate(2322) FIXME: Type 'string' is not assignable to type 'null | un... Remove this comment to see the full error message */}
         <ControlLabel label="North-East Latitude and Longitude">
-          {/* @ts-expect-error ts-migrate(2322) FIXME: Type 'Element' is not assignable to type 'null | u... Remove this comment to see the full error message */}
           <Grid.Row gutter={15}>
             <Grid.Col span={12}>
               <InputNumber
@@ -75,9 +73,7 @@ export default function BoundsSettings({ options, onOptionsChange }: any) {
       </Section>
 
       <Section>
-        {/* @ts-expect-error ts-migrate(2322) FIXME: Type 'string' is not assignable to type 'null | un... Remove this comment to see the full error message */}
         <ControlLabel label="South-West Latitude and Longitude">
-          {/* @ts-expect-error ts-migrate(2322) FIXME: Type 'Element' is not assignable to type 'null | u... Remove this comment to see the full error message */}
           <Grid.Row gutter={15}>
             <Grid.Col span={12}>
               <InputNumber

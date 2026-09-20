@@ -43,9 +43,8 @@ export default function Editor({ options, data, onOptionsChange }: any) {
         </Select>
       </Section>
       <Section>
-        {/* @ts-expect-error ts-migrate(2322) FIXME: Type 'string' is not assignable to type 'null | un... Remove this comment to see the full error message */}
         <ControlLabel label="Words Length Limit">
-          {/* @ts-expect-error ts-migrate(2322) FIXME: Type 'Element' is not assignable to type 'null | u... Remove this comment to see the full error message */}
+          {/* @ts-expect-error antd 4 dropped Row's `type` prop but still honours it */}
           <Grid.Row gutter={15} type="flex">
             <Grid.Col span={12}>
               <InputNumber
@@ -69,9 +68,8 @@ export default function Editor({ options, data, onOptionsChange }: any) {
         </ControlLabel>
       </Section>
       <Section>
-        {/* @ts-expect-error ts-migrate(2322) FIXME: Type 'string' is not assignable to type 'null | un... Remove this comment to see the full error message */}
         <ControlLabel label="Frequencies Limit">
-          {/* @ts-expect-error ts-migrate(2322) FIXME: Type 'Element' is not assignable to type 'null | u... Remove this comment to see the full error message */}
+          {/* @ts-expect-error antd 4 dropped Row's `type` prop but still honours it */}
           <Grid.Row gutter={15} type="flex">
             <Grid.Col span={12}>
               <InputNumber

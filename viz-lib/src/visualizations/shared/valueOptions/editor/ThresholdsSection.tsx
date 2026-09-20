@@ -42,7 +42,6 @@ export default function ThresholdsSection({ thresholds, onChange, testPrefix, de
 
   return (
     <Section>
-      {/* @ts-expect-error ControlLabel's props are declared too narrowly */}
       <ControlLabel label="Thresholds">
         {description && <p className="value-options-help">{description}</p>}
         <div className="value-options-rows" data-test={`${testPrefix}.Thresholds`}>
