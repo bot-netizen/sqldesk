@@ -30,7 +30,9 @@ export default function Renderer({ data, options }: any) {
         <p className="calendar-visualization-problem">{built.problem}</p>
       ) : (
         <React.Fragment>
-          <div className="calendar-visualization-chart" ref={setContainer} />
+          {/* The calendar takes the height it needs to stay legible, and the
+              container scrolls to it -- squashed to fit, it says nothing. */}
+          <div className="calendar-visualization-chart" style={{ height: built.height }} ref={setContainer} />
           {built.note && <p className="calendar-visualization-note">{built.note}</p>}
         </React.Fragment>
       )}

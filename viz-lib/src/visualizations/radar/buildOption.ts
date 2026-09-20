@@ -20,7 +20,31 @@ export interface BuiltRadar {
 /** Fewer spokes than this is a line or a triangle, not a web. */
 const MIN_SPOKES = 3;
 
-export default function buildOption(data: RadarData, options: RadarOptions): BuiltRadar {
+/** Room under the web for the legend, when there is one. */
+const LEGEND_HEIGHT = 26;
+/** Room outside the web for the spoke names. */
+const NAME_ROOM = 24;
+
+/**
+ * Where the web sits and how big it is, in pixels.
+ *
+ * ECharts takes a radar's radius as a percentage of the *whole* canvas, which
+ * knows nothing about the legend underneath -- so on a short widget the bottom
+ * spoke's name lands on top of the legend. Working in pixels against the box
+ * we were given is the only way to reserve that room properly.
+ */
+export function webLayout(size: { width: number; height: number }, hasLegend: boolean) {
+  const reserved = hasLegend ? LEGEND_HEIGHT : 0;
+  const usableHeight = Math.max(60, size.height - reserved);
+  const radius = Math.max(28, Math.min(size.width, usableHeight) / 2 - NAME_ROOM);
+  return { radius, centreY: usableHeight / 2 };
+}
+
+export default function buildOption(
+  data: RadarData,
+  options: RadarOptions,
+  size: { width: number; height: number } = { width: 360, height: 300 }
+): BuiltRadar {
   const empty = { option: {}, signature: "empty", note: null };
   const rows = (data && data.rows) || [];
   if (!rows.length) {
@@ -42,6 +66,7 @@ export default function buildOption(data: RadarData, options: RadarOptions): Bui
   const palette = (AllColorPaletteArrays as any)[resolveColorScheme(DEFAULT_COLOR_SCHEME)];
   const muted = uiColor("muted");
   const rule = uiColor("rule");
+  const web = webLayout(size, options.showLegend);
 
   const shapes = shown.map((row, index) => ({
     name: labelColumn && row[labelColumn] !== undefined ? String(row[labelColumn]) : `Row ${index + 1}`,
@@ -80,8 +105,8 @@ export default function buildOption(data: RadarData, options: RadarOptions): Bui
       : { show: false },
     radar: {
       shape: options.shape,
-      center: ["50%", options.showLegend ? "47%" : "50%"],
-      radius: "68%",
+      center: ["50%", web.centreY],
+      radius: web.radius,
       // Each spoke states its own end, which is what makes measures in
       // different units comparable at all.
       indicator: spokes.map((s) => ({ name: s.name, max: s.max, min: s.min })),
@@ -114,6 +139,7 @@ export default function buildOption(data: RadarData, options: RadarOptions): Bui
     options.shape,
     options.showArea,
     options.showLegend,
+    Math.round(web.radius),
   ]);
 
   return { option, signature, problem: null, note };

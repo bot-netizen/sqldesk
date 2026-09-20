@@ -195,18 +195,18 @@ footer a{color:var(--muted)}
 
 <section>
   <div class="wrap">
-    <div class="phase-head"><h2>Next: more ways to read a result</h2><span class="st st-planned">Planned</span></div>
-    <p class="sub">Chart types the other tools have and people ask for. Most need no new code in the chart library
-    at all; they are arrangements of bars, pies and custom series SQLDesk already draws.</p>
-    <ul class="compact"><li><strong>Waterfall</strong><span class="st st-planned">Planned</span><span class="d">Running totals with rises and falls coloured.</span></li><li><strong>Histogram</strong><span class="st st-planned">Planned</span><span class="d">Bins one numeric column, with an adjustable bin count.</span></li><li><strong>Treemap</strong><span class="st st-planned">Planned</span><span class="d">Hierarchy by size, with drill-down.</span></li><li><strong>Calendar heatmap</strong><span class="st st-planned">Planned</span><span class="d">One cell per day across a quarter or a year.</span></li><li><strong>Radar</strong><span class="st st-planned">Planned</span><span class="d">Several measures per item on shared spokes.</span></li><li><strong>Funnel, drawn</strong><span class="st st-planned">Planned</span><span class="d">A real funnel shape; today's table look stays as an option.</span></li><li><strong>State timeline and Gantt</strong><span class="st st-planned">Planned</span><span class="d">Bars of state along time: job runs, service status, bookings.</span></li><li><strong>Nightingale rose</strong><span class="st st-planned">Planned</span><span class="d">A pie whose radius carries the value.</span></li></ul>
+    <div class="phase-head"><h2>More ways to read a result</h2><span class="st st-shipped">0.5</span></div>
+    <p class="sub">Chart types the other tools have and people ask for. Each one loads only when a chart of its
+    type is opened, so a dashboard without a treemap never downloads one.</p>
+    <ul class="compact"><li><strong>Waterfall</strong><span class="st st-shipped">0.5</span><span class="d">Running totals with rises and falls coloured.</span></li><li><strong>Histogram</strong><span class="st st-shipped">0.5</span><span class="d">Bins one numeric column, with an adjustable bin count.</span></li><li><strong>Treemap</strong><span class="st st-shipped">0.5</span><span class="d">Hierarchy by size, with drill-down.</span></li><li><strong>Calendar heatmap</strong><span class="st st-shipped">0.5</span><span class="d">One cell per day across a quarter or a year.</span></li><li><strong>Radar</strong><span class="st st-shipped">0.5</span><span class="d">Several measures per item on shared spokes.</span></li><li><strong>Funnel, drawn</strong><span class="st st-shipped">0.5</span><span class="d">A real funnel shape, beside the table look, which stays the default.</span></li><li><strong>State timeline and Gantt</strong><span class="st st-shipped">0.5</span><span class="d">Bars of state along time: job runs, service status, bookings. Unfinished runs are drawn up to now.</span></li><li><strong>Nightingale rose</strong><span class="st st-shipped">0.5</span><span class="d">A pie whose radius carries the value.</span></li></ul>
   </div>
 </section>
 
 <section>
   <div class="wrap">
     <div class="phase-head"><h2>Specialist charts</h2><span class="st st-demand">On demand</span></div>
-    <p class="sub">Useful for particular jobs rather than everyday dashboards. Each will load only when a chart of
-    its type is opened, so nobody pays for what they do not use. Tell us on GitHub which you need.</p>
+    <p class="sub">Useful for particular jobs rather than everyday dashboards. Every visualization now loads only
+    when a chart of its type is opened, so nobody pays for what they do not use. Tell us on GitHub which you need.</p>
     <ul class="compact"><li><strong>Network graph</strong><span class="st st-demand">On demand</span><span class="d">Force or circular layout from an edge list.</span></li><li><strong>Chord</strong><span class="st st-demand">On demand</span><span class="d">Flows between groups.</span></li><li><strong>Tree</strong><span class="st st-demand">On demand</span><span class="d">Collapsible hierarchies.</span></li><li><strong>Parallel coordinates</strong><span class="st st-demand">On demand</span><span class="d">Many measures per row, one axis each.</span></li><li><strong>Candlestick</strong><span class="st st-demand">On demand</span><span class="d">Open, high, low and close per period.</span></li><li><strong>Beeswarm</strong><span class="st st-demand">On demand</span><span class="d">Box plot points spread without overlapping.</span></li><li><strong>Theme river, pictorial bar, matrix</strong><span class="st st-demand">On demand</span><span class="d">Streams over time, icon bars, correlation grids.</span></li></ul>
   </div>
 </section>
@@ -230,7 +230,7 @@ footer a{color:var(--muted)}
     <div class="why">
       <div><span class="k">Licence</span>Apache 2.0, and an Apache Software Foundation project, so no single company can re-license it.</div>
       <div><span class="k">In good company</span>Superset, Metabase, Evidence and Streamlit all ship ECharts 6.1.</div>
-      <div><span class="k">Cost</span>Only the chart types in use are bundled. The whole of 0.4 adds 28.5 KB, compressed.</div>
+      <div><span class="k">Cost</span>Only the chart types in use are bundled, and a visualization is fetched only when something draws it. 0.5 took production JavaScript on first load from 4.3 MB to 2.9 MB while adding eight chart types.</div>
     </div>
     <p class="sub">Not everything is a chart. Tables, stat tiles and status grids are plain HTML, tiled maps stay on
     Leaflet, and pivot tables stay on react-pivottable.</p>

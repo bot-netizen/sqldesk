@@ -3,11 +3,13 @@
   flex-direction: column;
   width: 100%;
   height: 100%;
+  // Years stack, and more of them than the widget can hold at a legible square
+  // size is a scroll rather than a squash.
+  overflow-y: auto;
 }
 
 .calendar-visualization-chart {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
   width: 100%;
 }
 

@@ -2,6 +2,9 @@ import buildTree, { treeDepth, UNNAMED } from "./tree";
 import getOptions from "./getOptions";
 import buildOption from "./buildOption";
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const echarts = require("echarts");
+
 /*
   A treemap divides an area by size, so every rectangle's meaning depends on
   the total being right. Double-counting a row, or dropping a level of the
@@ -133,6 +136,25 @@ describe("the treemap", () => {
     const north = build().option.series[0].data[0];
     expect(north.value).toBeUndefined();
     expect(north.children.map((c: any) => c.value)).toEqual([100, 40]);
+  });
+
+  test("a group keeps its name visible above its children", () => {
+    // ECharts reads upperLabel per level, not once for the series, so getting
+    // this wrong leaves the groups unnamed -- which looks like a perfectly
+    // ordinary treemap, just one you cannot tell the regions apart on. So the
+    // chart is rendered and the text read back out.
+    const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width: 698, height: 187 });
+    let svg: string;
+    try {
+      chart.setOption(build().option);
+      svg = chart.renderToSVGString();
+    } finally {
+      chart.dispose();
+    }
+    const drawn = [...svg.matchAll(/>([^<>]+)<\/text>/g)].map((m) => m[1]);
+    expect(drawn).toContain("North");
+    expect(drawn).toContain("South");
+    expect(drawn).toContain("Team");
   });
 
   test("drilling in is offered only when there is something below", () => {

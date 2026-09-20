@@ -1,5 +1,6 @@
 import getOptions from "./getOptions";
 import buildOption from "./buildOption";
+import { webLayout } from "./buildOption";
 import buildSpokes from "./spokes";
 
 /*
@@ -66,6 +67,36 @@ describe("buildSpokes", () => {
 
   test("a column of zeroes still has a length", () => {
     expect(buildSpokes([{ a: 0 }, { a: 0 }], ["a"], "per-spoke")[0].max).toBeGreaterThan(0);
+  });
+});
+
+describe("webLayout", () => {
+  test("the legend gets room of its own, so a spoke name does not land on it", () => {
+    // ECharts sizes a radar against the whole canvas and knows nothing about
+    // the legend underneath, which is exactly how the bottom spoke's name
+    // ended up written across it.
+    const withLegend = webLayout({ width: 700, height: 190 }, true);
+    const without = webLayout({ width: 700, height: 190 }, false);
+    expect(withLegend.centreY).toBeLessThan(without.centreY);
+    expect(withLegend.radius).toBeLessThan(without.radius);
+    // The web plus a spoke name stays clear of where the legend sits.
+    expect(withLegend.centreY + withLegend.radius).toBeLessThan(190 - 20);
+  });
+
+  test("the web grows with the widget", () => {
+    expect(webLayout({ width: 700, height: 600 }, true).radius).toBeGreaterThan(
+      webLayout({ width: 700, height: 190 }, true).radius
+    );
+  });
+
+  test("a widget too small for a web still gets one", () => {
+    // Zero or negative radius makes ECharts draw nothing at all.
+    expect(webLayout({ width: 40, height: 30 }, true).radius).toBeGreaterThan(0);
+  });
+
+  test("room is left outside the web for the spoke names", () => {
+    const square = webLayout({ width: 400, height: 400 }, false);
+    expect(square.radius).toBeLessThan(200);
   });
 });
 

@@ -97,13 +97,15 @@ export default function buildOption(data: TreemapData, options: TreemapOptions):
           color: "#fff",
           fontSize: 12,
         },
-        upperLabel: { show: depth > 1, height: 20, color: "#fff", fontSize: 11 },
+        // The header strip a group carries above the children drawn inside
+        // it, so the regions can be told apart and not just the plans.
+        upperLabel: { show: depth > 1, height: 18, color: "#fff", fontSize: 11 },
         // A rectangle too small for its name is left blank rather than
         // carrying a name clipped down to one letter.
         labelLayout: { hideOverlap: true },
         itemStyle: { borderColor: surface, borderWidth: 1, gapWidth: 1 },
         levels: [
-          { itemStyle: { borderWidth: 0, gapWidth: 2 } },
+          { itemStyle: { borderWidth: 0, gapWidth: 3 } },
           { itemStyle: { gapWidth: 1 }, colorSaturation: [0.35, 0.6] },
           { itemStyle: { gapWidth: 1 }, colorSaturation: [0.3, 0.5] },
           { itemStyle: { gapWidth: 1 }, colorSaturation: [0.25, 0.45] },

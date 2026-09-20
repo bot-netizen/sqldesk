@@ -32,23 +32,37 @@ function build(rows: any[], overrides: any = {}, size?: any) {
 }
 
 describe("layout", () => {
-  test("squares are sized by whichever of width and height allows less", () => {
-    // A calendar cannot stretch: seven rows down, one column per week. So in
-    // a short wide box the height decides, and extra width buys nothing...
-    expect(layout({ width: 1200, height: 200 }, 1, 53).cell).toBe(layout({ width: 2400, height: 200 }, 1, 53).cell);
-    // ...while in a narrow tall one the width decides, and extra height
-    // buys nothing.
-    expect(layout({ width: 500, height: 600 }, 1, 53).cell).toBe(layout({ width: 500, height: 1200 }, 1, 53).cell);
-    // And the two are not the same size, so something is genuinely deciding.
-    expect(layout({ width: 1200, height: 200 }, 1, 53).cell).toBeGreaterThan(
-      layout({ width: 500, height: 600 }, 1, 53).cell
+  test("squares are sized to fill the width, not squeezed by the height", () => {
+    // Letting the height shrink them too left a full-width widget with a
+    // small calendar in one corner and empty space beside it.
+    const short = layout({ width: 1400, height: 140 }, 1, 53);
+    const tall = layout({ width: 1400, height: 600 }, 1, 53);
+    expect(short.cell).toBe(tall.cell);
+    // And the squares really do span the width they were given.
+    expect(short.cell * 53).toBeGreaterThan(1400 * 0.8);
+  });
+
+  test("a wider widget gets bigger squares", () => {
+    expect(layout({ width: 1200, height: 300 }, 1, 53).cell).toBeGreaterThan(
+      layout({ width: 500, height: 300 }, 1, 53).cell
     );
   });
 
-  test("more years means smaller squares in the same box", () => {
-    const one = layout({ width: 800, height: 400 }, 1, 53);
-    const three = layout({ width: 800, height: 400 }, 3, 53);
-    expect(three.cell).toBeLessThan(one.cell);
+  test("more years means a taller calendar, not smaller squares", () => {
+    const one = layout({ width: 1400, height: 300 }, 1, 53);
+    const three = layout({ width: 1400, height: 300 }, 3, 53);
+    expect(three.cell).toBe(one.cell);
+    expect(three.height).toBeGreaterThan(one.height);
+  });
+
+  test("a calendar takes the height it needs rather than being squashed", () => {
+    // Three years cannot fit a short tile at a legible square size, so it asks
+    // for more room and the container scrolls.
+    expect(layout({ width: 1400, height: 140 }, 3, 53).height).toBeGreaterThan(140);
+  });
+
+  test("a calendar that fits fills its box rather than leaving a gap", () => {
+    expect(layout({ width: 500, height: 900 }, 1, 53).height).toBe(900);
   });
 
   test("squares stay legible however small the box gets", () => {

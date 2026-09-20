@@ -15,30 +15,43 @@ export interface BuiltCalendar {
   signature: string;
   problem: string | null;
   note: string | null;
+  /** What the calendar needs to be legible; the container scrolls to it. */
+  height: number;
 }
 
 /** Room above the squares for the month names, and below for the scale. */
-const HEADER = 28;
+const HEADER = 22;
 const SCALE_HEIGHT = 34;
 /** A square smaller than this is a speck; bigger than this is a wall of tiles. */
 const MIN_CELL = 8;
 const MAX_CELL = 22;
+/** Room down the left for the weekday names. */
+const GUTTER = 44;
 
 /**
- * How big each day's square can be, and where each year's row sits.
+ * How big each day's square can be, how tall each year's row is, and how tall
+ * the whole thing wants to be.
  *
  * A calendar has a fixed shape -- seven rows of days, as many columns as there
- * are weeks -- so unlike most charts it cannot simply stretch. The square size
- * is whichever of the width and the height allows less, and the years are
- * stacked from there.
+ * are weeks -- so unlike most charts it cannot simply stretch. The square is
+ * whichever of the width and the height allows less, floored at a size that
+ * can still be seen.
+ *
+ * Which means the height it wants can exceed the widget: three years in a
+ * short tile do not fit at any legible size. `height` is what it needs, and
+ * the container scrolls to it, because a calendar squashed to fit is a
+ * calendar nobody can read.
  */
 export function layout(size: { width: number; height: number }, years: number, weeks: number) {
-  const usableHeight = Math.max(40, size.height - SCALE_HEIGHT) / Math.max(1, years);
-  const byHeight = (usableHeight - HEADER) / 7;
-  // Room down each side for the weekday names.
-  const byWidth = (size.width - 56) / Math.max(1, weeks);
-  const cell = Math.round(Math.max(MIN_CELL, Math.min(MAX_CELL, Math.min(byHeight, byWidth))));
-  return { cell, rowHeight: cell * 7 + HEADER };
+  const rows = Math.max(1, years);
+  // Sized by the width alone. A calendar's shape follows from how many weeks
+  // have to fit across it, and letting the height shrink the squares too left
+  // a full-width widget with a small calendar in one corner and empty space
+  // beside it. The height follows instead, and the container scrolls.
+  const byWidth = (size.width - GUTTER - 12) / Math.max(1, weeks);
+  const cell = Math.round(Math.max(MIN_CELL, Math.min(MAX_CELL, byWidth)));
+  const rowHeight = cell * 7 + HEADER;
+  return { cell, rowHeight, height: Math.max(size.height, rows * rowHeight + SCALE_HEIGHT) };
 }
 
 export default function buildOption(
@@ -46,7 +59,7 @@ export default function buildOption(
   options: CalendarOptions,
   size: { width: number; height: number } = { width: 720, height: 240 }
 ): BuiltCalendar {
-  const empty = { option: {}, signature: "empty", note: null };
+  const empty = { option: {}, signature: "empty", note: null, height: size.height };
   const rows = (data && data.rows) || [];
   if (!rows.length) {
     return { ...empty, problem: "No rows to show." };
@@ -63,7 +76,7 @@ export default function buildOption(
 
   const years = yearsIn(built.from, built.to);
   const weeks = Math.ceil((moment(built.to, DAY).diff(moment(built.from, DAY), "days") + 1) / 7) + 1;
-  const { cell, rowHeight } = layout(size, years.length, Math.min(weeks, 53));
+  const { cell, rowHeight, height } = layout(size, years.length, Math.min(weeks, 53));
 
   const values = built.days.map((d) => d.value);
   const low = Math.min(...values);
@@ -80,9 +93,11 @@ export default function buildOption(
     const from = index === 0 ? built.from : `${year}-01-01`;
     const to = index === years.length - 1 ? built.to : `${year}-12-31`;
     return {
-      top: 18 + index * rowHeight,
-      left: 40,
-      right: 12,
+      top: 14 + index * rowHeight,
+      left: GUTTER,
+      // No `right`: given both edges ECharts fits the range between them and
+      // stretches the squares to suit, which turns a calendar into a set of
+      // long horizontal bars. The cell size decides the width instead.
       cellSize: [cell, cell],
       range: [from, to],
       splitLine: { show: false },
@@ -117,7 +132,7 @@ export default function buildOption(
       max: high === low ? low + 1 : high,
       calculable: false,
       orient: "horizontal",
-      left: 40,
+      left: GUTTER,
       bottom: 0,
       itemWidth: 10,
       itemHeight: 90,
@@ -148,5 +163,5 @@ export default function buildOption(
   // The span and the layout are the shape; new values for the same days tween.
   const signature = JSON.stringify([built.from, built.to, years, cell, options.color, options.startOnMonday]);
 
-  return { option, signature, problem: null, note };
+  return { option, signature, problem: null, note, height };
 }

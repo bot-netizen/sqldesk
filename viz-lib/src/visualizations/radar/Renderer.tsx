@@ -1,9 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { RendererPropTypes } from "@/visualizations/prop-types";
 import echarts from "@/visualizations/echarts";
 import useEChart from "@/visualizations/echarts/useEChart";
 import { RadarChart } from "echarts/charts";
 import { RadarComponent } from "echarts/components";
+import useElementSize from "../shared/useElementSize";
 import buildOption from "./buildOption";
 import "./renderer.less";
 
@@ -12,19 +13,27 @@ import "./renderer.less";
 echarts.use([RadarChart, RadarComponent]);
 
 export default function Renderer({ data, options }: any) {
-  const built = useMemo(() => buildOption(data, options), [data, options]);
+  const [box, setBox] = useState<HTMLDivElement | null>(null);
+  const size = useElementSize(box);
+  // The web is placed in pixels, so it has to know its box. Rounded to 10px so
+  // dragging a widget does not rebuild the chart on every pixel.
+  const bucket = { width: Math.round(size.width / 10) * 10, height: Math.round(size.height / 10) * 10 };
+  const built = useMemo(
+    () => buildOption(data, options, bucket.width && bucket.height ? bucket : undefined),
+    [data, options, bucket.width, bucket.height] // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const { setContainer } = useEChart(built.problem ? {} : built.option, built.signature);
 
   if (built.problem) {
     return (
-      <div className="radar-visualization-container">
+      <div className="radar-visualization-container" ref={setBox}>
         <p className="radar-visualization-problem">{built.problem}</p>
       </div>
     );
   }
 
   return (
-    <div className="radar-visualization-container">
+    <div className="radar-visualization-container" ref={setBox}>
       <div className="radar-visualization-chart" ref={setContainer} />
       {built.note && <p className="radar-visualization-note">{built.note}</p>}
     </div>
