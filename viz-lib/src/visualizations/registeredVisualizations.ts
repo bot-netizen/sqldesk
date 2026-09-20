@@ -19,6 +19,7 @@ import sankeyVisualization from "./sankey";
 import statusGridVisualization from "./status-grid";
 import sunburstVisualization from "./sunburst";
 import tableVisualization from "./table";
+import timelineVisualization from "./timeline";
 import treemapVisualization from "./treemap";
 import waterfallVisualization from "./waterfall";
 import wordCloudVisualization from "./word-cloud";
@@ -115,6 +116,7 @@ each(
     statusGridVisualization,
     sunburstVisualization,
     tableVisualization,
+    timelineVisualization,
     treemapVisualization,
     waterfallVisualization,
     wordCloudVisualization,
