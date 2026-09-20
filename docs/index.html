@@ -132,6 +132,10 @@ h3{font-size:17px;font-weight:600;letter-spacing:-0.01em;margin:0 0 6px}
 p{margin:0 0 16px}
 .sub{color:var(--muted);max-width:60ch;font-size:16.5px}
 
+/* ---------- demo ---------- */
+.demo-video{display:block;width:100%;height:auto;margin-top:28px;border:1px solid var(--rule);
+  border-radius:10px;background:var(--sunken)}
+
 /* ---------- feature grid ---------- */
 .features{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:var(--r-card);overflow:hidden;margin-top:36px;grid-template-columns:repeat(auto-fit,minmax(252px,1fr))}
 .feature{background:var(--surface);padding:24px 22px}
@@ -214,6 +218,7 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
       SQLDesk
     </a>
     <nav>
+      <a href="#demo">Demo</a>
       <a href="why.html">Why SQLDesk</a>
       <a href="performance.html" class="hide-sm">Performance</a>
       <a href="roadmap.html" class="hide-sm">Roadmap</a>
@@ -253,6 +258,21 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
   </div>
   <p class="hero-note">Apache 2.0 &middot; Python + React &middot; runs in Docker</p>
 </div>
+
+<section id="demo">
+  <div class="wrap">
+    <p class="eyebrow">See it</p>
+    <h2>A dashboard that keeps itself up to date</h2>
+    <p class="sub">A live dashboard refreshing on the server every 30 seconds: a stat with its
+    sparkline, a gauge, progress against target, a status grid, a formatted table and charts with
+    goal lines. Nobody is pressing refresh.</p>
+    <video class="demo-video" controls muted loop playsinline preload="metadata"
+           poster="assets/live-dashboard.jpg" width="1920" height="892">
+      <source src="assets/live-dashboard.mp4" type="video/mp4">
+      <a href="assets/live-dashboard.mp4">Watch the demo</a>
+    </video>
+  </div>
+</section>
 
 <section id="start">
   <div class="wrap">
@@ -382,7 +402,7 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
         </div>
       </div>
       <div class="road-item">
-        <div class="road-k"><span class="road-status s-next">In progress</span>0.4</div>
+        <div class="road-k"><span class="road-status s-now">In testing</span>0.4</div>
         <div>
           <h3>Live dashboards and KPI tiles</h3>
           <p class="road-b">Dashboards that update every 30 seconds without every viewer re-running the queries,
