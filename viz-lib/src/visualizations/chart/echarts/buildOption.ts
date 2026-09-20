@@ -431,7 +431,8 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
     const categoryAxis = (data: any[]) => ({ type: "category", data, splitArea: { show: true } });
     const option: any = {
       ...ECHARTS_MOTION,
-      grid: { left: 12, right: 12, top: 24, bottom: 60, containLabel: true },
+      // `bottom` is not padding: the colour scale below sits in it.
+      grid: { left: 12, right: 12, top: 14, bottom: 60, containLabel: true },
       xAxis: categoryAxis(xCategories),
       yAxis: categoryAxis(yCategories),
       tooltip: {
@@ -608,9 +609,11 @@ export default function buildOption(chartData: any[], options: any): BuiltOption
     option.grid = {
       left: 12,
       right: (legend.right ? legend.width + 8 : 12) + (horizontal && slider ? 28 : 0),
-      top: 24,
+      // Nothing is ever drawn above the plot -- the legend goes to the right
+      // or below, never on top -- so this is breathing room and no more.
+      top: 14,
       // Room for a legend below, and for a zoom slider under the axis.
-      bottom: (legend.below ? 36 : 12) + (slider && !horizontal ? 30 : 0),
+      bottom: (legend.below ? 36 : 10) + (slider && !horizontal ? 30 : 0),
       containLabel: true,
     };
     if (zoom) {

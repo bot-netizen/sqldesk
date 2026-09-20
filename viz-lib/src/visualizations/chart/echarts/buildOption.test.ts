@@ -309,6 +309,15 @@ describe("Visualizations -> Chart -> ECharts -> buildOption", () => {
       expect(built.option.grid.bottom).toBeGreaterThanOrEqual(36);
     });
 
+    test("nothing is reserved above the plot, because nothing is drawn there", () => {
+      // The legend goes right or below, never on top, so the top of the grid
+      // is breathing room and no more. It used to reserve as much as a legend
+      // below needs, on every chart, for nothing.
+      const built = buildOption(two(), options({ legend: { enabled: true, placement: "below" } }));
+      expect(built.option.grid.top).toBeLessThan(built.option.grid.bottom);
+      expect(built.option.grid.top).toBeLessThanOrEqual(16);
+    });
+
     test("very long names are cut short rather than squeezing the plot away", () => {
       const long = [series("x".repeat(200), [["a", 1]])];
       const built = buildOption(long, options({ legend: { enabled: true, placement: "auto" } }));
