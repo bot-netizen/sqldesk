@@ -86,15 +86,37 @@ describe("the editing guides", () => {
     });
   });
 
-  test("the row guides are dashed as densely as the column guides", () => {
-    // Each set of guides is a line with a mask over it that hides most of it.
-    // The two masks disagreed -- columns showed 2px of every 5px and rows only
-    // 1px -- so the horizontal lines came out half as dark and read as simply
-    // missing. Nothing but a person looking at it would notice, so it is
-    // pinned here.
-    const gaps = [...editing.matchAll(/transparent\s+(\d+)px,\s*#f6f8f9\s+\1px/g)].map((m) => Number(m[1]));
-    expect(gaps).toHaveLength(2);
-    expect(gaps[0]).toBe(gaps[1]);
+  test("the row guides are dashed exactly as the column guides are", () => {
+    // The two masks once disagreed -- columns showed 2px of every 5px and rows
+    // only 1px -- so the horizontal lines came out half as dark. They share
+    // the dash now, which is why there are two of each variable below and no
+    // literal lengths to drift apart.
+    const masks = [...editing.matchAll(/transparent\s+(@dash-gap),\s*#f6f8f9\s+@dash-gap,\s*#f6f8f9\s+(@dash)/g)];
+    expect(masks).toHaveLength(2);
+    expect(editing).not.toMatch(/transparent\s+\d+px,\s*#f6f8f9/);
+  });
+
+  test("the row guides fall where the column mask lets them through", () => {
+    // The column guides live in a pseudo-element above the row guides, and
+    // their mask paints the page colour over most of it -- so it paints over
+    // the row guides too, except where its dash leaves a gap. The gaps repeat
+    // every @dash from the top, so a row guide is only ever visible if the row
+    // pitch is a whole number of dashes.
+    //
+    // It was not the gap that failed, but the phase: a 1px offset on that
+    // pseudo-element moved every gap off every row guide, and all the
+    // horizontal lines vanished.
+    const dash = Number((editing.match(/@dash:\s*(\d+)px/) || [])[1]);
+    const gap = Number((editing.match(/@dash-gap:\s*(\d+)px/) || [])[1]);
+    expect(dash).toBeGreaterThan(0);
+    expect(gap).toBeGreaterThan(0);
+    expect(gap).toBeLessThan(dash);
+    expect(cfg.rowHeight % dash).toBe(0);
+
+    // And the mask has to start flush with the top, or the gaps land between
+    // the guides rather than on them.
+    const beforeBlock = (editing.match(/&::before\s*\{[\s\S]*?\n {4}\}/) || [""])[0];
+    expect(beforeBlock).toMatch(/background-position:\s*0\s+0\s*;/);
   });
 
   test("each fallback in the stylesheet matches what the config actually says", () => {

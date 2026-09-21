@@ -43,14 +43,23 @@
     @gutter: var(--dashboard-grid-margin, 15px);
     @row-pitch: var(--dashboard-grid-row-pitch, 25px);
 
+    // Each set of guides is a continuous line under a mask that paints the
+    // page colour over most of it, which is what makes the dashes. That has a
+    // consequence worth stating: the column guides sit in a pseudo-element
+    // above this background, so their mask paints over the row guides too.
+    //
+    // The two therefore have to be in step. The mask repeats every @dash, the
+    // row guides fall every @row-pitch, and @row-pitch is a whole number of
+    // @dash -- so every row guide lands in a gap in the column mask and shows
+    // through. Break that and the horizontal lines disappear, which is exactly
+    // what a 1px phase offset here used to do.
+    @dash: 5px;
+    @dash-gap: 2px;
+
     /* Y axis lines */
-    // Both sets of guides are a line under a mask that hides most of it, and
-    // the two masks disagreed: the columns showed 2px of every 5px and the
-    // rows only 1px, so the horizontal lines came out half as dense and read
-    // as missing entirely. Same dash on both now.
-    background: linear-gradient(to right, transparent, transparent 2px, #f6f8f9 2px, #f6f8f9 5px),
+    background: linear-gradient(to right, transparent, transparent @dash-gap, #f6f8f9 @dash-gap, #f6f8f9 @dash),
       linear-gradient(to bottom, #b3babf, #b3babf 1px, transparent 1px, transparent);
-    background-size: 5px @row-pitch;
+    background-size: @dash @row-pitch;
     // Measured, not guessed: a widget on row r has its top at r * pitch from
     // this element's own top edge, so the lines start there. The -8px this
     // carried was tuned to the 50px rows of the old grid.
@@ -64,17 +73,21 @@
       left: 0;
       bottom: 85px;
       right: 0;
-      background: linear-gradient(to bottom, transparent, transparent 2px, #f6f8f9 2px, #f6f8f9 5px),
+      background: linear-gradient(to bottom, transparent, transparent @dash-gap, #f6f8f9 @dash-gap, #f6f8f9 @dash),
         linear-gradient(to left, #b3babf, #b3babf 1px, transparent 1px, transparent);
       // A column plus its gutter. react-grid-layout gives each column
       // (width - gutter * (columns - 1)) / columns, so the step between two
       // of them comes to (width + gutter) / columns.
-      background-size: calc((100% + @gutter) / @columns) 5px;
+      background-size: calc((100% + @gutter) / @columns) @dash;
       // Likewise: a widget in column c starts at c * pitch from the left edge
       // of this element, and the gradient above paints its line at the right
       // edge of each tile -- so from zero the lines fall exactly on the column
       // starts.
-      background-position: 0 1px;
+      //
+      // The vertical offset is zero for the reason above: at 1px the mask's
+      // gaps fell between the row guides instead of on them, and this element
+      // painted over every one of them.
+      background-position: 0 0;
     }
   }
 
