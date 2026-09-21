@@ -51,6 +51,14 @@ QUERY_RESULTS_CLEANUP_ENABLED = parse_boolean(os.environ.get("SQLDESK_QUERY_RESU
 QUERY_RESULTS_CLEANUP_COUNT = int(os.environ.get("SQLDESK_QUERY_RESULTS_CLEANUP_COUNT", "1000"))
 QUERY_RESULTS_CLEANUP_MAX_AGE = int(os.environ.get("SQLDESK_QUERY_RESULTS_CLEANUP_MAX_AGE", "7"))
 
+# `events` gets a row every time anyone runs a query, each carrying the full
+# query text, so it is the fastest-growing table in the schema and the one
+# nobody thinks to look at. Kept for a quarter by default, which is long
+# enough for "who ran that, and when" and short enough not to become the
+# largest thing in the database.
+EVENTS_CLEANUP_MAX_AGE = int(os.environ.get("SQLDESK_EVENTS_CLEANUP_MAX_AGE", "90"))
+EVENTS_CLEANUP_COUNT = int(os.environ.get("SQLDESK_EVENTS_CLEANUP_COUNT", "10000"))
+
 QUERY_RESULTS_EXPIRED_TTL_ENABLED = parse_boolean(os.environ.get("SQLDESK_QUERY_RESULTS_EXPIRED_TTL_ENABLED", "false"))
 # default set query results expired ttl 86400 seconds
 QUERY_RESULTS_EXPIRED_TTL = int(os.environ.get("SQLDESK_QUERY_RESULTS_EXPIRED_TTL", "86400"))

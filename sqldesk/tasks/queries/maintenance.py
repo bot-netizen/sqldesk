@@ -1,9 +1,10 @@
+import datetime
 import logging
 import time
 
 from rq.timeouts import JobTimeoutException
 
-from sqldesk import models, redis_connection, settings, statsd_client
+from sqldesk import models, redis_connection, settings, statsd_client, utils
 from sqldesk.models.parameterized_query import (
     InvalidParameterError,
     QueryDetachedFromDataSourceError,
@@ -150,6 +151,32 @@ def cleanup_query_results():
             "than they are being removed -- raise SQLDESK_QUERY_RESULTS_CLEANUP_COUNT.",
             settings.QUERY_RESULTS_CLEANUP_COUNT,
         )
+
+
+def cleanup_events():
+    """
+    Drop `events` rows older than settings.EVENTS_CLEANUP_MAX_AGE days.
+
+    One row per query execution, each holding the full query text, so this is
+    the table that grows fastest. Capped per run like the query-result cleanup
+    is, so a first run on a table that has never been pruned does not take a
+    long lock on the way to deleting several million rows.
+    """
+    cutoff = utils.utcnow() - datetime.timedelta(days=settings.EVENTS_CLEANUP_MAX_AGE)
+    old = models.db.session.query(models.Event.id).filter(models.Event.created_at < cutoff)
+    deleted_count = models.Event.query.filter(
+        models.Event.id.in_(old.limit(settings.EVENTS_CLEANUP_COUNT).subquery())
+    ).delete(synchronize_session=False)
+    models.db.session.commit()
+    logger.info("Deleted %d events older than %d days.", deleted_count, settings.EVENTS_CLEANUP_MAX_AGE)
+
+    if deleted_count >= settings.EVENTS_CLEANUP_COUNT:
+        logger.warning(
+            "Event cleanup hit its per-run cap of %d. Run it again, or raise " "SQLDESK_EVENTS_CLEANUP_COUNT.",
+            settings.EVENTS_CLEANUP_COUNT,
+        )
+
+    return deleted_count
 
 
 def remove_ghost_locks():

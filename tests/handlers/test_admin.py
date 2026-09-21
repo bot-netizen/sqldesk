@@ -1,6 +1,11 @@
+import datetime
 from unittest import mock
 
+from rq.exceptions import NoSuchJobError
+
+from sqldesk import utils
 from sqldesk.models import Event, db
+from sqldesk.tasks.queries.maintenance import cleanup_events, cleanup_query_results
 from tests import BaseTestCase
 
 
@@ -230,3 +235,99 @@ class TestOverviewRunningQueries(BaseTestCase):
 
         self.assertTrue(running[0]["scheduled"])
         self.assertIsNone(running[0]["user_name"])
+
+
+class TestAdminActions(BaseTestCase):
+    """
+    The things an admin can do from the page, as opposed to look at.
+
+    Each is recorded: ending someone else's work, or deleting rows, quietly is
+    not on.
+    """
+
+    def _post(self, path, user):
+        return self.make_request("post", path, user=user, org=False)
+
+    def test_only_a_super_admin_may_kill_a_query(self):
+        rv = self.make_request("delete", "/api/admin/jobs/anything", user=self.factory.user, org=False)
+
+        self.assertEqual(rv.status_code, 403)
+
+    @mock.patch("sqldesk.handlers.admin.Job")
+    def test_killing_a_query_cancels_the_job(self, job_class):
+        admin = self.factory.create_admin()
+        db.session.commit()
+        job = mock.Mock(meta={"query_id": 7, "user_id": 3})
+        job_class.fetch.return_value = job
+
+        rv = self.make_request("delete", "/api/admin/jobs/job-1", user=admin, org=False)
+
+        self.assertEqual(rv.status_code, 200)
+        job.cancel.assert_called_once()
+
+    @mock.patch("sqldesk.handlers.admin.Job")
+    def test_killing_an_unknown_job_is_a_404(self, job_class):
+        admin = self.factory.create_admin()
+        db.session.commit()
+        job_class.fetch.side_effect = NoSuchJobError()
+
+        rv = self.make_request("delete", "/api/admin/jobs/gone", user=admin, org=False)
+
+        self.assertEqual(rv.status_code, 404)
+
+    @mock.patch("sqldesk.handlers.admin.Queue")
+    def test_cleanup_enqueues_the_job_that_already_exists(self, queue_class):
+        # Not a second implementation of cleaning up: the same task the
+        # scheduler runs every five minutes, asked for now.
+        admin = self.factory.create_admin()
+        db.session.commit()
+        queue_class.return_value.enqueue.return_value = mock.Mock(id="job-9")
+
+        rv = self._post("/api/admin/cleanup/query_results", admin)
+
+        self.assertEqual(rv.status_code, 200)
+        self.assertEqual(rv.json["job_id"], "job-9")
+        self.assertEqual(queue_class.return_value.enqueue.call_args[0][0], cleanup_query_results)
+
+    @mock.patch("sqldesk.handlers.admin.Queue")
+    def test_events_cleanup_enqueues_its_own_task(self, queue_class):
+        admin = self.factory.create_admin()
+        db.session.commit()
+        queue_class.return_value.enqueue.return_value = mock.Mock(id="job-10")
+
+        rv = self._post("/api/admin/cleanup/events", admin)
+
+        self.assertEqual(rv.status_code, 200)
+        self.assertEqual(queue_class.return_value.enqueue.call_args[0][0], cleanup_events)
+
+    def test_an_ordinary_user_may_not_clean_up(self):
+        for path in ("/api/admin/cleanup/query_results", "/api/admin/cleanup/events"):
+            self.assertEqual(self._post(path, self.factory.user).status_code, 403)
+
+
+class TestEventsCleanup(BaseTestCase):
+    def _event(self, age_days):
+        return Event(
+            org=self.factory.org,
+            user=self.factory.user,
+            action="execute_query",
+            object_type="data_source",
+            created_at=utils.utcnow() - datetime.timedelta(days=age_days),
+        )
+
+    def test_removes_what_is_older_than_the_cutoff_and_keeps_the_rest(self):
+        db.session.add(self._event(age_days=200))
+        db.session.add(self._event(age_days=1))
+        db.session.commit()
+
+        deleted = cleanup_events()
+
+        self.assertEqual(deleted, 1)
+        self.assertEqual(Event.query.count(), 1)
+
+    def test_deletes_nothing_when_everything_is_recent(self):
+        db.session.add(self._event(age_days=1))
+        db.session.commit()
+
+        self.assertEqual(cleanup_events(), 0)
+        self.assertEqual(Event.query.count(), 1)
