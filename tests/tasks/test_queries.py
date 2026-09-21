@@ -2,14 +2,16 @@ from mock import Mock, patch
 from rq import Connection
 from rq.exceptions import NoSuchJobError
 
-from sqldesk import models, rq_redis_connection
+from sqldesk import models, redis_connection, rq_redis_connection
 from sqldesk.query_runner.pg import PostgreSQL
 from sqldesk.tasks import Job
 from sqldesk.tasks.queries.execution import (
     QueryExecutionError,
+    _job_lock_id,
     enqueue_query,
     execute_query,
 )
+from sqldesk.utils import gen_query_hash
 from tests import BaseTestCase
 
 
@@ -315,3 +317,74 @@ class QueryExecutorTests(BaseTestCase):
             )
             q = models.Query.get_by_id(q.id)
             self.assertEqual(q.schedule_failures, 0)
+
+
+@patch("sqldesk.tasks.queries.execution.get_current_job", side_effect=fetch_job)
+class QueryLockTests(BaseTestCase):
+    """
+    The Redis lock on (data source, query hash) is what makes a second request
+    for the same query join the job already running instead of starting its
+    own.
+
+    It used to be released the moment the query returned, which left a window
+    between the data coming back and the result row being written. A sibling
+    arriving in that window found no job to join -- and, because widgets ask
+    with ``max_age`` 0, no stored result to fall back on either -- so it ran
+    the whole query again. These pin the window shut.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.query_text = "SELECT 1"
+        self.key = _job_lock_id(gen_query_hash(self.query_text), self.factory.data_source.id)
+        redis_connection.delete(self.key)
+
+    def tearDown(self):
+        redis_connection.delete(self.key)
+        super().tearDown()
+
+    def run_with_lock_held(self, run_query_returns):
+        """Execute a query with the lock in place, noting when it is released."""
+        redis_connection.set(self.key, "a-job-id")
+        seen = {}
+        real_store = models.QueryResult.store_result.__func__
+
+        def watching_store(cls, *args, **kwargs):
+            seen["locked_while_storing"] = bool(redis_connection.exists(self.key))
+            return real_store(cls, *args, **kwargs)
+
+        with patch.object(PostgreSQL, "run_query") as qr:
+            qr.return_value = run_query_returns
+            with patch.object(models.QueryResult, "store_result", classmethod(watching_store)):
+                # execute_query catches QueryExecutionError and hands it back
+                # as the result rather than raising, so a failure arrives here
+                # as a value.
+                seen["outcome"] = execute_query(self.query_text, self.factory.data_source.id, {})
+        seen["locked_after"] = bool(redis_connection.exists(self.key))
+        return seen
+
+    def test_the_lock_is_still_held_while_the_result_is_written(self, _):
+        seen = self.run_with_lock_held(({"columns": [], "rows": []}, None))
+
+        # The moment that used to be unguarded.
+        self.assertTrue(
+            seen["locked_while_storing"],
+            "a second request arriving while the row is written would start its own execution",
+        )
+        self.assertIsNotNone(models.QueryResult.query.get(seen["outcome"]))
+
+    def test_the_lock_is_released_once_the_result_exists(self, _):
+        seen = self.run_with_lock_held(({"columns": [], "rows": []}, None))
+
+        # Held for longer, but not held open: the next request for this query
+        # should start a fresh job rather than wait on a finished one.
+        self.assertFalse(seen["locked_after"], "the lock outlived the job that owned it")
+
+    def test_a_failed_query_still_gives_the_lock_back(self, _):
+        # Nothing is stored on this path, so without the release in `finally`
+        # every later request for this query would be handed a dead job id
+        # until the lock expired on its own.
+        seen = self.run_with_lock_held((None, "it went wrong"))
+
+        self.assertIsInstance(seen["outcome"], QueryExecutionError)
+        self.assertFalse(seen["locked_after"], "a failed query left its lock behind")
