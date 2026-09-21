@@ -36,6 +36,12 @@ def embed(query_id, visualization_id, org_slug=None):
     return render_index()
 
 
+# A wall display is the same page, served the same way: the token is the whole
+# of its credentials, because a screen on a wall is unattended for weeks and
+# has nobody to sign it back in. The front end tells the two apart by route --
+# see WallDashboardPage -- and this just has to authenticate the token and
+# hand over the app.
+@routes.route(org_scoped_rule("/wall/dashboards/<token>"), methods=["GET"])
 @routes.route(org_scoped_rule("/public/dashboards/<token>"), methods=["GET"])
 @login_required
 @csp_allows_embeding

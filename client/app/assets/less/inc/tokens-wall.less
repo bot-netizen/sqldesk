@@ -1,0 +1,91 @@
+/* Wall display mode: the token layer, redefined dark.
+   ==========================================================================
+
+   A dashboard on a screen on the wall is read from across a room, in a room
+   whose lights are often off. It wants dark surfaces, brighter ink and no
+   chrome.
+
+   This is a token override and nothing else, which is what makes it reach the
+   charts. `uiColor()` in viz-lib reads these off `document.documentElement` at
+   the moment it draws, so every visualization comes out dark without knowing
+   this mode exists -- as long as the attribute is set before anything draws,
+   which WallDashboardPage does on mount.
+
+   Every value below is measured, not chosen by eye: text and status colours
+   clear WCAG AA (4.5:1) against both surfaces here, and tokens-wall.test.js
+   checks the arithmetic rather than trusting the choices.
+
+   Not here: the chart series. `--series-*` exists in tokens-root.less but
+   nothing reads it -- viz-lib's ColorPalette.ts carries its own hardcoded
+   hexes, and that is what every chart draws with. Measured against this
+   surface, the eight it cycles through run from 3.1:1 to 12.9:1, so they hold
+   up unchanged; the three that would not (Black, Gray, Dark Blue) are only
+   ever reached by someone picking them by hand. Overriding the tokens here
+   would have looked like a fix and done nothing. */
+
+@import "tokens";
+
+/* The surface the chart series were designed against -- see the series ramp
+   in tokens.less, which names this exact colour. */
+@wall-surface: #1b1a21;
+@wall-canvas: #131218;
+@wall-sunken: #232229;
+@wall-border: #33313b;
+@wall-border-subtle: #26252d;
+
+@wall-text: #f4f3f7;
+@wall-text-secondary: #d6d4dd;
+@wall-text-muted: #a5a2ae;
+/* Not a text colour, same as in the light theme: dividers and disabled marks. */
+@wall-text-subtle: #6e6b78;
+
+@wall-action: #2e93a8;
+@wall-action-text: #6bb4c4;
+
+/* Status, lifted off the dark surface. The light theme's values are chosen to
+   pass on white and are far too dark here -- #1e7a4c on #1b1a21 is 2.6:1. */
+@wall-good: #3fb87a;
+@wall-warning: #d79a2b;
+@wall-serious: #e8763a;
+@wall-critical: #e2685e;
+
+:root[data-theme="wall"] {
+  --color-canvas: @wall-canvas;
+  --color-surface: @wall-surface;
+  --color-surface-sunken: @wall-sunken;
+  --color-border: @wall-border;
+  --color-border-subtle: @wall-border-subtle;
+
+  --color-text: @wall-text;
+  --color-text-secondary: @wall-text-secondary;
+  --color-text-muted: @wall-text-muted;
+  --color-text-subtle: @wall-text-subtle;
+
+  --color-action: @wall-action;
+  --color-action-hover: @wall-action-text;
+  --color-action-tint: @wall-sunken;
+  --color-action-border: @wall-border;
+  --color-action-on: @wall-canvas;
+  --color-action-text: @wall-action-text;
+
+  --color-good: @wall-good;
+  --color-warning: @wall-warning;
+  --color-serious: @wall-serious;
+  --color-critical: @wall-critical;
+
+
+  /* Read from four metres, not forty centimetres. The visualizations size
+     their own text from the widget box and so grow with it already; this is
+     for everything drawn in the DOM -- widget titles, table cells, axis
+     labels that are HTML. */
+  --fs-display: round(@fs-display * 1.5);
+  --fs-title: round(@fs-title * 1.4);
+  --fs-heading: round(@fs-heading * 1.35);
+  --fs-body: round(@fs-body * 1.3);
+  --fs-small: round(@fs-small * 1.3);
+  --fs-micro: round(@fs-micro * 1.25);
+
+  /* Shadows do nothing on a dark surface but muddy the edges. */
+  --shadow-raised: none;
+  --shadow-overlay: 0 8px 24px -6px rgba(0, 0, 0, 0.6);
+}

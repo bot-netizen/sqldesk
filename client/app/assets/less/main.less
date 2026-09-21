@@ -12,6 +12,9 @@
    emits the :root custom properties and must be imported exactly once. */
 @import "inc/tokens";
 @import "inc/tokens-root";
+/* The wall display's dark override of the same tokens. Emits one
+   :root[data-theme="wall"] block; inert until that attribute is set. */
+@import "inc/tokens-wall";
 
 @import "inc/variables";
 @import "inc/mixins";

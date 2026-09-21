@@ -1,0 +1,159 @@
+/* Wall display mode.
+
+   The colours all come from the token override in inc/tokens-wall.less, which
+   is what the visualizations read too. Nothing here names a colour of its own
+   -- if it did, the charts and the page around them would drift apart. */
+
+body.wall-display {
+  background: var(--color-canvas);
+  /* A wall has no pointer. Anything that reacts to one is noise, and the
+     scrollbar is a bright stripe down the side of a dark screen. */
+  cursor: none;
+  overflow: hidden;
+
+  #footer,
+  .navbar,
+  .application-layout-side-menu {
+    display: none !important;
+  }
+}
+
+.wall-dashboard-page {
+  width: 100%;
+  min-height: 100vh;
+  padding: 0 18px 18px;
+  background: var(--color-canvas);
+  color: var(--color-text);
+
+  .wall-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 14px 4px 10px;
+
+    h1 {
+      margin: 0;
+      font-size: var(--fs-display);
+      font-weight: 600;
+      color: var(--color-text);
+      letter-spacing: -0.01em;
+    }
+  }
+
+  /* Present, but quiet: it says the numbers are moving, it is not a control. */
+  .wall-live {
+    font-size: var(--fs-micro);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-good);
+  }
+
+  .wall-filters {
+    padding: 0 4px 10px;
+  }
+
+  .wall-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 70vh;
+    color: var(--color-text-muted);
+  }
+
+  /* Widgets: the tile is the only surface, so it carries the separation. No
+     shadow -- on a dark background it reads as a smudge rather than a lift. */
+  .tile {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    box-shadow: none;
+  }
+
+  /* The widget header and antd's table both paint their own light colours,
+     and win on specificity from the app's own stylesheet. Found by walking
+     the rendered page for anything still light on a dark surface rather than
+     by guessing at selectors -- the widget title was computing to #333 on a
+     #1b1a21 tile, which is 1.4:1 and simply cannot be read. */
+  .tile .t-header .th-title,
+  .tile .t-header .th-title p,
+  .tile .t-header .query-link,
+  .tile .t-header .query-link a {
+    font-size: var(--fs-heading);
+    color: var(--color-text-secondary);
+  }
+
+  /* Everything a person would click. Nobody is going to.  */
+  .widget-menu-regular,
+  .widget-menu-remove,
+  .tile__bottom-control,
+  .refresh-indicator,
+  .rd-timer,
+  .btn__refresh {
+    display: none !important;
+  }
+
+  /* The table is painted white from two directions: antd's own chrome, and
+     Bootstrap's `.table:not(.table-striped) > thead > tr > th`, which is what
+     actually held the header at #fafafa -- found by searching the built
+     stylesheet for the colour rather than guessing at antd selectors. That
+     rule scores (0,2,3), so the header below has to carry a class on the `th`
+     to beat it.
+
+     Everything else simply gives up its background and lets the tile show
+     through; a list of exact selectors would go stale on the next upgrade. */
+  .table-visualization-container,
+  .table-visualization-container *,
+  .ant-table,
+  .ant-table * {
+    background-color: transparent;
+  }
+
+  .ant-table,
+  .ant-table-thead > tr > th.ant-table-cell,
+  .ant-table-tbody > tr > td.ant-table-cell,
+  .ant-table-cell,
+  .ant-table-placeholder {
+    background-color: transparent;
+    border-color: var(--color-border-subtle);
+    color: var(--color-text-secondary);
+  }
+
+  .ant-table-thead > tr > th {
+    color: var(--color-text-muted);
+    border-bottom-color: var(--color-border);
+  }
+
+  .ant-pagination,
+  .ant-pagination-item a,
+  .ant-pagination-item-link {
+    color: var(--color-text-secondary);
+    background: transparent;
+    border-color: var(--color-border-subtle);
+  }
+
+  .ant-pagination-item-active {
+    background: var(--color-surface-sunken);
+    border-color: var(--color-action);
+
+    a {
+      color: var(--color-text);
+    }
+  }
+}
+
+/* How long until the next dashboard. A thin line at the very top: readable
+   from across a room as "something is about to change", invisible otherwise. */
+.wall-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--color-border-subtle);
+  z-index: 10;
+
+  .wall-progress-bar {
+    height: 100%;
+    background: var(--color-action-text);
+    transition: width 250ms linear;
+  }
+}

@@ -166,7 +166,14 @@ const DashboardService = {
     }
     return axios.get(`api/dashboards/${id || slug}`, { params }).then(transformResponse);
   },
-  getByToken: ({ token }) => axios.get(`api/dashboards/public/${token}`).then(transformResponse),
+  // The token is sent as the api key as well as in the path, deliberately.
+  // The endpoint answers with whatever the request's api key points at and
+  // only falls back to the token in the URL when there isn't one -- so with a
+  // session key already set (every public page has one) this asked for one
+  // dashboard and was handed another. Saying it twice makes the call mean
+  // what it reads like, whatever session it is made from.
+  getByToken: ({ token }) =>
+    axios.get(`api/dashboards/public/${token}`, { params: { api_key: token } }).then(transformResponse),
   save: (data) => axios.post(saveOrCreateUrl(data), data).then(transformResponse),
   delete: ({ id }) => axios.delete(`api/dashboards/${id}`).then(transformResponse),
   query: (params) => axios.get("api/dashboards", { params }).then(transformResponse),
