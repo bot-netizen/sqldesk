@@ -1,0 +1,60 @@
+.alert-attachments {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-control);
+    margin-bottom: 5px;
+    background: var(--color-surface);
+  }
+}
+
+/* "dashboard" or "query" -- which it is changes what the picture will be, so
+   it is worth saying on every row rather than leaving people to guess from
+   the name. */
+.alert-attachment-kind {
+  flex: 0 0 auto;
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-chip);
+  padding: 1px 6px;
+}
+
+.alert-attachment-remove {
+  color: var(--color-text-muted);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--color-critical);
+  }
+}
+
+.alert-attachments-note {
+  margin-top: 6px;
+  font-size: var(--fs-small);
+  color: var(--color-text-muted);
+}
+
+.alert-attachment-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+/* A dashboard with no shareable link cannot be drawn, and saying so here --
+   while choosing -- beats an attachment that silently never arrives. */
+.alert-attachment-warning {
+  flex: 0 0 auto;
+  font-size: var(--fs-micro);
+  color: var(--color-warning);
+}

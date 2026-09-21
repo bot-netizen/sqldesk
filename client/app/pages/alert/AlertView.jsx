@@ -18,6 +18,8 @@ import Rearm from "./components/Rearm";
 import Query from "./components/Query";
 import AlertDestinations from "./components/AlertDestinations";
 import HorizontalFormItem from "./components/HorizontalFormItem";
+import AlertAttachments from "./components/AlertAttachments";
+import { clientConfig } from "@/services/auth";
 import { STATE_CLASS } from "../alerts/AlertsList";
 import DynamicComponent from "@/components/DynamicComponent";
 
@@ -111,6 +113,11 @@ export default class AlertView extends React.Component {
                       Set to {options.custom_subject || options.custom_body ? "custom" : "default"} notification
                       template.
                     </HorizontalFormItem>
+                    {clientConfig.alertScreenshots && (
+                      <HorizontalFormItem label="Attach">
+                        <AlertAttachments value={options.attachments} onChange={() => {}} />
+                      </HorizontalFormItem>
+                    )}
                   </>
                 )}
               </Form>

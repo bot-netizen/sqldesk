@@ -49,6 +49,27 @@ class Email(BaseDestination):
                 subject = subject_template.format(alert_name=alert.name, state=state)
 
             message = Message(recipients=recipients, subject=subject, html=html)
+
+            # Pictures of whatever the alert was told to attach, drawn once
+            # for the whole notification in tasks/alerts.py. Inline by
+            # content-id and appended to the body, so they are seen rather
+            # than sitting as attachments nobody opens. A custom body is left
+            # exactly as written -- it is not ours to append to.
+            images = (metadata or {}).get("screenshots") or []
+            if images and not alert.custom_body:
+                parts = []
+                for index, (filename, png) in enumerate(images):
+                    cid = f"sqldesk-attachment-{index}"
+                    message.attach(
+                        filename,
+                        "image/png",
+                        png,
+                        disposition="inline",
+                        headers={"Content-ID": f"<{cid}>"},
+                    )
+                    parts.append(f'<div style="margin-top:16px"><img src="cid:{cid}" style="max-width:100%"></div>')
+                message.html = html + "".join(parts)
+
             mail.send(message)
         except Exception:
             logging.exception("Mail send error.")

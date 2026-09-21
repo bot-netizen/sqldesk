@@ -1,0 +1,31 @@
+# The optional renderer.
+#
+# Built and run only by people who want pictures attached to their alerts. The
+# SQLDesk image does not change by a byte: a browser would add several hundred
+# megabytes to an image the server and the worker share, for a feature most
+# installs never turn on.
+#
+# Microsoft's Playwright image is the base because it already carries Chromium
+# and the fonts and system libraries a browser needs on Linux -- a list that is
+# long, dull, and easy to get subtly wrong in ways that only show up as a
+# missing glyph in somebody's chart.
+FROM mcr.microsoft.com/playwright/python:v1.49.0-noble
+
+WORKDIR /app
+
+# The base image carries the browsers and the system libraries they need, but
+# not the Python binding -- `import playwright` fails in it out of the box.
+# The binding's version has to match the browsers the image shipped with
+# (v1.49.0 here), because playwright checks the browser revision it finds and
+# refuses one it does not recognise. Bump both together or neither.
+RUN pip install --no-cache-dir playwright==1.49.0 flask==3.0.3 gunicorn==23.0.0
+
+COPY screenshots/service.py /app/service.py
+
+ENV PORT=3000
+EXPOSE 3000
+
+# One worker, two threads: rendering is heavy and mostly waiting, and a queue
+# of browsers is how a small container runs out of memory. Scale with replicas
+# rather than with workers.
+CMD ["gunicorn", "--bind", "0.0.0.0:3000", "--workers", "1", "--threads", "2", "--timeout", "180", "service:app"]

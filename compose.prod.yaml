@@ -101,6 +101,27 @@ services:
       timeout: 5s
       retries: 10
 
+  # Pictures attached to alert emails, and nothing else.
+  #
+  # Commented out because it is a browser: around 400MB that most installs
+  # never need. Bundling it into the SQLDesk image would put that on the
+  # server and the worker both, for a feature that is off by default. Grafana
+  # ships its renderer as a separate service for the same reason.
+  #
+  # To turn it on: uncomment this, build it with
+  #   docker build -f Dockerfile.screenshots -t sqldesk-screenshots .
+  # and add to the server and worker environment:
+  #   SQLDESK_FEATURE_ALERT_SCREENSHOTS: "true"
+  #   SQLDESK_SCREENSHOT_URL: "http://screenshots:3000"
+  #   SQLDESK_INTERNAL_BASE_URL: "http://server:5000"
+  #
+  # screenshots:
+  #   image: sqldesk-screenshots
+  #   restart: unless-stopped
+  #   # Chromium wants more than Docker's default 64MB of shared memory, and
+  #   # runs out of it as a blank page rather than as an error.
+  #   shm_size: 1gb
+
 volumes:
   sqldesk-postgres:
   sqldesk-redis:

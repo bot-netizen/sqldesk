@@ -18,6 +18,8 @@ import logoUrl from "@/assets/images/sqldesk_icon.svg";
 import useDashboard from "./hooks/useDashboard";
 import LiveBadge from "./components/LiveBadge";
 
+import useScreenshotMode from "@/lib/hooks/useScreenshotMode";
+
 import "./PublicDashboardPage.less";
 
 function PublicDashboard({ dashboard, token }) {
@@ -25,6 +27,11 @@ function PublicDashboard({ dashboard, token }) {
     dashboard,
     { publicToken: token }
   );
+
+  // Being photographed for an alert: say so once every widget has stopped
+  // loading, or the renderer captures a page of spinners.
+  const everyWidgetLoaded = dashboard.widgets.every((widget) => !widget.loading);
+  useScreenshotMode(everyWidgetLoaded);
 
   return (
     <div className="container p-t-10 p-b-20">

@@ -28,6 +28,7 @@ import { formatDateTime } from "@/lib/utils";
 import useImmutableCallback from "@/lib/hooks/useImmutableCallback";
 import { Query } from "@/services/query";
 import location from "@/services/location";
+import useScreenshotMode, { inScreenshotMode } from "@/lib/hooks/useScreenshotMode";
 import routes from "@/services/routes";
 
 import logoUrl from "@/assets/images/sqldesk_icon.svg";
@@ -204,14 +205,21 @@ function VisualizationEmbed({ queryId, visualizationId, apiKey, onError }) {
     refreshQueryResults();
   }, [refreshQueryResults]);
 
+  // Being photographed rather than read: say so once there is something to
+  // photograph, so the renderer does not capture a spinner.
+  const screenshot = inScreenshotMode();
+  useScreenshotMode(!!queryResults || !!error);
+
   if (!query) {
     return null;
   }
 
-  const hideHeader = has(location.search, "hide_header");
-  const hideParametersUI = has(location.search, "hide_parameters");
-  const hideQueryLink = has(location.search, "hide_link");
-  const hideTimestamp = has(location.search, "hide_timestamp");
+  // A picture of a chart should be a chart. In screenshot mode the chrome
+  // goes whether or not the caller remembered to ask for each piece of it.
+  const hideHeader = screenshot || has(location.search, "hide_header");
+  const hideParametersUI = screenshot || has(location.search, "hide_parameters");
+  const hideQueryLink = screenshot || has(location.search, "hide_link");
+  const hideTimestamp = screenshot || has(location.search, "hide_timestamp");
 
   const showQueryDescription = has(location.search, "showDescription");
   visualizationId = parseInt(visualizationId, 10);
@@ -253,15 +261,17 @@ function VisualizationEmbed({ queryId, visualizationId, apiKey, onError }) {
           </div>
         )}
       </div>
-      <VisualizationEmbedFooter
-        query={query}
-        queryResults={queryResults}
-        updatedAt={queryResults ? queryResults.getUpdatedAt() : undefined}
-        refreshStartedAt={refreshStartedAt}
-        queryUrl={!hideQueryLink ? query.getUrl() : null}
-        hideTimestamp={hideTimestamp}
-        apiKey={apiKey}
-      />
+      {!screenshot && (
+        <VisualizationEmbedFooter
+          query={query}
+          queryResults={queryResults}
+          updatedAt={queryResults ? queryResults.getUpdatedAt() : undefined}
+          refreshStartedAt={refreshStartedAt}
+          queryUrl={!hideQueryLink ? query.getUrl() : null}
+          hideTimestamp={hideTimestamp}
+          apiKey={apiKey}
+        />
+      )}
     </div>
   );
 }

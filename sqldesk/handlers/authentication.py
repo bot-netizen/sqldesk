@@ -289,6 +289,10 @@ def client_config():
         "multiByteSearchEnabled": current_org.get_setting("multi_byte_search_enabled"),
         "autoPublishNamedQueries": settings.FEATURE_AUTO_PUBLISH_NAMED_QUERIES,
         "extendedAlertOptions": settings.FEATURE_EXTENDED_ALERT_OPTIONS,
+        # Both halves: the flag, and somewhere to send the request. Without a
+        # renderer there is nothing to turn on, so the editor should not offer it.
+        "alertScreenshots": settings.FEATURE_ALERT_SCREENSHOTS and bool(settings.SCREENSHOT_URL),
+        "maxAlertAttachments": settings.MAX_ALERT_ATTACHMENTS,
         "mailSettingsMissing": not settings.email_server_is_configured(),
         "dashboardRefreshIntervals": settings.DASHBOARD_REFRESH_INTERVALS,
         "queryRefreshIntervals": settings.QUERY_REFRESH_INTERVALS,

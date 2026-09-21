@@ -2,7 +2,7 @@ import datetime
 
 from flask import current_app
 
-from sqldesk import models, utils
+from sqldesk import models, screenshots, utils
 from sqldesk.worker import get_job_logger, job
 
 logger = get_job_logger(__name__)
@@ -10,6 +10,24 @@ logger = get_job_logger(__name__)
 
 def notify_subscriptions(alert, new_state, metadata):
     host = utils.base_url(alert.query_rel.org)
+
+    # Drawn once for the whole notification rather than once per subscriber:
+    # five people on one alert should not mean five runs of the same
+    # dashboard. Carried in `metadata`, which already reaches every
+    # destination untouched, so no destination signature has to change --
+    # and the eleven that cannot use an image never learn it is there.
+    #
+    # Caught broadly, and that is deliberate rather than lazy: a picture is a
+    # nice-to-have and an alert is not, so there is no failure here worth
+    # losing a notification over. `screenshots` guards the expected ones; this
+    # is for the unexpected.
+    metadata = dict(metadata or {})
+    try:
+        metadata["screenshots"] = screenshots.for_alert(alert)
+    except Exception:
+        logger.exception("Could not draw the attachments for alert %s; sending without them.", alert.id)
+        metadata["screenshots"] = []
+
     for subscription in alert.subscriptions:
         try:
             subscription.notify(alert, alert.query_rel, subscription.user, new_state, current_app, host, metadata)

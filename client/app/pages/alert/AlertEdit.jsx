@@ -11,6 +11,8 @@ import Button from "antd/lib/button";
 import Title from "./components/Title";
 import Criteria from "./components/Criteria";
 import NotificationTemplate from "./components/NotificationTemplate";
+import AlertAttachments from "./components/AlertAttachments";
+import { clientConfig } from "@/services/auth";
 import Rearm from "./components/Rearm";
 import Query from "./components/Query";
 
@@ -103,8 +105,17 @@ export default class AlertEdit extends React.Component {
                       setSubject={(subject) => onNotificationTemplateChange({ custom_subject: subject })}
                       body={options.custom_body}
                       setBody={(body) => onNotificationTemplateChange({ custom_body: body })}
-                    />
+                    />{" "}
                   </HorizontalFormItem>
+                  {clientConfig.alertScreenshots && (
+                    <HorizontalFormItem label="Attach">
+                      <AlertAttachments
+                        value={options.attachments}
+                        onChange={(attachments) => onNotificationTemplateChange({ attachments })}
+                        editMode
+                      />
+                    </HorizontalFormItem>
+                  )}
                 </>
               )}
             </Form>

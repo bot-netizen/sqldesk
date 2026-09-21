@@ -463,6 +463,21 @@ FEATURE_AUTO_PUBLISH_NAMED_QUERIES = parse_boolean(
 )
 FEATURE_EXTENDED_ALERT_OPTIONS = parse_boolean(os.environ.get("SQLDESK_FEATURE_EXTENDED_ALERT_OPTIONS", "false"))
 
+# Attaching a picture of a dashboard or a query to an alert needs something
+# that can draw one, and nothing in this image can: see SCREENSHOT_URL. Off
+# unless that is pointed at a renderer, so an install that never wants this
+# pulls nothing extra and behaves exactly as it did.
+FEATURE_ALERT_SCREENSHOTS = parse_boolean(os.environ.get("SQLDESK_FEATURE_ALERT_SCREENSHOTS", "false"))
+# Where that renderer is, e.g. http://screenshots:3000. Empty means there is
+# none, which turns the feature off however the flag above is set.
+SCREENSHOT_URL = os.environ.get("SQLDESK_SCREENSHOT_URL", "")
+SCREENSHOT_TIMEOUT = int(os.environ.get("SQLDESK_SCREENSHOT_TIMEOUT", "60"))
+# How the renderer reaches this application. The worker and the renderer are
+# other containers, so "localhost" is not it.
+INTERNAL_BASE_URL = os.environ.get("SQLDESK_INTERNAL_BASE_URL", "http://server:5000")
+#: Most images one alert may carry.
+MAX_ALERT_ATTACHMENTS = 5
+
 # BigQuery
 BIGQUERY_HTTP_TIMEOUT = int(os.environ.get("SQLDESK_BIGQUERY_HTTP_TIMEOUT", "600"))
 
