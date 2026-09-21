@@ -1,3 +1,5 @@
+from unittest import mock
+
 from sqldesk.handlers.query_results import error_messages, run_query
 from sqldesk.models import db
 from tests import BaseTestCase
@@ -454,3 +456,65 @@ class TestJobResource(BaseTestCase):
         job = self.make_request("get", f"/api/jobs/{job_id}").json["job"]
         self.assertEqual(job["status"], FAILED)
         self.assertTrue("cancelled" in job["error"])
+
+    """
+    A job id is handed to whoever starts a query and travels through the
+    browser. Until these existed, both reading and cancelling a job were
+    unguarded: any signed-in user could stop anyone else's running query, in
+    any organization, knowing only the id.
+    """
+
+    def _start_a_job(self):
+        query = self.factory.create_query()
+        return self.make_request(
+            "post",
+            f"/api/queries/{query.id}/results",
+            data={"parameters": {}},
+        ).json[
+            "job"
+        ]["id"]
+
+    def test_another_user_cannot_cancel_it(self):
+        job_id = self._start_a_job()
+        someone_else = self.factory.create_user()
+
+        rv = self.make_request("delete", f"/api/jobs/{job_id}", user=someone_else)
+
+        self.assertEqual(rv.status_code, 403)
+        # And the query is still running, which is the part that matters.
+        job = self.make_request("get", f"/api/jobs/{job_id}").json["job"]
+        self.assertNotIn("cancelled", job["error"])
+
+    def test_another_user_cannot_read_it(self):
+        job_id = self._start_a_job()
+        someone_else = self.factory.create_user()
+
+        rv = self.make_request("get", f"/api/jobs/{job_id}", user=someone_else)
+
+        self.assertEqual(rv.status_code, 403)
+
+    def test_an_admin_can_cancel_it(self):
+        # Somebody has to be able to stop a runaway query.
+        job_id = self._start_a_job()
+        admin = self.factory.create_admin()
+
+        rv = self.make_request("delete", f"/api/jobs/{job_id}", user=admin)
+
+        self.assertEqual(rv.status_code, 200)
+
+    @mock.patch("sqldesk.handlers.query_results.Job.fetch")
+    def test_a_job_from_another_organization_is_not_found(self, fetch):
+        # Not 403: whether a job id exists elsewhere is not theirs to learn.
+        # Reached by handing the resource a foreign job directly, because with
+        # MULTI_ORG off there is only one organization to ask from.
+        fetch.return_value = mock.Mock(meta={"org_id": self.factory.org.id + 1000, "user_id": self.factory.user.id})
+
+        rv = self.make_request("get", "/api/jobs/someone-elses")
+
+        self.assertEqual(rv.status_code, 404)
+        self.assertIn("Unknown job id", rv.json["message"])
+
+    def test_an_unknown_job_is_a_404(self):
+        rv = self.make_request("get", "/api/jobs/does-not-exist")
+
+        self.assertEqual(rv.status_code, 404)

@@ -5,6 +5,7 @@ import regex
 from flask import current_app, make_response, request
 from flask_login import current_user
 from flask_restful import abort
+from rq.exceptions import NoSuchJobError
 
 from sqldesk import models, settings
 from sqldesk.handlers.base import BaseResource, get_object_or_404, record_event
@@ -404,16 +405,48 @@ class QueryResultResource(BaseResource):
 
 
 class JobResource(BaseResource):
+    def _fetch_own_job(self, job_id):
+        """
+        A running query job, if it is this user's to see.
+
+        Before this check existed, both of the methods below fetched a job by
+        id and acted on it with no check at all: any signed-in user could read
+        the state of -- or cancel -- anyone else's running query, in any
+        organization, knowing only a job id. Job ids are handed out to whoever
+        starts a query and travel through the browser, so that is not a
+        theoretical reach.
+
+        `enqueue_query` stamps the job's meta with `org_id` and `user_id`
+        (tasks/queries/execution.py), which is what makes this possible. A job
+        with no user -- a scheduled refresh -- belongs to nobody, so only an
+        admin may touch it.
+        """
+        try:
+            job = Job.fetch(job_id)
+        except NoSuchJobError:
+            abort(404, message="Unknown job id.")
+
+        meta = job.meta or {}
+        # Another organization's job is not something to report on, so it reads
+        # as absent rather than forbidden.
+        if meta.get("org_id") != self.current_org.id:
+            abort(404, message="Unknown job id.")
+
+        if not self.current_user.has_permission("admin") and meta.get("user_id") != self.current_user.id:
+            abort(403, message="This job belongs to someone else.")
+
+        return job
+
     def get(self, job_id, query_id=None):
         """
         Retrieve info about a running query job.
         """
-        job = Job.fetch(job_id)
+        job = self._fetch_own_job(job_id)
         return serialize_job(job)
 
     def delete(self, job_id):
         """
         Cancel a query job in progress.
         """
-        job = Job.fetch(job_id)
+        job = self._fetch_own_job(job_id)
         job.cancel()
