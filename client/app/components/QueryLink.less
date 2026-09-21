@@ -2,6 +2,9 @@
   .visualization-name {
     font-size: 15px;
     font-weight: 500;
-    color: rgba(0, 0, 0, 0.8);
+    // The token, not a literal near-black: a hardcoded colour is a colour no
+    // theme can change, and this one sat unreadable on the wall display's
+    // dark tile at 1.4:1.
+    color: var(--color-text-secondary);
   }
 }

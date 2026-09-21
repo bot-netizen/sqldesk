@@ -196,12 +196,14 @@
       }
 
       .query-link {
-        color: fade(@sqldesk-black, 80%);
+        // Tokens rather than a faded literal black, which no theme can reach
+        // -- on the wall display's dark tile this was 1.4:1.
+        color: var(--color-text-secondary);
         font-size: 15px;
         font-weight: 500;
 
         &:not(.visualization-name) {
-          color: fade(@sqldesk-black, 50%);
+          color: var(--color-text-muted);
         }
       }
     }
