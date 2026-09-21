@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
+import cx from "classnames";
 import Button from "antd/lib/button";
 import Table from "antd/lib/table";
 import Modal from "antd/lib/modal";
@@ -58,9 +59,9 @@ Meter.propTypes = {
 
 Meter.defaultProps = { detail: null, used: null, limit: null };
 
-function Panel({ title, note, children, actions }) {
+function Panel({ title, note, children, actions, className }) {
   return (
-    <section className="admin-panel">
+    <section className={cx("admin-panel", className)}>
       <header className="admin-panel-head">
         <h2>{title}</h2>
         {actions}
@@ -76,9 +77,10 @@ Panel.propTypes = {
   note: PropTypes.node,
   children: PropTypes.node,
   actions: PropTypes.node,
+  className: PropTypes.string,
 };
 
-Panel.defaultProps = { note: null, children: null, actions: null };
+Panel.defaultProps = { note: null, children: null, actions: null, className: null };
 
 function RunningQueries({ rows, onKill }) {
   const columns = [
@@ -225,10 +227,6 @@ export default function Overview({ onError }) {
     <Layout activeTab="overview">
       <div className="admin-overview-page">
         <div className="admin-overview-columns">
-          <Panel title="Running now" note="From the job queue, so this includes the scheduler's own refreshes.">
-            <RunningQueries rows={running} onKill={kill} />
-          </Panel>
-
           <Panel title="Headroom">
             <Meter
               label="Postgres connections"
@@ -309,6 +307,17 @@ export default function Overview({ onError }) {
             </dl>
           </Panel>
         </div>
+
+        {/* Full width and last: it is a table that grows sideways with long
+            query names, and it is what you read after the numbers above have
+            told you something is wrong. */}
+        <Panel
+          title="Running now"
+          className="admin-panel-wide"
+          note="From the job queue, so this includes the scheduler's own refreshes."
+        >
+          <RunningQueries rows={running} onKill={kill} />
+        </Panel>
       </div>
     </Layout>
   );

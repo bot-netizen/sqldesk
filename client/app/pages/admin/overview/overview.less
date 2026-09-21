@@ -2,16 +2,38 @@
 
    Four panels that answer four different questions, kept visually separate so
    nobody reads a number from one under the heading of another -- "running"
-   and "who is asking" count different populations. */
+   and "who is asking" count different populations.
+
+   Three of them sit in a row of numbers you scan; the running queries go
+   underneath, full width, because that is the one that is a table and the one
+   you read once the numbers above have told you something is wrong. */
 
 .admin-overview-page {
   padding: var(--sp-5);
 }
 
+/* Three panels, three columns. `auto-fit` was wrong here twice over: on a
+   wide screen it made five tracks for three panels, and `grid-column: 1 / -1`
+   does not span an auto-fit repeat -- which is how the full-width panel ended
+   up in the last column with a dead gap beside it. A fixed count for a fixed
+   number of panels says what is meant. */
 .admin-overview-columns {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--sp-5);
+  align-items: start;
+}
+
+@media (max-width: 1180px) {
+  .admin-overview-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-overview-columns {
+    grid-template-columns: 1fr;
+  }
 }
 
 .admin-panel {
@@ -22,10 +44,10 @@
   min-width: 0;
 }
 
-/* "Running now" is the one people come here for, so it gets the full width
-   when there is room for two columns. */
-.admin-panel:first-child {
-  grid-column: 1 / -1;
+/* Its own block below the grid rather than a member of it: a table of running
+   queries grows sideways with long names, and it wants the whole width. */
+.admin-panel-wide {
+  margin-top: var(--sp-5);
 }
 
 .admin-panel-head {
@@ -183,21 +205,29 @@
 
 /* --- storage --- */
 
+/* Label on the left, size and its action on the right, on one line each --
+   as a definition list stacked they took four lines to say three numbers. */
 .admin-storage {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px var(--sp-4);
   margin: 0;
 
   dt {
     font-weight: 400;
     font-size: var(--fs-small);
     color: var(--color-text-muted);
+    min-width: 0;
   }
 
   dd {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: var(--sp-3);
-    margin: 0 0 var(--sp-4);
+    margin: 0;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 }
