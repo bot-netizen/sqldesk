@@ -268,8 +268,20 @@ class DashboardGrid extends React.Component {
     } = this.props;
     const className = cx("dashboard-wrapper", isEditing ? "editing-mode" : "preview-mode");
 
+    // The dotted grid drawn behind the widgets while editing is a CSS
+    // background, so it cannot read the config the layout itself uses. Handing
+    // it these means the two cannot drift apart -- which they had: the grid
+    // went to twenty-four columns and half-height rows, and the drawing behind
+    // it went on showing twelve columns and the old row height.
+    const gridGuides = {
+      "--dashboard-grid-columns": cfg.columns,
+      "--dashboard-grid-margin": `${cfg.margins}px`,
+      // What react-grid-layout actually steps by: a row plus the gutter under it.
+      "--dashboard-grid-row-pitch": `${cfg.rowHeight}px`,
+    };
+
     return (
-      <div className={className}>
+      <div className={className} style={gridGuides}>
         <ResponsiveGridLayout
           draggableCancel="input,.sortable-container"
           className={cx("layout", { "disable-animations": this.state.disableAnimations })}

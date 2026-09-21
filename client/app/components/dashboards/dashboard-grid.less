@@ -35,11 +35,26 @@
   }
 
   &.editing-mode {
+    // The guides have to land on the stops the layout actually snaps to, so
+    // every number here comes from the grid config through the custom
+    // properties DashboardGrid sets. Hardcoded, they went on drawing twelve
+    // columns and 50px rows long after the grid moved to twenty-four and 25.
+    @columns: var(--dashboard-grid-columns, 24);
+    @gutter: var(--dashboard-grid-margin, 15px);
+    @row-pitch: var(--dashboard-grid-row-pitch, 25px);
+
     /* Y axis lines */
-    background: linear-gradient(to right, transparent, transparent 1px, #f6f8f9 1px, #f6f8f9),
+    // Both sets of guides are a line under a mask that hides most of it, and
+    // the two masks disagreed: the columns showed 2px of every 5px and the
+    // rows only 1px, so the horizontal lines came out half as dense and read
+    // as missing entirely. Same dash on both now.
+    background: linear-gradient(to right, transparent, transparent 2px, #f6f8f9 2px, #f6f8f9 5px),
       linear-gradient(to bottom, #b3babf, #b3babf 1px, transparent 1px, transparent);
-    background-size: 5px 50px;
-    background-position-y: -8px;
+    background-size: 5px @row-pitch;
+    // Measured, not guessed: a widget on row r has its top at r * pitch from
+    // this element's own top edge, so the lines start there. The -8px this
+    // carried was tuned to the 50px rows of the old grid.
+    background-position-y: 0;
 
     /* X axis lines */
     &::before {
@@ -51,8 +66,15 @@
       right: 0;
       background: linear-gradient(to bottom, transparent, transparent 2px, #f6f8f9 2px, #f6f8f9 5px),
         linear-gradient(to left, #b3babf, #b3babf 1px, transparent 1px, transparent);
-      background-size: calc((100% + 15px) / 12) 5px;
-      background-position: -7px 1px;
+      // A column plus its gutter. react-grid-layout gives each column
+      // (width - gutter * (columns - 1)) / columns, so the step between two
+      // of them comes to (width + gutter) / columns.
+      background-size: calc((100% + @gutter) / @columns) 5px;
+      // Likewise: a widget in column c starts at c * pitch from the left edge
+      // of this element, and the gradient above paints its line at the right
+      // edge of each tile -- so from zero the lines fall exactly on the column
+      // starts.
+      background-position: 0 1px;
     }
   }
 
