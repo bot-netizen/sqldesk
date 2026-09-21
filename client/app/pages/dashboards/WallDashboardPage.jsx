@@ -15,6 +15,7 @@ import routes from "@/services/routes";
 import useDashboard from "./hooks/useDashboard";
 import useWallTheme from "./hooks/useWallTheme";
 import useDashboardCycle from "./hooks/useDashboardCycle";
+import useWallScroll from "./hooks/useWallScroll";
 
 import "./WallDashboardPage.less";
 
@@ -119,6 +120,10 @@ function WallDashboardPage({ token }) {
   }, [activeToken]);
 
   const { loading, dashboard, token: shownToken, error } = state;
+
+  // Keyed on the dashboard being shown, not the one being fetched, so the
+  // walk down the page restarts when the dashboard actually changes.
+  useWallScroll(dwell, shownToken);
 
   return (
     <div className="wall-dashboard-page">

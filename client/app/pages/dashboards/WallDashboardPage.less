@@ -4,12 +4,31 @@
    is what the visualizations read too. Nothing here names a colour of its own
    -- if it did, the charts and the page around them would drift apart. */
 
+/* No scrollbars anywhere: on the viewport, and on the scrollbox inside every
+   widget. A wall has no pointer, so a scrollbar is not a control there -- it
+   is a bright stripe down a dark screen that nobody can drag.
+
+   The page still scrolls, though. `overflow: hidden` was the first attempt and
+   it was wrong: with nobody standing there to scroll, it does not hide the
+   rest of a tall dashboard so much as lose it -- 15 of 25 widgets, measured at
+   1440x900. useWallScroll walks the page down instead, so the scrollbar goes
+   and the scrolling stays.
+
+   The root as well as the body: the viewport's scrollbar belongs to the
+   scrolling element, which is `html`. */
+:root[data-theme="wall"],
+body.wall-display,
+body.wall-display * {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 body.wall-display {
   background: var(--color-canvas);
-  /* A wall has no pointer. Anything that reacts to one is noise, and the
-     scrollbar is a bright stripe down the side of a dark screen. */
   cursor: none;
-  overflow: hidden;
 
   #footer,
   .navbar,
