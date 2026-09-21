@@ -20,6 +20,7 @@ import location from "@/services/location";
 import { cloneParameter } from "@/services/parameters";
 import dashboardGridOptions from "@/config/dashboard-grid-options";
 import { registeredVisualizations, preloadVisualization } from "@sqldesk/viz/lib";
+import shareInFlight from "./inFlightResults";
 import { Query } from "./query";
 import QueryResult from "./query-result";
 
@@ -167,39 +168,78 @@ class Widget {
     // while widget is refreshing, `this.data` !== `this.queryResult`
 
     if (force || this.queryResult === undefined) {
-      this.loading = true;
-      this.refreshStartedAt = moment();
-
       // A forced load runs the query unless the caller says how old a stored
       // result may be: auto-refresh accepts one from the last half interval.
       if (maxAge === undefined) {
         maxAge = force ? 0 : undefined;
       }
 
-      const queryResult = resultId
-        ? QueryResult.getById(this.getQuery().id, resultId)
-        : this.getQuery().getQueryResult(maxAge);
-      this.queryResult = queryResult;
-
-      queryResult
-        .toPromise()
-        .then((result) => {
-          if (this.queryResult === queryResult) {
-            this.loading = false;
-            this.data = result;
-          }
-          return result;
-        })
-        .catch((error) => {
-          if (this.queryResult === queryResult) {
-            this.loading = false;
-            this.data = error;
-          }
-          return error;
-        });
+      // Widgets showing the same query with the same parameters would each
+      // fetch and parse the same result. They share one request instead --
+      // see services/inFlightResults.
+      this.trackResult(
+        shareInFlight(this.resultKey(maxAge, resultId), () =>
+          resultId ? QueryResult.getById(this.getQuery().id, resultId) : this.getQuery().getQueryResult(maxAge)
+        )
+      );
     }
 
     return this.queryResult.toPromise();
+  }
+
+  /**
+   * What this widget is about to ask for, as one value.
+   *
+   * Two widgets with the same key would send the same request, so one of them
+   * can send it for both. It mirrors what `Query.getQueryResult` builds a
+   * request from -- the query, its parameter values and whether the auto limit
+   * applies -- plus what the caller asked of it.
+   *
+   * Null means "cannot say", and nothing is shared: a widget with no
+   * visualization has nothing to fetch at all.
+   */
+  resultKey(maxAge, resultId) {
+    if (!this.visualization) {
+      return null;
+    }
+    const query = this.getQuery();
+    return JSON.stringify([
+      query.id,
+      query.getParameters().getExecutionValues(),
+      query.getAutoLimit(),
+      maxAge === undefined ? null : maxAge,
+      resultId === undefined ? null : resultId,
+    ]);
+  }
+
+  /**
+   * Hold a result and follow it to done.
+   *
+   * Shared by the widget that sent the request and any that joined it, so a
+   * widget showing somebody else's result behaves exactly like one showing its
+   * own -- same spinner, same error, same moment it stops loading.
+   */
+  trackResult(queryResult) {
+    this.loading = true;
+    this.refreshStartedAt = moment();
+    this.queryResult = queryResult;
+
+    queryResult
+      .toPromise()
+      .then((result) => {
+        if (this.queryResult === queryResult) {
+          this.loading = false;
+          this.data = result;
+        }
+        return result;
+      })
+      .catch((error) => {
+        if (this.queryResult === queryResult) {
+          this.loading = false;
+          this.data = error;
+        }
+        return error;
+      });
   }
 
   save(key, value) {
