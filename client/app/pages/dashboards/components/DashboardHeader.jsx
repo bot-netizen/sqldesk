@@ -308,7 +308,7 @@ DashboardControl.propTypes = {
   headerExtra: PropTypes.node,
 };
 
-function DashboardEditControl({ dashboardConfiguration, headerExtra }) {
+export function DashboardEditControl({ dashboardConfiguration, headerExtra }) {
   const {
     dashboard,
     updateDashboard,
