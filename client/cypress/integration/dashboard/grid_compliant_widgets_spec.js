@@ -48,12 +48,20 @@ describe("Grid compliant widgets", () => {
       });
     });
 
-    it("auto saves after drag", () => {
+    it("saves a drag when editing is done, and not before", () => {
       cy.server();
       cy.route("POST", "**/api/widgets/*").as("WidgetSave");
 
       editDashboard();
       cy.get("@textboxEl").dragBy(100);
+
+      // The move is in the browser only until Done Editing is pressed --
+      // dragging used to write to the server about two seconds later, so a
+      // dashboard was changed by anyone who opened it and nudged something.
+      cy.contains(".save-status", "Unsaved changes").should("exist");
+      cy.get("@WidgetSave.all").should("have.length", 0);
+
+      cy.contains("button", "Done Editing").click();
       cy.wait("@WidgetSave");
     });
   });
@@ -116,13 +124,37 @@ describe("Grid compliant widgets", () => {
       });
     });
 
-    it("auto saves after resize", () => {
+    it("saves a resize when editing is done, and not before", () => {
       cy.server();
       cy.route("POST", "**/api/widgets/*").as("WidgetSave");
 
       editDashboard();
       resizeBy(cy.get("@textboxEl"), 200);
+
+      cy.contains(".save-status", "Unsaved changes").should("exist");
+      cy.get("@WidgetSave.all").should("have.length", 0);
+
+      cy.contains("button", "Done Editing").click();
       cy.wait("@WidgetSave");
+    });
+
+    it("puts a discarded resize back where it was", () => {
+      cy.server();
+      cy.route("POST", "**/api/widgets/*").as("WidgetSave");
+
+      editDashboard();
+      cy.get("@textboxEl")
+        .invoke("width")
+        .then((widthBefore) => {
+          resizeBy(cy.get("@textboxEl"), 200);
+          cy.get("@textboxEl").invoke("width").should("not.eq", widthBefore);
+
+          cy.getByTestId("DashboardDiscardButton").click();
+          cy.get(".ant-modal-confirm").contains("button", "Discard").click();
+
+          cy.get("@textboxEl").invoke("width").should("eq", widthBefore);
+          cy.get("@WidgetSave.all").should("have.length", 0);
+        });
     });
   });
 });

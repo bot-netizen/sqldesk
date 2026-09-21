@@ -42,7 +42,7 @@ import useEditVisualizationDialog from "./hooks/useEditVisualizationDialog";
 import useDeleteVisualization from "./hooks/useDeleteVisualization";
 import useUpdateQuery from "./hooks/useUpdateQuery";
 import useUpdateQueryDescription from "./hooks/useUpdateQueryDescription";
-import useUnsavedChangesAlert from "./hooks/useUnsavedChangesAlert";
+import useUnsavedChangesAlert from "@/lib/hooks/useUnsavedChangesAlert";
 
 import "./components/QuerySourceDropdown"; // register QuerySourceDropdown
 import "./QuerySource.less";

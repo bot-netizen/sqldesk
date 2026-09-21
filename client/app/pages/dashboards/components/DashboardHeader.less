@@ -98,6 +98,12 @@
       &[data-error] {
         color: #f44336;
       }
+
+      /* Changes that exist only in this browser until Done Editing is
+         pressed. Worth saying in a colour, because leaving now loses them. */
+      &[data-unsaved] {
+        color: var(--color-warning);
+      }
     }
 
     @media (max-width: 515px) {

@@ -17,6 +17,7 @@ import routes from "@/services/routes";
 import location from "@/services/location";
 import url from "@/services/url";
 import useImmutableCallback from "@/lib/hooks/useImmutableCallback";
+import useUnsavedChangesAlert from "@/lib/hooks/useUnsavedChangesAlert";
 
 import useDashboard from "./hooks/useDashboard";
 import DashboardHeader from "./components/DashboardHeader";
@@ -60,7 +61,9 @@ function DashboardComponent(props) {
     loadDashboard,
     loadWidget,
     removeWidget,
-    saveDashboardLayout,
+    updateDashboardLayout,
+    layoutGeneration,
+    hasUnsavedChanges,
     globalParameters,
     updateDashboard,
     refreshDashboard,
@@ -69,6 +72,10 @@ function DashboardComponent(props) {
     setGridDisabled,
     live,
   } = dashboardConfiguration;
+
+  // Layout changes live only in the browser until they are saved, so leaving
+  // the page with some pending would throw them away silently.
+  useUnsavedChangesAlert(hasUnsavedChanges);
 
   const [pageContainer, setPageContainer] = useState(null);
   const [bottomPanelStyles, setBottomPanelStyles] = useState({});
@@ -134,7 +141,8 @@ function DashboardComponent(props) {
           isEditing={editingLayout}
           isLive={!!live}
           liveInterval={live && !live.paused ? live.interval : null}
-          onLayoutChange={editingLayout ? saveDashboardLayout : () => {}}
+          layoutGeneration={layoutGeneration}
+          onLayoutChange={editingLayout ? updateDashboardLayout : () => {}}
           onBreakpointChange={setGridDisabled}
           onLoadWidget={loadWidget}
           onRefreshWidget={refreshWidget}

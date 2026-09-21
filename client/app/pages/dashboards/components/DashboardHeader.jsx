@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import cx from "classnames";
 import PropTypes from "prop-types";
 import { map, includes } from "lodash";
@@ -313,29 +313,70 @@ function DashboardEditControl({ dashboardConfiguration, headerExtra }) {
     dashboard,
     updateDashboard,
     setEditingLayout,
-    doneBtnClickedWhileSaving,
     dashboardStatus,
-    retrySaveDashboardLayout,
+    hasUnsavedChanges,
+    saveDashboardLayout,
+    discardDashboardLayout,
     saveDashboardParameters,
   } = dashboardConfiguration;
+  const [saving, setSaving] = useState(false);
+
   const handleDoneEditing = () => {
-    saveDashboardParameters().then(() => setEditingLayout(false));
+    setSaving(true);
+    saveDashboardParameters()
+      .then(() => saveDashboardLayout())
+      // Only leaves edit mode once the layout is actually stored: the
+      // arrangement exists nowhere else, so leaving on a failed save would
+      // throw it away.
+      .then((saved) => {
+        if (saved) {
+          setEditingLayout(false);
+        }
+      })
+      .finally(() => setSaving(false));
   };
+
+  const handleDiscard = () => {
+    if (!hasUnsavedChanges) {
+      setEditingLayout(false);
+      return;
+    }
+    Modal.confirm({
+      title: "Discard changes?",
+      content: "The widgets you moved or resized will go back where they were.",
+      okText: "Discard",
+      okType: "danger",
+      cancelText: "Keep editing",
+      onOk: () => {
+        discardDashboardLayout();
+        setEditingLayout(false);
+      },
+    });
+  };
+
   let status;
-  if (dashboardStatus === DashboardStatusEnum.SAVED) {
-    status = <span className="save-status">Saved</span>;
-  } else if (dashboardStatus === DashboardStatusEnum.SAVING) {
+  if (dashboardStatus === DashboardStatusEnum.SAVING) {
     status = (
       <span className="save-status" data-saving>
         Saving
       </span>
     );
-  } else {
+  } else if (dashboardStatus === DashboardStatusEnum.SAVING_FAILED) {
     status = (
       <span className="save-status" data-error>
         Saving Failed
       </span>
     );
+  } else if (dashboardStatus === DashboardStatusEnum.UNSAVED) {
+    // Said plainly, because it is now true: moving a widget changes nothing
+    // until this is pressed.
+    status = (
+      <span className="save-status" data-unsaved>
+        Unsaved changes
+      </span>
+    );
+  } else {
+    status = <span className="save-status">No changes</span>;
   }
   return (
     <div className="dashboard-control">
@@ -353,15 +394,13 @@ function DashboardEditControl({ dashboardConfiguration, headerExtra }) {
         Dashboard level filters
       </Checkbox>
       {status}
-      {dashboardStatus === DashboardStatusEnum.SAVING_FAILED ? (
-        <Button type="primary" onClick={retrySaveDashboardLayout}>
-          Retry
-        </Button>
-      ) : (
-        <Button loading={doneBtnClickedWhileSaving} type="primary" onClick={handleDoneEditing}>
-          {!doneBtnClickedWhileSaving && <i className="fa fa-check m-r-5" aria-hidden="true" />} Done Editing
-        </Button>
-      )}
+      <Button className="m-r-5" onClick={handleDiscard} data-test="DashboardDiscardButton">
+        Discard
+      </Button>
+      <Button loading={saving} type="primary" onClick={handleDoneEditing} data-test="DashboardDoneEditingButton">
+        {!saving && <i className="fa fa-check m-r-5" aria-hidden="true" />}
+        {dashboardStatus === DashboardStatusEnum.SAVING_FAILED ? "Retry" : "Done Editing"}
+      </Button>
       {headerExtra}
     </div>
   );

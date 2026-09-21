@@ -123,6 +123,9 @@ class DashboardGrid extends React.Component {
     onRefreshWidget: PropTypes.func,
     onRemoveWidget: PropTypes.func,
     onLayoutChange: PropTypes.func,
+    // Bumped by the page to make the grid forget the arrangement it is
+    // holding and read the stored one off the widgets again.
+    layoutGeneration: PropTypes.number,
     onParameterMappingsChange: PropTypes.func,
   };
 
@@ -135,6 +138,7 @@ class DashboardGrid extends React.Component {
     onRefreshWidget: () => {},
     onRemoveWidget: () => {},
     onLayoutChange: () => {},
+    layoutGeneration: 0,
     onBreakpointChange: () => {},
     onParameterMappingsChange: () => {},
   };
@@ -184,9 +188,17 @@ class DashboardGrid extends React.Component {
     }, 50);
   }
 
-  componentDidUpdate() {
+  componentDidUpdate(prevProps) {
     // update, in case widgets added or removed
     this.autoHeightCtrl.update(this.props.widgets);
+
+    // Discarding unsaved layout changes. The widgets still carry their stored
+    // positions -- nothing was written -- so emptying the layout we are
+    // holding makes react-grid-layout build it again from the `data-grid` on
+    // each child, which is exactly where it came from.
+    if (prevProps.layoutGeneration !== this.props.layoutGeneration) {
+      this.setState({ layouts: {} }); // eslint-disable-line react/no-did-update-set-state
+    }
   }
 
   componentWillUnmount() {
