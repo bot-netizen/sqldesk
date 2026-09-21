@@ -1537,6 +1537,11 @@ class Event(db.Model):
     created_at = Column(db.DateTime(True), default=db.func.now())
 
     __tablename__ = "events"
+    # This table gets a row every time anyone runs a query and had no index
+    # but its primary key. The admin overview asks it who has been running
+    # queries in the last hour, which is exactly this: one organization, one
+    # kind of event, a window of time.
+    __table_args__ = (db.Index("ix_events_org_action_created_at", "org_id", "action", "created_at"),)
 
     def __str__(self):
         return "%s,%s,%s,%s" % (
