@@ -50,7 +50,9 @@ export default function HomeCounters({ counters, loading }) {
 
   return (
     <section className="home-counters-section">
-      <h2 className="home-section-title">My Desk</h2>
+      {/* h1, not h2: this is the home page's title, and the page had no h1
+          at all. */}
+      <h1 className="home-section-title">My Desk</h1>
       {/* These count what this user made, so they lead to the same user's
           lists -- "queries/my", not every query on the instance. A tile
           reading 12 that opened a list of 240 would be answering a different

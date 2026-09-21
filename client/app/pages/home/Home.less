@@ -14,9 +14,15 @@
   margin-bottom: 15px;
 }
 
+/* The home page's own title, and the only heading it has. Sized to match the
+   title on every list page -- Dashboards, Queries, Alerts -- because it is the
+   same thing in the same place, and at 18px it read as a caption beside them.
+   Kept in step with `.list-page-heading h1` by Home.title.test.js. */
 .home-section-title {
-  font-size: 18px;
-  font-weight: 500;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
   color: var(--color-text);
   margin: 0 0 10px;
 }

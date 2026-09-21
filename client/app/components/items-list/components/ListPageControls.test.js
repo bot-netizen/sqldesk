@@ -97,8 +97,81 @@ describe("FilterControl", () => {
     const onChange = jest.fn();
     const overlay = getOverlay(mount(<FilterControl value="" onChange={onChange} />));
 
-    overlay.find("input").first().simulate("change", { target: { value: "revenue" } });
+    overlay
+      .find("input")
+      .first()
+      .simulate("change", { target: { value: "revenue" } });
 
     expect(onChange).toHaveBeenCalledWith("revenue");
+  });
+
+  /*
+    The list debounces its search term by 200ms, so `value` is always a little
+    behind what has been typed. While the field took its value straight from
+    that prop, each keystroke was replaced by the older term and then
+    reappeared: typing at any speed dropped characters and the word in
+    progress vanished as you wrote it.
+
+    These drive the real popup rather than mounting the overlay element on its
+    own -- a detached copy has none of the component's state, which is exactly
+    what is being tested.
+  */
+  function openFilter(wrapper) {
+    wrapper.find('button[data-test="ListFilterButton"]').simulate("click");
+    wrapper.update();
+    return wrapper;
+  }
+
+  const field = (wrapper) => wrapper.find("input").first();
+
+  function type(wrapper, text) {
+    field(wrapper).simulate("change", { target: { value: text } });
+    wrapper.update();
+  }
+
+  it("keeps what was typed before the list has caught up", () => {
+    const wrapper = openFilter(mount(<FilterControl value="" onChange={() => {}} />));
+
+    type(wrapper, "rev");
+
+    expect(field(wrapper).prop("value")).toBe("rev");
+  });
+
+  it("keeps a whole word typed faster than the list updates", () => {
+    const wrapper = openFilter(mount(<FilterControl value="" onChange={() => {}} />));
+
+    // `value` never moves: the debounce has not fired for any of these.
+    "revenue".split("").reduce((sofar, letter) => {
+      const next = sofar + letter;
+      type(wrapper, next);
+      return next;
+    }, "");
+
+    expect(field(wrapper).prop("value")).toBe("revenue");
+  });
+
+  it("does not undo typing when the list echoes an earlier term back", () => {
+    // A slow request can land an older term after a newer one. Whoever is
+    // typing must not have the field rewritten under the cursor.
+    const wrapper = openFilter(mount(<FilterControl value="" onChange={() => {}} />));
+    field(wrapper).simulate("focus");
+    type(wrapper, "revenue");
+
+    wrapper.setProps({ value: "rev" });
+    wrapper.update();
+
+    expect(field(wrapper).prop("value")).toBe("revenue");
+  });
+
+  it("follows the term when it is changed somewhere else", () => {
+    // The back button, or a search cleared while this panel was closed.
+    const wrapper = openFilter(mount(<FilterControl value="revenue" onChange={() => {}} />));
+    field(wrapper).simulate("blur");
+    expect(field(wrapper).prop("value")).toBe("revenue");
+
+    wrapper.setProps({ value: "" });
+    wrapper.update();
+
+    expect(field(wrapper).prop("value")).toBe("");
   });
 });

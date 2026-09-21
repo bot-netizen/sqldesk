@@ -121,16 +121,26 @@ function getListColumns(dataSourceNames, controllerRef) {
     // Not sortable: health is derived on the client from three fields, so
     // there is no single column the backend could order by.
     Columns.custom((text, item) => <QueryHealth query={item} />, { title: "Status", width: 130 }),
-    Columns.custom((text, item) => <span className="queries-list-rows">{formatRowCount(item.row_count)}</span>, {
-      title: "Rows",
-      width: 110,
-      className: "text-right",
-    }),
-    Columns.custom((text, item) => <span className="queries-list-runtime">{formatRuntime(item.runtime)}</span>, {
-      title: "Runtime",
-      width: 120,
-      className: "text-right",
-    }),
+    // Both order on the latest result's own columns, which all_queries()
+    // already joins and loads -- see the order map in handlers/queries.py.
+    Columns.custom.sortable(
+      (text, item) => <span className="queries-list-rows">{formatRowCount(item.row_count)}</span>,
+      {
+        title: "Rows",
+        field: "row_count",
+        width: 110,
+        className: "text-right",
+      }
+    ),
+    Columns.custom.sortable(
+      (text, item) => <span className="queries-list-runtime">{formatRuntime(item.runtime)}</span>,
+      {
+        title: "Runtime",
+        field: "runtime",
+        width: 120,
+        className: "text-right",
+      }
+    ),
     Columns.custom(
       (text, item) => (
         <span className="list-page-owner">
@@ -222,6 +232,8 @@ function QueriesList({ controller }) {
       created_at: "created",
       retrieved_at: "last run",
       executed_at: "last run",
+      row_count: "rows",
+      runtime: "runtime",
       schedule: "schedule",
       starred_at: "starred",
     };

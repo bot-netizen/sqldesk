@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { includes, map, without } from "lodash";
 import Dropdown from "antd/lib/dropdown";
@@ -23,6 +23,37 @@ import "./ListPageControls.less";
 */
 
 export function FilterControl({ value, onChange, placeholder, label }) {
+  /*
+    The field holds what you typed; `value` is the list's search term, which
+    arrives 200ms later because the list debounces it (see ItemsList). Feeding
+    that straight back into a controlled input meant every keystroke was
+    replaced by the older term and then reappeared -- typing anything at normal
+    speed dropped characters, and the word you were part-way through writing
+    vanished in front of you.
+  */
+  const [text, setText] = useState(value);
+  // While the field has focus, what was typed wins. The list's term arrives
+  // late and out of order -- a slow request can land an older term after a
+  // newer one -- and any of those echoes would otherwise rewrite the field
+  // under the cursor.
+  const typing = useRef(false);
+
+  useEffect(() => {
+    if (!typing.current) {
+      // Changed somewhere else: the back button, or a search cleared while
+      // this panel was closed.
+      setText(value);
+    }
+  }, [value]);
+
+  const handleChange = useCallback(
+    (next) => {
+      setText(next);
+      onChange(next);
+    },
+    [onChange]
+  );
+
   const overlay = (
     // A click anywhere in a Dropdown's overlay closes it, which for a panel
     // built around a text field means the field vanishes the moment you try to
@@ -34,16 +65,22 @@ export function FilterControl({ value, onChange, placeholder, label }) {
         allowClear
         autoFocus
         placeholder={placeholder}
-        value={value}
+        value={text}
         aria-label={label}
-        onChange={(event) => onChange(event.target.value)}
+        onFocus={() => {
+          typing.current = true;
+        }}
+        onBlur={() => {
+          typing.current = false;
+        }}
+        onChange={(event) => handleChange(event.target.value)}
       />
     </div>
   );
 
   return (
     <Dropdown overlay={overlay} trigger={["click"]} placement="bottomRight">
-      <PlainButton className={`list-page-control${value ? " list-page-control-on" : ""}`} data-test="ListFilterButton">
+      <PlainButton className={`list-page-control${text ? " list-page-control-on" : ""}`} data-test="ListFilterButton">
         <FilterOutlinedIcon aria-hidden="true" />
         <span>Filter</span>
       </PlainButton>

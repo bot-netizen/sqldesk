@@ -40,6 +40,11 @@ order_map = {
     "-schedule": "-interval",
     "runtime": "query_results-runtime",
     "-runtime": "-query_results-runtime",
+    # A plain column on query_results, denormalised at write time, and already
+    # loaded by all_queries() -- so ordering by it costs nothing extra and does
+    # not widen the join onto the result payload.
+    "row_count": "query_results-row_count",
+    "-row_count": "-query_results-row_count",
     "executed_at": "query_results-retrieved_at",
     "-executed_at": "-query_results-retrieved_at",
     "created_by": "users-name",

@@ -290,6 +290,38 @@ class TestQueryListResourceGet(BaseTestCase):
         assert len(rv.json["results"]) == 2
         assert set([result["id"] for result in rv.json["results"]]) == {q1.id, q2.id}
 
+    def _query_with_result(self, name, row_count, runtime):
+        result = self.factory.create_query_result(row_count=row_count, runtime=runtime)
+        return self.factory.create_query(name=name, latest_query_data=result)
+
+    def test_orders_by_row_count(self):
+        # The list shows a Rows column, so it has to be able to sort by one.
+        # `row_count` is a plain column on query_results, denormalised at write
+        # time and already loaded by all_queries().
+        small = self._query_with_result("small", row_count=5, runtime=1.0)
+        big = self._query_with_result("big", row_count=5000, runtime=1.0)
+        middling = self._query_with_result("middling", row_count=500, runtime=1.0)
+
+        rv = self.make_request("get", "/api/queries?order=row_count")
+        assert [r["id"] for r in rv.json["results"]] == [small.id, middling.id, big.id]
+
+        rv = self.make_request("get", "/api/queries?order=-row_count")
+        assert [r["id"] for r in rv.json["results"]] == [big.id, middling.id, small.id]
+
+    def test_orders_by_runtime(self):
+        quick = self._query_with_result("quick", row_count=1, runtime=0.5)
+        slow = self._query_with_result("slow", row_count=1, runtime=90.0)
+
+        rv = self.make_request("get", "/api/queries?order=-runtime")
+        assert [r["id"] for r in rv.json["results"]] == [slow.id, quick.id]
+
+    def test_ignores_an_order_it_does_not_offer(self):
+        # Anything outside the map falls back to the default rather than
+        # reaching a column name from the query string.
+        self.factory.create_query()
+        rv = self.make_request("get", "/api/queries?order=api_key")
+        assert rv.status_code == 200
+
 
 class TestQueryListResourcePost(BaseTestCase):
     def test_create_query(self):
