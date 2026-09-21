@@ -62,13 +62,16 @@
   padding: 0.1em 0.5em;
   border-radius: 999px;
 
+  // The wash token, not the tint written out: the ink beside it already
+  // follows the theme, and a badge whose background did not sat at 2.7:1 on
+  // the dark wall display.
   &.tone-good {
     color: var(--color-good, #1e7a4c);
-    background: #e5f1ea;
+    background: var(--color-good-wash, #e5f1ea);
   }
   &.tone-critical {
     color: var(--color-critical, #b4342c);
-    background: #f8e5e3;
+    background: var(--color-critical-wash, #f8e5e3);
   }
   &.tone-neutral {
     color: var(--color-text-muted, #6f6b66);

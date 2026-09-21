@@ -16,18 +16,50 @@ interface Swatch {
   cssVar: string;
   /** Used when the token is missing -- server rendering, tests, embeds. */
   fallback: string;
-  /** A tint for backgrounds: a tile, a table cell. */
+  /** The token for a tint of it: a tile's background, a table cell's. */
+  washVar: string;
+  /** Used when that token is missing, same as `fallback`. */
   wash: string;
 }
 
 // Values from client/app/assets/less/inc/tokens.less.
 export const SEMANTIC_COLORS: Record<SemanticColor, Swatch> = {
-  good: { label: "Good", cssVar: "--color-good", fallback: "#1e7a4c", wash: "#e5f1ea" },
-  warning: { label: "Warning", cssVar: "--color-warning", fallback: "#9a6510", wash: "#f7eedd" },
-  serious: { label: "Serious", cssVar: "--color-serious", fallback: "#c2560e", wash: "#fbeadf" },
-  critical: { label: "Critical", cssVar: "--color-critical", fallback: "#b4342c", wash: "#f8e5e3" },
-  neutral: { label: "Neutral", cssVar: "--color-text-muted", fallback: "#6f6b66", wash: "#f1efec" },
-  accent: { label: "Accent", cssVar: "--color-action", fallback: "#0a7c93", wash: "#e4f4f7" },
+  good: { label: "Good", cssVar: "--color-good", fallback: "#1e7a4c", washVar: "--color-good-wash", wash: "#e5f1ea" },
+  warning: {
+    label: "Warning",
+    cssVar: "--color-warning",
+    fallback: "#9a6510",
+    washVar: "--color-warning-wash",
+    wash: "#f7eedd",
+  },
+  serious: {
+    label: "Serious",
+    cssVar: "--color-serious",
+    fallback: "#c2560e",
+    washVar: "--color-serious-wash",
+    wash: "#fbeadf",
+  },
+  critical: {
+    label: "Critical",
+    cssVar: "--color-critical",
+    fallback: "#b4342c",
+    washVar: "--color-critical-wash",
+    wash: "#f8e5e3",
+  },
+  neutral: {
+    label: "Neutral",
+    cssVar: "--color-text-muted",
+    fallback: "#6f6b66",
+    washVar: "--color-neutral-wash",
+    wash: "#f1efec",
+  },
+  accent: {
+    label: "Accent",
+    cssVar: "--color-action",
+    fallback: "#0a7c93",
+    washVar: "--color-accent-wash",
+    wash: "#e4f4f7",
+  },
 };
 
 export const SEMANTIC_COLOR_NAMES = Object.keys(SEMANTIC_COLORS) as SemanticColor[];
@@ -55,13 +87,24 @@ export function resolveColor(name: string | null | undefined, fallback: Semantic
   return name;
 }
 
-/** A background tint for `name`, for DOM surfaces (tiles, cells). */
+/**
+ * A background tint for `name`, for DOM surfaces (tiles, cells).
+ *
+ * The token, not the hex, because unlike `resolveColor` this is only ever used
+ * as a CSS value and so does not have to be resolved here. That matters: the
+ * ink already followed the theme and the tint did not, so on the dark wall
+ * display a status tile kept a pale background under light text -- 1.26:1.
+ *
+ * A colour that is not one of ours is still tinted here, since there is no
+ * token to carry it.
+ */
 export function washColor(name: string | null | undefined): string {
   if (!name) {
     return "transparent";
   }
   if (isSemanticColor(name)) {
-    return SEMANTIC_COLORS[name].wash;
+    const swatch = SEMANTIC_COLORS[name];
+    return `var(${swatch.washVar}, ${swatch.wash})`;
   }
   return `color-mix(in srgb, ${name} 16%, transparent)`;
 }

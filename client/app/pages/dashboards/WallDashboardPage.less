@@ -122,9 +122,38 @@ body.wall-display {
     border-bottom-color: var(--color-border);
   }
 
+  /* Pagination takes its chrome from antd's LESS variables, which are
+     compiled to literal colours and so cannot follow a theme chosen at
+     runtime. The chip, not just the link inside it: the background is on the
+     `li`. */
+  /* The details visualization is an antd Descriptions, which paints a white
+     table and grey label cells of its own. */
+  .details-viz table,
+  .ant-descriptions,
+  .ant-descriptions-view,
+  .ant-descriptions-bordered .ant-descriptions-item-label,
+  .ant-descriptions-bordered .ant-descriptions-item-content {
+    background-color: transparent;
+    border-color: var(--color-border-subtle);
+    color: var(--color-text-secondary);
+  }
+
+  .ant-descriptions-bordered .ant-descriptions-item-label {
+    color: var(--color-text-muted);
+  }
+
+  /* Pagination takes its chrome from antd's LESS variables, which are
+     compiled to literal colours and so cannot follow a theme chosen at
+     runtime. The chip, not just the link inside it: the background is on the
+     `li`. The prev/next arrows need the extra class to outscore antd's own
+     `.ant-pagination-prev .ant-pagination-item-link`, which ties with a bare
+     one and wins on order. */
   .ant-pagination,
+  .ant-pagination-item,
   .ant-pagination-item a,
-  .ant-pagination-item-link {
+  .ant-pagination-item-link,
+  .ant-pagination-prev .ant-pagination-item-link,
+  .ant-pagination-next .ant-pagination-item-link {
     color: var(--color-text-secondary);
     background: transparent;
     border-color: var(--color-border-subtle);
@@ -137,6 +166,33 @@ body.wall-display {
     a {
       color: var(--color-text);
     }
+  }
+
+  /* react-pivottable is vendored with its own light colours from top to
+     bottom -- every cell, every control, painted white with navy ink. It is
+     internally consistent, so nothing in it fails a contrast check; it is
+     simply a white island in the middle of a dark wall.
+
+     Same treatment as the table, and for the same reason: it gives up its
+     backgrounds and takes its ink from the tokens, rather than this file
+     listing the dozen selectors it happens to paint today. Its stylesheet is
+     a lazily-loaded chunk and so arrives *after* this one -- at equal
+     specificity it would win, which is why these are scoped rather than bare.
+
+     No `!important`: the heatmap renderers set their cell colours inline, and
+     those have to survive. */
+  .pvtUi,
+  .pvtUi * {
+    background-color: transparent;
+    color: var(--color-text-secondary);
+    border-color: var(--color-border-subtle);
+  }
+
+  .pvtAxisLabel,
+  .pvtTotalLabel,
+  .pvtRowLabel,
+  .pvtColLabel {
+    color: var(--color-text-muted);
   }
 }
 

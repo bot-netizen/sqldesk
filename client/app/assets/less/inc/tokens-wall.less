@@ -49,6 +49,22 @@
 @wall-serious: #e8763a;
 @wall-critical: #e2685e;
 
+/* The tints those take as backgrounds. The light theme's washes are pale, and
+   a pale tile with this theme's light ink on it is 1.26:1 -- which is what the
+   status grid measured before these existed: the tile kept its own hardcoded
+   background while its text followed the theme.
+
+   Each is its own status colour mixed into the tile surface, as far as it can
+   go while three things stay readable on it: the status ink itself, the tile's
+   name in secondary text, and its detail line in muted text. That worked out
+   at 16% for five of them and 10% for critical, whose ink is the dimmest. */
+@wall-good-wash: #21332f;
+@wall-warning-wash: #392e23;
+@wall-serious-wash: #3c2925;
+@wall-critical-wash: #2f2227;
+@wall-neutral-wash: #313038;
+@wall-accent-wash: #28333b;
+
 :root[data-theme="wall"] {
   --color-canvas: @wall-canvas;
   --color-surface: @wall-surface;
@@ -73,6 +89,12 @@
   --color-serious: @wall-serious;
   --color-critical: @wall-critical;
 
+  --color-good-wash: @wall-good-wash;
+  --color-warning-wash: @wall-warning-wash;
+  --color-serious-wash: @wall-serious-wash;
+  --color-critical-wash: @wall-critical-wash;
+  --color-neutral-wash: @wall-neutral-wash;
+  --color-accent-wash: @wall-accent-wash;
 
   /* Read from four metres, not forty centimetres. The visualizations size
      their own text from the widget box and so grow with it already; this is

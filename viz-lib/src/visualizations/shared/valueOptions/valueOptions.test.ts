@@ -8,6 +8,8 @@ import {
   findMapping,
   resolveColor,
   washColor,
+  SEMANTIC_COLORS,
+  SEMANTIC_COLOR_NAMES,
   EMPTY_VALUE,
 } from ".";
 
@@ -187,8 +189,17 @@ describe("colours", () => {
   });
 
   test("washes", () => {
-    expect(washColor("good")).toBe("#e5f1ea");
+    // The token, so the tint follows the theme the way the ink already does.
+    // A tile whose background stayed pale while its text went light measured
+    // 1.26:1 on the wall display.
+    expect(washColor("good")).toBe("var(--color-good-wash, #e5f1ea)");
     expect(washColor("#123456")).toContain("color-mix");
     expect(washColor(null)).toBe("transparent");
+  });
+
+  test("every semantic colour offers a wash token, and its fallback", () => {
+    SEMANTIC_COLOR_NAMES.forEach((name) => {
+      expect(washColor(name)).toBe(`var(--color-${name}-wash, ${SEMANTIC_COLORS[name].wash})`);
+    });
   });
 });

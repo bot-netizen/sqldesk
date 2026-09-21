@@ -33,8 +33,8 @@ describe("Visualizations -> Table -> cell formatting rules", () => {
   test("threshold rules colour the background, and an empty base leaves low values plain", () => {
     const f = { color: "rules" as const, rules };
     expect(cellStyle(1, f, null)).toBeUndefined();
-    expect(cellStyle(3, f, null)).toEqual({ background: "#f7eedd", color: "#9a6510" });
-    expect(cellStyle(5, f, null)!.background).toBe("#f8e5e3");
+    expect(cellStyle(3, f, null)).toEqual({ background: "var(--color-warning-wash, #f7eedd)", color: "#9a6510" });
+    expect(cellStyle(5, f, null)!.background).toBe("var(--color-critical-wash, #f8e5e3)");
   });
 
   test("or the text", () => {
@@ -46,7 +46,7 @@ describe("Visualizations -> Table -> cell formatting rules", () => {
 
   test("text columns colour by mapping", () => {
     const f = { color: "rules" as const, mappings: [{ value: "down", text: "", color: "critical" }] };
-    expect(cellStyle("DOWN", f, null)!.background).toBe("#f8e5e3");
+    expect(cellStyle("DOWN", f, null)!.background).toBe("var(--color-critical-wash, #f8e5e3)");
     expect(cellStyle("up", f, null)).toBeUndefined();
   });
 
@@ -136,7 +136,7 @@ describe("Visualizations -> Table -> renderer", () => {
       dataBar: true,
     });
     const w = enzyme.mount(<Renderer data={{ columns, rows }} options={o} />);
-    expect(ordersCell(w, "APAC").prop("style").background).toBe("#f8e5e3");
+    expect(ordersCell(w, "APAC").prop("style").background).toBe("var(--color-critical-wash, #f8e5e3)");
     // rc-table always sets a number column's alignment; the point is no colour.
     expect(ordersCell(w, "EMEA").prop("style").background).toBeUndefined();
     expect(ordersCell(w, "EMEA").find(".table-cell-databar i").prop("style")).toEqual({ width: "25%" });

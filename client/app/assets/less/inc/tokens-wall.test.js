@@ -76,6 +76,38 @@ describe("the wall theme's contrast", () => {
     });
   });
 
+  /*
+    A status tile is its own surface: the wash is the background, and three
+    things sit on it. The wash used to be the one part of the semantic colour
+    system that read no token, so on this theme the ink followed and the
+    background did not -- a pale tile under light text, 1.26:1, found by
+    walking the rendered page rather than by looking at it.
+  */
+  describe.each([
+    ["good", "wall-good-wash", "wall-good"],
+    ["warning", "wall-warning-wash", "wall-warning"],
+    ["serious", "wall-serious-wash", "wall-serious"],
+    ["critical", "wall-critical-wash", "wall-critical"],
+    ["neutral", "wall-neutral-wash", "wall-text-muted"],
+    ["accent", "wall-accent-wash", "wall-action-text"],
+  ])("a %s tile", (_name, washToken, inkToken) => {
+    test.each([
+      ["its own status ink", (t) => t.ink],
+      ["the tile name, in secondary text", () => value("wall-text-secondary")],
+      ["the detail line, in muted text", () => value("wall-text-muted")],
+    ])("is readable under %s", (_what, pick) => {
+      const wash = value(washToken);
+      expect(contrast(pick({ ink: value(inkToken) }), wash)).toBeGreaterThanOrEqual(AA);
+    });
+
+    test("is a tint, not a second surface", () => {
+      // Dark enough to keep light text on it, but distinguishable from the
+      // plain tile beside it -- otherwise the state is carried by nothing.
+      expect(luminance(value(washToken))).toBeGreaterThan(luminance(SURFACE));
+      expect(luminance(value(washToken))).toBeLessThan(luminance(value("wall-text-subtle")));
+    });
+  });
+
   test("the theme does not pretend to set the chart palette", () => {
     // It cannot: viz-lib's ColorPalette.ts holds its own hardcoded hexes and
     // reads no token. Overriding --series-* here would look like a fix and do

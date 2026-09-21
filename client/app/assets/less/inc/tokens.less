@@ -14,7 +14,7 @@
    ========================================================================== */
 
 /* --- Neutral ramp (warm) -------------------------------------------------- */
-@n-50:  #fbfaf9;
+@n-50: #fbfaf9;
 @n-100: #f6f4f1;
 @n-200: #f1efec;
 @n-300: #e8e5e1;
@@ -27,7 +27,7 @@
 
 /* --- Action ramp (teal) --------------------------------------------------- */
 /* ac-600 is the action colour: 4.9:1 on white, passes AA as a filled control */
-@ac-50:  #f2fafb;
+@ac-50: #f2fafb;
 @ac-100: #e4f4f7;
 @ac-200: #c6e8ee;
 @ac-300: #a8d5df;
@@ -42,10 +42,21 @@
 /* Reserved. Never reused as a chart series colour, always paired with a
    label or icon so state is never carried by colour alone.
    All four are chosen to clear 4.5:1 on white, because they render as text. */
-@status-good:     #1e7a4c;
-@status-warning:  #9a6510;
-@status-serious:  #c2560e;
+@status-good: #1e7a4c;
+@status-warning: #9a6510;
+@status-serious: #c2560e;
 @status-critical: #b4342c;
+
+/* The tint each one takes as a background -- a status grid tile, a coloured
+   table cell. A tint is not derivable from the ink, because the ink and the
+   text that sits on it have to stay readable on whatever the tint becomes;
+   the dark theme redefines these rather than lightening these values. */
+@wash-good: #e5f1ea;
+@wash-warning: #f7eedd;
+@wash-serious: #fbeadf;
+@wash-critical: #f8e5e3;
+@wash-neutral: #f1efec;
+@wash-accent: #e4f4f7;
 
 /* --- Chart series --------------------------------------------------------- */
 /* Fixed order, never cycled. Validated for CVD separation and contrast
@@ -63,10 +74,10 @@
 @series-8: #7b3fa0;
 
 /* --- Geometry ------------------------------------------------------------- */
-@radius-chip:    6px;
+@radius-chip: 6px;
 @radius-control: 8px;
-@radius-card:    12px;
-@radius-pill:    999px;
+@radius-card: 12px;
+@radius-pill: 999px;
 
 /* --- Control heights ------------------------------------------------------ */
 @control-sm: 28px;
@@ -109,17 +120,23 @@
    deployments work and no viewer IP leaks to a third party.
    The fallbacks are chosen for close metrics: text laid out before the
    webfont swaps in should not visibly reflow. */
-@font-sans: "Instrument Sans Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial,
+@font-sans:
+  "Instrument Sans Variable",
+  -apple-system,
+  BlinkMacSystemFont,
+  "Segoe UI",
+  "Helvetica Neue",
+  Arial,
   sans-serif;
 @font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
   monospace;
 
 @fs-display: 25px;
-@fs-title:   19px;
+@fs-title: 19px;
 @fs-heading: 15px;
-@fs-body:    14px;
-@fs-small:   12.5px;
-@fs-micro:   11px;
+@fs-body: 14px;
+@fs-small: 12.5px;
+@fs-micro: 11px;
 
 /* The :root{} emission lives in tokens-root.less so this file stays
    output-free and can be imported from every entry point safely. */

@@ -5,7 +5,9 @@
   height: 32px;
   padding: 0 12px;
   border-radius: 999px;
-  background: #e5f1ea;
+  // The token, so the badge's background follows the theme its ink already
+  // does -- see tokens.less.
+  background: var(--color-good-wash, #e5f1ea);
   color: var(--color-good, #1e7a4c);
   font-size: 13px;
   font-weight: 600;
