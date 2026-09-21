@@ -13,6 +13,9 @@ export default function Layout({ activeTab, children }) {
         <PageHeader title="Admin" />
         <div className="bg-white tiled">
           <Menu selectedKeys={[activeTab]} selectable={false} mode="horizontal">
+            <Menu.Item key="overview">
+              <Link href="admin/overview">Overview</Link>
+            </Menu.Item>
             <Menu.Item key="system_status">
               <Link href="admin/status">System Status</Link>
             </Menu.Item>
@@ -36,6 +39,6 @@ Layout.propTypes = {
 };
 
 Layout.defaultProps = {
-  activeTab: "system_status",
+  activeTab: "overview",
   children: null,
 };

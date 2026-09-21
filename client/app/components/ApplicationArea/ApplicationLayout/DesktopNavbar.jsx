@@ -66,6 +66,7 @@ function useNavbarActiveState() {
       ),
       dataSources: includes(["DataSources.List"], currentRoute.id),
       alerts: includes(["Alerts.List", "Alerts.New", "Alerts.View", "Alerts.Edit"], currentRoute.id),
+      admin: includes(["Admin.Overview", "Admin.SystemStatus", "Admin.Jobs", "Admin.OutdatedQueries"], currentRoute.id),
     }),
     [currentRoute.id]
   );
@@ -103,6 +104,26 @@ export default function DesktopNavbar() {
           </Link>
         </Menu.Item>
       )}
+    </Menu>
+  );
+
+  // Everything an admin does, in one place. These pages existed already and
+  // were reachable only through the profile menu, filed next to "Log out" --
+  // which is not where anyone looks when the instance is slow.
+  const adminMenu = (
+    <Menu className="desktop-navbar-dropdown-menu">
+      <Menu.Item key="admin-overview">
+        <Link href="admin/overview">Overview</Link>
+      </Menu.Item>
+      <Menu.Item key="admin-status">
+        <Link href="admin/status">System Status</Link>
+      </Menu.Item>
+      <Menu.Item key="admin-jobs">
+        <Link href="admin/queries/jobs">RQ Status</Link>
+      </Menu.Item>
+      <Menu.Item key="admin-outdated">
+        <Link href="admin/queries/outdated">Outdated Queries</Link>
+      </Menu.Item>
     </Menu>
   );
 
@@ -151,6 +172,16 @@ export default function DesktopNavbar() {
           <NavLink href="alerts" active={activeState.alerts}>
             Alerts
           </NavLink>
+        )}
+        {currentUser.hasPermission("super_admin") && (
+          <Dropdown overlay={adminMenu} trigger={["click"]} placement="bottomLeft">
+            <PlainButton
+              className={cx("desktop-navbar-link", { "desktop-navbar-link-active": activeState.admin })}
+              data-test="AdminMenuButton"
+            >
+              Admin
+            </PlainButton>
+          </Dropdown>
         )}
       </div>
 

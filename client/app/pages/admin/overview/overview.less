@@ -1,0 +1,203 @@
+/* The admin overview.
+
+   Four panels that answer four different questions, kept visually separate so
+   nobody reads a number from one under the heading of another -- "running"
+   and "who is asking" count different populations. */
+
+.admin-overview-page {
+  padding: var(--sp-5);
+}
+
+.admin-overview-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--sp-5);
+}
+
+.admin-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+  background: var(--color-surface);
+  min-width: 0;
+}
+
+/* "Running now" is the one people come here for, so it gets the full width
+   when there is room for two columns. */
+.admin-panel:first-child {
+  grid-column: 1 / -1;
+}
+
+.admin-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+
+  h2 {
+    margin: 0;
+    font-size: var(--fs-title);
+    font-weight: 600;
+  }
+}
+
+.admin-panel-note {
+  margin: 2px 0 var(--sp-4);
+  font-size: var(--fs-small);
+  color: var(--color-text-muted);
+}
+
+.admin-muted {
+  color: var(--color-text-muted);
+}
+
+/* --- meters --- */
+
+.admin-meter {
+  margin-bottom: var(--sp-4);
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.admin-meter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin-bottom: 5px;
+  font-size: var(--fs-small);
+}
+
+.admin-meter-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+.admin-meter-track {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.admin-meter-fill {
+  height: 100%;
+  background: var(--color-good);
+  transition: width 200ms linear;
+}
+
+/* The whole point of the bar: you should not have to read the numbers to see
+   that something is about to run out. */
+.admin-meter[data-level="watch"] .admin-meter-fill {
+  background: var(--color-warning);
+}
+
+.admin-meter[data-level="critical"] .admin-meter-fill {
+  background: var(--color-critical);
+}
+
+.admin-meter[data-level="unknown"] .admin-meter-fill {
+  background: var(--color-text-subtle);
+}
+
+.admin-meter-note {
+  margin-top: 4px;
+  font-size: var(--fs-micro);
+  color: var(--color-text-muted);
+}
+
+.admin-queued {
+  margin-top: var(--sp-4);
+  font-size: var(--fs-small);
+  color: var(--color-text-muted);
+
+  &[data-backing-up="true"] {
+    color: var(--color-warning);
+    font-weight: 500;
+  }
+}
+
+/* --- running --- */
+
+.admin-elapsed {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- who is asking --- */
+
+.admin-activity-summary {
+  display: flex;
+  gap: var(--sp-5);
+  margin-bottom: var(--sp-4);
+  font-size: var(--fs-small);
+  color: var(--color-text-muted);
+
+  strong {
+    color: var(--color-text);
+    font-size: var(--fs-heading);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.admin-top-users {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    display: grid;
+    grid-template-columns: minmax(80px, 1fr) 2fr auto;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: 3px 0;
+    font-size: var(--fs-small);
+  }
+}
+
+.admin-top-user-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-top-user-bar {
+  display: block;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+
+  span {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--color-action);
+  }
+}
+
+.admin-top-user-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+/* --- storage --- */
+
+.admin-storage {
+  margin: 0;
+
+  dt {
+    font-weight: 400;
+    font-size: var(--fs-small);
+    color: var(--color-text-muted);
+  }
+
+  dd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    margin: 0 0 var(--sp-4);
+    font-variant-numeric: tabular-nums;
+  }
+}
