@@ -67,7 +67,11 @@ describe("Visualizations -> Chart -> ECharts -> bubble", () => {
       options({ globalSeriesType: "bubble", series: { stacking: "stack" } })
     );
 
-    expect(built.option.series[0].stack).toBeUndefined();
+    // Falsy, not specifically `undefined`. It is `null` now, because leaving
+    // the property out let a merge keep a stack set by a previous option --
+    // the same fault that kept a line stepped after it was changed to a
+    // spline. What matters here is that nothing stacks these.
+    expect(built.option.series[0].stack).toBeFalsy();
   });
 });
 

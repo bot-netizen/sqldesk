@@ -287,27 +287,39 @@ function buildCartesianSeries(
     }
     if (echartsType === "line") {
       built.showSymbol = points.length <= 200;
+      // Both properties, always, whatever the shape. Options go into a live
+      // chart with `notMerge: false` whenever the data's shape has not
+      // changed -- which is every time somebody only changes this dropdown --
+      // so ECharts merges the new series over the old. A property the new
+      // option leaves out keeps whatever the previous one set: choosing
+      // Spline after Horizontal-Vertical left `step: "end"` in place and the
+      // chart stayed a staircase, however smooth it was told to be.
       built.smooth = options.lineShape === "spline";
-      if (options.lineShape === "hv") {
-        built.step = "end";
-      }
+      // "end" turns at the end of each segment -- horizontal, then vertical.
+      // "start" turns at the beginning -- vertical, then horizontal. `vh` was
+      // offered in the editor and handled nowhere, so it drew a plain line.
+      built.step = { hv: "end", vh: "start" }[options.lineShape as string] ?? false;
       // Downsample long series for drawing only; the data itself is untouched.
       built.sampling = "lttb";
     }
-    if (stacking && !isScatterLike) {
-      built.stack = "total";
-    }
-    if (showLabels) {
-      built.label = {
-        show: true,
-        position: isArea || echartsType === "line" ? "top" : "inside",
-        formatter: (params: any) =>
-          formatNumber(Array.isArray(params.value) ? params.value[horizontal ? 0 : 1] : params.value),
-        // The number itself counts from the old value to the new one instead of
-        // snapping. This is the "2 to 4 in motion" part.
-        valueAnimation: true,
-      };
-    }
+    // Stated either way, for the same reason as `step` above: neither
+    // stacking nor data labels is part of the signature, so toggling one is
+    // pushed into the chart as a merge. Omitting the property on the way off
+    // left the chart stacked, and left the labels showing.
+    built.stack = stacking && !isScatterLike ? "total" : null;
+    built.label = showLabels
+      ? {
+          show: true,
+          position: isArea || echartsType === "line" ? "top" : "inside",
+          formatter: (params: any) =>
+            formatNumber(Array.isArray(params.value) ? params.value[horizontal ? 0 : 1] : params.value),
+          // The number itself counts from the old value to the new one instead
+          // of snapping. This is the "2 to 4 in motion" part.
+          valueAnimation: true,
+        }
+      : // Said out loud, not omitted: turning labels off is a merge, and a
+        // missing `label` leaves the previous one showing.
+        { show: false };
 
     const offset = overrides.type === "column" && !stacking ? barCentreOffset(barSlot++, barCount) : 0;
     const errorSeries = buildErrorBarSeries(
