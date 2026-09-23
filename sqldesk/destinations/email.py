@@ -65,7 +65,14 @@ class Email(BaseDestination):
                         "image/png",
                         png,
                         disposition="inline",
-                        headers={"Content-ID": f"<{cid}>"},
+                        # A list of pairs, not a dict: flask_mail does
+                        # `for key, value in attachment.headers`, and iterating
+                        # a dict hands it bare strings to unpack. A dict here
+                        # raised only when the message was serialised, which a
+                        # test with a mocked mailer never does -- so this got
+                        # through unit tests and fell over on the first real
+                        # send.
+                        headers=[("Content-ID", f"<{cid}>")],
                     )
                     parts.append(f'<div style="margin-top:16px"><img src="cid:{cid}" style="max-width:100%"></div>')
                 message.html = html + "".join(parts)

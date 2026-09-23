@@ -50,6 +50,19 @@ def _render(url, headers, wait_for, timeout_seconds, full_page):
                 # Twice the pixels, so text in the image is not soft on the
                 # screen somebody reads the email on.
                 device_scale_factor=2,
+                # A still picture of a chart that animates itself into view is
+                # a picture of it half drawn. Measured: a sparkline's area fill
+                # reached 74% of its width at the moment of capture while the
+                # final point was already in place -- the shape was wrong in a
+                # way that looked like missing data rather than an artefact.
+                #
+                # Asking for reduced motion rather than reaching into the
+                # charts: the application already turns ECharts animation off
+                # for anyone whose system asks for it, so the renderer just
+                # says it is one of those viewers and every visualization
+                # settles instantly, with no rendering code that exists only
+                # for screenshots.
+                reduced_motion="reduce",
                 extra_http_headers=headers or {},
             )
             page = context.new_page()

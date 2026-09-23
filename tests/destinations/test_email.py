@@ -41,7 +41,16 @@ class TestEmailAttachments(BaseTestCase):
             )
 
         self.assertTrue(mail.send.called, "the alert should have been sent")
-        return mail.send.call_args[0][0]
+        message = mail.send.call_args[0][0]
+
+        # Serialised, not just inspected. A mocked mailer never builds the
+        # MIME message, so a malformed attachment header sails through every
+        # assertion below and then raises on the first real send -- which is
+        # exactly what happened: flask_mail iterates `attachment.headers` as
+        # (key, value) pairs and a dict blew up on unpack.
+        message.as_bytes()
+
+        return message
 
     def test_carries_each_picture(self):
         message = self._notify({"screenshots": [("a.png", b"PNG-A"), ("b.png", b"PNG-B")]})
@@ -76,3 +85,18 @@ class TestEmailAttachments(BaseTestCase):
         message = self._notify(None)
 
         self.assertEqual(message.attachments, [])
+
+    def test_the_message_survives_being_turned_into_an_email(self):
+        """
+        The check the mocked mailer cannot make.
+
+        Everything else here inspects the Message object. This one builds the
+        MIME bytes the SMTP server would actually receive, which is where a
+        malformed attachment header shows up.
+        """
+        message = self._notify({"screenshots": [("a.png", b"PNG-A")]})
+        raw = message.as_bytes()
+
+        self.assertIn(b"Content-ID: <sqldesk-attachment-0>", raw)
+        self.assertIn(b"image/png", raw)
+        self.assertIn(b"inline", raw)
