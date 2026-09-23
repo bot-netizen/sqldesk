@@ -424,6 +424,18 @@ class QueryResult(db.Model, BelongsToOrgMixin):
     retrieved_at = Column(db.DateTime(True))
 
     __tablename__ = "query_results"
+    # What `get_latest` asks for, in the order it asks: this hash, this data
+    # source, newest first. With only `query_hash` indexed it found every
+    # result for the hash, filtered by data source and sorted the remainder --
+    # on every cache lookup.
+    __table_args__ = (
+        db.Index(
+            "ix_query_results_lookup",
+            "query_hash",
+            "data_source_id",
+            retrieved_at.desc(),
+        ),
+    )
 
     def __str__(self):
         return "%d | %s | %s" % (self.id, self.query_hash, self.retrieved_at)
