@@ -1,7 +1,7 @@
 import { MONO, SANS } from "@/visualizations/shared/valueOptions";
 import { formatValue, thresholdBands, thresholdColor, resolveColor, uiColor, toNumber } from "../shared/valueOptions";
 import { pickRow, hasColumn, ColumnLike } from "../shared/rows";
-import { GaugeOptions } from "./getOptions";
+import { GaugeOptions, GaugeStyle } from "./getOptions";
 import { ENTER_DURATION, ENTER_EASING, UPDATE_DURATION, UPDATE_EASING } from "../shared/motion";
 
 export interface GaugeData {
@@ -20,8 +20,36 @@ export interface BuiltGauge {
 /** Clear air between an end label and the arc above it. */
 const LABEL_GAP = 5;
 
-/** Where the half arc's centre sits down the widget. */
-const HALF_CENTRE_Y = 0.72;
+/**
+ * Where each style puts its arc.
+ *
+ * One place, because this was declared four times -- the main series, the
+ * half style's end-label series, the target marker's angles, and the target
+ * marker's radius again as a bare number -- and the four had already drifted:
+ * the half style's centre was a constant in one and the literal "72%" in
+ * another. Changing a gauge's proportions meant editing all four and getting
+ * them to agree.
+ *
+ * `centreY` and `radiusShare` are fractions so the arithmetic (the target
+ * marker needs the radius as a number) and the option (ECharts wants a
+ * percentage string) come from the same figure.
+ */
+const GEOMETRY: Record<GaugeStyle, { startAngle: number; endAngle: number; radiusShare: number; centreY: number }> = {
+  needle: { startAngle: 215, endAngle: -35, radiusShare: 0.9, centreY: 0.58 },
+  half: { startAngle: 180, endAngle: 0, radiusShare: 0.96, centreY: 0.72 },
+  ring: { startAngle: 90, endAngle: -270, radiusShare: 0.86, centreY: 0.5 },
+};
+
+/** The four ECharts options that place a gauge's arc, from one style. */
+function placement(style: GaugeStyle) {
+  const g = GEOMETRY[style];
+  return {
+    startAngle: g.startAngle,
+    endAngle: g.endAngle,
+    radius: `${g.radiusShare * 100}%`,
+    center: ["50%", `${g.centreY * 100}%`],
+  };
+}
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
@@ -107,7 +135,7 @@ export default function buildOption(
   // below the baseline. What there is, is a second gauge -- the same trick
   // this file already uses for the target marker -- centred a little lower,
   // drawing nothing but those two labels.
-  const halfCentreY = HALF_CENTRE_Y * size.height;
+  const halfCentreY = GEOMETRY.half.centreY * size.height;
   // Clear of the arc by a few pixels, measured from the text's top edge.
   const endLabelDrop = tickSize / 2 + LABEL_GAP;
 
@@ -145,10 +173,7 @@ export default function buildOption(
     series = [
       {
         ...common,
-        startAngle: 215,
-        endAngle: -35,
-        radius: "90%",
-        center: ["50%", "58%"],
+        ...placement("needle"),
         splitNumber: 5,
         axisLine: { lineStyle: { width, color: bands } },
         pointer: { length: "60%", width: Math.max(3, Math.round(width / 3)), itemStyle: { color: ink } },
@@ -176,10 +201,7 @@ export default function buildOption(
     series = [
       {
         ...common,
-        startAngle: half ? 180 : 90,
-        endAngle: half ? 0 : -270,
-        radius: half ? "96%" : "86%",
-        center: half ? ["50%", `${HALF_CENTRE_Y * 100}%`] : ["50%", "50%"],
+        ...placement(half ? "half" : "ring"),
         pointer: { show: false },
         progress: { show: true, overlap: false, roundCap: !half, clip: false, width, itemStyle: { color: valueColor } },
         axisLine: { lineStyle: { width, color: [[1, track]] } },
@@ -204,9 +226,10 @@ export default function buildOption(
         type: "gauge",
         min,
         max,
-        startAngle: 180,
-        endAngle: 0,
-        radius: "96%",
+        ...placement("half"),
+        // The same arc, a few pixels lower, so its labels land under the ends
+        // of the real one. Pixels rather than a percentage: the drop is a text
+        // measurement, not a share of the box.
         center: ["50%", halfCentreY + endLabelDrop],
         silent: true,
         animation: false,
@@ -236,14 +259,7 @@ export default function buildOption(
   }
 
   if (target !== null && Number.isFinite(target)) {
-    const radiusShare = options.style === "needle" ? 0.9 : options.style === "half" ? 0.96 : 0.86;
-    const arcShare = Math.min(0.4, width / ((side / 2) * radiusShare));
-    const angles =
-      options.style === "needle"
-        ? { startAngle: 215, endAngle: -35, radius: "90%", center: ["50%", "58%"] }
-        : options.style === "half"
-          ? { startAngle: 180, endAngle: 0, radius: "96%", center: ["50%", "72%"] }
-          : { startAngle: 90, endAngle: -270, radius: "86%", center: ["50%", "50%"] };
+    const arcShare = Math.min(0.4, width / ((side / 2) * GEOMETRY[options.style].radiusShare));
     // A second, bare gauge whose only visible part is a short pointer sitting
     // on the arc: ECharts has no marker for gauges, and this is how its own
     // examples place one.
@@ -251,7 +267,7 @@ export default function buildOption(
       type: "gauge",
       min,
       max,
-      ...angles,
+      ...placement(options.style),
       silent: true,
       z: 5,
       axisLine: { show: false },

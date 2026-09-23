@@ -217,4 +217,31 @@ describe("Visualizations -> Gauge -> tick labels", () => {
     );
     expect(option.series[0].axisLabel.formatter(0.2)).toBe("0.2");
   });
+
+  describe("every part of a gauge sits on the same arc", () => {
+    // The arc used to be written out four times -- dial, end labels, the
+    // marker's angles, the marker's radius again as a number -- so a target
+    // marker could end up on a circle the dial was not drawn on.
+    test.each(["needle", "half", "ring"])("%s", (style) => {
+      const { option } = build({ valueColumn: "p95", style, target: 400, min: 0, max: 1000 });
+      const dial = option.series[0];
+      const marker = option.series[option.series.length - 1];
+
+      expect(option.series.length).toBeGreaterThan(1);
+      expect(marker.startAngle).toBe(dial.startAngle);
+      expect(marker.endAngle).toBe(dial.endAngle);
+      expect(marker.radius).toBe(dial.radius);
+      expect(marker.center).toEqual(dial.center);
+    });
+
+    test("except the half style's end labels, which are deliberately lower", () => {
+      const { option } = build({ valueColumn: "p95", style: "half", min: 0, max: 1000 });
+      const [dial, labels] = option.series;
+
+      expect(labels.radius).toBe(dial.radius);
+      expect(labels.startAngle).toBe(dial.startAngle);
+      // Pixels, a few below the arc's own centre, which is 72% of 240.
+      expect(labels.center[1]).toBeGreaterThan(0.72 * 240);
+    });
+  });
 });
