@@ -188,6 +188,22 @@ class TestForAlert(BaseTestCase):
             self.assertEqual(screenshots.for_alert(alert), [])
         post.assert_not_called()
 
+    def test_takes_the_name_from_the_object_not_the_alert(self):
+        # The name saved on the alert goes stale the moment anybody renames
+        # the dashboard, and a picture labelled with last month's name is
+        # worse than one labelled with none.
+        alert, query = self._alert_with([])
+        alert.options["attachments"] = [{"type": "query", "id": query.id, "name": "what it used to be called"}]
+        query.name = "what it is called now"
+        db.session.commit()
+
+        with _on(), mock.patch("sqldesk.screenshots.requests.post") as post:
+            post.return_value = mock.Mock(content=b"PNG", raise_for_status=mock.Mock())
+
+            images = screenshots.for_alert(alert)
+
+        self.assertEqual(images[0]["title"], "what it is called now")
+
     def test_draws_each_attachment(self):
         alert, query = self._alert_with([{"type": "query", "id": None}])
         alert.options["attachments"] = [{"type": "query", "id": query.id}]
@@ -198,7 +214,12 @@ class TestForAlert(BaseTestCase):
 
             images = screenshots.for_alert(alert)
 
-        self.assertEqual(images, [(f"query-{query.id}.png", b"PNG")])
+        self.assertEqual(len(images), 1)
+        self.assertEqual(images[0]["filename"], f"query-{query.id}.png")
+        self.assertEqual(images[0]["image"], b"PNG")
+        # Named, so the email can say what each picture is of.
+        self.assertEqual(images[0]["title"], query.name)
+        self.assertEqual(images[0]["kind"], "query")
 
     def test_never_more_than_the_cap(self):
         # An alert carrying twenty dashboards takes minutes to send and
@@ -229,7 +250,7 @@ class TestForAlert(BaseTestCase):
 
             images = screenshots.for_alert(alert)
 
-        self.assertEqual(images, [(f"query-{other.id}.png", b"PNG")])
+        self.assertEqual([i["filename"] for i in images], [f"query-{other.id}.png"])
 
     def test_an_alert_with_no_attachments_asks_for_nothing(self):
         alert, _ = self._alert_with([])

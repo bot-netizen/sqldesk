@@ -4,6 +4,10 @@ from sqldesk.destinations.email import Email
 from tests import BaseTestCase
 
 
+def _picture(filename, image, title, kind="query"):
+    return {"filename": filename, "image": image, "title": title, "kind": kind}
+
+
 class TestEmailAttachments(BaseTestCase):
     """
     The pictures an alert was told to attach, arriving in the email.
@@ -53,14 +57,16 @@ class TestEmailAttachments(BaseTestCase):
         return message
 
     def test_carries_each_picture(self):
-        message = self._notify({"screenshots": [("a.png", b"PNG-A"), ("b.png", b"PNG-B")]})
+        message = self._notify(
+            {"screenshots": [_picture("a.png", b"PNG-A", "Revenue by region"), _picture("b.png", b"PNG-B", "Orders")]}
+        )
 
         self.assertEqual(len(message.attachments), 2)
         self.assertEqual([a.filename for a in message.attachments], ["a.png", "b.png"])
         self.assertEqual(message.attachments[0].content_type, "image/png")
 
     def test_shows_them_in_the_body(self):
-        message = self._notify({"screenshots": [("a.png", b"PNG-A")]})
+        message = self._notify({"screenshots": [_picture("a.png", b"PNG-A", "Revenue by region")]})
 
         # Referenced by the content-id the attachment was given, or the image
         # is carried and never displayed.
@@ -74,7 +80,9 @@ class TestEmailAttachments(BaseTestCase):
     def test_leaves_a_custom_body_alone(self):
         # Somebody who wrote their own body wrote all of it. Appending to it
         # is not ours to do.
-        message = self._notify({"screenshots": [("a.png", b"PNG-A")]}, custom_body="Just this.")
+        message = self._notify(
+            {"screenshots": [_picture("a.png", b"PNG-A", "Revenue by region")]}, custom_body="Just this."
+        )
 
         self.assertEqual(message.html, "Just this.")
         self.assertEqual(message.attachments, [])
@@ -94,9 +102,32 @@ class TestEmailAttachments(BaseTestCase):
         MIME bytes the SMTP server would actually receive, which is where a
         malformed attachment header shows up.
         """
-        message = self._notify({"screenshots": [("a.png", b"PNG-A")]})
+        message = self._notify({"screenshots": [_picture("a.png", b"PNG-A", "Revenue by region")]})
         raw = message.as_bytes()
 
         self.assertIn(b"Content-ID: <sqldesk-attachment-0>", raw)
         self.assertIn(b"image/png", raw)
         self.assertIn(b"inline", raw)
+
+    def test_names_each_picture_in_the_body(self):
+        """
+        Many clients block images by default.
+
+        An unlabelled image that does not load is a blank box telling the
+        reader nothing, and an alert can carry five of them.
+        """
+        message = self._notify({"screenshots": [_picture("a.png", b"PNG-A", "Revenue by region", kind="dashboard")]})
+
+        self.assertIn("Revenue by region", message.html)
+        self.assertIn("Dashboard", message.html)
+
+    def test_describes_the_picture_to_anyone_who_cannot_see_it(self):
+        message = self._notify({"screenshots": [_picture("a.png", b"PNG-A", "Revenue by region")]})
+
+        self.assertIn('alt="Revenue by region"', message.html)
+
+    def test_a_name_with_html_in_it_cannot_break_the_body(self):
+        message = self._notify({"screenshots": [_picture("a.png", b"PNG-A", '<script>x</script>&"')]})
+
+        self.assertNotIn("<script>", message.html)
+        self.assertIn("&lt;script&gt;", message.html)

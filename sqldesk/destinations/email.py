@@ -1,4 +1,5 @@
 import logging
+from html import escape
 
 from flask_mail import Message
 
@@ -58,12 +59,12 @@ class Email(BaseDestination):
             images = (metadata or {}).get("screenshots") or []
             if images and not alert.custom_body:
                 parts = []
-                for index, (filename, png) in enumerate(images):
+                for index, picture in enumerate(images):
                     cid = f"sqldesk-attachment-{index}"
                     message.attach(
-                        filename,
+                        picture["filename"],
                         "image/png",
-                        png,
+                        picture["image"],
                         disposition="inline",
                         # A list of pairs, not a dict: flask_mail does
                         # `for key, value in attachment.headers`, and iterating
@@ -74,7 +75,20 @@ class Email(BaseDestination):
                         # send.
                         headers=[("Content-ID", f"<{cid}>")],
                     )
-                    parts.append(f'<div style="margin-top:16px"><img src="cid:{cid}" style="max-width:100%"></div>')
+                    # Named in text as well as in the picture. Many clients
+                    # block images by default, and an unlabelled image that
+                    # does not load is a blank box telling the reader nothing
+                    # -- the same reason the `alt` is the title and not a
+                    # decorative word.
+                    title = escape(picture.get("title") or picture["filename"])
+                    kind = escape((picture.get("kind") or "").title())
+                    parts.append(
+                        f'<div style="margin-top:20px">'
+                        f'<div style="font:600 13px/1.4 sans-serif;color:#6f6b66;margin-bottom:6px">'
+                        f"{kind}: {title}</div>"
+                        f'<img src="cid:{cid}" alt="{title}" style="max-width:100%;border:1px solid #e8e5e1">'
+                        f"</div>"
+                    )
                 message.html = html + "".join(parts)
 
             mail.send(message)

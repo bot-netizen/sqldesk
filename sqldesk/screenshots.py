@@ -151,7 +151,11 @@ def _load(kind, object_id, org):
 
 def for_alert(alert):
     """
-    Every picture an alert asks for, as [(filename, png)].
+    Every picture an alert asks for.
+
+    Each one carries its own title as well as its bytes, because the email has
+    to name them: a recipient whose client blocks images -- which many do by
+    default -- otherwise gets five empty boxes saying nothing at all.
 
     Capped, and the cap is the point: an alert carrying twenty dashboards
     would take minutes to send and arrive as something nobody opens.
@@ -173,6 +177,15 @@ def for_alert(alert):
         if image is None:
             continue
 
-        images.append((f"{kind}-{obj.id}.png", image))
+        images.append(
+            {
+                "filename": f"{kind}-{obj.id}.png",
+                "image": image,
+                # The object's own name, read now rather than the one saved on
+                # the alert, which goes stale the moment anybody renames it.
+                "title": obj.name,
+                "kind": kind,
+            }
+        )
 
     return images

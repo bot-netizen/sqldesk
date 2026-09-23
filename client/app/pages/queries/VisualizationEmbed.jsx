@@ -214,9 +214,12 @@ function VisualizationEmbed({ queryId, visualizationId, apiKey, onError }) {
     return null;
   }
 
-  // A picture of a chart should be a chart. In screenshot mode the chrome
-  // goes whether or not the caller remembered to ask for each piece of it.
-  const hideHeader = screenshot || has(location.search, "hide_header");
+  // In screenshot mode the chrome goes whether or not the caller remembered
+  // to ask for each piece of it -- except the name. An alert can carry five
+  // of these, and five anonymous charts are five puzzles; the heading is what
+  // makes each picture say what it is of. A dashboard keeps its name the same
+  // way, so the two kinds of attachment are consistent.
+  const hideHeader = has(location.search, "hide_header");
   const hideParametersUI = screenshot || has(location.search, "hide_parameters");
   const hideQueryLink = screenshot || has(location.search, "hide_link");
   const hideTimestamp = screenshot || has(location.search, "hide_timestamp");
