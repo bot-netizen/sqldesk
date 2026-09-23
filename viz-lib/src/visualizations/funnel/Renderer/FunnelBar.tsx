@@ -12,7 +12,9 @@ type OwnProps = {
 };
 
 const funnelBarDefaultProps = {
-  color: "#dadada",
+  // The track a percentage bar is drawn on, as a token: the hex it used to be
+  // was invisible on the dark wall display.
+  color: "var(--color-border, #dadada)",
   value: 0.0,
   align: "left",
   className: null,

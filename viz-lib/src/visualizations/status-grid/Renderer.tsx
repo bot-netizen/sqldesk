@@ -2,6 +2,7 @@ import React, { useMemo, useRef } from "react";
 import cx from "classnames";
 import { RendererPropTypes } from "@/visualizations/prop-types";
 import { resolveColor, washColor } from "../shared/valueOptions";
+import Problem from "../shared/components/Problem";
 import buildTiles, { STATUS_SHAPES } from "./buildTiles";
 import "./renderer.less";
 
@@ -26,7 +27,7 @@ export default function Renderer({ data, options }: any) {
   }, [tiles]);
 
   if (problem) {
-    return <p className="status-grid-problem">{problem}</p>;
+    return <Problem>{problem}</Problem>;
   }
 
   return (

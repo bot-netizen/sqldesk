@@ -4,6 +4,7 @@ import echarts from "@/visualizations/echarts";
 import useEChart from "@/visualizations/echarts/useEChart";
 import { CalendarComponent } from "echarts/components";
 import useElementSize from "../shared/useElementSize";
+import Problem from "../shared/components/Problem";
 import buildOption from "./buildOption";
 import "./renderer.less";
 
@@ -27,7 +28,7 @@ export default function Renderer({ data, options }: any) {
   return (
     <div className="calendar-visualization-container" ref={setBox}>
       {built.problem ? (
-        <p className="calendar-visualization-problem">{built.problem}</p>
+        <Problem>{built.problem}</Problem>
       ) : (
         <React.Fragment>
           {/* The calendar takes the height it needs to stay legible, and the

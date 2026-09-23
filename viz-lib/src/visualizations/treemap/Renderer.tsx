@@ -3,6 +3,7 @@ import { RendererPropTypes } from "@/visualizations/prop-types";
 import echarts from "@/visualizations/echarts";
 import useEChart from "@/visualizations/echarts/useEChart";
 import { TreemapChart } from "echarts/charts";
+import Problem from "../shared/components/Problem";
 import buildOption from "./buildOption";
 import "./renderer.less";
 
@@ -16,7 +17,7 @@ export default function Renderer({ data, options }: any) {
   if (built.problem) {
     return (
       <div className="treemap-visualization-container">
-        <p className="treemap-visualization-problem">{built.problem}</p>
+        <Problem>{built.problem}</Problem>
       </div>
     );
   }

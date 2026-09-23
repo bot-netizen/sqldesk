@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { RendererPropTypes } from "@/visualizations/prop-types";
 import useEChart from "@/visualizations/echarts/useEChart";
 import useElementSize from "../shared/useElementSize";
+import Problem from "../shared/components/Problem";
 import buildOption from "./buildOption";
 import "./renderer.less";
 
@@ -20,7 +21,7 @@ export default function Renderer({ data, options }: any) {
   return (
     <div className="gauge-visualization-container" ref={setBox}>
       {built.problem ? (
-        <p className="gauge-visualization-problem">{built.problem}</p>
+        <Problem>{built.problem}</Problem>
       ) : (
         <div className="gauge-visualization-chart" ref={setContainer} />
       )}

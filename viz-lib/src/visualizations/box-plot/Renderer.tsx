@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { RendererPropTypes } from "@/visualizations/prop-types";
 import useEChart from "@/visualizations/echarts/useEChart";
 
+import Problem from "../shared/components/Problem";
 import buildOption from "./buildOption";
 import "./renderer.less";
 
@@ -12,7 +13,7 @@ export default function Renderer({ data, options }: any) {
   if (built.problem) {
     return (
       <div className="box-plot-deprecated-visualization-container">
-        <p className="box-plot-deprecated-visualization-problem">{built.problem}</p>
+        <Problem>{built.problem}</Problem>
       </div>
     );
   }

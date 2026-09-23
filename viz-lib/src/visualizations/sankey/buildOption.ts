@@ -1,5 +1,6 @@
 import { every, filter, find, isFinite, isNaN, isNil, isNumber, isString, keys, map, mapValues, sortBy } from "lodash";
 import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
+import { NO_ROWS } from "@/visualizations/shared/components/Problem";
 
 // The data shape is the inherited one: up to five stage columns plus a `value`
 // column, one row per path through the stages. That contract is unchanged --
@@ -139,12 +140,22 @@ export function prepareDataRows(rows: any[]) {
   );
 }
 
-export function isDataValid(data: any): boolean {
-  // Without a `value` column there is nothing to weight the flows by.
-  if (!data || !find(data.columns, (c: any) => c.name === "value")) {
-    return false;
+/**
+ * Why this data cannot be drawn, in words for the reader -- or null.
+ *
+ * Split out of `isDataValid` because an empty box tells nobody which of the
+ * three things is wrong, and the three are fixed in different places: the
+ * query, the editor, the data.
+ */
+export function problemWith(data: any): string | null {
+  if (!data || !data.rows || data.rows.length === 0) {
+    return NO_ROWS;
   }
-  return every(data.rows, (row: any) =>
+  // Without a `value` column there is nothing to weight the flows by.
+  if (!find(data.columns, (c: any) => c.name === "value")) {
+    return "This needs a column named “value”: it is what weights the flows.";
+  }
+  const allNumeric = every(data.rows, (row: any) =>
     every(row, (v: any) => {
       if (!v || isString(v)) {
         return true;
@@ -152,17 +163,21 @@ export function isDataValid(data: any): boolean {
       return isFinite(v);
     })
   );
+  return allNumeric ? null : "Every value must be a number or a label.";
 }
 
 export interface BuiltSankey {
   option: any;
   signature: string;
+  /** Said to the reader, instead of an empty box. Null when there is a chart. */
+  problem: string | null;
 }
 
 export default function buildOption(data: any): BuiltSankey {
   const rows = prepareDataRows(data.rows);
-  if (!isDataValid({ ...data, rows })) {
-    return { option: { series: [] }, signature: "invalid" };
+  const problem = problemWith({ ...data, rows });
+  if (problem) {
+    return { option: { series: [] }, signature: "invalid", problem };
   }
 
   const { nodes, links } = buildGraph(rows);
@@ -201,5 +216,5 @@ export default function buildOption(data: any): BuiltSankey {
   };
 
   // The set of nodes is the shape; the same nodes with new weights can tween.
-  return { option, signature: JSON.stringify(map(nodes, "name")) };
+  return { option, signature: JSON.stringify(map(nodes, "name")), problem: null };
 }

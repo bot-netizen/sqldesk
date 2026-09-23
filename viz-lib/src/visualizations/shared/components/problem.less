@@ -1,0 +1,17 @@
+.visualization-problem {
+  // `min-height` rather than `height`, so this works in both kinds of box it
+  // is put in: one with a height of its own (a gauge fills its widget) centres
+  // the message, and one that grows with its content is just a padded
+  // paragraph. `border-box`, or the padding would push it past the 100%.
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  margin: 0;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--color-text-muted, #6f6b66);
+  font-size: 13px;
+}

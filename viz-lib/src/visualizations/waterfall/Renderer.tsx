@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { RendererPropTypes } from "@/visualizations/prop-types";
 import useEChart from "@/visualizations/echarts/useEChart";
+import Problem from "../shared/components/Problem";
 import buildOption from "./buildOption";
 import "./renderer.less";
 
@@ -11,7 +12,7 @@ export default function Renderer({ data, options }: any) {
   if (built.problem) {
     return (
       <div className="waterfall-visualization-container">
-        <p className="waterfall-visualization-problem">{built.problem}</p>
+        <Problem>{built.problem}</Problem>
       </div>
     );
   }

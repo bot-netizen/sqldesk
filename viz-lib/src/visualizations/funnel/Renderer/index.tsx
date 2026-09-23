@@ -3,22 +3,17 @@ import React, { useMemo } from "react";
 import Table from "antd/lib/table";
 import Tooltip from "antd/lib/tooltip";
 import { RendererPropTypes } from "@/visualizations/prop-types";
-import ColorPalette from "@/visualizations/ColorPalette";
+import { AllColorPaletteArrays, resolveColorScheme, DEFAULT_COLOR_SCHEME } from "@/visualizations/ColorPalette";
 import { createNumberFormatter } from "@/lib/value-format";
+import Problem, { NO_ROWS } from "@/visualizations/shared/components/Problem";
 
 import prepareData from "./prepareData";
 import FunnelBar from "./FunnelBar";
 import DrawnFunnel from "./DrawnFunnel";
 import "./index.less";
 
-function generateRowKeyPrefix() {
-  return Math.trunc(Math.random() * Number.MAX_SAFE_INTEGER).toString(36) + ":";
-}
-
 export default function Renderer({ data, options }: any) {
   const funnelData = useMemo(() => prepareData(data.rows, options), [data, options]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const rowKeyPrefix = useMemo(() => generateRowKeyPrefix(), [funnelData]);
 
   const formatValue = useMemo(() => createNumberFormatter(options.numberFormat), [options.numberFormat]);
 
@@ -34,6 +29,14 @@ export default function Renderer({ data, options }: any) {
       return format(value);
     };
   }, [options.percentFormat, options.percentValuesRange]);
+
+  // The same colour the drawn shape starts on, and the theme's, rather than
+  // the one hex the table look was written with in 2017 -- a cyan that belongs
+  // to no palette we ship and does not follow the dark wall display.
+  const barColor = useMemo(() => {
+    const palette = (AllColorPaletteArrays as any)[resolveColorScheme(DEFAULT_COLOR_SCHEME)];
+    return palette[0];
+  }, []);
 
   const columns = useMemo(() => {
     if (funnelData.length === 0) {
@@ -61,7 +64,7 @@ export default function Renderer({ data, options }: any) {
         align: "center",
         render: (value: any, item: any) => (
           // @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message
-          <FunnelBar align="center" color={ColorPalette.Cyan} value={item.pctMax}>
+          <FunnelBar align="center" color={barColor} value={item.pctMax}>
             {formatValue(value)}
           </FunnelBar>
         ),
@@ -86,10 +89,19 @@ export default function Renderer({ data, options }: any) {
         ),
       },
     ];
-  }, [options.stepCol.displayAs, options.valueCol.displayAs, funnelData, formatValue, formatPercentValue]);
+  }, [options.stepCol.displayAs, options.valueCol.displayAs, funnelData, formatValue, formatPercentValue, barColor]);
 
   if (funnelData.length === 0) {
-    return null;
+    // It used to render nothing at all -- an empty widget, with no way to tell
+    // a query that returned nothing from a funnel that was never finished
+    // being set up.
+    return (
+      <Problem>
+        {!options.stepCol.colName || !options.valueCol.colName
+          ? "Choose a step column and a value column in the editor."
+          : NO_ROWS}
+      </Problem>
+    );
   }
 
   if (options.shape === "funnel") {
@@ -113,7 +125,11 @@ export default function Renderer({ data, options }: any) {
         // @ts-expect-error ts-migrate(2322) FIXME: Type '({ title: any; dataIndex: string; width: str... Remove this comment to see the full error message
         columns={columns}
         dataSource={funnelData}
-        rowKey={(record, index) => rowKeyPrefix + index}
+        // A step's identity is its position in the funnel. The key used to
+        // carry a random prefix regenerated on every data change, so every row
+        // was torn down and rebuilt on every refresh -- on a live dashboard,
+        // every few seconds, for a table whose contents React can just update.
+        rowKey={(record, index) => String(index)}
         pagination={false}
       />
     </div>

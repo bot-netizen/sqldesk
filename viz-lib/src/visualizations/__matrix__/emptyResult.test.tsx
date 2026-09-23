@@ -27,6 +27,14 @@ import gaugeOptions from "../gauge/getOptions";
 import buildProgress from "../progress/buildOption";
 import progressOptions from "../progress/getOptions";
 import buildBoxPlot from "../box-plot/buildOption";
+import buildSunburst from "../sunburst/buildOption";
+import buildSankey from "../sankey/buildOption";
+import funnelOptions from "../funnel/getOptions";
+import FunnelRenderer from "../funnel/Renderer";
+
+// The drawn shape reaches ECharts' ESM build, which jest cannot load, and
+// the table look is what this file is about anyway.
+jest.mock("../funnel/Renderer/DrawnFunnel", () => () => null);
 
 /*
   A query that returns nothing is ordinary -- a filter that matched nothing,
@@ -35,8 +43,8 @@ import buildBoxPlot from "../box-plot/buildOption";
 
   So every visualization has to say so. The stat and the table did not: the
   stat drew an empty value and an empty label, the table returned null
-  outright, and both looked broken beside eight others that explained
-  themselves.
+  outright, and both looked broken beside the ones that explained themselves.
+  Nor did funnel, sunburst and sankey, which drew an empty box.
 */
 
 const EMPTY = {
@@ -74,6 +82,8 @@ describe("a result with no rows", () => {
     ["Calendar", () => buildCalendar(EMPTY, calendarOptions({}, EMPTY))],
     ["Timeline", () => buildTimeline(EMPTY, timelineOptions({}, EMPTY))],
     ["Box plot", () => buildBoxPlot(EMPTY, {}) as any],
+    ["Sunburst", () => buildSunburst(EMPTY)],
+    ["Sankey", () => buildSankey(EMPTY)],
   ];
 
   test.each(built)("%s says so rather than drawing an empty chart", (_name, build) => {
@@ -89,6 +99,14 @@ describe("a result with no rows", () => {
       "Status grid",
       <StatusGridRenderer data={EMPTY} options={statusGridOptions({}, EMPTY)} visualizationName="Status grid" />,
     ],
+    [
+      "Funnel",
+      <FunnelRenderer
+        data={EMPTY}
+        options={funnelOptions({ stepCol: { colName: "label" }, valueCol: { colName: "value" } }, EMPTY)}
+        visualizationName="Funnel"
+      />,
+    ],
   ];
 
   test.each(mounted)("%s says so rather than rendering a blank tile", (_name, element) => {
@@ -96,10 +114,17 @@ describe("a result with no rows", () => {
   });
 
   test("every visualization that can say it uses the same words", () => {
-    // Eight different phrasings for the same nothing would read as eight
-    // different problems.
+    // A phrasing per visualization for the same nothing would read as a
+    // different problem each time.
     const said = built.map(([, build]) => build().problem).filter((p) => p === "No rows to show.");
-    expect(said.length).toBeGreaterThanOrEqual(7);
+    expect(said.length).toBeGreaterThanOrEqual(9);
+  });
+
+  test('a funnel with no columns chosen says that instead, not "no rows"', () => {
+    // Two different nothings: the query returned nothing, or the visualization
+    // was never finished. The funnel used to render an empty box for both.
+    const element = <FunnelRenderer data={EMPTY} options={funnelOptions({}, EMPTY)} visualizationName="Funnel" />;
+    expect(textOf(element).trim()).toBe("Choose a step column and a value column in the editor.");
   });
 
   test("the stat is covered too, through the registry rather than directly", () => {

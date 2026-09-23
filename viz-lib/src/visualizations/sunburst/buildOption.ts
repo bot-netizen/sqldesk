@@ -7,6 +7,7 @@
  */
 import { compact, every, filter, find, first, groupBy, has, identity, keys, map, sortBy } from "lodash";
 import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
+import { NO_ROWS } from "@/visualizations/shared/components/Problem";
 
 // A path that stops early still consumes its share of the parent's arc, so the
 // stop is a real node in the tree. The d3 version filtered these out at draw
@@ -141,11 +142,13 @@ export function isDataValid(data: any) {
 export interface BuiltSunburst {
   option: any;
   signature: string;
+  /** Said to the reader, instead of an empty box. Null when there is a chart. */
+  problem: string | null;
 }
 
 export default function buildOption(data: any): BuiltSunburst {
   if (!isDataValid(data)) {
-    return { option: { series: [] }, signature: "empty" };
+    return { option: { series: [] }, signature: "empty", problem: NO_ROWS };
   }
 
   const color = categoryColors();
@@ -179,5 +182,9 @@ export default function buildOption(data: any): BuiltSunburst {
   };
 
   // The set of paths is the shape; the same paths with new counts can tween.
-  return { option, signature: JSON.stringify(seriesData, (key, value) => (key === "value" ? undefined : value)) };
+  return {
+    option,
+    signature: JSON.stringify(seriesData, (key, value) => (key === "value" ? undefined : value)),
+    problem: null,
+  };
 }

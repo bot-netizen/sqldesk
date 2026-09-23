@@ -5,6 +5,7 @@ import useEChart from "@/visualizations/echarts/useEChart";
 import { RadarChart } from "echarts/charts";
 import { RadarComponent } from "echarts/components";
 import useElementSize from "../shared/useElementSize";
+import Problem from "../shared/components/Problem";
 import buildOption from "./buildOption";
 import "./renderer.less";
 
@@ -27,7 +28,7 @@ export default function Renderer({ data, options }: any) {
   if (built.problem) {
     return (
       <div className="radar-visualization-container" ref={setBox}>
-        <p className="radar-visualization-problem">{built.problem}</p>
+        <Problem>{built.problem}</Problem>
       </div>
     );
   }

@@ -1,4 +1,4 @@
-import buildOption, { buildGraph, isDataValid, prepareDataRows } from "./buildOption";
+import buildOption, { buildGraph, prepareDataRows, problemWith } from "./buildOption";
 
 const columns = [{ name: "value" }, { name: "stage1" }, { name: "stage2" }];
 
@@ -81,14 +81,23 @@ describe("Visualizations -> Sankey -> validation", () => {
   });
 
   test("without a value column there is nothing to weight the flows by", () => {
-    expect(isDataValid({ columns: [{ name: "stage1" }], rows: [{ stage1: "a" }] })).toBe(false);
-    expect(isDataValid({ columns, rows: [{ value: 1, stage1: "a" }] })).toBe(true);
+    expect(problemWith({ columns: [{ name: "stage1" }], rows: [{ stage1: "a" }] })).toMatch(/value/);
+    expect(problemWith({ columns, rows: [{ value: 1, stage1: "a" }] })).toBeNull();
   });
 
-  test("invalid data builds an empty chart instead of throwing", () => {
+  test("each way of being undrawable says which one it is", () => {
+    // One empty box used to stand for all three, and they are fixed in three
+    // different places: the query, the editor, the data.
+    expect(problemWith({ columns, rows: [] })).toMatch(/No rows/);
+    expect(problemWith({ columns: [{ name: "stage1" }], rows: [{ stage1: "a" }] })).toMatch(/“value”/);
+    expect(problemWith({ columns, rows: [{ value: {}, stage1: "a" }] })).toMatch(/number or a label/);
+  });
+
+  test("invalid data builds an empty chart instead of throwing, and says why", () => {
     const built = buildOption({ columns: [{ name: "stage1" }], rows: [{ stage1: "a" }] });
 
     expect(built.option.series).toEqual([]);
+    expect(built.problem).toMatch(/“value”/);
   });
 });
 

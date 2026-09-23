@@ -58,9 +58,16 @@ describe("Visualizations -> Sunburst -> the option", () => {
     expect(series.data.length).toBeGreaterThan(0);
   });
 
-  test("no rows draws nothing rather than throwing", () => {
-    expect(buildOption({ rows: [] }).option.series).toEqual([]);
+  test("no rows says so rather than drawing an empty box", () => {
+    const built = buildOption({ rows: [] });
+
+    expect(built.option.series).toEqual([]);
+    expect(built.problem).toMatch(/No rows/);
     expect(isDataValid({ rows: [] })).toBe(false);
+  });
+
+  test("a chart that drew has nothing to say", () => {
+    expect(buildOption({ rows: [{ stage1: "a", value: 1 }] }).problem).toBeNull();
   });
 
   test("a path that ends keeps its share of the arc, but is not drawn", () => {
