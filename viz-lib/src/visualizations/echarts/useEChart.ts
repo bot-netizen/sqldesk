@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import resizeObserver from "@/services/resizeObserver";
+import whenOnScreen from "@/services/offscreen";
 import echarts from ".";
 
 function prefersReducedMotion(): boolean {
@@ -34,14 +35,27 @@ export interface UseEChartResult {
  *   Unchanged means the points still mean the same thing, so values are merged
  *   and ECharts tweens between them. Changed means they do not, and animating
  *   between unrelated values would be a lie rather than a transition.
+ *
+ * Creation also waits for the container to come near the viewport, so a chart
+ * scrolled past the bottom of a long dashboard costs nothing until it is
+ * scrolled to. See `services/offscreen`. Once created it stays created.
  */
 export default function useEChart(option: any, signature: string): UseEChartResult {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [chart, setChart] = useState<any>(null);
+  // Latches: a chart that has been on screen once is never un-created.
+  const [onScreen, setOnScreen] = useState(false);
   const signatureRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!container) {
+    if (!container || onScreen) {
+      return;
+    }
+    return whenOnScreen(container, () => setOnScreen(true));
+  }, [container, onScreen]);
+
+  useEffect(() => {
+    if (!container || !onScreen) {
       return;
     }
     const instance = echarts.init(container, undefined, { renderer: "canvas" });
@@ -55,7 +69,7 @@ export default function useEChart(option: any, signature: string): UseEChartResu
       unwatch();
       instance.dispose();
     };
-  }, [container]);
+  }, [container, onScreen]);
 
   useEffect(() => {
     if (!chart) {

@@ -1,4 +1,5 @@
 import { toPng } from "html-to-image";
+import { revealAllCharts } from "@sqldesk/viz/lib/services/offscreen";
 import buildSingleImagePdf from "./singleImagePdf";
 import composeExportCanvas from "./compose";
 import { capitalizeFirst, formatDateTime } from "@/lib/utils";
@@ -63,9 +64,27 @@ function withTimeout(promise, ms, what) {
   ]);
 }
 
+/*
+  Charts below the fold have not been built yet -- they wait for the viewport,
+  which is the right answer for reading and the wrong one for a capture of a
+  document taller than the window. Waking them is instant; drawing them is
+  not, so this then waits for the chart that takes longest to settle.
+
+  250ms covers the two frames ECharts' lazy update takes plus viz-lib's
+  resize watcher, which polls at 100ms and is what tells a chart the size of
+  the box it was just put in.
+*/
+const DRAW_SETTLE_MS = 250;
+
+function drawEverything() {
+  revealAllCharts();
+  return new Promise((resolve) => setTimeout(resolve, DRAW_SETTLE_MS));
+}
+
 // Capture once, then lay it onto the branded page. Both exports share this
 // so a PDF and an image of the same dashboard are the same artefact.
 async function capturePage(element, { title, owner }) {
+  await withTimeout(drawEverything(), 15000, "Drawing the widgets");
   const dataUrl = await withTimeout(
     toPng(element, captureOptions(element, surfaceColor())),
     30000,

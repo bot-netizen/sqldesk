@@ -3,14 +3,29 @@ import { pick } from "lodash";
 import HelpTrigger from "@/components/HelpTrigger";
 import Link from "@/components/Link";
 import { Renderer as VisRenderer, Editor as VisEditor, updateVisualizationsSettings } from "@sqldesk/viz/lib";
+import { revealAllCharts } from "@sqldesk/viz/lib/services/offscreen";
+import { inScreenshotMode } from "@/lib/hooks/useScreenshotMode";
 import { clientConfig } from "@/services/auth";
 
 import countriesDataUrl from "@sqldesk/viz/lib/visualizations/choropleth/maps/countries.geo.json";
 import usaDataUrl from "@sqldesk/viz/lib/visualizations/choropleth/maps/usa-albers.geo.json";
 import subdivJapanDataUrl from "@sqldesk/viz/lib/visualizations/choropleth/maps/japan.prefectures.geo.json";
 
+// Charts are normally built only once they come near the viewport. A page
+// being photographed is captured whole, including the part below the window,
+// so a deferred chart would be a blank rectangle in the image. Once, on the
+// first visualization to render: the flag never goes back.
+let revealed = false;
+function revealForScreenshotOnce() {
+  if (!revealed && inScreenshotMode()) {
+    revealed = true;
+    revealAllCharts();
+  }
+}
+
 function wrapComponentWithSettings(WrappedComponent) {
   return function VisualizationComponent(props) {
+    revealForScreenshotOnce();
     updateVisualizationsSettings({
       HelpTriggerComponent: HelpTrigger,
       LinkComponent: Link,

@@ -8,3 +8,4 @@ export {
   loadVisualization,
   preloadVisualization,
 } from "./visualizations/registeredVisualizations";
+export { revealAllCharts } from "./services/offscreen";
