@@ -220,7 +220,7 @@ VisualizationWidgetFooter.defaultProps = { isPublic: false, isLive: false, liveI
 class VisualizationWidget extends React.Component {
   static propTypes = {
     widget: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
-    dashboard: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+    getDashboard: PropTypes.func.isRequired,
     filters: FiltersType,
     isPublic: PropTypes.bool,
     isLive: PropTypes.bool,
@@ -275,9 +275,12 @@ class VisualizationWidget extends React.Component {
   };
 
   editParameterMappings = () => {
-    const { widget, dashboard, onParametersChange, onParameterMappingsChange } = this.props;
+    const { widget, getDashboard, onParametersChange, onParameterMappingsChange } = this.props;
     EditParameterMappingsDialog.showModal({
-      dashboard,
+      // Read now, not when this widget last rendered. The widget is memoized
+      // and `dashboard` changes identity on every widget load, so holding the
+      // object meant the dialog could be handed a dashboard several loads old.
+      dashboard: getDashboard(),
       widget,
     }).onClose((valuesChanged) => {
       // refresh widget if any parameter value has been updated

@@ -44,6 +44,12 @@ const MULTI = "multi-column";
 export function dashboardWidgetPropsAreEqual(prevProps, nextProps) {
   return (
     prevProps.widget === nextProps.widget &&
+    // `dashboard` is deliberately absent: its identity changes on every
+    // `setDashboard`, which is every widget load, so comparing it would
+    // re-render every widget on the page each time any one of them finished
+    // and the memo would be worth nothing. The widget is handed
+    // `getDashboard` instead -- stable identity, current value -- so nothing
+    // here has to hold a dashboard at all.
     prevProps.queryResult === nextProps.queryResult &&
     prevProps.canEdit === nextProps.canEdit &&
     prevProps.isPublic === nextProps.isPublic &&
@@ -57,7 +63,7 @@ export function dashboardWidgetPropsAreEqual(prevProps, nextProps) {
 
 export const DashboardWidget = React.memo(function DashboardWidget({
   widget,
-  dashboard,
+  getDashboard,
   onLoadWidget,
   onRefreshWidget,
   onRemoveWidget,
@@ -85,7 +91,7 @@ export const DashboardWidget = React.memo(function DashboardWidget({
     return (
       <VisualizationWidget
         widget={widget}
-        dashboard={dashboard}
+        getDashboard={getDashboard}
         filters={filters}
         isEditing={isEditing}
         canEdit={canEdit}
@@ -165,6 +171,17 @@ class DashboardGrid extends React.Component {
   mode = null;
 
   autoHeightCtrl = null;
+
+  /**
+   * The dashboard as it is *now*, not as it was when a widget last rendered.
+   *
+   * Bound once, so passing it down costs the memo nothing, and read at the
+   * moment it is needed -- which is when somebody opens the parameter
+   * mappings dialog. Handing the object down instead meant a memoized widget
+   * kept whichever dashboard it last rendered with, and that stale one was
+   * what the dialog got.
+   */
+  getDashboard = () => this.props.dashboard;
 
   constructor(props) {
     super(props);
@@ -320,7 +337,7 @@ class DashboardGrid extends React.Component {
               })}
             >
               <DashboardWidget
-                dashboard={dashboard}
+                getDashboard={this.getDashboard}
                 widget={widget}
                 filters={filters}
                 isPublic={isPublic}
