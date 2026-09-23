@@ -43,6 +43,7 @@ import useDeleteVisualization from "./hooks/useDeleteVisualization";
 import useUpdateQuery from "./hooks/useUpdateQuery";
 import useUpdateQueryDescription from "./hooks/useUpdateQueryDescription";
 import useUnsavedChangesAlert from "@/lib/hooks/useUnsavedChangesAlert";
+import { runNow } from "@/services/freshness";
 
 import "./components/QuerySourceDropdown"; // register QuerySourceDropdown
 import "./QuerySource.less";
@@ -174,8 +175,8 @@ function QuerySource(props) {
         return;
       }
       if (isDirty || !isEmpty(selectedText)) {
-        executeQuery(null, () => {
-          return query.getQueryResultByText(0, selectedText);
+        executeQuery(runNow(), () => {
+          return query.getQueryResultByText(runNow(), selectedText);
         });
       } else {
         executeQuery();

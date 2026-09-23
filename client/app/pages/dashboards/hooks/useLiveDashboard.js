@@ -3,6 +3,7 @@ import { get, isFunction } from "lodash";
 import moment from "moment";
 import { Dashboard } from "@/services/dashboard";
 import { serverNow, syncServerClock } from "@/lib/serverClock";
+import { newestStored, thisResult } from "@/services/freshness";
 
 /*
   A viewer of a live dashboard. The server runs the queries; this only has to
@@ -144,11 +145,7 @@ export default function useLiveDashboard({ dashboard, loadWidget, publicToken = 
               // view-only viewer may read and which never runs anything. A
               // public link's key cannot read results by id, so it asks for
               // the newest stored one instead (max age -1).
-              if (publicToken) {
-                loadWidgetRef.current(widget, true, -1);
-              } else {
-                loadWidgetRef.current(widget, true, undefined, newest);
-              }
+              loadWidgetRef.current(widget, publicToken ? newestStored() : thisResult(newest));
             }
           });
           if (reloaded > 0) {

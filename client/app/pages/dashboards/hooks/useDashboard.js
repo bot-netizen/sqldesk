@@ -15,7 +15,7 @@ import ShareDashboardDialog from "../components/ShareDashboardDialog";
 import useFullscreenHandler from "../../../lib/hooks/useFullscreenHandler";
 import useRefreshRateHandler from "./useRefreshRateHandler";
 import useLiveDashboard from "./useLiveDashboard";
-import { autoRefreshMaxAge } from "./refreshResults";
+import { onAutoRefresh, onPageLoad, runNow } from "@/services/freshness";
 import useEditModeHandler from "./useEditModeHandler";
 import useDuplicateDashboard from "./useDuplicateDashboard";
 import { policy } from "@/services/policy";
@@ -121,11 +121,11 @@ function useDashboard(dashboardData, { publicToken = null } = {}) {
     updateDashboard({ is_draft: !dashboard.is_draft }, false);
   }, [dashboard, updateDashboard]);
 
-  const loadWidget = useCallback((widget, forceRefresh = false, maxAge = undefined, resultId = undefined) => {
+  const loadWidget = useCallback((widget, request = onPageLoad()) => {
     widget.getParametersDefs(); // Force widget to read parameters values from URL
     setDashboard((currentDashboard) => extend({}, currentDashboard));
     return widget
-      .load(forceRefresh, maxAge, resultId)
+      .load(request)
       .catch((error) => {
         // QueryResultErrors are expected
         if (error instanceof QueryResultError) {
@@ -138,7 +138,7 @@ function useDashboard(dashboardData, { publicToken = null } = {}) {
 
   // Refresh -- the widget's button, or new values for its own parameters --
   // always runs the query: whoever presses it wants it run now.
-  const refreshWidget = useCallback((widget) => loadWidget(widget, true), [loadWidget]);
+  const refreshWidget = useCallback((widget) => loadWidget(widget, runNow()), [loadWidget]);
 
   const removeWidget = useCallback((widgetId) => {
     setDashboard((currentDashboard) =>
@@ -152,10 +152,10 @@ function useDashboard(dashboardData, { publicToken = null } = {}) {
   dashboardRef.current = dashboard;
 
   const loadDashboard = useCallback(
-    (forceRefresh = false, updatedParameters = [], maxAge = undefined) => {
+    (request = onPageLoad(), updatedParameters = []) => {
       const affectedWidgets = getAffectedWidgets(dashboardRef.current.widgets, updatedParameters);
       const loadWidgetPromises = compact(
-        affectedWidgets.map((widget) => loadWidget(widget, forceRefresh, maxAge).catch((error) => error))
+        affectedWidgets.map((widget) => loadWidget(widget, request).catch((error) => error))
       );
 
       return Promise.all(loadWidgetPromises).then(() => {
@@ -172,7 +172,7 @@ function useDashboard(dashboardData, { publicToken = null } = {}) {
     (updatedParameters) => {
       if (!refreshing) {
         setRefreshing(true);
-        loadDashboard(true, updatedParameters).finally(() => setRefreshing(false));
+        loadDashboard(runNow(), updatedParameters).finally(() => setRefreshing(false));
       }
     },
     [refreshing, loadDashboard]
@@ -180,12 +180,12 @@ function useDashboard(dashboardData, { publicToken = null } = {}) {
 
   // Auto-refresh reuses a recent result -- whichever open tab gets there first
   // runs the query, and the rest read its result -- but not one as old as its
-  // own last refresh (see autoRefreshMaxAge).
+  // own last refresh (see onAutoRefresh).
   const autoRefreshDashboard = useCallback(
     (refreshRate) => {
       if (!refreshing) {
         setRefreshing(true);
-        loadDashboard(true, [], autoRefreshMaxAge(refreshRate)).finally(() => setRefreshing(false));
+        loadDashboard(onAutoRefresh(refreshRate)).finally(() => setRefreshing(false));
       }
     },
     [refreshing, loadDashboard]

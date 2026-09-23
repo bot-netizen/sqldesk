@@ -3,6 +3,7 @@ import { mount } from "enzyme";
 import { act } from "react-dom/test-utils";
 import { Dashboard } from "@/services/dashboard";
 import { resetServerClock, serverNow } from "@/lib/serverClock";
+import { newestStored, thisResult } from "@/services/freshness";
 import useLiveDashboard, { CATCH_UP_LIMIT, CATCH_UP_MS, DUE_GRACE_MS, nextCheckIn } from "./useLiveDashboard";
 
 jest.mock("@/services/dashboard", () => ({
@@ -88,7 +89,7 @@ describe("useLiveDashboard", () => {
     // 10 is current, 12 has no result yet; only 11 changed.
     expect(loadWidget).toHaveBeenCalledTimes(1);
     // Exactly the result the server named, by id: a viewer never runs the query.
-    expect(loadWidget).toHaveBeenCalledWith(dashboard.widgets[1], true, undefined, 601);
+    expect(loadWidget).toHaveBeenCalledWith(dashboard.widgets[1], thisResult(601));
   });
 
   test("checks in again every interval with the same viewer id", async () => {
@@ -149,7 +150,7 @@ describe("useLiveDashboard", () => {
     const dashboard = { live, widgets: [widget(11, 600)] };
     mountHarness(<Harness dashboard={dashboard} loadWidget={loadWidget} publicToken="abc" onState={() => {}} />);
     await flush();
-    expect(loadWidget).toHaveBeenCalledWith(dashboard.widgets[0], true, -1);
+    expect(loadWidget).toHaveBeenCalledWith(dashboard.widgets[0], newestStored());
   });
 
   test("a public viewer checks in through the public link", async () => {

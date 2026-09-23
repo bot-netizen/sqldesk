@@ -21,6 +21,7 @@ import { cloneParameter } from "@/services/parameters";
 import dashboardGridOptions from "@/config/dashboard-grid-options";
 import { registeredVisualizations, preloadVisualization } from "@sqldesk/viz/lib";
 import shareInFlight from "./inFlightResults";
+import { onPageLoad } from "./freshness";
 import { Query } from "./query";
 import QueryResult from "./query-result";
 
@@ -152,12 +153,16 @@ class Widget {
   }
 
   /**
-   * Load the widget's result. `force` fetches again even if one is loaded;
-   * `maxAge` is how old a stored result may be (see Query.getQueryResult);
-   * `resultId` fetches exactly that result -- what a live dashboard does when
-   * the server says which result is newest.
+   * Load the widget's result.
+   *
+   * `request` says how fresh it has to be, by intent rather than by number --
+   * see services/freshness. Only `onPageLoad` settles for a result already in
+   * hand; every other intent fetches, even if this widget is showing
+   * something.
+   *
+   * @param {import("./freshness").Freshness} request
    */
-  load(force, maxAge, resultId) {
+  load(request = onPageLoad()) {
     if (!this.visualization) {
       return Promise.resolve();
     }
@@ -167,19 +172,15 @@ class Widget {
     // `this.queryResult` is currently loading query result;
     // while widget is refreshing, `this.data` !== `this.queryResult`
 
-    if (force || this.queryResult === undefined) {
-      // A forced load runs the query unless the caller says how old a stored
-      // result may be: auto-refresh accepts one from the last half interval.
-      if (maxAge === undefined) {
-        maxAge = force ? 0 : undefined;
-      }
-
+    if (!request.reuseLoaded || this.queryResult === undefined) {
       // Widgets showing the same query with the same parameters would each
       // fetch and parse the same result. They share one request instead --
       // see services/inFlightResults.
       this.trackResult(
-        shareInFlight(this.resultKey(maxAge, resultId), () =>
-          resultId ? QueryResult.getById(this.getQuery().id, resultId) : this.getQuery().getQueryResult(maxAge)
+        shareInFlight(this.resultKey(request), () =>
+          request.resultId
+            ? QueryResult.getById(this.getQuery().id, request.resultId)
+            : this.getQuery().getQueryResult(request)
         )
       );
     }
@@ -198,7 +199,7 @@ class Widget {
    * Null means "cannot say", and nothing is shared: a widget with no
    * visualization has nothing to fetch at all.
    */
-  resultKey(maxAge, resultId) {
+  resultKey(request) {
     if (!this.visualization) {
       return null;
     }
@@ -207,8 +208,8 @@ class Widget {
       query.id,
       query.getParameters().getExecutionValues(),
       query.getAutoLimit(),
-      maxAge === undefined ? null : maxAge,
-      resultId === undefined ? null : resultId,
+      request.maxAge === undefined ? null : request.maxAge,
+      request.resultId === undefined ? null : request.resultId,
     ]);
   }
 

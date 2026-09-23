@@ -4,10 +4,17 @@ import recordEvent from "@/services/recordEvent";
 import { ExecutionStatus } from "@/services/query-result";
 import notifications from "@/services/notifications";
 import useImmutableCallback from "@/lib/hooks/useImmutableCallback";
+import { newestStored, noOlderThan, runNow } from "@/services/freshness";
 
-function getMaxAge() {
+/*
+  What the query page opens on: the newest stored result, so opening a query
+  shows what it last returned without running it again. `?maxAge=N` in the URL
+  overrides that -- a link that wants a result no older than N seconds, and
+  will run the query if there is none.
+*/
+function freshnessOnOpen() {
   const { maxAge } = location.search;
-  return maxAge !== undefined ? maxAge : -1;
+  return maxAge !== undefined ? noOlderThan(Number(maxAge)) : newestStored();
 }
 
 const reducer = (prevState, updatedProperty) => ({
@@ -37,12 +44,12 @@ export default function useQueryExecute(query) {
     };
   }, []);
 
-  const executeQuery = useImmutableCallback((maxAge = 0, queryExecutor) => {
+  const executeQuery = useImmutableCallback((request = runNow(), queryExecutor) => {
     let newQueryResult;
     if (queryExecutor) {
       newQueryResult = queryExecutor();
     } else {
-      newQueryResult = query.getQueryResult(maxAge);
+      newQueryResult = query.getQueryResult(request);
     }
 
     recordEvent("execute", "query", query.id);
@@ -116,7 +123,7 @@ export default function useQueryExecute(query) {
     // TODO: this belongs on the query page?
     // loadedInitialResults can be removed if so
     if (queryRef.current.hasResult() || queryRef.current.paramsRequired()) {
-      executeQuery(getMaxAge());
+      executeQuery(freshnessOnOpen());
     } else {
       setExecutionState({ loadedInitialResults: true });
     }

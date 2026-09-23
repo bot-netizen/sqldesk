@@ -24,6 +24,7 @@ import location from "@/services/location";
 import { Parameter, createParameter } from "./parameters";
 import { currentUser } from "./auth";
 import QueryResult from "./query-result";
+import { onPageLoad } from "./freshness";
 import localOptions from "@/lib/localOptions";
 
 Mustache.escape = identity; // do not html-escape values
@@ -83,7 +84,7 @@ export class Query {
     return this.getParametersDefs().length > 0;
   }
 
-  prepareQueryResultExecution(execute, maxAge) {
+  prepareQueryResultExecution(execute, request) {
     const parameters = this.getParameters();
     const missingParams = parameters.getMissing();
 
@@ -110,11 +111,11 @@ export class Query {
     }
 
     // The result this query already knows about is reused only when the caller
-    // named no age at all -- a page loading. Any explicit age is a question for
-    // the server: 0 runs the query, -1 asks for the newest stored result, and
-    // N for one younger than N seconds. Reusing the cached result for those
-    // too made every refresh after the first quietly show the same result.
-    const useKnownResult = maxAge === undefined || maxAge === null;
+    // said it would do -- a page loading. Every other intent is a question for
+    // the server. Reusing the cached result for those too made every refresh
+    // after the first quietly show the same result; the caller's intent is
+    // what decides now, rather than an absent number (see services/freshness).
+    const useKnownResult = request.reuseLoaded;
     if (this.latest_query_data && useKnownResult) {
       if (!this.queryResult) {
         this.queryResult = new QueryResult({
@@ -132,13 +133,15 @@ export class Query {
     return this.queryResult;
   }
 
-  getQueryResult(maxAge) {
+  /** @param {import("./freshness").Freshness} request */
+  getQueryResult(request = onPageLoad()) {
     const execute = () =>
-      QueryResult.getByQueryId(this.id, this.getParameters().getExecutionValues(), this.getAutoLimit(), maxAge);
-    return this.prepareQueryResultExecution(execute, maxAge);
+      QueryResult.getByQueryId(this.id, this.getParameters().getExecutionValues(), this.getAutoLimit(), request.maxAge);
+    return this.prepareQueryResultExecution(execute, request);
   }
 
-  getQueryResultByText(maxAge, selectedQueryText) {
+  /** @param {import("./freshness").Freshness} request */
+  getQueryResultByText(request, selectedQueryText) {
     const queryText = selectedQueryText || this.query;
     if (!queryText) {
       return new QueryResultError("Can't execute empty query.");
@@ -146,8 +149,8 @@ export class Query {
 
     const parameters = this.getParameters().getExecutionValues({ joinListValues: true });
     const execute = () =>
-      QueryResult.get(this.data_source_id, queryText, parameters, this.getAutoLimit(), maxAge, this.id);
-    return this.prepareQueryResultExecution(execute, maxAge);
+      QueryResult.get(this.data_source_id, queryText, parameters, this.getAutoLimit(), request.maxAge, this.id);
+    return this.prepareQueryResultExecution(execute, request);
   }
 
   getUrl(source, hash) {

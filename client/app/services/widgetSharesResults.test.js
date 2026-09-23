@@ -1,5 +1,6 @@
 import Widget from "./widget";
 import { resetInFlight } from "./inFlightResults";
+import { newestStored, onPageLoad, runNow, thisResult } from "./freshness";
 
 /*
   The question this file answers is the one the dashboard actually asks: put
@@ -47,17 +48,17 @@ describe("widgets that want the same result", () => {
     const chart = widget({ type: "CHART" });
     const table = widget({ type: "TABLE" });
 
-    expect(table.resultKey(0)).toBe(chart.resultKey(0));
+    expect(table.resultKey(runNow())).toBe(chart.resultKey(runNow()));
   });
 
   test("a whole dashboard of them still asks one question", () => {
-    const keys = ["CHART", "TABLE", "CHART", "TABLE", "CHART"].map((type) => widget({ type }).resultKey(0));
+    const keys = ["CHART", "TABLE", "CHART", "TABLE", "CHART"].map((type) => widget({ type }).resultKey(runNow()));
 
     expect(new Set(keys).size).toBe(1);
   });
 
   test("different queries ask different questions", () => {
-    expect(widget({ queryId: 7 }).resultKey(0)).not.toBe(widget({ queryId: 8 }).resultKey(0));
+    expect(widget({ queryId: 7 }).resultKey(runNow())).not.toBe(widget({ queryId: 8 }).resultKey(runNow()));
   });
 
   test("the same query with different parameter values does not share", () => {
@@ -65,23 +66,25 @@ describe("widgets that want the same result", () => {
     const north = widget({ parameters: { region: "North" } });
     const south = widget({ parameters: { region: "South" } });
 
-    expect(south.resultKey(0)).not.toBe(north.resultKey(0));
+    expect(south.resultKey(runNow())).not.toBe(north.resultKey(runNow()));
   });
 
   test("the auto limit is part of the question", () => {
     const limited = widget({ applyAutoLimit: true });
     const whole = widget({ applyAutoLimit: false });
 
-    expect(limited.resultKey(0)).not.toBe(whole.resultKey(0));
+    expect(limited.resultKey(runNow())).not.toBe(whole.resultKey(runNow()));
   });
 
   test("asking for a different freshness does not share", () => {
-    // max_age 0 runs the query; -1 takes the newest stored result. A widget
-    // that wants one must not be given the other.
+    // Running the query, taking the newest stored result and settling for
+    // whatever is already loaded are three different questions. A widget that
+    // asked one must not be handed the answer to another.
     const w = widget();
 
-    expect(w.resultKey(0)).not.toBe(w.resultKey(-1));
-    expect(w.resultKey(0)).not.toBe(w.resultKey(undefined));
+    expect(w.resultKey(runNow())).not.toBe(w.resultKey(newestStored()));
+    expect(w.resultKey(runNow())).not.toBe(w.resultKey(onPageLoad()));
+    expect(w.resultKey(newestStored())).not.toBe(w.resultKey(onPageLoad()));
   });
 
   test("two widgets told to load the same result id share it", () => {
@@ -90,14 +93,14 @@ describe("widgets that want the same result", () => {
     const a = widget();
     const b = widget();
 
-    expect(b.resultKey(undefined, 4321)).toBe(a.resultKey(undefined, 4321));
-    expect(a.resultKey(undefined, 4321)).not.toBe(a.resultKey(undefined, 9999));
+    expect(b.resultKey(thisResult(4321))).toBe(a.resultKey(thisResult(4321)));
+    expect(a.resultKey(thisResult(4321))).not.toBe(a.resultKey(thisResult(9999)));
   });
 
   test("a widget with nothing to show shares nothing", () => {
     // A textbox has no query; it must never be handed somebody else's result.
     const textbox = new Widget({ id: 1, text: "hello", options: {} });
 
-    expect(textbox.resultKey(0)).toBeNull();
+    expect(textbox.resultKey(runNow())).toBeNull();
   });
 });
