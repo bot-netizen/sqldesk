@@ -128,3 +128,16 @@ export function uiColor(name: UiColor): string {
   const c = UI_COLORS[name];
   return readCssVar(c.cssVar) || c.fallback;
 }
+
+/*
+  The application's type, for things drawn on a canvas.
+
+  Here for the same reason `uiColor` is: a canvas cannot inherit CSS, so
+  anything drawn into one has to be told what the page is using. These were
+  copy-pasted into gauge and progress in different orders, and the chart --
+  the most-used visualization of the lot -- was told nothing at all, so it
+  drew in ECharts' default sans-serif beside tiles drawing in Instrument
+  Sans.
+*/
+export const SANS = '"Instrument Sans Variable", "Instrument Sans", -apple-system, "Segoe UI", sans-serif';
+export const MONO = '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';

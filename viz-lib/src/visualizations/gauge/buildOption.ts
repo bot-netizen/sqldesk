@@ -1,3 +1,4 @@
+import { MONO, SANS } from "@/visualizations/shared/valueOptions";
 import { formatValue, thresholdBands, thresholdColor, resolveColor, uiColor, toNumber } from "../shared/valueOptions";
 import { pickRow, hasColumn, ColumnLike } from "../shared/rows";
 import { GaugeOptions } from "./getOptions";
@@ -21,9 +22,6 @@ const LABEL_GAP = 5;
 
 /** Where the half arc's centre sits down the widget. */
 const HALF_CENTRE_Y = 0.72;
-
-const MONO = '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
-const SANS = '"Instrument Sans Variable", "Instrument Sans", -apple-system, "Segoe UI", sans-serif';
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));

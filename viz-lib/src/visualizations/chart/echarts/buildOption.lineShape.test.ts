@@ -118,3 +118,34 @@ describe("Visualizations -> Chart -> ECharts -> settings that a merge could stra
     expect({ ...labelled, ...plain }.label.show).toBe(false);
   });
 });
+
+/*
+  A canvas inherits no CSS.
+
+  Gauge and progress each carried their own copy of the font stack, in
+  different orders; the chart -- the most-used visualization of the lot -- was
+  told nothing, so it drew in ECharts' default sans-serif beside tiles drawing
+  in Instrument Sans. One dashboard, two typefaces.
+*/
+describe("Visualizations -> Chart -> ECharts -> type", () => {
+  test("a chart draws in the application's font", () => {
+    const built = buildOption(DATA, options({}));
+
+    expect(built.option.textStyle.fontFamily).toContain("Instrument Sans");
+  });
+
+  test("so does a heatmap, which builds its option separately", () => {
+    const built = buildOption(DATA, options({ globalSeriesType: "heatmap" }));
+
+    expect(built.option.textStyle.fontFamily).toContain("Instrument Sans");
+  });
+
+  test("the stack is the one the rest of the visualizations use", () => {
+    // Imported, not copied: two copies in different orders is how gauge and
+    // progress ended up disagreeing about the fallbacks.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { SANS } = require("@/visualizations/shared/valueOptions");
+
+    expect(buildOption(DATA, options({})).option.textStyle.fontFamily).toBe(SANS);
+  });
+});

@@ -1,3 +1,4 @@
+import { MONO, SANS } from "@/visualizations/shared/valueOptions";
 import {
   formatValue,
   normalizeThresholds,
@@ -35,9 +36,6 @@ export interface BuiltProgress {
 
 /** More rows than this and the bars get too thin to read; the rest are dropped with a note. */
 export const MAX_BARS = 40;
-
-const SANS = '"Instrument Sans Variable", "Instrument Sans", -apple-system, "Segoe UI", sans-serif';
-const MONO = '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
 
 export function readRows(data: ProgressData, options: ProgressOptions): ProgressRow[] {
   const useTargetColumn = hasColumn(data.columns, options.targetColumn);

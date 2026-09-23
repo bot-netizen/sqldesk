@@ -4,6 +4,7 @@ import { createNumberFormatter, formatSimpleTemplate } from "@/lib/value-format"
 import chooseTextColorForBackground from "@/lib/chooseTextColorForBackground";
 import { cleanNumber, echartsAxisType, getSeriesAxisIndex, normalizeX, seriesId } from "./utils";
 import { DEFAULT_HEAT_RAMP, HEAT_RAMPS } from "./heatRamps";
+import { SANS } from "@/visualizations/shared/valueOptions";
 import { buildBoxSeries } from "./boxplot";
 import { BAR_LAYOUT, barCentreOffset, buildErrorBarSeries } from "./errorBars";
 import { applyWindow, addReferences, zoomComponents } from "./references";
@@ -478,6 +479,9 @@ export default function buildOption(
     const categoryAxis = (data: any[]) => ({ type: "category", data, splitArea: { show: true } });
     const option: any = {
       ...ECHARTS_MOTION,
+      // A canvas inherits no CSS, so it has to be told. Without this a chart
+      // drew in ECharts' default sans-serif beside tiles in Instrument Sans.
+      textStyle: { fontFamily: SANS },
       // `bottom` is not padding: the colour scale below sits in it.
       grid: { left: 12, right: 12, top: 14, bottom: 60, containLabel: true },
       xAxis: categoryAxis(xCategories),
@@ -629,6 +633,9 @@ export default function buildOption(
     // moves from the old values to the new ones -- which is the whole point of
     // a chart that refreshes. Series need stable ids for it (see above).
     ...ECHARTS_MOTION,
+    // A canvas inherits no CSS, so it has to be told. Without this a chart
+    // drew in ECharts' default sans-serif beside tiles in Instrument Sans.
+    textStyle: { fontFamily: SANS },
     color: paletteFor(options),
     legend: legend.right
       ? {

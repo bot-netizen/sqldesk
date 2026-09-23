@@ -1,23 +1,12 @@
-import { isString } from "lodash";
-import DOMPurify from "dompurify";
+/*
+  One sanitizer, not two.
 
-DOMPurify.setConfig({
-  ADD_ATTR: ["target"],
-});
-
-DOMPurify.addHook("afterSanitizeAttributes", function (node) {
-  // Fix elements with `target` attribute:
-  // - allow only `target="_blank"
-  // - add `rel="noopener noreferrer"` to prevent https://www.owasp.org/index.php/Reverse_Tabnabbing
-
-  const target = node.getAttribute("target");
-  if (isString(target) && target.toLowerCase() === "_blank") {
-    node.setAttribute("rel", "noopener noreferrer");
-  } else {
-    node.removeAttribute("target");
-  }
-});
-
-export { DOMPurify };
-
-export default DOMPurify.sanitize;
+  This file used to be a byte-for-byte copy of viz-lib's. Both called
+  `DOMPurify.addHook` at module scope, and both resolve to the same physical
+  dompurify -- there is a single `dompurify@2.5.8` in the store -- so the hook
+  was registered twice on one singleton and ran twice over every node. The
+  hook happens to be idempotent, so nothing was wrong on screen; what was
+  wrong is that two copies of a security-relevant rule could drift apart, and
+  only one of them would be the one anybody edited.
+*/
+export { DOMPurify, default } from "@sqldesk/viz/lib/services/sanitize";
