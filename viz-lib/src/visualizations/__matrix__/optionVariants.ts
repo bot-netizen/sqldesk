@@ -98,10 +98,19 @@ export const VARIANTS: Record<string, Variant[]> = {
   ],
 
   GAUGE: [
-    ...["needle", "half", "ring"].map((style) => ({
+    ...["reading", "needle", "half", "ring"].map((style) => ({
       name: `the ${style} style`,
       options: { valueColumn: "value", style },
     })),
+    { name: "a reading with a trail", options: { valueColumn: "value", style: "reading", trailColumn: "other" } },
+    {
+      name: "a reading whose trail column is not a time",
+      options: { valueColumn: "value", style: "reading", trailColumn: "label" },
+    },
+    {
+      name: "a reading with a trail and a target",
+      options: { valueColumn: "value", style: "reading", trailColumn: "other", target: 60 },
+    },
     { name: "a label", options: { valueColumn: "value", label: "CPU" } },
     { name: "a target", options: { valueColumn: "value", target: 60 } },
     { name: "a target column", options: { valueColumn: "value", targetColumn: "target" } },

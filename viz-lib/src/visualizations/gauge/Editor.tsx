@@ -25,6 +25,9 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
           data-test="Gauge.Style"
           onChange={(style: any) => onOptionsChange({ style })}
         >
+          <Select.Option value="reading" data-test="Gauge.Style.reading">
+            Reading
+          </Select.Option>
           <Select.Option value="needle" data-test="Gauge.Style.needle">
             Needle
           </Select.Option>
@@ -52,11 +55,32 @@ function GeneralSettings({ options, data, onOptionsChange }: any) {
           layout="horizontal"
           label="Row"
           value={options.rowNumber}
+          disabled={options.style === "reading" && !!options.trailColumn}
           data-test="Gauge.RowNumber"
           onChange={(rowNumber: any) => onOptionsChange({ rowNumber: numberOrNull(rowNumber) ?? 1 })}
         />
-        <p className="value-options-help">1 is the first row, -1 the last.</p>
+        <p className="value-options-help">
+          {options.style === "reading" && options.trailColumn
+            ? "The reading is the newest point on the trail."
+            : "1 is the first row, -1 the last."}
+        </p>
       </Section>
+
+      {options.style === "reading" && (
+        <Section>
+          <ColumnSelect
+            label="Trail over"
+            value={options.trailColumn}
+            columns={columns}
+            noneLabel="The order the rows came back in"
+            onChange={(trailColumn) => onOptionsChange({ trailColumn })}
+            data-test="Gauge.TrailColumn"
+          />
+          <p className="value-options-help">
+            Orders the readings drawn behind the number. The reading itself becomes the newest of them.
+          </p>
+        </Section>
+      )}
 
       <Section>
         <Input
@@ -156,7 +180,7 @@ function ThresholdSettings({ options, onOptionsChange }: any) {
     <ThresholdsSection
       thresholds={options.thresholds}
       testPrefix="Gauge"
-      description="Colour the arc in bands. The needle style draws every band; the ring and half arc take the colour of the band the value is in."
+      description="Colour the range in bands. The reading style washes them behind its bullet bar and colours the number; the needle draws every band; the ring and half arc take the colour of the band the value is in."
       onChange={(thresholds) => onOptionsChange({ thresholds }, UpdateOptionsStrategy.shallowMerge)}
     />
   );

@@ -71,7 +71,15 @@ function draw(option: any, size: { width: number; height: number }) {
   const chart = echarts.init(null, null, { renderer: "svg", ssr: true, ...size });
   try {
     // containLabel measures text, and jsdom has no canvas to measure with.
-    const grid = option.grid ? { ...option.grid, containLabel: false } : undefined;
+    // A visualization may have several grids -- the gauge's reading tile has
+    // one for its trail and one for its bullet -- so this has to keep the
+    // shape it was given rather than turning an array into an object.
+    const withoutContainLabel = (g: any) => ({ ...g, containLabel: false });
+    const grid = Array.isArray(option.grid)
+      ? option.grid.map(withoutContainLabel)
+      : option.grid
+        ? withoutContainLabel(option.grid)
+        : undefined;
     chart.setOption(grid ? { ...option, grid } : option);
     return chart.renderToSVGString() as string;
   } finally {

@@ -1,6 +1,7 @@
 import { MONO, SANS } from "@/visualizations/shared/valueOptions";
 import { formatValue, thresholdBands, thresholdColor, resolveColor, uiColor, toNumber } from "../shared/valueOptions";
 import { pickRow, hasColumn, ColumnLike } from "../shared/rows";
+import buildReading from "./reading";
 import { GaugeOptions, GaugeStyle } from "./getOptions";
 import { ENTER_DURATION, ENTER_EASING, UPDATE_DURATION, UPDATE_EASING } from "../shared/motion";
 
@@ -34,14 +35,16 @@ const LABEL_GAP = 5;
  * marker needs the radius as a number) and the option (ECharts wants a
  * percentage string) come from the same figure.
  */
-const GEOMETRY: Record<GaugeStyle, { startAngle: number; endAngle: number; radiusShare: number; centreY: number }> = {
+type ArcStyle = Exclude<GaugeStyle, "reading">;
+
+const GEOMETRY: Record<ArcStyle, { startAngle: number; endAngle: number; radiusShare: number; centreY: number }> = {
   needle: { startAngle: 215, endAngle: -35, radiusShare: 0.9, centreY: 0.58 },
   half: { startAngle: 180, endAngle: 0, radiusShare: 0.96, centreY: 0.72 },
   ring: { startAngle: 90, endAngle: -270, radiusShare: 0.86, centreY: 0.5 },
 };
 
 /** The four ECharts options that place a gauge's arc, from one style. */
-function placement(style: GaugeStyle) {
+function placement(style: ArcStyle) {
   const g = GEOMETRY[style];
   return {
     startAngle: g.startAngle,
@@ -53,6 +56,34 @@ function placement(style: GaugeStyle) {
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
+}
+
+function timeKey(value: unknown): number {
+  if (value === null || value === undefined || value === "") {
+    return NaN;
+  }
+  const n = toNumber(value);
+  if (n !== null) {
+    return n;
+  }
+  const t = Date.parse(String(value));
+  return Number.isNaN(t) ? NaN : t;
+}
+
+/**
+ * Rows oldest first by `column`. Rows whose time cannot be read keep their
+ * place at the end rather than vanish -- the same rule the stat's sparkline
+ * follows, so the two read a time column the same way.
+ */
+function orderByTime(rows: any[], column: string): any[] {
+  return rows
+    .map((row, i) => ({ row, i, t: timeKey(row && row[column]) }))
+    .sort((a, b) => {
+      const at = Number.isNaN(a.t) ? Infinity : a.t;
+      const bt = Number.isNaN(b.t) ? Infinity : b.t;
+      return at === bt ? a.i - b.i : at - bt;
+    })
+    .map((x) => x.row);
 }
 
 /** Tick labels drop the prefix and suffix and go compact once numbers get long. */
@@ -94,10 +125,20 @@ export default function buildOption(
   if (!hasColumn(data.columns, options.valueColumn)) {
     return { ...empty, problem: "Choose a value column in the editor." };
   }
-  const row = pickRow(rows, options.rowNumber);
+  // The reading style draws a trail, so it may put the rows in the order its
+  // time column gives and take the newest as the reading. Every other style
+  // sees the rows exactly as the query returned them.
+  const trailing = options.style === "reading" && hasColumn(data.columns, options.trailColumn);
+  const ordered = trailing ? orderByTime(rows, options.trailColumn) : rows;
+  const row = trailing ? ordered[ordered.length - 1] : pickRow(ordered, options.rowNumber);
   const value = toNumber(row && row[options.valueColumn]);
   if (value === null) {
-    return { ...empty, problem: `“${options.valueColumn}” is not a number in that row.` };
+    return {
+      ...empty,
+      problem: trailing
+        ? `“${options.valueColumn}” is not a number in the newest row.`
+        : `“${options.valueColumn}” is not a number in that row.`,
+    };
   }
   const { min, max } = readRange(data, row, options);
   if (!(max > min)) {
@@ -138,6 +179,24 @@ export default function buildOption(
   const halfCentreY = GEOMETRY.half.centreY * size.height;
   // Clear of the arc by a few pixels, measured from the text's top edge.
   const endLabelDrop = tickSize / 2 + LABEL_GAP;
+
+  if (options.style === "reading") {
+    return {
+      ...buildReading({
+        options,
+        size,
+        label,
+        value,
+        min,
+        max,
+        target,
+        valueColor,
+        trail: ordered.map((r) => toNumber(r && r[options.valueColumn])).filter((v): v is number => v !== null),
+        colors: { ink, muted, track, rule: uiColor("rule") },
+      }),
+      problem: null,
+    };
+  }
 
   const shown = clamp(value, min, max);
   const common = {
@@ -259,7 +318,7 @@ export default function buildOption(
   }
 
   if (target !== null && Number.isFinite(target)) {
-    const arcShare = Math.min(0.4, width / ((side / 2) * GEOMETRY[options.style].radiusShare));
+    const arcShare = Math.min(0.4, width / ((side / 2) * GEOMETRY[options.style as ArcStyle].radiusShare));
     // A second, bare gauge whose only visible part is a short pointer sitting
     // on the arc: ECharts has no marker for gauges, and this is how its own
     // examples place one.
@@ -267,7 +326,7 @@ export default function buildOption(
       type: "gauge",
       min,
       max,
-      ...placement(options.style),
+      ...placement(options.style as ArcStyle),
       silent: true,
       z: 5,
       axisLine: { show: false },
