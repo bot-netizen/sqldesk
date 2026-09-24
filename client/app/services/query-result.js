@@ -1,6 +1,7 @@
 import debug from "debug";
 import moment from "moment";
 import { axios } from "@/services/axios";
+import { parseTimestamp } from "@/services/parseTimestamp";
 import { QueryResultError } from "@/services/query";
 import { Auth } from "@/services/auth";
 import { isString, uniqBy, each, isNumber, includes, extend, forOwn, get } from "lodash";
@@ -113,14 +114,14 @@ export function fetchDataFromJob(jobId, interval = 1000) {
   });
 }
 
-const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}T/;
-
+/**
+ * Whether a cell holds an ISO date-time -- `2024-03-05T09:00:00`, with or
+ * without a zone. A bare `2024-03-05` is a date, not a date-time, and is
+ * false here as it always was.
+ */
 export function isDateTime(v) {
-  // Cheap test first. This runs on every string cell of every result, and a
-  // strict moment parse costs around fifty times what the regex does -- so
-  // asking moment about "acme-corp" before ruling it out on shape was a
-  // quarter of the time spent taking a large result in.
-  return isString(v) && ISO_DATE_TIME.test(v) && moment(v, moment.ISO_8601, true).isValid();
+  const parsed = parseTimestamp(v);
+  return parsed !== null && parsed.type === "datetime";
 }
 
 class QueryResult {
@@ -157,12 +158,17 @@ class QueryResult {
           let newType = null;
           if (isNumber(v)) {
             newType = "float";
-          } else if (isDateTime(v)) {
-            row[k] = moment.utc(v);
-            newType = "datetime";
-          } else if (isString(v) && v.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            row[k] = moment.utc(v);
-            newType = "date";
+          } else if (isString(v)) {
+            // One parse, which both decides whether this is a timestamp and
+            // produces it. Asking `isDateTime` and then `moment.utc` parsed
+            // every such cell twice -- see services/parseTimestamp.
+            const timestamp = parseTimestamp(v);
+            if (timestamp) {
+              row[k] = moment.utc(timestamp.ms);
+              newType = timestamp.type;
+            } else {
+              newType = "string";
+            }
           } else if (typeof v === "object" && v !== null) {
             row[k] = JSON.stringify(v);
           } else {
