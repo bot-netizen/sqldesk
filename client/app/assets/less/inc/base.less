@@ -115,7 +115,9 @@ strong {
 .resize-both,
 .resize-vertical.resize-horizontal {
   resize: both !important;
-  transition: height 0s, width 0s !important;
+  transition:
+    height 0s,
+    width 0s !important;
 }
 
 .bg-ace {
@@ -137,13 +139,151 @@ strong {
   }
 }
 
-// markdown
-.markdown strong {
-  font-weight: bold;
-}
+/*
+  Markdown, wherever it is rendered: a textbox widget, a query's description,
+  a visualization's.
 
-.markdown img {
-  max-width: 100%;
+  It used to carry two rules -- `strong` and `img` -- so everything else fell
+  through to Bootstrap's page-level defaults inside a tile two hundred pixels
+  tall. An h1 came out at 36px, a list sat forty pixels to the right of the
+  paragraph above it, a quotation was *larger* than the body text at 17.5px,
+  and a table had neither borders nor cell padding, so its columns collided.
+
+  Sizes are in em, so the same rules read correctly in a textbox at 14px and
+  in a widget header's description at 13px.
+*/
+.markdown {
+  strong,
+  b {
+    font-weight: 600;
+  }
+
+  img {
+    max-width: 100%;
+  }
+
+  // A scale for a widget, not a page. The largest heading is only a little
+  // above the body text, because the tile is already a heading's worth of
+  // separation.
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 1.1em 0 0.4em;
+    color: var(--color-text);
+    font-weight: 600;
+    line-height: 1.25;
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  h1 {
+    font-size: 1.45em;
+  }
+  h2 {
+    font-size: 1.25em;
+  }
+  h3 {
+    font-size: 1.1em;
+  }
+  h4,
+  h5,
+  h6 {
+    font-size: 1em;
+  }
+
+  p {
+    margin: 0 0 0.7em;
+  }
+
+  ul,
+  ol {
+    // 1.3em, not Bootstrap's 40px: far enough for the marker to clear the
+    // text, near enough that a list does not look like a different column.
+    padding-left: 1.3em;
+    margin: 0 0 0.7em;
+  }
+
+  li > ul,
+  li > ol {
+    margin-bottom: 0;
+  }
+
+  // Task lists, which the markdown library can write now.
+  li > input[type="checkbox"] {
+    margin-right: 0.4em;
+    vertical-align: -1px;
+  }
+
+  blockquote {
+    margin: 0 0 0.7em;
+    padding: 0 0 0 0.8em;
+    border-left: 2px solid var(--color-border);
+    color: var(--color-text-muted);
+    // An aside is quieter than what it sits beside, not louder.
+    font-size: 1em;
+  }
+
+  hr {
+    margin: 1em 0;
+    border: 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  code {
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    background: var(--color-surface-sunken);
+    color: var(--color-text);
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+  }
+
+  pre {
+    margin: 0 0 0.7em;
+    padding: 0.6em 0.8em;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-surface-sunken);
+    color: var(--color-text);
+    font-size: 0.9em;
+    line-height: 1.5;
+
+    code {
+      padding: 0;
+      background: none;
+      font-size: 1em;
+    }
+  }
+
+  table {
+    margin: 0 0 0.7em;
+    border-collapse: collapse;
+    // Tables scroll rather than push the tile wide, which is what a widget
+    // narrower than its table would otherwise do.
+    max-width: 100%;
+
+    th,
+    td {
+      padding: 0.3em 0.6em;
+      border: 1px solid var(--color-border);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--color-surface-sunken);
+      font-weight: 600;
+    }
+  }
+
+  del {
+    color: var(--color-text-muted);
+  }
 }
 
 .dropdown-menu > li > a:hover,
