@@ -507,6 +507,41 @@ class QueryResult(db.Model, BelongsToOrgMixin):
         return query.options(defer("data")).order_by(cls.retrieved_at.desc()).first()
 
     @classmethod
+    def latest_ids(cls, data_source_id, query_hashes, max_age=-1):
+        """
+        {query hash: id of its newest result}, for several hashes at once.
+
+        `get_latest` answers one question per call, which is right for the one
+        query a person is running. A live dashboard asks the same question
+        once per widget per viewer per check-in -- so a ten-widget dashboard
+        with four people watching was forty statements every few seconds, for
+        ten answers. This is one.
+
+        Hashes with no result, or none young enough, are absent rather than
+        mapped to None: the caller is asking which results exist.
+        """
+        hashes = list({h for h in query_hashes if h})
+        if not hashes:
+            return {}
+
+        if max_age == -1 and settings.QUERY_RESULTS_EXPIRED_TTL_ENABLED:
+            max_age = settings.QUERY_RESULTS_EXPIRED_TTL
+
+        rows = db.session.query(cls.query_hash, cls.id).filter(
+            cls.data_source_id == data_source_id, cls.query_hash.in_(hashes)
+        )
+        if max_age != -1:
+            rows = rows.filter(
+                db.func.timezone("utc", cls.retrieved_at) + datetime.timedelta(seconds=max_age)
+                >= db.func.timezone("utc", db.func.now())
+            )
+        # DISTINCT ON the hash, newest first: Postgres takes the first row of
+        # each group, which is what `get_latest` does one hash at a time. The
+        # ordering matches ix_query_results_lookup, so it is an index scan.
+        rows = rows.distinct(cls.query_hash).order_by(cls.query_hash, cls.retrieved_at.desc())
+        return {query_hash: result_id for query_hash, result_id in rows}
+
+    @classmethod
     def store_result(cls, org, data_source, query_hash, query, data, run_time, retrieved_at):
         query_result = cls(
             org_id=org,
@@ -1318,6 +1353,16 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
 
     __tablename__ = "dashboards"
     __mapper_args__ = {"version_id_col": version}
+    __table_args__ = (
+        # The live sweep runs every ten seconds and asks for exactly this set.
+        # Partial, because almost no dashboard is live: the index holds the
+        # handful that are rather than a row per dashboard.
+        db.Index(
+            "ix_dashboards_live",
+            "id",
+            postgresql_where=db.text("live IS NOT NULL AND is_archived = false"),
+        ),
+    )
 
     def __str__(self):
         return "%s=%s" % (self.id, self.name)

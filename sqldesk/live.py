@@ -44,6 +44,11 @@ WATCH_WINDOW = 45
 # the scheduler's own 10-second tick is added.
 FRESHNESS_SLACK = 5
 
+# How long one sweep of the live dashboards may take. Matches the timeout the
+# periodic job is registered with, so the lock cannot outlive the job holding
+# it (see tasks/schedule.py).
+SWEEP_TIMEOUT = 60
+
 
 def can_manage_live(user):
     return user.has_permission("admin") or user.has_permission(MANAGE_LIVE_PERMISSION)
@@ -134,27 +139,55 @@ def widget_query_text(widget):
     return query, text
 
 
+def resolved_widgets(dashboard, user=None):
+    """
+    [(widget, query, text, hash)] for the widgets that run something, skipping
+    the ones `user` may not see.
+
+    Walking the widgets renders every parameterized query through Mustache, so
+    both callers below do it once and share the answer rather than each doing
+    their own pass.
+    """
+    from sqldesk.permissions import has_access, view_only
+
+    resolved = []
+    for widget in dashboard.loaded_widgets():
+        if widget.visualization_id is None:
+            continue
+        pair = widget_query_text(widget)
+        if pair is None:
+            continue
+        query, text = pair
+        if user is not None and not has_access(query, user, view_only):
+            continue
+        resolved.append((widget, query, text, gen_query_hash(text)))
+    return resolved
+
+
 def latest_results(dashboard, user=None):
     """
     {widget id: id of the newest result for what it shows}, for widgets the
     user may see. A viewer compares these with what it has and reloads only
     the widgets whose result changed.
-    """
-    from sqldesk.permissions import has_access, view_only
 
-    results = {}
-    for widget in dashboard.loaded_widgets():
-        if widget.visualization_id is None:
-            continue
-        resolved = widget_query_text(widget)
-        if resolved is None:
-            continue
-        query, text = resolved
-        if user is not None and not has_access(query, user, view_only):
-            continue
-        latest = models.QueryResult.get_latest(query.data_source, text, max_age=-1)
-        results[str(widget.id)] = latest.id if latest else None
-    return results
+    One statement per data source rather than one per widget: this runs on
+    every check-in of every viewer, so a ten-widget dashboard with four people
+    watching was forty `get_latest` calls every few seconds for ten answers.
+    """
+    resolved = resolved_widgets(dashboard, user)
+
+    by_source = {}
+    for _widget, query, _text, query_hash in resolved:
+        by_source.setdefault(query.data_source_id, set()).add(query_hash)
+
+    latest = {}
+    for data_source_id, hashes in by_source.items():
+        for query_hash, result_id in models.QueryResult.latest_ids(data_source_id, hashes).items():
+            latest[(data_source_id, query_hash)] = result_id
+
+    return {
+        str(widget.id): latest.get((query.data_source_id, query_hash)) for widget, query, _text, query_hash in resolved
+    }
 
 
 # -- The periodic job ----------------------------------------------------------
@@ -200,13 +233,9 @@ def forget_attempts(dashboard):
     -- going live, changing the interval, resuming -- happens now rather than
     waiting out the last one.
     """
-    keys = []
-    for widget in dashboard.loaded_widgets():
-        resolved = widget_query_text(widget)
-        if resolved is None:
-            continue
-        query, text = resolved
-        keys.append(_attempt_key(query.data_source_id, gen_query_hash(text)))
+    keys = [
+        _attempt_key(query.data_source_id, query_hash) for _w, query, _t, query_hash in resolved_widgets(dashboard)
+    ]
     if keys:
         redis_connection.delete(*keys)
 
@@ -226,17 +255,32 @@ def refresh_dashboard(dashboard):
 
     enqueued = []
     interval = dashboard.live["interval"]
-    for widget in dashboard.loaded_widgets():
-        resolved = widget_query_text(widget)
-        if resolved is None:
+
+    # Two widgets showing the same query are one refresh, and asked about
+    # once. `claim_attempt` already deduped the enqueue; the freshness check
+    # in front of it did not.
+    seen = set()
+    runnable = []
+    for _widget, query, text, query_hash in resolved_widgets(dashboard):
+        if (query.data_source_id, query_hash) in seen:
             continue
-        query, text = resolved
+        seen.add((query.data_source_id, query_hash))
+        runnable.append((query, text, query_hash))
+
+    fresh_by_source = {}
+    for query, _text, query_hash in runnable:
+        fresh_by_source.setdefault(query.data_source_id, set()).add(query_hash)
+    fresh = set()
+    for data_source_id, hashes in fresh_by_source.items():
+        for query_hash in models.QueryResult.latest_ids(data_source_id, hashes, max_age=interval - FRESHNESS_SLACK):
+            fresh.add((data_source_id, query_hash))
+
+    for query, text, query_hash in runnable:
         reason = _skip(query)
         if reason:
             logger.debug("Live dashboard %s skips query %s because %s", dashboard.id, query.id, reason)
             continue
-        fresh = models.QueryResult.get_latest(query.data_source, text, max_age=interval - FRESHNESS_SLACK)
-        if fresh:
+        if (query.data_source_id, query_hash) in fresh:
             continue
         if not claim_attempt(query.data_source, text, interval):
             continue
@@ -261,24 +305,41 @@ def refresh_dashboard(dashboard):
     return enqueued
 
 
+SWEEP_LOCK_KEY = "sqldesk:live:sweep"
+
+
 def refresh_live_dashboards():
     """
     Refresh every running live dashboard somebody is watching. Scheduled by
     the periodic scheduler every 10 seconds; costs one query and one Redis
     round trip per live dashboard when nothing is due.
-    """
-    enqueued = []
-    now = time.time()
-    dashboards = models.Dashboard.query.filter(
-        models.Dashboard.live.isnot(None), models.Dashboard.is_archived.is_(False)
-    )
-    for dashboard in dashboards:
-        if is_running(dashboard) and is_watched(dashboard.id, now):
-            enqueued.extend(refresh_dashboard(dashboard))
 
-    if enqueued:
-        logger.info("Live dashboards enqueued %d queries: %s", len(enqueued), enqueued)
-    return enqueued
+    One sweep at a time. The scheduler starts one every 10 seconds and gives
+    it 60 to finish, so with enough live dashboards -- or one slow data source
+    holding up the walk -- six could be running at once, each doing the same
+    work and racing the others for the same attempt marks. The lock is held
+    for the job's own timeout, so a worker that dies with it still lets the
+    next tick in.
+    """
+    if not redis_connection.set(SWEEP_LOCK_KEY, time.time(), ex=SWEEP_TIMEOUT, nx=True):
+        logger.info("Live dashboard sweep is already running; skipping this tick.")
+        return []
+
+    try:
+        enqueued = []
+        now = time.time()
+        dashboards = models.Dashboard.query.filter(
+            models.Dashboard.live.isnot(None), models.Dashboard.is_archived.is_(False)
+        )
+        for dashboard in dashboards:
+            if is_running(dashboard) and is_watched(dashboard.id, now):
+                enqueued.extend(refresh_dashboard(dashboard))
+
+        if enqueued:
+            logger.info("Live dashboards enqueued %d queries: %s", len(enqueued), enqueued)
+        return enqueued
+    finally:
+        redis_connection.delete(SWEEP_LOCK_KEY)
 
 
 def describe(dashboard):

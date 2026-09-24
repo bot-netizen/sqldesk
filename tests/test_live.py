@@ -177,6 +177,47 @@ class TestWatching(BaseTestCase):
         rv = self.make_request("post", "/api/dashboards/{}/live/watch".format(dashboard.id), data={"viewer": "t"})
         self.assertEqual(rv.json["results"], {str(widget.id): result.id})
 
+    def test_a_check_in_asks_once_per_data_source_not_once_per_widget(self):
+        # This runs on every check-in of every open tab. A twelve-widget
+        # dashboard with four people watching was forty-eight `get_latest`
+        # statements every few seconds, for twelve answers.
+        dashboard = _live_dashboard(self.factory)
+        for n in range(6):
+            self._widget(dashboard, text="SELECT {}".format(n))
+        db.session.commit()
+
+        with mock.patch.object(
+            models.QueryResult, "latest_ids", wraps=models.QueryResult.latest_ids
+        ) as latest_ids, mock.patch.object(models.QueryResult, "get_latest") as get_latest:
+            self.make_request("post", "/api/dashboards/{}/live/watch".format(dashboard.id), data={"viewer": "t"})
+
+        self.assertEqual(latest_ids.call_count, 1)
+        get_latest.assert_not_called()
+
+    def test_two_widgets_on_one_query_get_the_same_result_id(self):
+        dashboard = _live_dashboard(self.factory)
+        first = self._widget(dashboard, text="SELECT 1")
+        second = self._widget(dashboard, text="SELECT 1")
+        result = self.factory.create_query_result(query_text="SELECT 1", query_hash=gen_query_hash("SELECT 1"))
+        db.session.commit()
+
+        rv = self.make_request("post", "/api/dashboards/{}/live/watch".format(dashboard.id), data={"viewer": "t"})
+
+        self.assertEqual(rv.json["results"][str(first.id)], result.id)
+        self.assertEqual(rv.json["results"][str(second.id)], result.id)
+
+    def test_a_widget_with_no_result_yet_is_reported_as_having_none(self):
+        dashboard = _live_dashboard(self.factory)
+        widget = self._widget(dashboard)
+        db.session.commit()
+
+        rv = self.make_request("post", "/api/dashboards/{}/live/watch".format(dashboard.id), data={"viewer": "t"})
+
+        # Present and null, not absent: the viewer tells "nothing yet" from
+        # "you may not see this one" by which key is there.
+        self.assertIn(str(widget.id), rv.json["results"])
+        self.assertIsNone(rv.json["results"][str(widget.id)])
+
     def test_leaves_out_widgets_the_viewer_cannot_see(self):
         dashboard = _live_dashboard(self.factory)
         hidden_source = self.factory.create_data_source(group=self.factory.create_group())
@@ -211,6 +252,23 @@ class TestWatching(BaseTestCase):
         db.session.commit()
         rv = self.make_request("get", "/api/dashboards/public/{}".format(api_key.api_key), user=False)
         self.assertEqual(rv.json["live"]["interval"], 30)
+
+
+def _run_jobs_inline():
+    """
+    Run `refresh_live_dashboard` where it is called instead of queueing it.
+
+    A check-in enqueues a job rather than deciding what to run inside the
+    request -- see sqldesk/tasks/live.py. Tests about *what a check-in causes*
+    still want the outcome, so the queue is stood in for by calling the job.
+    """
+    from sqldesk.tasks import live as live_tasks
+
+    return mock.patch.object(
+        live_tasks.refresh_live_dashboard,
+        "delay",
+        side_effect=lambda dashboard_id: live_tasks.refresh_live_dashboard(dashboard_id),
+    )
 
 
 @mock.patch("sqldesk.tasks.queries.execution.enqueue_query")
@@ -390,26 +448,59 @@ class TestRefreshingLiveDashboards(BaseTestCase):
         self._widget(dashboard)
         path = "/api/dashboards/{}/live/watch".format(dashboard.id)
 
-        rv = self.make_request("post", path, data={"viewer": "tab"})
-        self.assertEqual(rv.status_code, 200)
+        with _run_jobs_inline():
+            rv = self.make_request("post", path, data={"viewer": "tab"})
+            self.assertEqual(rv.status_code, 200)
+            enqueue.assert_called_once()
+
+            # Somebody is watching now: the scheduler keeps it going, not
+            # check-ins.
+            self.make_request("post", path, data={"viewer": "tab"})
+            self.make_request("post", path, data={"viewer": "another tab"})
+            enqueue.assert_called_once()
+
+    def test_a_check_in_decides_nothing_itself(self, enqueue):
+        # Working out what a live dashboard should run walks every widget and
+        # renders every parameterized query. A check-in happens every few
+        # seconds per open tab, so it hands that to a job and replies.
+        dashboard = _live_dashboard(self.factory)
+        self._widget(dashboard)
+
+        with _run_jobs_inline() as delay:
+            delay.side_effect = None
+            self.make_request("post", "/api/dashboards/{}/live/watch".format(dashboard.id), data={"viewer": "tab"})
+
+        delay.assert_called_once_with(dashboard.id)
+        enqueue.assert_not_called()
+
+    def test_the_job_refreshes_the_dashboard_it_is_given(self, enqueue):
+        from sqldesk.tasks.live import refresh_live_dashboard
+
+        dashboard = _live_dashboard(self.factory)
+        self._widget(dashboard)
+
+        refresh_live_dashboard(dashboard.id)
+
         enqueue.assert_called_once()
 
-        # Somebody is watching now: the scheduler keeps it going, not check-ins.
-        self.make_request("post", path, data={"viewer": "tab"})
-        self.make_request("post", path, data={"viewer": "another tab"})
-        enqueue.assert_called_once()
+    def test_the_job_shrugs_at_a_dashboard_that_has_gone(self, enqueue):
+        from sqldesk.tasks.live import refresh_live_dashboard
+
+        self.assertEqual(refresh_live_dashboard(123456), [])
+        enqueue.assert_not_called()
 
     def test_coming_back_to_a_hidden_tab_starts_it_at_once(self, enqueue):
         dashboard = _live_dashboard(self.factory)
         self._widget(dashboard)
         path = "/api/dashboards/{}/live/watch".format(dashboard.id)
 
-        self.make_request("post", path, data={"viewer": "tab"})
-        self.make_request("post", path, data={"viewer": "tab", "leaving": True})
-        # Stands in for the attempt ageing out, which it does after one
-        # interval; the tab has been away longer than that.
-        live.forget_attempts(dashboard)
-        self.make_request("post", path, data={"viewer": "tab"})
+        with _run_jobs_inline():
+            self.make_request("post", path, data={"viewer": "tab"})
+            self.make_request("post", path, data={"viewer": "tab", "leaving": True})
+            # Stands in for the attempt ageing out, which it does after one
+            # interval; the tab has been away longer than that.
+            live.forget_attempts(dashboard)
+            self.make_request("post", path, data={"viewer": "tab"})
 
         self.assertEqual(enqueue.call_count, 2)
 
@@ -421,9 +512,10 @@ class TestRefreshingLiveDashboards(BaseTestCase):
         self._widget(dashboard)
         path = "/api/dashboards/{}/live/watch".format(dashboard.id)
 
-        for _ in range(4):
-            self.make_request("post", path, data={"viewer": "tab"})
-            self.make_request("post", path, data={"viewer": "tab", "leaving": True})
+        with _run_jobs_inline():
+            for _ in range(4):
+                self.make_request("post", path, data={"viewer": "tab"})
+                self.make_request("post", path, data={"viewer": "tab", "leaving": True})
 
         self.assertEqual(enqueue.call_count, 1)
 
@@ -432,6 +524,54 @@ class TestRefreshingLiveDashboards(BaseTestCase):
         rv = self.make_request("post", "/api/dashboards/{}/live/watch".format(dashboard.id), data={"viewer": "tab"})
         server_time = datetime.datetime.fromisoformat(rv.json["server_time"])
         self.assertLess(abs((utcnow() - server_time).total_seconds()), 5)
+
+    def test_only_one_sweep_runs_at_a_time(self, enqueue):
+        # The scheduler starts a sweep every 10 seconds and gives it 60, so a
+        # slow one could have six copies of itself running, each doing the
+        # same work and racing the others for the same attempt marks.
+        dashboard = _live_dashboard(self.factory)
+        self._widget(dashboard)
+        live.check_in(dashboard.id, "tab")
+
+        redis_connection.set(live.SWEEP_LOCK_KEY, time.time(), ex=live.SWEEP_TIMEOUT)
+        try:
+            self.assertEqual(live.refresh_live_dashboards(), [])
+            enqueue.assert_not_called()
+        finally:
+            redis_connection.delete(live.SWEEP_LOCK_KEY)
+
+        live.refresh_live_dashboards()
+        enqueue.assert_called_once()
+
+    def test_a_sweep_lets_go_of_the_lock_when_it_finishes(self, enqueue):
+        live.refresh_live_dashboards()
+        self.assertIsNone(redis_connection.get(live.SWEEP_LOCK_KEY))
+
+    def test_a_sweep_that_throws_still_lets_go(self, enqueue):
+        dashboard = _live_dashboard(self.factory)
+        self._widget(dashboard)
+        live.check_in(dashboard.id, "tab")
+
+        with mock.patch.object(live, "refresh_dashboard", side_effect=RuntimeError("boom")):
+            with self.assertRaises(RuntimeError):
+                live.refresh_live_dashboards()
+
+        self.assertIsNone(redis_connection.get(live.SWEEP_LOCK_KEY))
+
+    def test_two_widgets_on_one_query_are_asked_about_once(self, enqueue):
+        # `claim_attempt` already deduped the enqueue. The freshness check in
+        # front of it did not, so N widgets on one query was N statements.
+        dashboard = _live_dashboard(self.factory)
+        self._widget(dashboard)
+        self._widget(dashboard)
+        self._widget(dashboard)
+        live.check_in(dashboard.id, "tab")
+
+        with mock.patch.object(models.QueryResult, "latest_ids", wraps=models.QueryResult.latest_ids) as latest_ids:
+            live.refresh_live_dashboards()
+
+        self.assertEqual(latest_ids.call_count, 1)
+        self.assertEqual(len(latest_ids.call_args[0][1]), 1)
 
     def test_resume_starts_it_at_once_and_pause_does_not(self, enqueue):
         admin = self.factory.create_admin()

@@ -426,10 +426,17 @@ def _watch(dashboard, who, user):
     # Nobody was watching, so nothing has been refreshed: the first viewer back
     # -- often the same person returning to a hidden tab -- starts it now
     # rather than on the scheduler's next tick.
+    #
+    # In a job, not here. Working out what to start walks every widget and
+    # renders every parameterized query, and this runs inside a check-in that
+    # every open tab makes every few seconds. The queries are enqueued either
+    # way; the viewer just no longer waits for the decision.
     was_watched = live.is_watched(dashboard.id)
     live.check_in(dashboard.id, member)
     if not was_watched:
-        live.refresh_dashboard(dashboard)
+        from sqldesk.tasks.live import refresh_live_dashboard
+
+        refresh_live_dashboard.delay(dashboard.id)
     return {
         "live": described,
         "results": live.latest_results(dashboard, user),
