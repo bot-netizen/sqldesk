@@ -140,3 +140,60 @@ jobs:
             docker buildx imagetools inspect "$image" --format '{{json .Manifest}}' | grep -q "\"${platform#linux/}\"" \
               || { echo "missing $platform"; exit 1; }
           done
+
+      # Docker Hub, when it is configured. Absent secrets are not a failure:
+      # ghcr.io is published either way and always has been, so turning Docker
+      # Hub on is two secrets rather than a change to this file -- and a fork
+      # that has neither still builds.
+      - name: Is Docker Hub configured?
+        id: dockerhub
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Docker Hub secrets are not set; published to ${{ env.REGISTRY }} only."
+          fi
+
+      - name: Log in to Docker Hub
+        if: steps.dockerhub.outputs.enabled == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # The manifest ghcr.io already has, copied across by digest rather than
+      # built a second time -- so the two registries cannot serve images that
+      # disagree, and this costs one API call instead of another ten minutes.
+      #
+      # The namespace comes from the DOCKERHUB_IMAGE repository variable, and
+      # falls back to <username>/sqldesk, which is what a personal account
+      # will want.
+      - name: Mirror the image to Docker Hub
+        if: steps.dockerhub.outputs.enabled == 'true'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_IMAGE: ${{ vars.DOCKERHUB_IMAGE }}
+        run: |
+          : "${DOCKERHUB_IMAGE:=${DOCKERHUB_USERNAME}/sqldesk}"
+          echo "DOCKERHUB_IMAGE=$DOCKERHUB_IMAGE" >> "$GITHUB_ENV"
+          args=""
+          for tag in $(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON"); do
+            args="$args -t ${DOCKERHUB_IMAGE}:${tag##*:}"
+          done
+          echo "Mirroring to:$args"
+          docker buildx imagetools create $args \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}"
+
+      - name: Check Docker Hub has both platforms too
+        if: steps.dockerhub.outputs.enabled == 'true'
+        run: |
+          image="${DOCKERHUB_IMAGE}:${{ steps.meta.outputs.version }}"
+          docker buildx imagetools inspect "$image"
+          for platform in linux/amd64 linux/arm64; do
+            docker buildx imagetools inspect "$image" --format '{{json .Manifest}}' | grep -q "\"${platform#linux/}\"" \
+              || { echo "missing $platform"; exit 1; }
+          done
