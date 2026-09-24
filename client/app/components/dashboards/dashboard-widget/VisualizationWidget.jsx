@@ -19,6 +19,7 @@ import PlainButton from "@/components/PlainButton";
 import ExpandedWidgetDialog from "@/components/dashboards/ExpandedWidgetDialog";
 import EditParameterMappingsDialog from "@/components/dashboards/EditParameterMappingsDialog";
 import VisualizationRenderer from "@/components/visualizations/VisualizationRenderer";
+import VisualizationDescription from "@/components/visualizations/VisualizationDescription";
 
 import Widget from "./Widget";
 import LiveCountdown from "./LiveCountdown";
@@ -105,6 +106,7 @@ function VisualizationWidgetHeader({
         <div className="th-title">
           <p>
             <QueryLink query={widget.getQuery()} visualization={widget.visualization} readOnly={!canViewQuery} />
+            <VisualizationDescription description={widget.visualization.description} />
           </p>
           {!isEmpty(widget.getQuery().description) && (
             <HtmlContent className="text-muted markdown query--description">

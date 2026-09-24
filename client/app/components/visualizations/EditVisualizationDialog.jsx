@@ -89,6 +89,7 @@ function EditVisualizationDialog({ dialog, visualization, query, queryResult }) 
     return {
       type: config.type,
       name: isNew ? config.name : visualization.name,
+      description: isNew ? "" : visualization.description || "",
       options,
       originalOptions: options,
     };
@@ -97,6 +98,7 @@ function EditVisualizationDialog({ dialog, visualization, query, queryResult }) 
   const [type, setType] = useState(defaultState.type);
   const [name, setName] = useState(defaultState.name);
   const [nameChanged, setNameChanged] = useState(false);
+  const [description, setDescription] = useState(defaultState.description);
   const [options, setOptions] = useState(defaultState.options);
 
   const [saveInProgress, setSaveInProgress] = useState(false);
@@ -137,6 +139,7 @@ function EditVisualizationDialog({ dialog, visualization, query, queryResult }) 
 
     const visualizationData = extend(newVisualization(type), visualization, {
       name,
+      description,
       options: visualizationOptions,
       query_id: query.id,
     });
@@ -148,7 +151,8 @@ function EditVisualizationDialog({ dialog, visualization, query, queryResult }) 
 
   function dismiss() {
     const optionsChanged = !isEqual(options, defaultState.originalOptions);
-    confirmDialogClose(nameChanged || optionsChanged)
+    const descriptionChanged = description !== defaultState.description;
+    confirmDialogClose(nameChanged || descriptionChanged || optionsChanged)
       .then(dialog.dismiss)
       .catch(() => {});
   }
@@ -161,6 +165,7 @@ function EditVisualizationDialog({ dialog, visualization, query, queryResult }) 
 
   const vizTypeId = useUniqueId("visualization-type");
   const vizNameId = useUniqueId("visualization-name");
+  const vizDescriptionId = useUniqueId("visualization-description");
 
   return (
     <Modal
@@ -204,6 +209,19 @@ function EditVisualizationDialog({ dialog, visualization, query, queryResult }) 
               className="w-100"
               value={name}
               onChange={(event) => onNameChanged(event.target.value)}
+            />
+          </div>
+          <div className="m-b-15">
+            <label htmlFor={vizDescriptionId}>Description (optional)</label>
+            <Input.TextArea
+              data-test="VisualizationDescription"
+              id={vizDescriptionId}
+              className="w-100"
+              autoSize={{ minRows: 2, maxRows: 4 }}
+              maxLength={4096}
+              placeholder="What this chart is of, shown on a tooltip beside its name."
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
             />
           </div>
           <div data-test="VisualizationEditor">

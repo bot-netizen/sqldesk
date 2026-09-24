@@ -40,6 +40,37 @@ class VisualizationResourceTest(BaseTestCase):
         self.assertEqual(rv.status_code, 200)
         self.assertEqual(rv.json["name"], "After Update")
 
+    def test_description_is_saved_and_returned(self):
+        # The column and the serializer have both been here since before the
+        # fork; nothing ever sent one, so nothing checked that it round-trips.
+        visualization = self.factory.create_visualization()
+        models.db.session.commit()
+
+        rv = self.make_request(
+            "post",
+            "/api/visualizations/{0}".format(visualization.id),
+            data={"description": "Counts, not sums."},
+        )
+
+        self.assertEqual(rv.status_code, 200)
+        self.assertEqual(rv.json["description"], "Counts, not sums.")
+        self.assertEqual(models.Visualization.query.get(visualization.id).description, "Counts, not sums.")
+
+    def test_description_survives_an_update_that_does_not_mention_it(self):
+        # The editor sends the whole visualization, but a widget's own save
+        # path and the API both allow a partial one.
+        visualization = self.factory.create_visualization(description="Weeks since the account opened.")
+        models.db.session.commit()
+
+        rv = self.make_request(
+            "post",
+            "/api/visualizations/{0}".format(visualization.id),
+            data={"name": "After Update"},
+        )
+
+        self.assertEqual(rv.status_code, 200)
+        self.assertEqual(rv.json["description"], "Weeks since the account opened.")
+
     def test_only_owner_collaborator_or_admin_can_create_visualization(self):
         query = self.factory.create_query()
         other_user = self.factory.create_user()

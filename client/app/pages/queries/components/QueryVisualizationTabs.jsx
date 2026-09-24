@@ -8,6 +8,7 @@ import Tabs from "antd/lib/tabs";
 import Button from "antd/lib/button";
 import Modal from "antd/lib/modal";
 import VisualizationRenderer from "@/components/visualizations/VisualizationRenderer";
+import VisualizationDescription from "@/components/visualizations/VisualizationDescription";
 import PlainButton from "@/components/PlainButton";
 
 import "./QueryVisualizationTabs.less";
@@ -39,7 +40,7 @@ EmptyState.defaultProps = {
   refreshButton: null,
 };
 
-function TabWithDeleteButton({ visualizationName, canDelete, onDelete, ...props }) {
+function TabWithDeleteButton({ visualizationName, visualizationDescription, canDelete, onDelete, ...props }) {
   const handleDelete = useCallback(
     (e) => {
       e.stopPropagation();
@@ -59,6 +60,7 @@ function TabWithDeleteButton({ visualizationName, canDelete, onDelete, ...props 
   return (
     <span {...props}>
       {visualizationName}
+      <VisualizationDescription description={visualizationDescription} />
       {canDelete && (
         <PlainButton className="delete-visualization-button" onClick={handleDelete} aria-label="Close" title="Close">
           <i className="zmdi zmdi-close" aria-hidden="true" />
@@ -70,10 +72,11 @@ function TabWithDeleteButton({ visualizationName, canDelete, onDelete, ...props 
 
 TabWithDeleteButton.propTypes = {
   visualizationName: PropTypes.string.isRequired,
+  visualizationDescription: PropTypes.string,
   canDelete: PropTypes.bool,
   onDelete: PropTypes.func,
 };
-TabWithDeleteButton.defaultProps = { canDelete: false, onDelete: () => {} };
+TabWithDeleteButton.defaultProps = { visualizationDescription: "", canDelete: false, onDelete: () => {} };
 
 const defaultVisualizations = [
   {
@@ -152,6 +155,7 @@ export default function QueryVisualizationTabs({
               data-test={`QueryPageVisualizationTab${visualization.id}`}
               canDelete={!isMobile && canDeleteVisualizations && !isFirstVisualization(visualization.id)}
               visualizationName={visualization.name}
+              visualizationDescription={visualization.description}
               onDelete={() => onDeleteVisualization(visualization.id)}
             />
           }

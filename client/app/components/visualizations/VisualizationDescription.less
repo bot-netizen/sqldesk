@@ -1,0 +1,23 @@
+// Two classes, because `PlainButton` resets itself with `all: unset` and the
+// two rules would otherwise be equally specific -- which of them won would
+// depend on the order webpack happened to emit them in.
+.plain-button.visualization-description {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 5px;
+  color: var(--color-text-muted, #6f6b66);
+  font-size: 12px;
+  cursor: pointer;
+  vertical-align: baseline;
+
+  &:hover,
+  &:focus {
+    color: var(--color-text, #1c1b1a);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-action, #0a7c93);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
