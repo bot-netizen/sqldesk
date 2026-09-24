@@ -89,7 +89,8 @@ function RefreshIndicator({ refreshStartedAt }) {
 RefreshIndicator.propTypes = { refreshStartedAt: Moment };
 RefreshIndicator.defaultProps = { refreshStartedAt: null };
 
-function VisualizationWidgetHeader({
+// Exported for its own test: where a widget's filters go is a rule of its own.
+export function VisualizationWidgetHeader({
   widget,
   refreshStartedAt,
   parameters,
@@ -99,10 +100,30 @@ function VisualizationWidgetHeader({
 }) {
   const canViewQuery = currentUser.hasPermission("view_query");
 
+  /*
+    A widget's own filter goes on the title's row. Under it, `Parameters`
+    stacks a label above its control inside a white block -- measured, 63px,
+    most of it air, taken out of a widget that is mostly chart.
+
+    Not while the layout is being edited: there the parameters are dragged
+    into order, and drag handles want a block of their own. Same reasoning as
+    the dashboard's own filters -- see DashboardFilters.
+  */
+  const filtersInline = !isEditing && !isEmpty(parameters);
+  const parameterControls = (
+    <Parameters
+      parameters={parameters}
+      sortable={isEditing}
+      appendSortableToParent={false}
+      onValuesChange={onParametersUpdate}
+      onParametersEdit={onParametersEdit}
+    />
+  );
+
   return (
     <>
       <RefreshIndicator refreshStartedAt={refreshStartedAt} />
-      <div className="t-header widget clearfix">
+      <div className={cx("t-header widget clearfix", { "t-header-filtered": filtersInline })}>
         <div className="th-title">
           <p>
             <QueryLink query={widget.getQuery()} visualization={widget.visualization} readOnly={!canViewQuery} />
@@ -114,18 +135,13 @@ function VisualizationWidgetHeader({
             </HtmlContent>
           )}
         </div>
+        {filtersInline && (
+          <div className="widget-filters hidden-print" data-test="WidgetFilters">
+            {parameterControls}
+          </div>
+        )}
       </div>
-      {!isEmpty(parameters) && (
-        <div className="m-b-10">
-          <Parameters
-            parameters={parameters}
-            sortable={isEditing}
-            appendSortableToParent={false}
-            onValuesChange={onParametersUpdate}
-            onParametersEdit={onParametersEdit}
-          />
-        </div>
-      )}
+      {!filtersInline && !isEmpty(parameters) && <div className="m-b-10">{parameterControls}</div>}
     </>
   );
 }

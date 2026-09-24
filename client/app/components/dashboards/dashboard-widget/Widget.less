@@ -247,6 +247,82 @@
     }
   }
 
+  /*
+    A widget's own filter, on the title's row. `Parameters` stacks a label
+    above its control inside a white block, which is right for a band of its
+    own and is 63px out of a widget that is mostly chart. Here the label sits
+    beside the control and the block stops being a block.
+
+    Both are inline-level inside `.di-block`, which the utility class pins to
+    `display: inline-block !important` -- so they are put on one line rather
+    than the wrapper being made a flex row, which would need an argument with
+    that `!important`.
+  */
+  .t-header.widget.t-header-filtered {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+
+    // A floor on the title, so the filters wrap to a line of their own
+    // before the name of the widget starts breaking in half.
+    .th-title {
+      flex: 1 1 210px;
+      min-width: 0;
+    }
+
+    .widget-filters {
+      flex: 0 1 auto;
+      min-width: 0;
+    }
+  }
+
+  .widget-filters {
+    .parameter-container {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 4px 14px;
+    }
+
+    .parameter-block {
+      display: flex;
+      align-items: center;
+      padding: 0;
+      background: none;
+    }
+
+    .parameter-heading {
+      display: inline-flex;
+      vertical-align: middle;
+      padding-bottom: 0;
+
+      label {
+        margin-bottom: 0;
+        min-width: 0;
+        max-width: 120px;
+        color: var(--color-text-secondary);
+        font-size: 12px;
+        font-weight: 400;
+      }
+    }
+
+    .parameter-input {
+      width: auto;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    .ant-select,
+    .ant-input,
+    .ant-input-number,
+    .ant-picker {
+      min-width: 90px;
+      max-width: 170px;
+    }
+  }
+
   .t-header.widget {
     // 44px tall with one line of title. The odd pixel comes off the bottom
     // because the description's ring is lifted three pixels, which carries
