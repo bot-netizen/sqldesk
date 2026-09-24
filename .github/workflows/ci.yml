@@ -121,10 +121,9 @@ jobs:
           cache: 'pnpm'
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
-      - name: Run App Tests
+      # Both packages' type-checks and both jest suites; see the `test` script.
+      - name: Run Tests
         run: pnpm run test
-      - name: Run Visualizations Tests
-        run: pnpm --filter @sqldesk/viz test
       - run: pnpm run lint
 
   frontend-e2e-tests:
