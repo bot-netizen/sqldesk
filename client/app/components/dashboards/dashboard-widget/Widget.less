@@ -77,6 +77,24 @@
       margin-bottom: 0;
     }
   }
+
+  /*
+    A textbox with its tile turned off: words on the page, which is what a
+    heading between two rows of charts should be. The menu button still
+    appears on hover, so it can still be edited.
+  */
+  .tile.widget-text-plain {
+    background: none;
+    border: none;
+    box-shadow: none;
+
+    .markdown {
+      // The grid's own gutter already separates it from the widgets around
+      // it; the tile's padding was there to keep text off a border there is
+      // no longer.
+      padding: 2px 2px 0 !important;
+    }
+  }
 }
 
 .editing-mode {

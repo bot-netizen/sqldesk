@@ -227,8 +227,10 @@ function useDashboard(dashboardData, { publicToken = null } = {}) {
   const showAddTextboxDialog = useCallback(() => {
     TextboxDialog.showModal({
       isNew: true,
-    }).onClose((text) =>
-      dashboard.addWidget(text).then(() => setDashboard((currentDashboard) => extend({}, currentDashboard)))
+    }).onClose(({ text, textStyle, align }) =>
+      dashboard
+        .addWidget(text, { textStyle, align })
+        .then(() => setDashboard((currentDashboard) => extend({}, currentDashboard)))
     );
   }, [dashboard]);
 
