@@ -1,11 +1,9 @@
 import React from "react";
 import ReactDOMServer from "react-dom/server";
 import moment from "moment/moment";
-import numeral from "numeral";
 import { isString, isArray, isUndefined, isFinite, isNil, toString } from "lodash";
 import { visualizationsSettings } from "@/visualizations/visualizationsSettings";
-
-numeral.options.scalePercentBy100 = false;
+import { asValueFormat, formatValue } from "@/visualizations/shared/valueOptions";
 
 // eslint-disable-next-line
 const urlPattern =
@@ -93,20 +91,30 @@ export function createBooleanFormatter(values: any) {
   };
 }
 
+/**
+ * A formatter from a saved option, which may be a numeral format string or
+ * the shared `ValueFormat` the editors write now.
+ *
+ * The strings are read by `fromNumeral`; nothing here does its own
+ * formatting any more. What is kept is this function's contract, so every
+ * caller -- charts, table number columns, cohort, funnel, the maps -- is
+ * unchanged: an empty cell is an empty string, or the null marker for the
+ * callers that draw one.
+ */
 export function createNumberFormatter(format: any, canReturnHTMLElement: boolean = false) {
-  if (isString(format) && format !== "") {
-    const n = numeral(0); // cache `numeral` instance
-    return (value: any) => {
-      if (canReturnHTMLElement && value === null) {
+  const value = asValueFormat(format, null as any);
+  if (value) {
+    return (v: any) => {
+      if (canReturnHTMLElement && v === null) {
         return <NullValueComponent />;
       }
-      if (value === "" || value === null) {
+      if (v === "" || v === null || v === undefined) {
         return "";
       }
-      return n.set(value).format(format);
+      return formatValue(v, value);
     };
   }
-  return (value: any) => (canReturnHTMLElement && value === null ? <NullValueComponent /> : toString(value));
+  return (v: any) => (canReturnHTMLElement && v === null ? <NullValueComponent /> : toString(v));
 }
 
 export function formatSimpleTemplate(str: any, data: any) {

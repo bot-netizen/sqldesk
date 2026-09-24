@@ -21,7 +21,7 @@ import { DEFAULT_VALUE_FORMAT, ValueFormat, ValueStyle } from "./format";
   every cohort percentage by a hundred.
 */
 
-const SHAPE = /^([+-]?)(\$?)(0|0(?:,0+)*)(?:(\[\.\]|\.)((?:0|\[0\])+))?\s?(%|a|o|b|ib|bd)?$/;
+const SHAPE = /^([+-]?)(\$?)(0|0(?:,0+)*)(?:(\[\.\]|\.)((?:0+|\[0+\])+))?\s?(%|a|o|b|ib|bd)?$/;
 
 /** How many places the digits after the point ask for, required and optional. */
 function places(digits: string): { max: number; min: number } {

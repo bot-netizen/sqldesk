@@ -1,5 +1,5 @@
 import React from "react";
-import { Section, Select, Input, InputNumber } from "@/components/visualizations/editor";
+import { Section, Select, Input, InputNumber, Checkbox } from "@/components/visualizations/editor";
 import { VALUE_STYLES, ValueFormat, normalizeValueFormat, formatValue } from "../format";
 
 type Props = {
@@ -65,6 +65,43 @@ export default function ValueFormatSection({ format, onChange, sampleValue, test
           data-test={`${testPrefix}.Decimals`}
           onChange={(v: any) => update({ decimals: toDecimals(v) })}
         />
+      </Section>
+
+      {f.decimals !== null && f.decimals > 0 && (
+        <Section>
+          <Select
+            layout="horizontal"
+            label="Trailing zeros"
+            value={f.hideZeroFraction ? "whole" : f.minDecimals === 0 ? "needed" : "always"}
+            data-test={`${testPrefix}.TrailingZeros`}
+            onChange={(mode: any) =>
+              update({
+                minDecimals: mode === "needed" ? 0 : null,
+                hideZeroFraction: mode === "whole",
+              })
+            }
+          >
+            <Select.Option value="always" data-test={`${testPrefix}.TrailingZeros.always`}>
+              Always <span className="value-options-example">3.00</span>
+            </Select.Option>
+            <Select.Option value="needed" data-test={`${testPrefix}.TrailingZeros.needed`}>
+              Only when needed <span className="value-options-example">3, 3.5</span>
+            </Select.Option>
+            <Select.Option value="whole" data-test={`${testPrefix}.TrailingZeros.whole`}>
+              Not on whole numbers <span className="value-options-example">3, 3.50</span>
+            </Select.Option>
+          </Select>
+        </Section>
+      )}
+
+      <Section>
+        <Checkbox
+          data-test={`${testPrefix}.Grouping`}
+          checked={f.grouping !== false}
+          onChange={(event: any) => update({ grouping: event.target.checked })}
+        >
+          Group thousands
+        </Checkbox>
       </Section>
 
       <Section>

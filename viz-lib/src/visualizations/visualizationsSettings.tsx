@@ -1,7 +1,7 @@
 import React from "react";
 import { extend, isString } from "lodash";
-import numeral from "numeral";
 import Tooltip from "antd/lib/tooltip";
+import { setNumberSeparators } from "./shared/valueOptions";
 
 type HelpTriggerProps = {
   title?: React.ReactNode;
@@ -58,14 +58,13 @@ export const visualizationsSettings = {
 export function updateVisualizationsSettings(options: any) {
   extend(visualizationsSettings, options);
 
-  // `,` and `.` in numeral format strings are locale markers, not literal characters —
-  // the rendered separators come from the active locale's delimiters. Override them so
-  // settings like a space thousands separator (e.g. "1 234 567") are reachable. Each
-  // separator is applied independently and falls back to its en default when not a string,
-  // so a non-string value never leaves numeral stuck on a stale override.
+  // The organization's separators (Settings > General > Format). They are
+  // pushed into the formatter rather than read from here, so that file goes
+  // on depending on nothing. Each falls back to its default when it is not a
+  // string, so a bad value never leaves the formatter stuck on a stale one.
   const { thousandsSeparator, decimalSeparator } = visualizationsSettings;
-  extend(numeral.localeData().delimiters, {
-    thousands: isString(thousandsSeparator) ? thousandsSeparator : DEFAULT_THOUSANDS_SEPARATOR,
-    decimal: isString(decimalSeparator) ? decimalSeparator : DEFAULT_DECIMAL_SEPARATOR,
-  });
+  setNumberSeparators(
+    isString(thousandsSeparator) ? thousandsSeparator : DEFAULT_THOUSANDS_SEPARATOR,
+    isString(decimalSeparator) ? decimalSeparator : DEFAULT_DECIMAL_SEPARATOR
+  );
 }

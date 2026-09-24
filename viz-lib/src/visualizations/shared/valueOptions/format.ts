@@ -65,6 +65,43 @@ export const VALUE_STYLES: { value: ValueStyle; label: string; example: string }
 /** What a missing or unreadable value is shown as. */
 export const EMPTY_VALUE = "–";
 
+/*
+  The separators an organization has chosen, or null to use whatever the
+  reader's locale does.
+
+  These are an organization setting -- Settings > General > Format -- and
+  numeral honoured them by mutating its own global locale, which is one of
+  the reasons it is going. `Intl` reads them off the locale instead, so the
+  chosen ones are substituted into the parts it produces: precise, because
+  the parts say which piece is a group separator and which is a decimal
+  point, rather than guessing at characters in a finished string.
+
+  Pushed in from `visualizationsSettings` rather than read from it, so this
+  file goes on depending on nothing.
+*/
+let separators: { group: string; decimal: string } | null = null;
+
+export function setNumberSeparators(group: unknown, decimal: unknown): void {
+  // Set even when they are the ordinary "," and ".", because that is a
+  // choice the organization made and it has to hold whatever locale the
+  // reader's browser is in -- which is what numeral did by forcing its own
+  // locale's delimiters.
+  separators = typeof group === "string" && typeof decimal === "string" ? { group, decimal } : null;
+}
+
+/** Every number written by this file goes through here. */
+function write(value: number, options: Intl.NumberFormatOptions, locale?: string): string {
+  const formatter = new Intl.NumberFormat(locale, options);
+  if (!separators) {
+    return formatter.format(value);
+  }
+  const { group, decimal } = separators;
+  return formatter
+    .formatToParts(value)
+    .map((part) => (part.type === "group" ? group : part.type === "decimal" ? decimal : part.value))
+    .join("");
+}
+
 export function toNumber(value: unknown): number | null {
   if (typeof value === "number") {
     return Number.isFinite(value) ? value : null;
@@ -112,14 +149,14 @@ function formatBytes(value: number, decimals: number | null, locale?: string) {
     unit += 1;
   }
   const places = unit === 0 ? 0 : digits(decimals, 1);
-  const body = new Intl.NumberFormat(locale, { maximumFractionDigits: places }).format(scaled);
+  const body = write(scaled, { maximumFractionDigits: places }, locale);
   return `${value < 0 ? "-" : ""}${body} ${BYTE_UNITS[unit]}`;
 }
 
 function formatDuration(seconds: number, decimals: number | null, locale?: string) {
   const sign = seconds < 0 ? "-" : "";
   const s = Math.abs(seconds);
-  const nf = (n: number, places: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: places }).format(n);
+  const nf = (n: number, places: number) => write(n, { maximumFractionDigits: places }, locale);
   if (s < 1) {
     return `${sign}${nf(s * 1000, digits(decimals, 0))} ms`;
   }
@@ -150,34 +187,32 @@ function formatNumberBody(value: number, format: ValueFormat, locale?: string): 
   const useGrouping = format.grouping !== false;
   switch (format.style) {
     case "number":
-      return new Intl.NumberFormat(locale, {
-        useGrouping,
-        ...(decimals === null ? { maximumFractionDigits: Number.isInteger(value) ? 0 : 2 } : fixed(format, value)),
-      }).format(value);
+      return write(
+        value,
+        {
+          useGrouping,
+          ...(decimals === null ? { maximumFractionDigits: Number.isInteger(value) ? 0 : 2 } : fixed(format, value)),
+        },
+        locale
+      );
     case "compact":
-      return new Intl.NumberFormat(locale, {
-        useGrouping,
-        notation: "compact",
-        compactDisplay: "short",
-        maximumFractionDigits: digits(decimals, 1),
-      }).format(value);
+      return write(
+        value,
+        { useGrouping, notation: "compact", compactDisplay: "short", maximumFractionDigits: digits(decimals, 1) },
+        locale
+      );
     case "percent":
-      return new Intl.NumberFormat(locale, {
-        useGrouping,
-        style: "percent",
-        maximumFractionDigits: digits(decimals, 1),
-      }).format(value);
+      return write(value, { useGrouping, style: "percent", maximumFractionDigits: digits(decimals, 1) }, locale);
     case "currency":
       try {
-        return new Intl.NumberFormat(locale, {
-          useGrouping,
-          style: "currency",
-          currency: format.currency || "USD",
-          ...fixed(format, value),
-        }).format(value);
+        return write(
+          value,
+          { useGrouping, style: "currency", currency: format.currency || "USD", ...fixed(format, value) },
+          locale
+        );
       } catch (e) {
         // An unknown currency code throws; fall back rather than blank the tile.
-        return new Intl.NumberFormat(locale, { useGrouping, ...fixed(format, value) }).format(value);
+        return write(value, { useGrouping, ...fixed(format, value) }, locale);
       }
     case "bytes":
       return formatBytes(value, decimals, locale);
@@ -185,12 +220,16 @@ function formatNumberBody(value: number, format: ValueFormat, locale?: string): 
       return formatDuration(value, decimals, locale);
     case "auto":
     default:
-      return new Intl.NumberFormat(locale, {
-        useGrouping,
-        maximumFractionDigits:
-          decimals === null ? (Number.isInteger(value) ? 0 : Math.abs(value) >= 100 ? 1 : 2) : digits(decimals, 0),
-        ...(decimals === null ? {} : fixed(format, value)),
-      }).format(value);
+      return write(
+        value,
+        {
+          useGrouping,
+          maximumFractionDigits:
+            decimals === null ? (Number.isInteger(value) ? 0 : Math.abs(value) >= 100 ? 1 : 2) : digits(decimals, 0),
+          ...(decimals === null ? {} : fixed(format, value)),
+        },
+        locale
+      );
   }
 }
 
