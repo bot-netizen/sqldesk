@@ -192,27 +192,28 @@ describe("Widget", () => {
       cy.visit(this.dashboardUrl);
 
       /*
-        Two things, neither of them a pixel count: the widget is as tall as
-        the grid was told to make it, and the table fills the row inside it.
-        Together those are what "the correct height" means.
+        What this guards is a table that does not fit its widget -- collapsed,
+        or overflowing it. So it asks that, rather than a pixel count.
 
-        Written as 380px, this failed when 0.5 took 27px of chrome off the
-        widget and the table grew into it -- the test broke for getting what
-        it asked for. Adding up the chrome instead was no better: the header
-        is a `.t-header` inside a `.body-row`, and measuring the inner one
-        missed the row around it.
+        It has been written three other ways and been wrong three times. 380px
+        broke when 0.5 took 27px of chrome off the widget and the table grew
+        into it. Adding up the chrome missed the `.body-row` around the
+        `.t-header` by 28px. Filling `.body-row-auto` exactly missed the
+        pagination strip the renderer puts under a table with more than a page
+        of rows -- 40px on a dashboard here, 28px in CI, because the
+        paginator's margins differ.
 
-        `.body-row-auto` is the space the grid leaves the visualization after
-        the header and footer have taken theirs, so a table that fills it is
-        a table that fits its widget, whatever the chrome is doing.
+        So: never taller than the row it is given, and not far short of it.
+        The slack is the paginator's, and a collapsed table still fails.
       */
       cy.getByTestId(elTestId).should(($widget) => {
         expect($widget.height(), "twenty grid rows tall").to.eq(gridRowsToPx(20));
-      });
 
-      cy.getByTestId(elTestId).then(($widget) => {
         const body = $widget.find(".body-row-auto")[0];
-        cy.getByTestId("TableVisualization").its("0.offsetHeight").should("be.closeTo", body.offsetHeight, 2);
+        const table = $widget.find('[data-test="TableVisualization"]')[0];
+
+        expect(table.offsetHeight, "never taller than its row").to.be.at.most(body.offsetHeight);
+        expect(table.offsetHeight, "fills its row, bar the paginator").to.be.at.least(body.offsetHeight - 60);
       });
 
       cy.percySnapshot("Shows correct height of table visualization");
