@@ -133,9 +133,10 @@ footer a{color:var(--muted)}
   <span class="eyebrow">Engineering &middot; September 2026</span>
   <h1>Where the query path was wasting a second.</h1>
   <p class="lede">
-    Four fixes to the caching layer, each one found by measuring rather than guessing.
-    A 27MB cached result now serves in a tenth of the time, and the cache lookup behind
-    it went from 66ms to 0.06ms.
+    Six fixes along the path a result takes &mdash; from the database, through the cache,
+    into the browser &mdash; each one found by measuring rather than guessing. A 27MB cached
+    result serves in a tenth of the time, the lookup behind it went from 66ms to 0.06ms,
+    and taking a 20,000-row result into the browser went from 919ms to 101ms.
   </p>
 </div>
 
@@ -151,6 +152,10 @@ footer a{color:var(--muted)}
           <tr><td>Buffers read per lookup</td><td class="num hot">3,356</td><td class="num ok">4</td><td>Same</td></tr>
           <tr><td>Result eviction ceiling</td><td class="num hot">28,800/day</td><td class="num ok">288,000/day</td><td>Arithmetic on the job schedule</td></tr>
           <tr><td>DuckDB connects per query</td><td class="num hot">1 + extensions</td><td class="num ok">0</td><td>Reading the runner lifecycle</td></tr>
+          <tr><td>Taking in a 20,000-row result</td><td class="num hot">919 ms</td><td class="num ok">101 ms</td><td>Timed the same fixture before and after</td></tr>
+          <tr><td>Result lookup by hash and data source</td><td class="num hot">20 buffers</td><td class="num ok">7 buffers</td><td><code>EXPLAIN (analyze, buffers)</code></td></tr>
+          <tr><td>A live dashboard&rsquo;s check-in, 12 widgets &times; 4 viewers</td><td class="num hot">48 statements</td><td class="num ok">4 statements</td><td>Counted with a cursor listener</td></tr>
+          <tr><td>Five widgets of one query, one dashboard load</td><td class="num hot">5 fetches</td><td class="num ok">1 fetch</td><td>Counted the requests in the browser</td></tr>
         </tbody>
       </table>
     </div>
@@ -306,6 +311,47 @@ Limit
         </div>
       </div>
     </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Five: a timestamp column was parsed twice per cell</h2>
+    <p class="sub">
+      Reading a result into the browser spent most of its time on one column. A 20,000-row result
+      with a single timestamp column took 919&nbsp;ms to take in, on the main thread, before anything
+      could be drawn.
+    </p>
+    <p>
+      Almost none of that was the date library being slow. It was being asked the same question
+      twice. One function did a strict parse purely to decide whether a cell <em>was</em> a
+      timestamp, threw the answer away, and a second function then parsed the identical string
+      again to produce it. Parsing once, by hand, took the same fixture to 101&nbsp;ms.
+    </p>
+    <p>
+      The obvious next step &mdash; dropping the date objects entirely for plain numbers &mdash;
+      was measured and not taken. Of the 20&nbsp;ms the parse now costs per 20,000 cells, 10.6 is
+      the parse and 9.1 is building the objects: 3.6% of the original, in exchange for changing
+      eleven places that read them. The measurement is what said no.
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Six: a live dashboard asked the same question once per widget, per viewer</h2>
+    <p class="sub">
+      A live dashboard&rsquo;s viewers check in every few seconds. Each check-in asked the database
+      for the newest result of every widget, one statement at a time: a twelve-widget dashboard
+      with four people watching was forty-eight statements every few seconds to produce twelve
+      answers.
+    </p>
+    <p>
+      They are one statement per data source now, and the check-in no longer decides what to run
+      at all &mdash; working that out means rendering every parameterized query, so it happens in a
+      job while the viewer gets its reply. The periodic sweep that refreshes those dashboards also
+      takes a lock, because it was started every ten seconds and allowed sixty to finish.
+    </p>
   </div>
 </section>
 
