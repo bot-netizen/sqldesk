@@ -16,6 +16,7 @@ Create Date: 2026-09-23
 
 """
 
+import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -32,7 +33,11 @@ def upgrade():
         INDEX_NAME,
         "dashboards",
         ["id"],
-        postgresql_where=op.inline_literal("live IS NOT NULL AND is_archived = false"),
+        # `sa.text`, not `op.inline_literal`: the latter renders a quoted
+        # string, and Postgres rejects it as a boolean. Nothing caught that,
+        # because the test database is built with `create_all` and stamped at
+        # head -- migrations are never replayed there.
+        postgresql_where=sa.text("live IS NOT NULL AND is_archived = false"),
     )
 
 
