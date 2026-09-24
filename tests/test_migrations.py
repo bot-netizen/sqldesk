@@ -135,3 +135,70 @@ class MigrationsTest(BaseTestCase):
             run += 1
 
         self.assertGreater(run, 0, "no index migration was executed")
+
+    def test_the_grid_migration_doubles_positions_and_spares_everything_else(self):
+        """
+        `c9f1a67b3d84` rewrites live data, which makes it the one migration
+        here that can destroy something rather than merely fail.
+
+        `jsonb_set` returns NULL if any argument is NULL, so a widget with no
+        `position` -- or a position missing one of the four keys -- would have
+        its whole `options` replaced by NULL, taking its parameter mappings
+        with it. Upstream's 6-to-12 migration has exactly that hole. This
+        runs the real SQL against real rows to show that ours does not.
+        """
+        config = self._config()
+        spec = "a3f5c07be41d:c9f1a67b3d84"
+        up = _offline_sql(config, "upgrade", spec)
+        down = _offline_sql(config, "downgrade", "c9f1a67b3d84:a3f5c07be41d")
+        self.assertTrue(up, "the migration compiled to nothing")
+
+        ordinary = self.factory.create_widget(
+            options={
+                "position": {"col": 3, "row": 4, "sizeX": 6, "sizeY": 3, "autoHeight": False},
+                "parameterMappings": {"region": {"type": "dashboard-level"}},
+            }
+        )
+        # Sizes itself to its contents; doubling has to keep it negative.
+        auto = self.factory.create_widget(options={"position": {"col": 0, "row": 0, "sizeX": 6, "sizeY": -1}})
+        # A textbox saved before positions existed at all.
+        positionless = self.factory.create_widget(options={"parameterMappings": {}})
+        db.session.commit()
+        ids = (ordinary.id, auto.id, positionless.id)
+
+        def options_of(widget_id):
+            row = db.session.execute("SELECT options FROM widgets WHERE id = :id", {"id": widget_id}).scalar()
+            return row
+
+        for statement in up:
+            db.session.execute(statement)
+        db.session.commit()
+
+        after = options_of(ordinary.id)["position"]
+        self.assertEqual(
+            {"col": 6, "row": 8, "sizeX": 12, "sizeY": 6},
+            {key: after[key] for key in ("col", "row", "sizeX", "sizeY")},
+        )
+        self.assertFalse(after["autoHeight"], "keys it does not own should be left alone")
+        self.assertEqual(
+            {"region": {"type": "dashboard-level"}},
+            options_of(ordinary.id)["parameterMappings"],
+            "the rest of options has to survive",
+        )
+        self.assertEqual(-2, options_of(auto.id)["position"]["sizeY"], "auto height must stay negative")
+        self.assertEqual(
+            {"parameterMappings": {}}, options_of(positionless.id), "a widget with no position is not touched"
+        )
+
+        for statement in down:
+            db.session.execute(statement)
+        db.session.commit()
+
+        back = options_of(ordinary.id)["position"]
+        self.assertEqual(
+            {"col": 3, "row": 4, "sizeX": 6, "sizeY": 3},
+            {key: back[key] for key in ("col", "row", "sizeX", "sizeY")},
+            "downgrade has to put back exactly what was there",
+        )
+        self.assertEqual(-1, options_of(auto.id)["position"]["sizeY"])
+        self.assertTrue(all(options_of(i) is not None for i in ids), "no widget lost its options")

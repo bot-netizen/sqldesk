@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0-rc.1
+## 0.5.0
 
 A dashboard that costs less to look at, and more room on it to say things.
 
@@ -54,6 +54,21 @@ Dashboards are saved when you say so -- dragging a widget changes nothing
 until Done Editing. Sorting and searching arrived on the list pages. 1,144
 lines nothing reached were deleted, and 336 type suppressions went with two
 declaration fixes.
+
+## 0.5.0-rc.1
+
+The release candidate for 0.5, and what 0.5.0 is apart from one thing.
+
+**Dashboards built before 0.5 were going to come out shrunken.** The grid went
+from twelve columns and 50px rows to twenty-four and 25px, and every number
+the *frontend* refers to doubled with it -- but the numbers already in the
+database did not. A widget saved six columns wide was half a screen and would
+have become a quarter of one. 0.5.0 adds the migration that doubles them,
+which upstream shipped when they went from six columns to twelve and which
+this change had been missing.
+
+If you ran rc.1, its data is already on the new grid: stamp past
+`c9f1a67b3d84` rather than letting it run.
 
 ## 0.4.0
 

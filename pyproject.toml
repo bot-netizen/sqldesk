@@ -1,6 +1,6 @@
 [project]
 name = "sqldesk"
-version = "0.5.0-rc.1"
+version = "0.5.0"
 description = "Make Your Company Data Driven. Connect to any data source, easily visualize, dashboard and share your data."
 authors = [
     { name = "SQLDesk contributors" }

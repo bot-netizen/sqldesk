@@ -11,7 +11,7 @@
   <p>
     <a href="https://github.com/bot-netizen/sqldesk/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/bot-netizen/sqldesk/actions/workflows/ci.yml/badge.svg"></a>
     <a href="LICENSE"><img alt="Licence" src="https://img.shields.io/badge/licence-Apache%202.0-blue"></a>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.5.0--rc.1-teal">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.5.0-teal">
   </p>
 </div>
 
