@@ -46,7 +46,11 @@ Cypress.Commands.add("createVisualization", (queryId, type, name, options) => {
 
 Cypress.Commands.add("addTextbox", (dashboardId, text = "text", options = {}) => {
   const defaultOptions = {
-    position: { col: 0, row: 0, sizeX: 3, sizeY: 3 },
+    // Six by six, which is what three by three meant before the grid went
+    // to twenty-four columns and rows half as tall. Three by three is under
+    // `minSizeX`/`minSizeY` now, so it clamped to the smallest widget there
+    // is and every spec measuring a default fixture measured that instead.
+    position: { col: 0, row: 0, sizeX: 6, sizeY: 6 },
   };
 
   const data = {
@@ -66,7 +70,11 @@ Cypress.Commands.add("addTextbox", (dashboardId, text = "text", options = {}) =>
 
 Cypress.Commands.add("addWidget", (dashboardId, visualizationId, options = {}) => {
   const defaultOptions = {
-    position: { col: 0, row: 0, sizeX: 3, sizeY: 3 },
+    // Six by six, which is what three by three meant before the grid went
+    // to twenty-four columns and rows half as tall. Three by three is under
+    // `minSizeX`/`minSizeY` now, so it clamped to the smallest widget there
+    // is and every spec measuring a default fixture measured that instead.
+    position: { col: 0, row: 0, sizeX: 6, sizeY: 6 },
   };
 
   const data = {

@@ -183,7 +183,12 @@ describe("Widget", () => {
       query: `select '${"loremipsum".repeat(15)}' FROM generate_series(1,15)`,
     };
 
-    const widgetOptions = { position: { col: 0, row: 0, sizeX: 3, sizeY: 10, autoHeight: false } };
+    // Twelve columns and 50px rows became twenty-four and 25px, so a quarter
+    // of the width is six columns and ten rows' worth of height is twenty.
+    // The table inside is the same 380px either way, which is what is under
+    // test -- the widget around it has to be the same size for that to mean
+    // anything.
+    const widgetOptions = { position: { col: 0, row: 0, sizeX: 6, sizeY: 20, autoHeight: false } };
 
     createQueryAndAddWidget(this.dashboardId, queryData, widgetOptions).then(() => {
       cy.visit(this.dashboardUrl);

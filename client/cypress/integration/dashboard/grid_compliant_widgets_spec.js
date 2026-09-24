@@ -32,9 +32,12 @@ describe("Grid compliant widgets", () => {
         editDashboard();
       });
 
+      // A column is about 49px wide now rather than 98, so the snap threshold
+      // is about 24px rather than 49 -- and the 30px that used to be safely
+      // under it is over it, and moves the widget a column.
       it("stays put when dragged under snap threshold", () => {
         cy.get("@textboxEl")
-          .dragBy(30)
+          .dragBy(10)
           .invoke("offset")
           .should("have.property", "left", 15 + menuWidth); // no change, 15 -> 15
       });
@@ -78,8 +81,9 @@ describe("Grid compliant widgets", () => {
         editDashboard();
       });
 
+      // Under the threshold, which is half a column and half what it was.
       it("stays put when dragged under snap threshold", () => {
-        resizeBy(cy.get("@textboxEl"), 30)
+        resizeBy(cy.get("@textboxEl"), 10)
           .then(() => cy.get("@textboxEl"))
           .invoke("width")
           .should("eq", 285); // no change, 285 -> 285
