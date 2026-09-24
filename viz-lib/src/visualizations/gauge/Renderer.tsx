@@ -1,10 +1,20 @@
 import React, { useMemo, useState } from "react";
 import { RendererPropTypes } from "@/visualizations/prop-types";
+import echarts from "@/visualizations/echarts";
 import useEChart from "@/visualizations/echarts/useEChart";
+import { GraphicComponent } from "echarts/components";
 import useElementSize from "../shared/useElementSize";
 import Problem from "../shared/components/Problem";
 import buildOption from "./buildOption";
 import "./renderer.less";
+
+// The reading tile writes the ends of its range under the bullet bar with
+// `graphic`, which only this visualization uses -- so it travels in the
+// gauge's chunk rather than in the one every ECharts visualization shares.
+//
+// Without this the labels are not drawn and nothing says so: an unregistered
+// component makes ECharts ignore its part of the option in silence.
+echarts.use([GraphicComponent]);
 
 export default function Renderer({ data, options }: any) {
   const [box, setBox] = useState<HTMLDivElement | null>(null);
