@@ -202,3 +202,29 @@ class MigrationsTest(BaseTestCase):
         )
         self.assertEqual(-1, options_of(auto.id)["position"]["sizeY"])
         self.assertTrue(all(options_of(i) is not None for i in ids), "no widget lost its options")
+
+    def test_encrypted_columns_are_stored_the_way_the_existing_ones_are(self):
+        """
+        `EncryptedType` writes bytes. A migration that declares its
+        `encrypted_options` as Text accepts every write and fails on every
+        read with "string argument without an encoding" -- and passes this
+        suite, because the schema here comes from `create_all` on the models
+        rather than from the migrations.
+
+        So: whatever DDL type the established encrypted columns compile to,
+        any new one compiles to the same.
+        """
+        from sqldesk import models
+
+        dialect = db.engine.dialect
+        established = models.DataSource.__table__.c.encrypted_options.type.compile(dialect)
+
+        for model in (models.AIProvider, models.NotificationDestination):
+            column = model.__table__.c.encrypted_options
+            self.assertEqual(
+                established,
+                column.type.compile(dialect),
+                "{}.encrypted_options is {} where DataSource's is {}".format(
+                    model.__tablename__, column.type.compile(dialect), established
+                ),
+            )

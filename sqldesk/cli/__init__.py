@@ -7,6 +7,7 @@ from rq import Connection
 
 from sqldesk import __version__, create_app, rq_redis_connection, settings
 from sqldesk.cli import (
+    ai,
     data_sources,
     database,
     groups,
@@ -35,6 +36,7 @@ def manager():
     """Management script for SQLDesk"""
 
 
+manager.add_command(ai.manager, "ai")
 manager.add_command(database.manager, "database")
 manager.add_command(users.manager, "users")
 manager.add_command(groups.manager, "groups")

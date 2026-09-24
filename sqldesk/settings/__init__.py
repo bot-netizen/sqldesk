@@ -456,6 +456,13 @@ VERSION_CHECK = parse_boolean(os.environ.get("SQLDESK_VERSION_CHECK", "true"))
 # its own infrastructure; SQLDesk will not send anything anywhere unless an
 # operator names the destination, because the payload includes usage data.
 VERSION_CHECK_URL = os.environ.get("SQLDESK_VERSION_CHECK_URL", "")
+# Off, and off is the default on purpose: with no provider configured nothing
+# is registered, nothing is shown and nothing leaves the building. Turning this
+# on is not enough either -- `manage ai configure` has to name a model.
+FEATURE_AI = parse_boolean(os.environ.get("SQLDESK_FEATURE_AI", "false"))
+# How long to wait on a model before giving up. Generous, because a local
+# model on modest hardware is slow rather than broken.
+AI_TIMEOUT = int(os.environ.get("SQLDESK_AI_TIMEOUT", "60"))
 FEATURE_DISABLE_REFRESH_QUERIES = parse_boolean(os.environ.get("SQLDESK_FEATURE_DISABLE_REFRESH_QUERIES", "false"))
 FEATURE_SHOW_QUERY_RESULTS_COUNT = parse_boolean(os.environ.get("SQLDESK_FEATURE_SHOW_QUERY_RESULTS_COUNT", "true"))
 FEATURE_AUTO_PUBLISH_NAMED_QUERIES = parse_boolean(

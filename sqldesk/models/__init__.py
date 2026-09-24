@@ -1552,6 +1552,66 @@ class Visualization(TimestampMixin, BelongsToOrgMixin, db.Model):
 
 
 @generic_repr("id", "visualization_id", "dashboard_id")
+class AIProvider(TimestampMixin, BelongsToOrgMixin, db.Model):
+    """
+    Which model an organization talks to, and the key it talks with.
+
+    One row per org, or none -- and none is the default, which is what makes
+    the AI features off until somebody turns them on rather than on until
+    somebody finds the switch.
+
+    The key is encrypted with the same machinery and the same secret as a data
+    source's credentials (`DATASOURCE_SECRET_KEY`), because it is the same kind
+    of secret and a second mechanism would be a second thing to get wrong.
+    """
+
+    id = primary_key("AIProvider")
+    org_id = Column(key_type("Organization"), db.ForeignKey("organizations.id"))
+    org = db.relationship(Organization, backref="ai_providers")
+
+    type = Column(db.String(255))
+    model = Column(db.String(255))
+    base_url = Column(db.String(1024), nullable=True)
+    # The default has to be a ConfigurationContainer rather than `{}`: the
+    # encrypted type calls `.to_json()` on whatever it is handed, and the
+    # mutable coercion that turns a plain dict into a container runs on
+    # assignment, not on a column default. Without this a provider with no key
+    # -- the ordinary case for a model on your own hardware -- fails inside the
+    # flush with an AttributeError on None.
+    options = Column(
+        "encrypted_options",
+        ConfigurationContainer.as_mutable(
+            EncryptedConfiguration(db.Text, settings.DATASOURCE_SECRET_KEY, FernetEngine)
+        ),
+        default=lambda: ConfigurationContainer.from_json("{}"),
+    )
+    enabled = Column(db.Boolean, default=True)
+
+    __tablename__ = "ai_providers"
+
+    def __str__(self):
+        return "{}/{}".format(self.type, self.model)
+
+    @property
+    def api_key(self):
+        return (self.options or {}).get("api_key")
+
+    def to_dict(self):
+        """Everything except the key, which never leaves the server."""
+        return {
+            "type": self.type,
+            "model": self.model,
+            "base_url": self.base_url,
+            "enabled": self.enabled,
+            "has_api_key": bool(self.api_key),
+            "updated_at": self.updated_at,
+        }
+
+    @classmethod
+    def get_for_org(cls, org):
+        return cls.query.filter(cls.org == org).first()
+
+
 class Widget(TimestampMixin, BelongsToOrgMixin, db.Model):
     id = primary_key("Widget")
     visualization_id = Column(key_type("Visualization"), db.ForeignKey("visualizations.id"), nullable=True)
