@@ -4,12 +4,18 @@
 }
 
 .visualization-name {
-  &:after {
-    content: "−";
-    margin-left: 5px;
-  }
+  // The separator belongs to the places that still draw both names -- the
+  // expanded dialog and the embed page. A dashboard widget draws one name, so
+  // there is nothing to separate it from.
+  .modal-title &,
+  .embed-heading & {
+    &:after {
+      content: "−";
+      margin-left: 5px;
+    }
 
-  &:empty:after {
-    content: none;
+    &:empty:after {
+      content: none;
+    }
   }
 }

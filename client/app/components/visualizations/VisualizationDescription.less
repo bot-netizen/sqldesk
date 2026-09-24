@@ -6,9 +6,32 @@
   align-items: center;
   margin-left: 5px;
   color: var(--color-text-muted, #6f6b66);
-  font-size: 12px;
   cursor: pointer;
-  vertical-align: baseline;
+
+  // Drawn rather than set in a font: Font Awesome 4 has only a filled disc,
+  // and filled is exactly what this should not be beside a title.
+  .visualization-description-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 15px;
+    height: 15px;
+    border: 1.3px solid currentColor;
+    border-radius: 50%;
+    font-size: 10px;
+    font-style: italic;
+    font-weight: 600;
+    line-height: 1;
+
+    // Lifted rather than nudged with `vertical-align`, which would push the
+    // whole line box down with it and make the header taller. Three pixels
+    // puts the ring's centre on the capitals' centre: a 15px ring sitting on
+    // the baseline is centred well below text whose capitals only reach
+    // about two thirds of the way up.
+    position: relative;
+    top: -3px;
+  }
 
   &:hover,
   &:focus {

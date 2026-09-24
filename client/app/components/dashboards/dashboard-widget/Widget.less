@@ -195,20 +195,30 @@
         margin-bottom: 0;
       }
 
-      .query-link {
-        // Tokens rather than a faded literal black, which no theme can reach
-        // -- on the wall display's dark tile this was 1.4:1.
+      // One name, whichever it turns out to be -- see QueryLink. There is no
+      // second, quieter one beside it any more to be distinguished from.
+      //
+      // Tokens rather than a faded literal black, which no theme can reach:
+      // on the wall display's dark tile this was 1.4:1.
+      .query-link,
+      .query-link .visualization-name {
         color: var(--color-text-secondary);
         font-size: 15px;
         font-weight: 500;
+      }
 
-        &:not(.visualization-name) {
-          color: var(--color-text-muted);
-        }
+      // The title's own line, with nothing under it. The 10px a paragraph
+      // carries by default was the gap to a description most widgets do not
+      // have, and it was the largest single piece of a widget's chrome.
+      > p {
+        margin-bottom: 0;
       }
     }
 
     .query--description {
+      // The gap to the title lives here now, where it exists only when the
+      // description does.
+      margin-top: 6px;
       font-size: 14px;
       line-height: 1.5;
       font-style: italic;
@@ -220,7 +230,10 @@
   }
 
   .t-header.widget {
-    padding: 13px 15px;
+    // 44px tall with one line of title. The odd pixel comes off the bottom
+    // because the description's ring is lifted three pixels, which carries
+    // the row's visual mass upward with it.
+    padding: 13px 15px 12px;
   }
 
   &:hover,
@@ -239,7 +252,9 @@
   }
 
   .tile__bottom-control {
-    padding: 8px 15px;
+    // 4, not 8: the row is as tall as the expand button whatever this is, so
+    // the padding was buying nothing but height.
+    padding: 4px 15px;
     display: flex;
     justify-content: space-between;
     align-items: center;
