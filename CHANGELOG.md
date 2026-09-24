@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.5.0-rc.1
+
+A dashboard that costs less to look at, and more room on it to say things.
+
+**Dashboards stopped doing the same work several times.** A query behind five
+widgets was fetched and parsed five times; now one request serves all of them,
+keyed on the query, its parameter values and the auto limit, so widgets share
+a result only when they are genuinely asking for the same thing. The server
+side closed the matching gap: the query lock now covers *writing* the result,
+not just running it. A dashboard loads its widgets in one call instead of
+walking them one at a time, an index was added for the lookup `get_latest`
+actually does, and a widget that is off screen waits its turn before drawing.
+Live dashboards stopped retrying a failing query every ten seconds.
+
+**The chrome gave the charts their space back.** A widget's header carries one
+name -- the visualization's, not the query's repeated after it -- in 44px
+instead of 47, and the row under it 36. The top of a chart no longer reserves
+room for a title it does not draw, Y labels thin out only when they would
+crowd, and the grid moved to twenty-four columns and 25px rows so a widget can
+take a third of the width. Filters left their full-width band: on a dashboard
+they are one button in the header with a count, and a widget's own filter sits
+on its title's row. Editing the layout puts both back in a row, because that
+is where they are dragged into order.
+
+**Textboxes became somewhere to write.** The markdown library was from 2013
+and refused tables, fenced code, task lists, strikethrough, bare URLs and raw
+HTML; all of those work now, sanitised by DOMPurify, with a type scale that
+does not render a heading at 36px. A textbox can turn its tile off, so a
+section heading divides a page instead of sitting on it in a white card, and
+it can be aligned left, centre or right. The editor has Write and Preview
+tabs, and the preview carries the style and alignment chosen underneath it.
+
+**Eight more chart types** -- the whole of the roadmap's second tier -- drawn
+by ECharts, with a matrix test that puts every visualization through every
+option it offers. A reading tile for the gauge, a visualization can say what
+it is of, and `numeral` was retired for one formatter that respects the
+organization's own separators.
+
+**An Admin section**: what is running, who is running it, and what is about to
+run out -- with the ability to cancel a query and to run the cleanup job now.
+A running query is no longer everyone's to cancel, which it was.
+
+**Alerts can carry a picture.** Up to five dashboards or queries render into
+the email, from a headless browser in its own optional container -- the
+published image does not grow by a byte, and the feature is off unless
+`SQLDESK_SCREENSHOT_URL` is set.
+
+**A dashboard for a wall**: `/wall/dashboards/<token>`, refreshed by the
+server once for everyone looking.
+
+Dashboards are saved when you say so -- dragging a widget changes nothing
+until Done Editing. Sorting and searching arrived on the list pages. 1,144
+lines nothing reached were deleted, and 336 type suppressions went with two
+declaration fixes.
+
 ## 0.4.0
 
 Dashboards you watch rather than read.

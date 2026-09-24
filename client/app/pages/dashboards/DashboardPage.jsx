@@ -8,6 +8,7 @@ import routeWithUserSession from "@/components/ApplicationArea/routeWithUserSess
 import DynamicComponent from "@/components/DynamicComponent";
 import DashboardGrid from "@/components/dashboards/DashboardGrid";
 import Parameters from "@/components/Parameters";
+import Filters from "@/components/Filters";
 
 import { Dashboard } from "@/services/dashboard";
 import recordEvent from "@/services/recordEvent";
@@ -56,6 +57,7 @@ function DashboardComponent(props) {
   const {
     dashboard,
     filters,
+    setFilters,
     loadDashboard,
     loadWidget,
     removeWidget,
@@ -132,6 +134,16 @@ function DashboardComponent(props) {
             sortable
             onParametersEdit={onParametersEdit}
           />
+        </div>
+      )}
+      {/*
+        Column filters get the row while editing too. Turning "Dashboard level
+        filters" on and being shown nothing until you leave edit mode is not a
+        setting taking effect, it is a setting that looks broken.
+      */}
+      {editingLayout && !isEmpty(filters) && (
+        <div className="m-b-10 p-15 bg-white tiled" data-test="DashboardFilters">
+          <Filters filters={filters} onChange={setFilters} />
         </div>
       )}
       <div id="dashboard-container">
