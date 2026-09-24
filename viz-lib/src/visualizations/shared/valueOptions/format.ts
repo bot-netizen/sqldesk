@@ -18,6 +18,23 @@ export interface ValueFormat {
   style: ValueStyle;
   /** Digits after the point. `null` lets the style decide. */
   decimals: number | null;
+  /**
+   * The fewest digits after the point, so trailing zeros can be dropped:
+   * `null` means "as many as `decimals`", which is a fixed number of places.
+   *
+   * Here because numeral could say it -- `0,0[.]00` writes 3 as "3" and 3.456
+   * as "3.46" -- and the formats migrated off numeral would otherwise all
+   * have gained a ".00".
+   */
+  minDecimals: number | null;
+  /**
+   * A whole number is written with no decimal part at all: 3 as "3" where
+   * 3.5 is "3.50". numeral wrote that `0,0[.]00` -- the *point* is optional,
+   * not the digits after it -- and it is the format the charts shipped with.
+   */
+  hideZeroFraction: boolean;
+  /** Thousands separators. Off is how a bare `0.00` was written in numeral. */
+  grouping: boolean;
   prefix: string;
   suffix: string;
   /** ISO 4217 code, used by the "currency" style. */
@@ -27,6 +44,9 @@ export interface ValueFormat {
 export const DEFAULT_VALUE_FORMAT: ValueFormat = {
   style: "auto",
   decimals: null,
+  minDecimals: null,
+  hideZeroFraction: false,
+  grouping: true,
   prefix: "",
   suffix: "",
   currency: "USD",
@@ -61,10 +81,25 @@ function digits(decimals: number | null, fallback: number) {
   return d;
 }
 
-function fixed(decimals: number | null) {
-  return decimals === null || decimals === undefined
-    ? {}
-    : { minimumFractionDigits: digits(decimals, 0), maximumFractionDigits: digits(decimals, 0) };
+/**
+ * The fraction-digit part of an `Intl.NumberFormat` request.
+ *
+ * `minDecimals` is what lets a format say "up to two places, but do not pad":
+ * unset, the two are the same and the number of places is fixed.
+ */
+function fixed(format: Pick<ValueFormat, "decimals" | "minDecimals" | "hideZeroFraction">, value: number) {
+  const { decimals, minDecimals } = format;
+  if (decimals === null || decimals === undefined) {
+    return {};
+  }
+  const max = digits(decimals, 0);
+  // "3" rather than "3.00", but "3.50" rather than "3.5": the decision is
+  // about the rounded value, so 3.001 at two places is a whole number too.
+  if (format.hideZeroFraction && max > 0 && Number(value.toFixed(max)) % 1 === 0) {
+    return { minimumFractionDigits: 0, maximumFractionDigits: 0 };
+  }
+  const min = minDecimals === null || minDecimals === undefined ? max : Math.min(max, digits(minDecimals, 0));
+  return { minimumFractionDigits: min, maximumFractionDigits: max };
 }
 
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB", "PB"];
@@ -112,31 +147,37 @@ function formatDuration(seconds: number, decimals: number | null, locale?: strin
 
 function formatNumberBody(value: number, format: ValueFormat, locale?: string): string {
   const { decimals } = format;
+  const useGrouping = format.grouping !== false;
   switch (format.style) {
     case "number":
       return new Intl.NumberFormat(locale, {
-        ...(decimals === null ? { maximumFractionDigits: Number.isInteger(value) ? 0 : 2 } : fixed(decimals)),
+        useGrouping,
+        ...(decimals === null ? { maximumFractionDigits: Number.isInteger(value) ? 0 : 2 } : fixed(format, value)),
       }).format(value);
     case "compact":
       return new Intl.NumberFormat(locale, {
+        useGrouping,
         notation: "compact",
         compactDisplay: "short",
         maximumFractionDigits: digits(decimals, 1),
       }).format(value);
     case "percent":
-      return new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: digits(decimals, 1) }).format(
-        value
-      );
+      return new Intl.NumberFormat(locale, {
+        useGrouping,
+        style: "percent",
+        maximumFractionDigits: digits(decimals, 1),
+      }).format(value);
     case "currency":
       try {
         return new Intl.NumberFormat(locale, {
+          useGrouping,
           style: "currency",
           currency: format.currency || "USD",
-          ...fixed(decimals),
+          ...fixed(format, value),
         }).format(value);
       } catch (e) {
         // An unknown currency code throws; fall back rather than blank the tile.
-        return new Intl.NumberFormat(locale, fixed(decimals)).format(value);
+        return new Intl.NumberFormat(locale, { useGrouping, ...fixed(format, value) }).format(value);
       }
     case "bytes":
       return formatBytes(value, decimals, locale);
@@ -145,9 +186,10 @@ function formatNumberBody(value: number, format: ValueFormat, locale?: string): 
     case "auto":
     default:
       return new Intl.NumberFormat(locale, {
+        useGrouping,
         maximumFractionDigits:
           decimals === null ? (Number.isInteger(value) ? 0 : Math.abs(value) >= 100 ? 1 : 2) : digits(decimals, 0),
-        ...(decimals === null ? {} : { minimumFractionDigits: digits(decimals, 0) }),
+        ...(decimals === null ? {} : fixed(format, value)),
       }).format(value);
   }
 }
@@ -169,7 +211,19 @@ export function formatValue(value: unknown, format?: Partial<ValueFormat> | null
   if (n === null) {
     return typeof value === "string" ? value : String(value);
   }
-  return `${f.prefix}${formatNumberBody(n, f, locale)}${f.suffix}`;
+  const body = formatNumberBody(n, f, locale);
+  // A number too small to show is zero, not minus zero. Rounding -0.1 to
+  // whole numbers gave "-0", which reads as a fall to nothing.
+  if (n < 0 && !/[1-9]/.test(body)) {
+    return `${f.prefix}${formatNumberBody(Math.abs(n), f, locale)}${f.suffix}`;
+  }
+  // The minus goes outside the prefix. Concatenating the two gave "$-12.75",
+  // which is not how anybody writes money -- and every style that carries a
+  // unit, bytes and durations included, has the same problem.
+  if (f.prefix && n < 0) {
+    return `-${f.prefix}${formatNumberBody(Math.abs(n), f, locale)}${f.suffix}`;
+  }
+  return `${f.prefix}${body}${f.suffix}`;
 }
 
 export type DeltaMode = "percent" | "absolute";
