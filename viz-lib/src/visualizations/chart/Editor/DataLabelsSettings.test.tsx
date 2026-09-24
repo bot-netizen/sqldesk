@@ -40,6 +40,8 @@ describe("Visualizations -> Chart -> Editor -> Data Labels Settings", () => {
   });
 
   test("Changes number format", (done) => {
+    // The numeral format string became a set of controls; what a change now
+    // sends up is the whole `ValueFormat`, which is what the renderer reads.
     const el = mount(
       {
         globalSeriesType: "column",
@@ -48,9 +50,9 @@ describe("Visualizations -> Chart -> Editor -> Data Labels Settings", () => {
       done
     );
 
-    findByTestID(el, "Chart.DataLabels.NumberFormat")
+    findByTestID(el, "Chart.DataLabels.NumberFormat.Suffix")
       .last()
-      .simulate("change", { target: { value: "0.00" } });
+      .simulate("change", { target: { value: " req/s" } });
   });
 
   test("Changes percent values format", (done) => {
@@ -62,9 +64,18 @@ describe("Visualizations -> Chart -> Editor -> Data Labels Settings", () => {
       done
     );
 
-    findByTestID(el, "Chart.DataLabels.PercentFormat")
+    findByTestID(el, "Chart.DataLabels.PercentFormat.Decimals")
       .last()
-      .simulate("change", { target: { value: "0.0%" } });
+      .simulate("change", { target: { value: "1" } });
+  });
+
+  test("a saved numeral format string is read into the controls", (done) => {
+    // Existing charts hold a string; the editor has to open on what it means.
+    const options = getOptions({ globalSeriesType: "column", numberFormat: "0,0[.]00" });
+    expect(options.numberFormat).toEqual(
+      expect.objectContaining({ style: "number", decimals: 2, grouping: true, hideZeroFraction: true })
+    );
+    done();
   });
 
   test("Changes date/time format", (done) => {

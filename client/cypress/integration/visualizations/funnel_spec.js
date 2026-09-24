@@ -67,10 +67,13 @@ describe("Funnel", () => {
       VisualizationEditor.Tabs.Appearance
     `);
 
+    // The number formats are controls now, not numeral format strings: a
+    // decimal places box and a suffix, which is what a "%" format was.
     cy.fillInputs(
       {
-        "Funnel.NumberFormat": "0[.]00",
-        "Funnel.PercentFormat": "0[.]0000%",
+        "Funnel.NumberFormat.Decimals": "2",
+        "Funnel.PercentFormat.Decimals": "4",
+        "Funnel.PercentFormat.Suffix": "%",
         "Funnel.ItemsLimit": "10",
         "Funnel.PercentRangeMin": "10",
         "Funnel.PercentRangeMax": "90",

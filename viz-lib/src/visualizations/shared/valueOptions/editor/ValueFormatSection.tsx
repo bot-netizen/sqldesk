@@ -7,6 +7,8 @@ type Props = {
   onChange: (format: ValueFormat) => void;
   /** Shown beside the controls so the effect is visible while editing. */
   sampleValue?: unknown;
+  /** For editors with more than one of these: "Numbers", "Percentages". */
+  title?: React.ReactNode;
   testPrefix: string;
 };
 
@@ -18,12 +20,17 @@ function toDecimals(value: any): number | null {
   return Number.isFinite(n) ? Math.max(0, Math.min(20, Math.round(n))) : null;
 }
 
-export default function ValueFormatSection({ format, onChange, sampleValue, testPrefix }: Props) {
+export default function ValueFormatSection({ format, onChange, sampleValue, title, testPrefix }: Props) {
   const f = normalizeValueFormat(format);
   const update = (changes: Partial<ValueFormat>) => onChange({ ...f, ...changes });
 
   return (
     <React.Fragment>
+      {title && (
+        <Section>
+          <h4 className="value-options-heading">{title}</h4>
+        </Section>
+      )}
       <Section>
         <Select
           layout="horizontal"

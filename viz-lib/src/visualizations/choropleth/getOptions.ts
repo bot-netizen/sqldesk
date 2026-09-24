@@ -1,5 +1,6 @@
 import { isNil, merge, first, keys, get } from "lodash";
 import { visualizationsSettings } from "@/visualizations/visualizationsSettings";
+import { asValueFormat, fromNumeral } from "@/visualizations/shared/valueOptions";
 import ColorPalette from "./ColorPalette";
 
 function getDefaultMap() {
@@ -37,8 +38,15 @@ const DEFAULT_OPTIONS = {
   },
 };
 
+// Written as a numeral format string because that is what every saved map
+// holds; `asValueFormat` below reads either shape.
+const DEFAULT_VALUE_FORMAT = fromNumeral(DEFAULT_OPTIONS.valueFormat)!;
+
 export default function getOptions(options: any) {
   const result = merge({}, DEFAULT_OPTIONS, options);
+
+  // Idempotent, because this runs on every render.
+  result.valueFormat = asValueFormat(result.valueFormat, DEFAULT_VALUE_FORMAT);
 
   // Both renderer and editor always provide new `bounds` array, so no need to clone it here.
   // Keeping original object also reduces amount of updates in components

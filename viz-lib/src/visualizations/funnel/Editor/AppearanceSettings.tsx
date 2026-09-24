@@ -1,6 +1,8 @@
 import React from "react";
 import { useDebouncedCallback } from "use-debounce";
-import { Section, Input, InputNumber, ContextHelp } from "@/components/visualizations/editor";
+import { Section, InputNumber } from "@/components/visualizations/editor";
+import { UpdateOptionsStrategy } from "@/components/visualizations/editor/createTabbedEditor";
+import { ValueFormatSection } from "@/visualizations/shared/valueOptions/editor";
 import { EditorPropTypes } from "@/visualizations/prop-types";
 
 export default function AppearanceSettings({ options, onOptionsChange }: any) {
@@ -8,35 +10,19 @@ export default function AppearanceSettings({ options, onOptionsChange }: any) {
 
   return (
     <React.Fragment>
-      <Section>
-        <Input
-          layout="horizontal"
-          label={
-            <React.Fragment>
-              Number Values Format
-              <ContextHelp.NumberFormatSpecs />
-            </React.Fragment>
-          }
-          data-test="Funnel.NumberFormat"
-          defaultValue={options.numberFormat}
-          onChange={(event: any) => onOptionsChangeDebounced({ numberFormat: event.target.value })}
-        />
-      </Section>
+      <ValueFormatSection
+        title="Values"
+        format={options.numberFormat}
+        testPrefix="Funnel.NumberFormat"
+        onChange={(numberFormat) => onOptionsChange({ numberFormat }, UpdateOptionsStrategy.shallowMerge)}
+      />
 
-      <Section>
-        <Input
-          layout="horizontal"
-          label={
-            <React.Fragment>
-              Percent Values Format
-              <ContextHelp.NumberFormatSpecs />
-            </React.Fragment>
-          }
-          data-test="Funnel.PercentFormat"
-          defaultValue={options.percentFormat}
-          onChange={(event: any) => onOptionsChangeDebounced({ percentFormat: event.target.value })}
-        />
-      </Section>
+      <ValueFormatSection
+        title="Percentages"
+        format={options.percentFormat}
+        testPrefix="Funnel.PercentFormat"
+        onChange={(percentFormat) => onOptionsChange({ percentFormat }, UpdateOptionsStrategy.shallowMerge)}
+      />
 
       <Section>
         <InputNumber

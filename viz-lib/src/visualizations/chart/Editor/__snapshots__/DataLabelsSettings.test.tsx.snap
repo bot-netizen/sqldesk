@@ -14,13 +14,31 @@ exports[`Visualizations -> Chart -> Editor -> Data Labels Settings Changes date/
 
 exports[`Visualizations -> Chart -> Editor -> Data Labels Settings Changes number format 1`] = `
 {
-  "numberFormat": "0.00",
+  "numberFormat": {
+    "currency": "USD",
+    "decimals": 4,
+    "grouping": false,
+    "hideZeroFraction": true,
+    "minDecimals": 4,
+    "prefix": "",
+    "style": "number",
+    "suffix": " req/s",
+  },
 }
 `;
 
 exports[`Visualizations -> Chart -> Editor -> Data Labels Settings Changes percent values format 1`] = `
 {
-  "percentFormat": "0.0%",
+  "percentFormat": {
+    "currency": "USD",
+    "decimals": 1,
+    "grouping": false,
+    "hideZeroFraction": true,
+    "minDecimals": 2,
+    "prefix": "",
+    "style": "number",
+    "suffix": "%",
+  },
 }
 `;
 

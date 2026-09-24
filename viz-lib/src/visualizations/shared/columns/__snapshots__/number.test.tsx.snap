@@ -2,6 +2,15 @@
 
 exports[`Visualizations -> Table -> Columns -> Number Editor Changes format 1`] = `
 {
-  "numberFormat": "0.00%",
+  "numberFormat": {
+    "currency": "USD",
+    "decimals": 4,
+    "grouping": false,
+    "hideZeroFraction": true,
+    "minDecimals": 4,
+    "prefix": "",
+    "style": "number",
+    "suffix": "%",
+  },
 }
 `;

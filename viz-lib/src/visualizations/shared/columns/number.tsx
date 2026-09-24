@@ -1,33 +1,24 @@
 import React from "react";
-import { useDebouncedCallback } from "use-debounce";
-import { Section, Input, ContextHelp } from "@/components/visualizations/editor";
+import { asValueFormat, ValueFormat } from "@/visualizations/shared/valueOptions";
+import { ValueFormatSection } from "@/visualizations/shared/valueOptions/editor";
 import { createNumberFormatter } from "@/lib/value-format";
 
 type Props = {
   column: {
     name: string;
-    numberFormat?: string;
+    /** A numeral format string on a column saved before 0.5, else the shared format. */
+    numberFormat?: string | Partial<ValueFormat>;
   };
   onChange: (...args: any[]) => any;
 };
 
 function Editor({ column, onChange }: Props) {
-  const [onChangeDebounced] = useDebouncedCallback(onChange, 200);
-
   return (
-    <Section>
-      <Input
-        label={
-          <React.Fragment>
-            Number format
-            <ContextHelp.NumberFormatSpecs />
-          </React.Fragment>
-        }
-        data-test="Table.ColumnEditor.Number.Format"
-        defaultValue={column.numberFormat}
-        onChange={(event: any) => onChangeDebounced({ numberFormat: event.target.value })}
-      />
-    </Section>
+    <ValueFormatSection
+      format={asValueFormat(column.numberFormat)}
+      testPrefix="Table.ColumnEditor.Number.Format"
+      onChange={(numberFormat) => onChange({ numberFormat })}
+    />
   );
 }
 

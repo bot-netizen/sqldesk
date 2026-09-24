@@ -1,6 +1,7 @@
 import { merge } from "lodash";
 import { visualizationsSettings } from "@/visualizations/visualizationsSettings";
 import { DEFAULT_COLOR_SCHEME, resolveColorScheme } from "@/visualizations/ColorPalette";
+import { asValueFormat, fromNumeral } from "@/visualizations/shared/valueOptions";
 import { normalizeSeriesTypes } from "./echarts/utils";
 
 const DEFAULT_OPTIONS = {
@@ -44,6 +45,11 @@ const DEFAULT_OPTIONS = {
   zoom: "none",
 };
 
+// Written as numeral format strings because that is what every saved chart
+// holds; `asValueFormat` below reads either shape.
+const DEFAULT_NUMBER_FORMAT = fromNumeral(DEFAULT_OPTIONS.numberFormat)!;
+const DEFAULT_PERCENT_FORMAT = fromNumeral(DEFAULT_OPTIONS.percentFormat)!;
+
 export default function getOptions(options: any) {
   // Options can arrive as null through the API, and the series type is read
   // below before `merge` has had a chance to supply a default.
@@ -66,6 +72,11 @@ export default function getOptions(options: any) {
 
   // Charts saved before the rename store color_scheme "Redash"
   result.color_scheme = resolveColorScheme(result.color_scheme);
+
+  // A saved chart holds numeral format strings; the editor writes the shared
+  // format. Idempotent, because this runs on every render.
+  result.numberFormat = asValueFormat(result.numberFormat, DEFAULT_NUMBER_FORMAT);
+  result.percentFormat = asValueFormat(result.percentFormat, DEFAULT_PERCENT_FORMAT);
 
   // A saved chart can name a type the renderer no longer has -- "custom" most
   // of all, which was Plotly-only. Correct it here rather than at draw time, so

@@ -2,6 +2,8 @@ import { map } from "lodash";
 import React, { useMemo } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import * as Grid from "antd/lib/grid";
+import { UpdateOptionsStrategy } from "@/components/visualizations/editor/createTabbedEditor";
+import { ValueFormatSection } from "@/visualizations/shared/valueOptions/editor";
 import {
   Section,
   Select,
@@ -65,30 +67,21 @@ export default function GeneralSettings({ options, onOptionsChange }: any) {
 
   return (
     <div className="choropleth-visualization-editor-format-settings">
+      <ValueFormatSection
+        title="Values"
+        format={options.valueFormat}
+        testPrefix="Choropleth.Editor.ValueFormat"
+        onChange={(valueFormat) => onOptionsChange({ valueFormat }, UpdateOptionsStrategy.shallowMerge)}
+      />
+
       <Section>
-        <Grid.Row gutter={15}>
-          <Grid.Col span={12}>
-            <Input
-              label={
-                <React.Fragment>
-                  Value Format
-                  <ContextHelp.NumberFormatSpecs />
-                </React.Fragment>
-              }
-              data-test="Choropleth.Editor.ValueFormat"
-              defaultValue={options.valueFormat}
-              onChange={(event: any) => onOptionsChangeDebounced({ valueFormat: event.target.value })}
-            />
-          </Grid.Col>
-          <Grid.Col span={12}>
-            <Input
-              label="Value Placeholder"
-              data-test="Choropleth.Editor.ValuePlaceholder"
-              defaultValue={options.noValuePlaceholder}
-              onChange={(event: any) => onOptionsChangeDebounced({ noValuePlaceholder: event.target.value })}
-            />
-          </Grid.Col>
-        </Grid.Row>
+        <Input
+          layout="horizontal"
+          label="Value Placeholder"
+          data-test="Choropleth.Editor.ValuePlaceholder"
+          defaultValue={options.noValuePlaceholder}
+          onChange={(event: any) => onOptionsChangeDebounced({ noValuePlaceholder: event.target.value })}
+        />
       </Section>
 
       <Section>

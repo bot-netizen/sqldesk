@@ -29,21 +29,6 @@ ContextHelp.defaultProps = contextHelpDefaultProps;
 
 ContextHelp.defaultIcon = <QuestionCircleFilledIcon className="context-help-default-icon" />;
 
-function NumberFormatSpecs() {
-  const { HelpTriggerComponent } = visualizationsSettings;
-  return (
-    <HelpTriggerComponent
-      // @ts-expect-error ts-migrate(2322) FIXME: Type '{ children: Element; type: string; title: st... Remove this comment to see the full error message
-      type="NUMBER_FORMAT_SPECS"
-      title="Formatting Numbers"
-      href="https://sqldesk.github.io/sqldesk"
-      className="visualization-editor-context-help"
-    >
-      {ContextHelp.defaultIcon}
-    </HelpTriggerComponent>
-  );
-}
-
 function DateTimeFormatSpecs() {
   const { HelpTriggerComponent } = visualizationsSettings;
   return (
@@ -70,6 +55,5 @@ function TickFormatSpecs() {
   );
 }
 
-ContextHelp.NumberFormatSpecs = NumberFormatSpecs;
 ContextHelp.DateTimeFormatSpecs = DateTimeFormatSpecs;
 ContextHelp.TickFormatSpecs = TickFormatSpecs;

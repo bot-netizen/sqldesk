@@ -2,6 +2,8 @@ import { includes } from "lodash";
 import React from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Section, Input, Checkbox, ContextHelp } from "@/components/visualizations/editor";
+import { UpdateOptionsStrategy } from "@/components/visualizations/editor/createTabbedEditor";
+import { ValueFormatSection } from "@/visualizations/shared/valueOptions/editor";
 import { EditorPropTypes } from "@/visualizations/prop-types";
 
 export default function DataLabelsSettings({ options, onOptionsChange }: any) {
@@ -26,33 +28,19 @@ export default function DataLabelsSettings({ options, onOptionsChange }: any) {
         </Section>
       )}
 
-      <Section>
-        <Input
-          label={
-            <React.Fragment>
-              Number Values Format
-              <ContextHelp.NumberFormatSpecs />
-            </React.Fragment>
-          }
-          data-test="Chart.DataLabels.NumberFormat"
-          defaultValue={options.numberFormat}
-          onChange={(e: any) => debouncedOnOptionsChange({ numberFormat: e.target.value })}
-        />
-      </Section>
+      <ValueFormatSection
+        title="Values"
+        format={options.numberFormat}
+        testPrefix="Chart.DataLabels.NumberFormat"
+        onChange={(numberFormat) => onOptionsChange({ numberFormat }, UpdateOptionsStrategy.shallowMerge)}
+      />
 
-      <Section>
-        <Input
-          label={
-            <React.Fragment>
-              Percent Values Format
-              <ContextHelp.NumberFormatSpecs />
-            </React.Fragment>
-          }
-          data-test="Chart.DataLabels.PercentFormat"
-          defaultValue={options.percentFormat}
-          onChange={(e: any) => debouncedOnOptionsChange({ percentFormat: e.target.value })}
-        />
-      </Section>
+      <ValueFormatSection
+        title="Percentages"
+        format={options.percentFormat}
+        testPrefix="Chart.DataLabels.PercentFormat"
+        onChange={(percentFormat) => onOptionsChange({ percentFormat }, UpdateOptionsStrategy.shallowMerge)}
+      />
 
       <Section>
         <Input
