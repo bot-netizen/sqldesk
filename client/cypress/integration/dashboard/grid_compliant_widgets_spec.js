@@ -1,6 +1,6 @@
 /* global cy */
 
-import { getWidgetTestId, editDashboard, resizeBy } from "../../support/dashboard";
+import { getWidgetTestId, editDashboard, resizeBy, gridRowsToPx } from "../../support/dashboard";
 
 // Navigation is a top bar, so nothing is reserved to the left of the content.
 const menuWidth = 0;
@@ -12,7 +12,13 @@ describe("Grid compliant widgets", () => {
     cy.createDashboard("Foo Bar")
       .then(({ id }) => {
         this.dashboardUrl = `/dashboards/${id}`;
-        return cy.addTextbox(id, "Hello World!").then(getWidgetTestId);
+        // Six by six, which is what three by three was before the grid
+        // doubled -- the pixel counts below are the same widget, not a
+        // smaller one. The fixture's own default is still 3x3, which is
+        // under the minimum now and silently clamps.
+        return cy
+          .addTextbox(id, "Hello World!", { position: { col: 0, row: 0, sizeX: 6, sizeY: 6 } })
+          .then(getWidgetTestId);
       })
       .then((elTestId) => {
         cy.visit(this.dashboardUrl);
@@ -103,14 +109,14 @@ describe("Grid compliant widgets", () => {
         resizeBy(cy.get("@textboxEl"), 0, 10)
           .then(() => cy.get("@textboxEl"))
           .invoke("height")
-          .should("eq", 135); // no change, 135 -> 135
+          .should("eq", gridRowsToPx(6)); // no change, six rows either way
       });
 
       it("moves one row when dragged over snap threshold", () => {
         resizeBy(cy.get("@textboxEl"), 0, 30)
           .then(() => cy.get("@textboxEl"))
           .invoke("height")
-          .should("eq", 185);
+          .should("eq", gridRowsToPx(7)); // one row taller, and a row is 25px now
       });
 
       it("shrinks to minimum", () => {
@@ -119,7 +125,7 @@ describe("Grid compliant widgets", () => {
           .then(() => cy.get("@textboxEl"))
           .should(($el) => {
             expect($el.width()).to.eq(185); // min textbox width
-            expect($el.height()).to.eq(85); // min textbox height
+            expect($el.height()).to.eq(gridRowsToPx(4)); // min textbox height
           });
       });
     });

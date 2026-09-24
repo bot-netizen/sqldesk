@@ -1,6 +1,6 @@
 /* global cy */
 
-import { getWidgetTestId, editDashboard } from "../../support/dashboard";
+import { getWidgetTestId, editDashboard, gridRowsToPx } from "../../support/dashboard";
 
 describe("Textbox", () => {
   beforeEach(function () {
@@ -122,7 +122,6 @@ describe("Textbox", () => {
     const id = this.dashboardId;
     const txb1Pos = { col: 0, row: 0, sizeX: 3, sizeY: 2 };
     const txb2Pos = { col: 1, row: 1, sizeX: 3, sizeY: 4 };
-    const GRID_ROW_HEIGHT = 50;
 
     cy.viewport(1215, 800);
     cy.addTextbox(id, "x", { position: txb1Pos })
@@ -154,7 +153,7 @@ describe("Textbox", () => {
                 // directly beneath, a margin clear of the one above.
                 expect(second.top - first.top, "clear of the widget above").to.be.closeTo($first.height() + 15, 1);
                 expect($second.width(), "same width, both are three columns").to.eq($first.width());
-                expect($second.height(), "four grid rows tall").to.eq(4 * GRID_ROW_HEIGHT - 15);
+                expect($second.height(), "four grid rows tall").to.eq(gridRowsToPx(4));
               });
             });
           });

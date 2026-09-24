@@ -18,6 +18,13 @@ class TestEmailAttachments(BaseTestCase):
     """
 
     def _notify(self, metadata, custom_body=None):
+        # `as_bytes()` below needs a From, and the destination leaves the
+        # sender to MAIL_DEFAULT_SENDER -- which compose.yaml sets and
+        # .ci/compose.ci.yaml does not, so these passed locally and failed in
+        # CI on `nm, addr = addr` against a None. The test says it itself
+        # rather than passing or failing on where it is run.
+        self.app.extensions["mail"].default_sender = "alerts@example.com"
+
         # The default body template renders the result that fired the alert,
         # so the query needs one.
         result = self.factory.create_query_result(

@@ -1,6 +1,12 @@
 /* global cy */
 
-import { createQueryAndAddWidget, editDashboard, resizeBy } from "../../support/dashboard";
+import {
+  createQueryAndAddWidget,
+  editDashboard,
+  resizeBy,
+  GRID_ROW_HEIGHT,
+  GRID_MARGINS,
+} from "../../support/dashboard";
 
 describe("Widget", () => {
   beforeEach(function () {
@@ -47,9 +53,6 @@ describe("Widget", () => {
     // rows tall. Asserting the relationship rather than a pixel count means a
     // deliberate change to how tall a table row is does not read as a failure,
     // while a widget that stops fitting its contents still does.
-    const GRID_ROW_HEIGHT = 50;
-    const GRID_MARGINS = 15;
-
     const isWholeGridRows = (height) => (height + GRID_MARGINS) % GRID_ROW_HEIGHT === 0;
 
     // Nothing inside the widget may be cut off: auto height exists to make the
@@ -169,9 +172,7 @@ describe("Widget", () => {
             cy.getByTestId("ParameterApplyButton").click();
             cy.wait("@FreshResults");
 
-            cy.get("@widget")
-              .invoke("height")
-              .should("be.closeTo", resizedHeight, 2); // a drag can land a pixel off; a grid row is 50
+            cy.get("@widget").invoke("height").should("be.closeTo", resizedHeight, 2); // a drag can land a pixel off; a grid row is 50
           });
       });
     });
