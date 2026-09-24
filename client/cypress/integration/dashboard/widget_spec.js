@@ -185,14 +185,31 @@ describe("Widget", () => {
 
     // Twelve columns and 50px rows became twenty-four and 25px, so a quarter
     // of the width is six columns and ten rows' worth of height is twenty.
-    // The table inside is the same 380px either way, which is what is under
-    // test -- the widget around it has to be the same size for that to mean
-    // anything.
     const widgetOptions = { position: { col: 0, row: 0, sizeX: 6, sizeY: 20, autoHeight: false } };
 
-    createQueryAndAddWidget(this.dashboardId, queryData, widgetOptions).then(() => {
+    createQueryAndAddWidget(this.dashboardId, queryData, widgetOptions).then((elTestId) => {
       cy.visit(this.dashboardUrl);
-      cy.getByTestId("TableVisualization").its("0.offsetHeight").should("be.oneOf", [380, 381]);
+
+      /*
+        The table fills whatever the widget's chrome leaves it, which is what
+        "the correct height" means -- so that is what is asserted, rather than
+        the 380px it came to when this was written.
+
+        A pixel count here makes taking space back from a widget's header read
+        as a broken test: 0.5 reclaimed 27px from the header and the footer,
+        the table grew into exactly that, and this failed for having got what
+        it wanted.
+      */
+      cy.getByTestId(elTestId).then(($widget) => {
+        const $tile = $widget.find(".tile");
+        const chrome =
+          $tile.find(".t-header.widget").outerHeight(true) + $tile.find(".tile__bottom-control").outerHeight(true);
+
+        cy.getByTestId("TableVisualization")
+          .its("0.offsetHeight")
+          .should("be.closeTo", $tile.height() - chrome, 2);
+      });
+
       cy.percySnapshot("Shows correct height of table visualization");
     });
   });
