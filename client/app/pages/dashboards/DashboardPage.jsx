@@ -8,7 +8,6 @@ import routeWithUserSession from "@/components/ApplicationArea/routeWithUserSess
 import DynamicComponent from "@/components/DynamicComponent";
 import DashboardGrid from "@/components/dashboards/DashboardGrid";
 import Parameters from "@/components/Parameters";
-import Filters from "@/components/Filters";
 
 import { Dashboard } from "@/services/dashboard";
 import recordEvent from "@/services/recordEvent";
@@ -57,7 +56,6 @@ function DashboardComponent(props) {
   const {
     dashboard,
     filters,
-    setFilters,
     loadDashboard,
     loadWidget,
     removeWidget,
@@ -109,6 +107,7 @@ function DashboardComponent(props) {
     <div className="container" ref={setPageContainer} data-test={`DashboardId${dashboard.id}Container`}>
       <DashboardHeader
         dashboardConfiguration={dashboardConfiguration}
+        onParametersEdit={onParametersEdit}
         headerExtra={
           <DynamicComponent
             name="Dashboard.HeaderExtra"
@@ -117,20 +116,22 @@ function DashboardComponent(props) {
           />
         }
       />
-      {/* A live dashboard shows what the server refreshes, with its saved parameter values. */}
-      {!live && !isEmpty(globalParameters) && (
+      {/*
+        Filters live in the header now -- see DashboardFilters -- except while
+        the layout is being edited, when parameters are dragged into order and
+        the drag handles want a band of their own.
+
+        A live dashboard shows what the server refreshes, from its saved
+        parameter values, so it offers no controls at all.
+      */}
+      {editingLayout && !live && !isEmpty(globalParameters) && (
         <div className="dashboard-parameters m-b-10 p-15 bg-white tiled" data-test="DashboardParameters">
           <Parameters
             parameters={globalParameters}
             onValuesChange={refreshDashboard}
-            sortable={editingLayout}
+            sortable
             onParametersEdit={onParametersEdit}
           />
-        </div>
-      )}
-      {!isEmpty(filters) && (
-        <div className="m-b-10 p-15 bg-white tiled" data-test="DashboardFilters">
-          <Filters filters={filters} onChange={setFilters} />
         </div>
       )}
       <div id="dashboard-container">

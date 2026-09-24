@@ -1,4 +1,3 @@
-import { isEmpty } from "lodash";
 import React from "react";
 import PropTypes from "prop-types";
 
@@ -6,9 +5,7 @@ import routeWithApiKeySession from "@/components/ApplicationArea/routeWithApiKey
 import Link from "@/components/Link";
 import BigMessage from "@/components/BigMessage";
 import PageHeader from "@/components/PageHeader";
-import Parameters from "@/components/Parameters";
 import DashboardGrid from "@/components/dashboards/DashboardGrid";
-import Filters from "@/components/Filters";
 
 import { Dashboard } from "@/services/dashboard";
 import routes from "@/services/routes";
@@ -17,16 +14,15 @@ import logoUrl from "@/assets/images/sqldesk_icon.svg";
 
 import useDashboard from "./hooks/useDashboard";
 import LiveBadge from "./components/LiveBadge";
+import DashboardFilters from "./components/DashboardFilters";
 
 import useScreenshotMode from "@/lib/hooks/useScreenshotMode";
 
 import "./PublicDashboardPage.less";
 
 function PublicDashboard({ dashboard, token }) {
-  const { globalParameters, filters, setFilters, refreshDashboard, loadWidget, refreshWidget, live } = useDashboard(
-    dashboard,
-    { publicToken: token }
-  );
+  const dashboardConfiguration = useDashboard(dashboard, { publicToken: token });
+  const { filters, loadWidget, refreshWidget, live } = dashboardConfiguration;
 
   // Being photographed for an alert: say so once every widget has stopped
   // loading, or the renderer captures a page of spinners.
@@ -35,18 +31,21 @@ function PublicDashboard({ dashboard, token }) {
 
   return (
     <div className="container p-t-10 p-b-20">
-      <PageHeader title={dashboard.name} actions={live ? <LiveBadge live={live} /> : null} />
-      {/* A live dashboard's parameters are fixed: it shows what the server refreshes. */}
-      {!live && !isEmpty(globalParameters) && (
-        <div className="m-b-10 p-15 bg-white tiled">
-          <Parameters parameters={globalParameters} onValuesChange={refreshDashboard} />
-        </div>
-      )}
-      {!isEmpty(filters) && (
-        <div className="m-b-10 p-15 bg-white tiled">
-          <Filters filters={filters} onChange={setFilters} />
-        </div>
-      )}
+      {/*
+        Beside the title rather than in a band of its own above the grid --
+        the same control the signed-in page puts beside Refresh. A shared
+        dashboard is the one most likely to be read on a laptop in a meeting,
+        so the row it used to spend on one dropdown is the row worth having.
+      */}
+      <PageHeader
+        title={dashboard.name}
+        actions={
+          <span className="public-dashboard-actions">
+            {live ? <LiveBadge live={live} /> : null}
+            <DashboardFilters dashboardConfiguration={dashboardConfiguration} />
+          </span>
+        }
+      />
       <div id="dashboard-container">
         <DashboardGrid
           dashboard={dashboard}

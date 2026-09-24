@@ -1,0 +1,142 @@
+/*
+  The header's copy of the parameter controls. `Parameters` stacks a label
+  above its control inside a white block, which is right for a band of its
+  own and 63px too tall for a header, so here the label sits beside the
+  control and the block stops being a block.
+*/
+.dashboard-filters-inline {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 5px;
+  vertical-align: middle;
+
+  .parameter-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .parameter-block {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0;
+    background: none;
+  }
+
+  // Label beside control rather than above it. Both of these are inline-level
+  // inside `.di-block`, which the utility class pins to `inline-block
+  // !important` -- so they are put on one line rather than the wrapper being
+  // made a flex row, which would need an argument with that `!important`.
+  .parameter-heading {
+    display: inline-flex;
+    vertical-align: middle;
+    padding-bottom: 0;
+
+    label {
+      margin-bottom: 0;
+      min-width: 0;
+      max-width: 140px;
+      color: var(--color-text-secondary);
+      font-size: 12px;
+      font-weight: 400;
+    }
+  }
+
+  .parameter-input {
+    width: auto;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  // The parameter input sizes itself to the band it used to live in.
+  .parameter-input,
+  .ant-select,
+  .ant-input,
+  .ant-input-number,
+  .ant-picker {
+    min-width: 96px;
+    max-width: 200px;
+  }
+
+  .parameter-apply-button {
+    margin-left: 4px;
+  }
+}
+
+.dashboard-filters-popover {
+  .ant-popover-inner-body {
+    padding: 12px 14px;
+  }
+}
+
+.dashboard-filters-panel {
+  // A definite width, not a range. A popover sizes itself to its content, and
+  // against a shrink-to-fit parent a child asking for `width: 100%` gets its
+  // own content width instead -- which is how a select showing "North" came
+  // out at 90px under a 300px panel.
+  width: 320px;
+  max-width: calc(100vw - 40px);
+
+  // Back to a label above its control: in a panel there is height to spare
+  // and the extra line is easier to read than a cramped row.
+  //
+  // `Parameters` lays its blocks out as a wrapping flex row, which shrinks
+  // each control to its own content -- a 90px select under a 300px panel. In
+  // one column they each take the width.
+  .parameter-container {
+    display: block;
+  }
+
+  .parameter-block {
+    display: block;
+    width: 100% !important;
+    padding: 0 0 10px;
+    background: none;
+    white-space: normal;
+  }
+
+  // `Parameters` wraps each label and control in a shrink-to-fit `.di-block`,
+  // and a control asking for `width: 100%` inside one of those gets the width
+  // of its own text -- an 80px box for a select reading "North". Widening the
+  // wrapper rather than changing its display, because the utility class
+  // declares `display: inline-block !important` and this does not need an
+  // argument with it.
+  .di-block {
+    width: 100%;
+  }
+
+  .parameter-input,
+  .ant-select,
+  .ant-input,
+  .ant-input-number,
+  .ant-picker,
+  .ant-input-group {
+    width: 100%;
+  }
+
+  // `Filters` is built from half-width grid columns, which is why it cannot
+  // go in the header itself. In a panel they simply stack.
+  .filters-wrapper .container {
+    padding: 0;
+    background: none;
+  }
+
+  .filter-container {
+    width: 100%;
+    padding: 0 0 10px;
+  }
+
+  // The apply chip floats 36px below its container on desktop, which inside a
+  // popover puts it under the panel's own edge. Here it is simply the last
+  // row -- still hidden until a value is dirty, but holding its space, so
+  // showing it does not shift the controls above it.
+  .parameter-apply-button {
+    position: static;
+    left: auto;
+    bottom: auto;
+    padding: 0;
+    background: none;
+    box-shadow: none;
+  }
+}

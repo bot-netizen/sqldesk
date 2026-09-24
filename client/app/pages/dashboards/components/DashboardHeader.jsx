@@ -14,6 +14,7 @@ import Tooltip from "@/components/Tooltip";
 import FavoritesControl from "@/components/FavoritesControl";
 import EditInPlace from "@/components/EditInPlace";
 import ShareDashboardButton from "./ShareDashboardButton";
+import DashboardFilters from "./DashboardFilters";
 import LiveBadge, { LIVE_INTERVAL_LABELS } from "./LiveBadge";
 import PlainButton from "@/components/PlainButton";
 import { DashboardTagsControl } from "@/components/tags-control/TagsControl";
@@ -241,7 +242,7 @@ DashboardMoreOptionsButton.propTypes = {
   dashboardConfiguration: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
 };
 
-function DashboardControl({ dashboardConfiguration, headerExtra }) {
+function DashboardControl({ dashboardConfiguration, headerExtra, onParametersEdit }) {
   const {
     dashboard,
     togglePublished,
@@ -251,6 +252,7 @@ function DashboardControl({ dashboardConfiguration, headerExtra }) {
     showShareDashboardDialog,
     updateDashboard,
     live,
+    editingLayout,
   } = dashboardConfiguration;
   const showPublishButton = dashboard.is_draft;
   // A live dashboard is refreshed by the server; its header says so instead.
@@ -273,6 +275,10 @@ function DashboardControl({ dashboardConfiguration, headerExtra }) {
             <Button className="m-r-5 hidden-xs" onClick={togglePublished}>
               <span className="fa fa-paper-plane m-r-5" /> Publish
             </Button>
+          )}
+          {/* Beside Refresh rather than in a band of its own above the grid. */}
+          {!editingLayout && (
+            <DashboardFilters dashboardConfiguration={dashboardConfiguration} onParametersEdit={onParametersEdit} />
           )}
           {showRefreshButton && <RefreshButton dashboardConfiguration={dashboardConfiguration} />}
           {live && <LiveControl dashboardConfiguration={dashboardConfiguration} />}
@@ -306,6 +312,7 @@ function DashboardControl({ dashboardConfiguration, headerExtra }) {
 DashboardControl.propTypes = {
   dashboardConfiguration: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
   headerExtra: PropTypes.node,
+  onParametersEdit: PropTypes.func,
 };
 
 export function DashboardEditControl({ dashboardConfiguration, headerExtra }) {
@@ -411,14 +418,18 @@ DashboardEditControl.propTypes = {
   headerExtra: PropTypes.node,
 };
 
-export default function DashboardHeader({ dashboardConfiguration, headerExtra }) {
+export default function DashboardHeader({ dashboardConfiguration, headerExtra, onParametersEdit }) {
   const { editingLayout } = dashboardConfiguration;
   const DashboardControlComponent = editingLayout ? DashboardEditControl : DashboardControl;
 
   return (
     <div className="dashboard-header">
       <DashboardPageTitle dashboardConfiguration={dashboardConfiguration} />
-      <DashboardControlComponent dashboardConfiguration={dashboardConfiguration} headerExtra={headerExtra} />
+      <DashboardControlComponent
+        dashboardConfiguration={dashboardConfiguration}
+        headerExtra={headerExtra}
+        onParametersEdit={onParametersEdit}
+      />
     </div>
   );
 }
@@ -426,4 +437,5 @@ export default function DashboardHeader({ dashboardConfiguration, headerExtra })
 DashboardHeader.propTypes = {
   dashboardConfiguration: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
   headerExtra: PropTypes.node,
+  onParametersEdit: PropTypes.func,
 };
