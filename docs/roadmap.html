@@ -14,7 +14,7 @@
   --n-50:#fbfaf9;--n-100:#f6f4f1;--n-200:#f1efec;--n-300:#e8e5e1;--n-600:#8a857e;--n-700:#6f6b66;--n-800:#34302b;--n-900:#1c1b1a;
   --ac-100:#e4f4f7;--ac-200:#c6e8ee;--ac-400:#6bb4c4;--ac-600:#0a7c93;--ac-700:#086476;
   --good:#1e7a4c;--warning:#9a6510;--critical:#b4342c;
-  --canvas:var(--n-50);--surface:#fff;--sunken:var(--n-100);--rule:var(--n-300);--rule-soft:var(--n-200);
+  --canvas:#f6f8f9;--surface:#fff;--sunken:var(--n-100);--rule:var(--n-300);--rule-soft:var(--n-200);
   --ink:var(--n-900);--ink-2:var(--n-800);--muted:var(--n-700);--faint:var(--n-600);
   --accent:var(--ac-600);--accent-ink:var(--ac-700);--accent-wash:var(--ac-100);--accent-edge:var(--ac-200);
   --good-wash:#e8f3ed;--warning-wash:#f7efdf;
@@ -40,7 +40,7 @@
 body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
 a{color:var(--accent-ink);text-underline-offset:2px}
 a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
-.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+.wrap{width:100%;max-width:1680px;margin:0 auto;padding:0 clamp(16px,3.2vw,44px)}
 
 .topbar{border-bottom:1px solid var(--rule);background:color-mix(in srgb,var(--canvas) 88%,transparent);backdrop-filter:blur(8px);position:sticky;top:0;z-index:10}
 .topbar-in{display:flex;align-items:center;gap:14px;height:60px}
@@ -150,6 +150,8 @@ footer a{color:var(--muted)}
       <a href="index.html">Overview</a>
       <a href="performance.html">Performance</a>
       <a href="roadmap.html" aria-current="page">Roadmap</a>
+      <a href="ai.html">AI</a>
+      <a href="releases.html" class="hide-sm">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
     </nav>
   </div>

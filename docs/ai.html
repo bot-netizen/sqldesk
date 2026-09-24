@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI — SQLDesk</title>
+<meta name="description" content="SQLDesk 0.6: a context service built from your warehouse and your query history, an MCP server, a query optimizer and a semantic layer proposed from queries people already wrote.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="index.html">Overview</a>
+      <a href="why.html" class="hide-sm">Why SQLDesk</a>
+      <a href="performance.html" class="hide-sm">Performance</a>
+      <a href="roadmap.html" class="hide-sm">Roadmap</a>
+      <a href="ai.html" aria-current="page">AI</a>
+      <a href="releases.html" class="hide-sm">Releases</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+
+<section class="hero wrap">
+  <p class="eyebrow">0.6</p>
+  <h1>AI, on what SQLDesk already&nbsp;knows</h1>
+  <p class="lede">Four surfaces &mdash; an MCP server, an assistant, an optimize button and a semantic layer
+    &mdash; are clients of <strong>one context service</strong> built from your warehouse and your own
+    query history. Build the context service first; the rest are thin on top of it.</p>
+  <div class="cta">
+    <a class="btn btn-primary" href="ai-design.html">How it works</a>
+    <a class="btn btn-ghost" href="releases.html">All releases</a>
+  </div>
+</section>
+
+<section class="wrap">
+  <h2>The shape of it</h2>
+  <p class="sub">Nothing but the context service touches raw schema. The MCP server is the single tool
+    layer, and the in-app assistant is a second client of it rather than a parallel implementation &mdash;
+    so retrieval, guards and permissions live in one place.</p>
+
+  <div class="flow">
+    <svg viewBox="0 0 900 260" role="img" aria-label="Data sources and query history feed a harvester, which fills a catalog. The context service reads the catalog and serves the MCP server, the assistant and the optimize button.">
+      <rect class="box" x="8" y="26" width="150" height="56" rx="8"/>
+      <text class="ttl" x="83" y="49" text-anchor="middle">Data sources</text>
+      <text class="lbl" x="83" y="68" text-anchor="middle">schema, stats, partitions</text>
+
+      <rect class="box" x="8" y="118" width="150" height="56" rx="8"/>
+      <text class="ttl" x="83" y="141" text-anchor="middle">Query history</text>
+      <text class="lbl" x="83" y="160" text-anchor="middle">joins, filters, metrics</text>
+
+      <path class="edge" d="M158 54 H210 V96 H240" marker-end="url(#a)"/>
+      <path class="edge" d="M158 146 H210 V96 H240" marker-end="url(#a)"/>
+
+      <rect class="box box-sunken" x="240" y="70" width="130" height="52" rx="8"/>
+      <text class="ttl" x="305" y="101" text-anchor="middle">Harvester</text>
+
+      <path class="edge" d="M370 96 H410" marker-end="url(#a)"/>
+      <rect class="box box-sunken" x="410" y="70" width="120" height="52" rx="8"/>
+      <text class="ttl" x="470" y="94" text-anchor="middle">Catalog</text>
+      <text class="lbl" x="470" y="111" text-anchor="middle">Postgres</text>
+
+      <path class="edge" d="M530 96 H570" marker-end="url(#a)"/>
+      <rect class="box box-accent" x="570" y="62" width="140" height="68" rx="8"/>
+      <text class="ttl" x="640" y="90" text-anchor="middle">Context service</text>
+      <text class="lbl" x="640" y="109" text-anchor="middle">retrieval + ranking</text>
+
+      <path class="edge" d="M710 82 H750 V36 H790" marker-end="url(#a)"/>
+      <path class="edge" d="M710 96 H770 V110 H790" marker-end="url(#a)"/>
+      <path class="edge" d="M710 110 H750 V184 H790" marker-end="url(#a)"/>
+
+      <rect class="box" x="790" y="14" width="102" height="44" rx="8"/>
+      <text class="ttl" x="841" y="41" text-anchor="middle">MCP server</text>
+      <rect class="box" x="790" y="88" width="102" height="44" rx="8"/>
+      <text class="ttl" x="841" y="115" text-anchor="middle">Assistant</text>
+      <rect class="box" x="790" y="162" width="102" height="44" rx="8"/>
+      <text class="ttl" x="841" y="189" text-anchor="middle">Optimize</text>
+
+      <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0 0 L10 5 L0 10 z" fill="#d8d3cb"/></marker></defs>
+    </svg>
+    <p class="flow-cap">Every call executes as the signed-in user and honours the data source and group
+      permissions that already exist. No service account with blanket access.</p>
+  </div>
+</section>
+
+<section class="wrap">
+  <h2>What arrives, in order</h2>
+
+  <ol class="steps">
+    <li>
+      <h4>The context service <span class="chip chip-next">No AI</span></h4>
+      <p>Harvest each source on a schedule &mdash; partition specs, sort orders, column cardinality,
+      null fractions, distribution keys. Ships on its own as much better schema search, and everything
+      later depends on it. The eval set is written here too, before any retrieval work, or tuning
+      happens by vibes.</p>
+    </li>
+    <li>
+      <h4>The optimize button, deterministic half <span class="chip chip-next">No AI</span></h4>
+      <p>Beside Execute in the query editor. Parse, EXPLAIN, and rule packs per engine: missing
+      partition predicate, an implicit cast killing partition pruning, <code>SELECT *</code> on a wide
+      columnar table, ORDER BY without LIMIT. Needs neither the catalog nor a model, which is why it
+      comes early.</p>
+    </li>
+    <li>
+      <h4>The MCP server</h4>
+      <p>Task-shaped tools, not CRUD-shaped. <code>find_context(question)</code> returns ranked tables
+      with columns already pruned plus a few similar past queries &mdash; one call instead of the forty
+      a <code>list_tables</code> / <code>get_schema</code> pair provokes. Runs against Claude Desktop
+      immediately, which is how we find out whether the context is any good.</p>
+    </li>
+    <li>
+      <h4>The rewrite half of the optimizer</h4>
+      <p>A rewrite with a rationale per change, and then the part that matters: normalize and parse
+      both, EXPLAIN both, run both against one partition and compare row counts and a sorted hash.
+      Then label it honestly &mdash; <em>verified equivalent on one day of data</em>, or <em>not
+      verified, review manually</em>.</p>
+    </li>
+    <li>
+      <h4>The assistant, and the semantic layer</h4>
+      <p>The assistant is a second client of the same tools. Every identifier it generates is checked
+      against the catalog, so a hallucinated column fails closed rather than reaching the engine.
+      Assumptions are always surfaced.</p>
+    </li>
+  </ol>
+</section>
+
+<section class="wrap">
+  <h2>The semantic layer, and why it is not a modelling project</h2>
+  <p class="sub">A metric definition is usually already written down &mdash; in a query somebody saved.</p>
+
+  <pre><code>SELECT region, SUM(amount) AS revenue
+FROM orders WHERE status = 'completed' GROUP BY 1</code></pre>
+
+  <p class="sub">That is a measure, its name, its filter and its grain, written by a person who knew the
+  business. No model is needed to name it. Parse, count how many people wrote it, and propose it.</p>
+
+  <div class="cards">
+    <div class="card"><h3>Authored</h3><p>Someone writes it. Works on day one, and is only as good as what they know.</p></div>
+    <div class="card"><h3>Proposed from schema</h3><p>Suggested at harvest time from names and types. Weak, but better than an empty page.</p></div>
+    <div class="card"><h3>Inferred from queries</h3><p>Strong, and compounds &mdash; worth nothing on day one and a great deal by month three.</p></div>
+  </div>
+
+  <div class="note" style="margin-top:28px">
+    <p><strong>Nothing a model proposed reaches a query until a person says yes.</strong> Proposals land
+    in an approval page with their provenance &mdash; <em>seen in 23 queries by 9 people</em> &mdash; and
+    an admin accepts, renames or rejects. Only approved definitions are used.</p>
+  </div>
+
+  <p style="margin-top:22px">Approved definitions are written as <strong>Cube-native YAML</strong>, so they
+  can live in git, be reviewed as a diff, and be absorbed by Cube without a conversion step. Our own
+  compiler reads the same files, which means SQLDesk needs no extra service to use them &mdash; and
+  cannot invent a feature Cube has no word for.</p>
+</section>
+
+<section class="wrap">
+  <h2>Your model, your hardware</h2>
+  <p class="sub">Configured from the CLI on the server, because the people who run SQLDesk on their own
+  machines are the ones who most need to choose.</p>
+  <pre><code>sqldesk ai configure --provider anthropic --model claude-sonnet-5
+sqldesk ai configure --provider openai    --model gpt-4.1
+sqldesk ai configure --provider local     --base-url http://ollama:11434 --model llama3.1
+sqldesk ai status</code></pre>
+  <div class="note">
+    <p><strong>Off until it is configured.</strong> No key, no AI features, no outbound requests &mdash;
+    and a per-data-source switch, so a warehouse holding anything sensitive never reaches a hosted
+    model even when another one does.</p>
+  </div>
+</section>
+
+
+<footer>
+  <div class="wrap">
+    <p>
+      <a href="index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+      <a href="releases.html">Releases</a> &nbsp;&middot;&nbsp;
+      <a href="ai.html">AI</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

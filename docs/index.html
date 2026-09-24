@@ -20,7 +20,7 @@
   --n-400:#d8d3cb; --n-600:#8a857e; --n-700:#6f6b66; --n-800:#34302b; --n-900:#1c1b1a;
   --ac-100:#e4f4f7; --ac-200:#c6e8ee; --ac-400:#6bb4c4; --ac-600:#0a7c93; --ac-700:#086476;
 
-  --canvas:var(--n-50);
+  --canvas:#f6f8f9;
   --surface:#ffffff;
   --sunken:var(--n-100);
   --rule:var(--n-300);
@@ -39,16 +39,6 @@
   --sans:"Instrument Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
   --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   color-scheme:light;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --canvas:#121116; --surface:#1b1a21; --sunken:#232229;
-    --rule:#33313c; --rule-soft:#2a2933;
-    --ink:#f4f2ef; --ink-2:#ddd9d3; --muted:#a8a29a; --faint:#8a857e;
-    --accent:var(--ac-400); --accent-ink:#8fcbd8; --accent-wash:#14323a; --accent-edge:#1e4a56;
-    --code-bg:#17161d;
-    color-scheme:dark;
-  }
 }
 :root[data-theme="dark"] {
   --canvas:#121116; --surface:#1b1a21; --sunken:#232229;
@@ -70,7 +60,7 @@ img{max-width:100%}
 a{color:var(--accent-ink);text-underline-offset:2px}
 a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
 
-.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+.wrap{width:100%;max-width:1680px;margin:0 auto;padding:0 clamp(16px,3.2vw,44px)}
 .narrow{max-width:66ch}
 
 /* ---------- top bar ---------- */
@@ -222,6 +212,8 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
       <a href="why.html">Why SQLDesk</a>
       <a href="performance.html" class="hide-sm">Performance</a>
       <a href="roadmap.html" class="hide-sm">Roadmap</a>
+      <a href="ai.html">AI</a>
+      <a href="releases.html" class="hide-sm">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
     </nav>
   </div>

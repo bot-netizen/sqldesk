@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the AI features work — SQLDesk</title>
+<meta name="description" content="The flows behind SQLDesk's AI features: what is sent to a model, what validates generated SQL, how a rewrite is verified, and how to configure a hosted or local model.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="index.html">Overview</a>
+      <a href="why.html" class="hide-sm">Why SQLDesk</a>
+      <a href="performance.html" class="hide-sm">Performance</a>
+      <a href="roadmap.html" class="hide-sm">Roadmap</a>
+      <a href="ai.html">AI</a>
+      <a href="releases.html" class="hide-sm">Releases</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+
+<section class="hero wrap">
+  <p class="eyebrow">Design</p>
+  <h1>How the AI features actually&nbsp;work</h1>
+  <p class="lede">What happens between your question and your results, what is sent where, and what
+    stops a confident wrong answer reaching you. <strong>Nothing here is magic, and none of it runs
+    until you configure a model.</strong></p>
+</section>
+
+<section class="wrap">
+  <h2>Asking a question</h2>
+  <p class="sub">The assistant never sees your whole warehouse. It asks the context service for the
+    handful of tables that look relevant, drafts SQL, and has that SQL checked before anything runs.</p>
+
+  <div class="flow">
+    <svg viewBox="0 0 980 190" role="img" aria-label="A question is checked for ambiguity, context is retrieved, SQL is drafted, validated, repaired if needed, run on a sample, and returned with its assumptions.">
+      <rect class="box box-accent" x="6" y="66" width="104" height="48" rx="8"/>
+      <text class="ttl" x="58" y="95" text-anchor="middle">Question</text>
+      <path class="edge" d="M110 90 H150" marker-end="url(#b)"/>
+
+      <rect class="box" x="150" y="66" width="112" height="48" rx="8"/>
+      <text class="ttl" x="206" y="86" text-anchor="middle">Ambiguous?</text>
+      <text class="lbl" x="206" y="103" text-anchor="middle">ask, or carry on</text>
+      <path class="edge" d="M262 90 H302" marker-end="url(#b)"/>
+
+      <rect class="box box-sunken" x="302" y="66" width="120" height="48" rx="8"/>
+      <text class="ttl" x="362" y="86" text-anchor="middle">find_context</text>
+      <text class="lbl" x="362" y="103" text-anchor="middle">5&ndash;10 tables</text>
+      <path class="edge" d="M422 90 H462" marker-end="url(#b)"/>
+
+      <rect class="box" x="462" y="66" width="104" height="48" rx="8"/>
+      <text class="ttl" x="514" y="95" text-anchor="middle">Draft SQL</text>
+      <path class="edge" d="M566 90 H606" marker-end="url(#b)"/>
+
+      <rect class="box box-accent" x="606" y="66" width="116" height="48" rx="8"/>
+      <text class="ttl" x="664" y="86" text-anchor="middle">validate_sql</text>
+      <text class="lbl" x="664" y="103" text-anchor="middle">parse + EXPLAIN</text>
+
+      <path class="edge" d="M664 66 V34 H514 V66" marker-end="url(#b)"/>
+      <text class="lbl" x="589" y="27" text-anchor="middle">repair, twice at most</text>
+
+      <path class="edge" d="M722 90 H762" marker-end="url(#b)"/>
+      <rect class="box" x="762" y="66" width="100" height="48" rx="8"/>
+      <text class="ttl" x="812" y="95" text-anchor="middle">Run</text>
+      <path class="edge" d="M862 90 H902" marker-end="url(#b)"/>
+      <rect class="box box-accent" x="902" y="58" width="72" height="64" rx="8"/>
+      <text class="ttl" x="938" y="82" text-anchor="middle">SQL</text>
+      <text class="ttl" x="938" y="99" text-anchor="middle">rows</text>
+      <text class="lbl" x="938" y="114" text-anchor="middle">+ notes</text>
+
+      <defs><marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0 0 L10 5 L0 10 z" fill="#d8d3cb"/></marker></defs>
+    </svg>
+    <p class="flow-cap">Two rules that do not bend. Every identifier in generated SQL is checked against
+      the catalog after parsing, so a column that does not exist fails here rather than at your
+      warehouse. And every assumption is written down &mdash; <em>&ldquo;filtered to
+      <code>status='completed'</code>, because 90% of past queries on this table do&rdquo;</em> &mdash;
+      because an unstated assumption is how you get a number that is wrong in a way nobody notices.</p>
+  </div>
+</section>
+
+<section class="wrap">
+  <h2>What is actually sent to the model</h2>
+  <p class="sub">Not your data. Not your whole schema. A budget, assembled per request.</p>
+
+  <table>
+    <tr><th>Layer</th><th>What it holds</th><th>Roughly</th></tr>
+    <tr><td>Always on</td><td>Conventions, glossary, table names with a line of purpose each</td><td>2&ndash;4k tokens, cached between requests</td></tr>
+    <tr><td>Retrieved</td><td>5&ndash;10 candidate tables, columns already pruned to the ones people use</td><td>3&ndash;6k</td></tr>
+    <tr><td>Examples</td><td>2&ndash;3 similar queries somebody on your team already wrote</td><td>1&ndash;2k</td></tr>
+    <tr><td>On demand</td><td>Full column detail, only when the model asks for a specific table</td><td>varies</td></tr>
+  </table>
+
+  <p class="sub">Row values are not included, with one deliberate exception: the distinct values of
+  low-cardinality columns like <code>status</code>. Without them a model writes
+  <code>status = 'complete'</code>, the query succeeds, and returns nothing &mdash; the worst failure
+  mode there is. Columns you tag as sensitive are excluded from that, and a data source with AI
+  switched off contributes nothing at all.</p>
+</section>
+
+<section class="wrap">
+  <h2>Optimizing a query</h2>
+  <p class="sub">Two stages, and the order is the design. The first needs no model.</p>
+
+  <div class="flow">
+    <svg viewBox="0 0 900 220" role="img" aria-label="A query is parsed and explained to produce findings. Findings can be shown alone, or sent to a model for a rewrite, which is then verified against the original before being offered.">
+      <rect class="box box-accent" x="6" y="82" width="96" height="48" rx="8"/>
+      <text class="ttl" x="54" y="111" text-anchor="middle">Your SQL</text>
+      <path class="edge" d="M102 106 H142" marker-end="url(#c)"/>
+
+      <rect class="box box-sunken" x="142" y="70" width="142" height="72" rx="8"/>
+      <text class="ttl" x="213" y="94" text-anchor="middle">Stage 1</text>
+      <text class="lbl" x="213" y="112" text-anchor="middle">parse &middot; EXPLAIN</text>
+      <text class="lbl" x="213" y="128" text-anchor="middle">rule packs, no model</text>
+
+      <path class="edge" d="M284 92 H340 V40 H380" marker-end="url(#c)"/>
+      <rect class="box" x="380" y="18" width="150" height="44" rx="8"/>
+      <text class="ttl" x="455" y="38" text-anchor="middle">Findings</text>
+      <text class="lbl" x="455" y="53" text-anchor="middle">useful on their own</text>
+
+      <path class="edge" d="M284 120 H340 V150 H380" marker-end="url(#c)"/>
+      <rect class="box" x="380" y="126" width="150" height="48" rx="8"/>
+      <text class="ttl" x="455" y="147" text-anchor="middle">Stage 2</text>
+      <text class="lbl" x="455" y="163" text-anchor="middle">model rewrites</text>
+
+      <path class="edge" d="M530 150 H570" marker-end="url(#c)"/>
+      <rect class="box box-accent" x="570" y="114" width="164" height="72" rx="8"/>
+      <text class="ttl" x="652" y="138" text-anchor="middle">Verify</text>
+      <text class="lbl" x="652" y="155" text-anchor="middle">EXPLAIN both, run both</text>
+      <text class="lbl" x="652" y="171" text-anchor="middle">on one partition</text>
+
+      <path class="edge" d="M734 150 H774" marker-end="url(#c)"/>
+      <rect class="box" x="774" y="114" width="120" height="72" rx="8"/>
+      <text class="ttl" x="834" y="140" text-anchor="middle">Labelled</text>
+      <text class="lbl" x="834" y="157" text-anchor="middle">verified, or</text>
+      <text class="lbl" x="834" y="172" text-anchor="middle">check it yourself</text>
+
+      <defs><marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0 0 L10 5 L0 10 z" fill="#d8d3cb"/></marker></defs>
+    </svg>
+    <p class="flow-cap">Stage 1 alone catches the things that actually cost money &mdash; a missing
+      partition predicate, an implicit cast on a join key, <code>SELECT *</code> across a wide columnar
+      table &mdash; and it will tell you the same thing every time, because it is rules rather than a
+      model.</p>
+  </div>
+
+  <div class="note">
+    <p><strong>A rewrite you cannot defend is not shown.</strong> Both queries are normalized, explained,
+    and run against a sample partition; row counts and a sorted hash of the results are compared. If
+    they do not match, you are told so rather than handed a query that returns different numbers.
+    Accepting a rewrite creates a new version of the query, with its lineage back to the original.</p>
+  </div>
+</section>
+
+<section class="wrap">
+  <h2>Where the semantic layer comes from</h2>
+  <p class="sub">From the queries your team already wrote, and never without somebody agreeing.</p>
+
+  <div class="flow">
+    <svg viewBox="0 0 900 150" role="img" aria-label="Saved queries are parsed into candidate metrics, which are proposed to an admin, approved, written as Cube YAML to git, and then used by the assistant.">
+      <rect class="box" x="6" y="46" width="120" height="52" rx="8"/>
+      <text class="ttl" x="66" y="68" text-anchor="middle">Saved queries</text>
+      <text class="lbl" x="66" y="85" text-anchor="middle">already written</text>
+      <path class="edge" d="M126 72 H166" marker-end="url(#d)"/>
+
+      <rect class="box box-sunken" x="166" y="46" width="130" height="52" rx="8"/>
+      <text class="ttl" x="231" y="68" text-anchor="middle">Parsed</text>
+      <text class="lbl" x="231" y="85" text-anchor="middle">measures, filters</text>
+      <path class="edge" d="M296 72 H336" marker-end="url(#d)"/>
+
+      <rect class="box box-accent" x="336" y="38" width="150" height="68" rx="8"/>
+      <text class="ttl" x="411" y="62" text-anchor="middle">Proposed</text>
+      <text class="lbl" x="411" y="79" text-anchor="middle">&ldquo;23 queries,</text>
+      <text class="lbl" x="411" y="94" text-anchor="middle">9 people&rdquo;</text>
+      <path class="edge" d="M486 72 H526" marker-end="url(#d)"/>
+
+      <rect class="box" x="526" y="46" width="126" height="52" rx="8"/>
+      <text class="ttl" x="589" y="68" text-anchor="middle">You approve</text>
+      <text class="lbl" x="589" y="85" text-anchor="middle">rename, or reject</text>
+      <path class="edge" d="M652 72 H692" marker-end="url(#d)"/>
+
+      <rect class="box" x="692" y="46" width="128" height="52" rx="8"/>
+      <text class="ttl" x="756" y="68" text-anchor="middle">Cube YAML</text>
+      <text class="lbl" x="756" y="85" text-anchor="middle">in your git repo</text>
+
+      <defs><marker id="d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0 0 L10 5 L0 10 z" fill="#d8d3cb"/></marker></defs>
+    </svg>
+    <p class="flow-cap">Approved definitions are written in Cube's own format, so they are reviewable as
+      a pull request and can be absorbed by Cube with no conversion. SQLDesk's own compiler reads the
+      same files, so you do not have to run Cube to use them.</p>
+  </div>
+
+  <p class="sub">Once a metric exists, the assistant stops writing the aggregation at all &mdash; it
+  picks a metric and the compiler produces the SQL. That removes the largest class of mistake in
+  text-to-SQL in one move: the right tables, the wrong <code>SUM</code>.</p>
+</section>
+
+<section class="wrap">
+  <h2>Choosing a model</h2>
+  <p class="sub">From the CLI on the server. Hosted or local, and nothing is on until you say so.</p>
+
+  <pre><code># a hosted API
+sqldesk ai configure --provider anthropic --model claude-sonnet-5 --api-key-stdin
+sqldesk ai configure --provider openai --model gpt-4.1 --api-key-stdin
+
+# anything that speaks the OpenAI API, on your own hardware
+sqldesk ai configure --provider local --base-url http://ollama:11434/v1 --model llama3.1
+
+# what is configured, and whether it answers
+sqldesk ai status
+sqldesk ai test "how many orders were placed yesterday?"</code></pre>
+
+  <div class="cards">
+    <div class="card"><h3>Off by default</h3><p>No provider configured means no AI surfaces, no tools registered and no outbound requests. The feature has to be turned on, not turned off.</p></div>
+    <div class="card"><h3>Per data source</h3><p>A warehouse can be excluded entirely, so its schema and value samples never leave the building even while another source uses a hosted model.</p></div>
+    <div class="card"><h3>Keys on the server</h3><p>Read from stdin or the environment, stored encrypted alongside data source credentials, never sent to the browser and never written to a log.</p></div>
+    <div class="card"><h3>A budget you set</h3><p>AI-issued queries get their own queue and a bytes-scanned ceiling, and anything expensive asks first. A generated query can scan a petabyte.</p></div>
+  </div>
+</section>
+
+
+<footer>
+  <div class="wrap">
+    <p>
+      <a href="index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+      <a href="releases.html">Releases</a> &nbsp;&middot;&nbsp;
+      <a href="ai.html">AI</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

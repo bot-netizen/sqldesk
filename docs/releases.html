@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Releases — SQLDesk</title>
+<meta name="description" content="What shipped in each SQLDesk release: 0.4 live dashboards, 0.5 the interface, 0.6 AI.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="index.html">Overview</a>
+      <a href="why.html" class="hide-sm">Why SQLDesk</a>
+      <a href="performance.html" class="hide-sm">Performance</a>
+      <a href="roadmap.html" class="hide-sm">Roadmap</a>
+      <a href="ai.html">AI</a>
+      <a href="releases.html" class="hide-sm" aria-current="page">Releases</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+
+<section class="hero wrap">
+  <p class="eyebrow">Releases</p>
+  <h1>What shipped, and&nbsp;when</h1>
+  <p class="lede">SQLDesk is a fork of Redash that has been rebuilt one layer at a time.
+    Each release has a theme, and the theme is the point &mdash; a release that does a
+    little of everything is a release nobody can describe.</p>
+</section>
+
+<section class="wrap">
+  <div class="cards">
+    <div class="card"><h3>0.4 &mdash; Live</h3><p>Dashboards you watch rather than read. The server refreshes them, once for everyone looking.</p></div>
+    <div class="card"><h3>0.5 &mdash; Interface</h3><p>Less chrome, more chart. Filters left their band, textboxes became somewhere to write.</p></div>
+    <div class="card"><h3>0.6 &mdash; AI</h3><p>A context layer built from your own warehouse and your own query history, and every AI surface a client of it.</p></div>
+  </div>
+</section>
+
+<section class="wrap">
+  <h2>In detail</h2>
+
+  <div class="rel">
+    <div><div class="rel-when">In progress</div></div>
+    <div>
+      <p class="rel-v">0.6 <span class="chip chip-now">Building</span></p>
+      <p class="rel-theme">AI at the core &mdash; not a chat box bolted to the side.</p>
+      <ul>
+        <li><strong>A context service</strong> built from harvested warehouse metadata and, as it accumulates, your own query history. Everything else is a client of it.</li>
+        <li><strong>An MCP server</strong>, so Claude Desktop and the in-app assistant share one tool layer, one set of guards and one permission model.</li>
+        <li><strong>An optimize button</strong> beside Execute. The first half is deterministic &mdash; parse, EXPLAIN, rule packs per engine &mdash; and needs no model at all.</li>
+        <li><strong>A semantic layer</strong> whose definitions are proposed from what people already wrote, approved by an admin, and stored as Cube-native YAML you can keep in git.</li>
+        <li><strong>Your choice of model</strong>: a hosted API, or something running on your own hardware. Configured from the CLI on the server.</li>
+      </ul>
+      <p><a href="ai.html">The plan &rarr;</a> &nbsp;&middot;&nbsp; <a href="ai-design.html">How it works &rarr;</a></p>
+    </div>
+  </div>
+
+  <div class="rel">
+    <div><div class="rel-when">September 2026</div></div>
+    <div>
+      <p class="rel-v">0.5 <span class="chip chip-done">Released</span></p>
+      <p class="rel-theme">A dashboard that costs less to look at, and more room on it to say things.</p>
+      <ul>
+        <li><strong>One fetch for one result.</strong> A query behind five widgets was fetched and parsed five times; now one request serves all of them, shared only when they are genuinely asking for the same thing.</li>
+        <li><strong>The chrome gave the charts their space back.</strong> 44px of widget header where there were 57, a title that says one name instead of repeating the query's, and filters in the header rather than a full-width band.</li>
+        <li><strong>Textboxes became somewhere to write.</strong> Tables, fenced code, task lists and raw HTML through DOMPurify, a Write/Preview editor, and a tile you can switch off so a heading divides the page instead of sitting on it.</li>
+        <li><strong>Eight more chart types</strong>, drawn by ECharts, with a matrix test that puts every visualization through every option it offers.</li>
+        <li><strong>An Admin section</strong> that answers what is running, who is running it, and what is about to run out &mdash; with the ability to cancel a query and run cleanup now.</li>
+        <li><strong>Alerts can carry a picture</strong>, rendered by a headless browser in its own optional container. The published image does not grow for people who never turn it on.</li>
+        <li><strong>A twenty-four column grid</strong>, so a widget can take a third of the width, with a migration that brings existing dashboards across.</li>
+      </ul>
+      <p><a href="performance.html">The measurements &rarr;</a></p>
+    </div>
+  </div>
+
+  <div class="rel">
+    <div><div class="rel-when">September 2026</div></div>
+    <div>
+      <p class="rel-v">0.4 <span class="chip chip-done">Released</span></p>
+      <p class="rel-theme">Dashboards you watch rather than read.</p>
+      <ul>
+        <li><strong>Live dashboards.</strong> The server refreshes a dashboard every 30 seconds to 5 minutes, once for everyone looking, and only while somebody has it open.</li>
+        <li><strong>The visualizations that go on a wall</strong> &mdash; a gauge, a stat with a sparkline and a target, progress and bullet bars, a status grid, table cells that colour and carry data bars, reference lines and bands.</li>
+        <li><strong>Charts moved to Apache ECharts</strong>, which is what made the rest of it possible.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+
+<footer>
+  <div class="wrap">
+    <p>
+      <a href="index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+      <a href="releases.html">Releases</a> &nbsp;&middot;&nbsp;
+      <a href="ai.html">AI</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
