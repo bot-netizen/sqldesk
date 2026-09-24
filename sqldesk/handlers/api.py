@@ -2,7 +2,7 @@ from flask import make_response
 from flask_restful import Api
 from werkzeug.wrappers import Response
 
-from sqldesk.handlers.ai import AIStatusResource, AITestResource
+from sqldesk.handlers.ai import AIStatusResource, AITestResource, QueryOptimizeResource
 from sqldesk.handlers.alerts import (
     AlertEvaluateResource,
     AlertListResource,
@@ -127,6 +127,7 @@ def json_representation(data, code, headers=None):
 
 api.add_org_resource(AIStatusResource, "/api/ai/status", endpoint="ai_status")
 api.add_org_resource(AITestResource, "/api/ai/test", endpoint="ai_test")
+api.add_org_resource(QueryOptimizeResource, "/api/queries/optimize", endpoint="query_optimize")
 
 api.add_org_resource(AlertResource, "/api/alerts/<alert_id>", endpoint="alert")
 api.add_org_resource(AlertMuteResource, "/api/alerts/<alert_id>/mute", endpoint="alert_mute")

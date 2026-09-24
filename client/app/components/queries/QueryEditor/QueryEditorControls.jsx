@@ -36,6 +36,7 @@ ButtonTooltip.defaultProps = {
 export default function EditorControl({
   addParameterButtonProps,
   formatButtonProps,
+  optimizeButtonProps,
   saveButtonProps,
   executeButtonProps,
   autocompleteToggleProps,
@@ -44,7 +45,7 @@ export default function EditorControl({
 }) {
   useEffect(() => {
     const buttons = filter(
-      [addParameterButtonProps, formatButtonProps, saveButtonProps, executeButtonProps],
+      [addParameterButtonProps, formatButtonProps, optimizeButtonProps, saveButtonProps, executeButtonProps],
       (b) => b.shortcut && isFunction(b.onClick)
     );
     if (buttons.length > 0) {
@@ -54,7 +55,7 @@ export default function EditorControl({
         KeyboardShortcuts.unbind(shortcuts);
       };
     }
-  }, [addParameterButtonProps, formatButtonProps, saveButtonProps, executeButtonProps]);
+  }, [addParameterButtonProps, formatButtonProps, optimizeButtonProps, saveButtonProps, executeButtonProps]);
 
   return (
     <div className="query-editor-controls">
@@ -118,6 +119,20 @@ export default function EditorControl({
           </Button>
         </ButtonTooltip>
       )}
+      {optimizeButtonProps !== false && (
+        <ButtonTooltip title={optimizeButtonProps.title} shortcut={optimizeButtonProps.shortcut}>
+          <Button
+            className="query-editor-controls-button m-l-5"
+            disabled={optimizeButtonProps.disabled}
+            loading={optimizeButtonProps.loading}
+            onClick={optimizeButtonProps.onClick}
+            data-test="OptimizeButton"
+          >
+            {!optimizeButtonProps.loading && <span className="zmdi zmdi-flash" />}
+            {optimizeButtonProps.text}
+          </Button>
+        </ButtonTooltip>
+      )}
       {executeButtonProps !== false && (
         <ButtonTooltip title={executeButtonProps.title} shortcut={executeButtonProps.shortcut}>
           <Button
@@ -151,6 +166,7 @@ const ButtonPropsPropType = PropTypes.oneOfType([
 EditorControl.propTypes = {
   addParameterButtonProps: ButtonPropsPropType,
   formatButtonProps: ButtonPropsPropType,
+  optimizeButtonProps: ButtonPropsPropType,
   saveButtonProps: ButtonPropsPropType,
   executeButtonProps: ButtonPropsPropType,
   autocompleteToggleProps: PropTypes.oneOfType([
@@ -184,6 +200,7 @@ EditorControl.propTypes = {
 EditorControl.defaultProps = {
   addParameterButtonProps: false,
   formatButtonProps: false,
+  optimizeButtonProps: false,
   saveButtonProps: false,
   executeButtonProps: false,
   autocompleteToggleProps: false,

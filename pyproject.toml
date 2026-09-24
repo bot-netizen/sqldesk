@@ -64,6 +64,9 @@ dependencies = [
     "sqlalchemy==1.3.24",
     "sqlalchemy-searchable==1.2.0",
     "sqlalchemy-utils==0.38.3",
+    # The optimize button's deterministic half parses SQL per dialect.
+    # Pure Python, no runtime dependencies of its own, ~7MB.
+    "sqlglot==30.19.0",
     "sqlparse==0.5.0",
     "sshtunnel==0.1.5",
     "statsd==3.3.0",

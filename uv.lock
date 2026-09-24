@@ -2623,7 +2623,7 @@ wheels = [
 
 [[package]]
 name = "sqldesk"
-version = "0.5.0"
+version = "0.6.0"
 source = { virtual = "." }
 dependencies = [
     { name = "advocate" },
@@ -2683,6 +2683,7 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "sqlalchemy-searchable" },
     { name = "sqlalchemy-utils" },
+    { name = "sqlglot" },
     { name = "sqlparse" },
     { name = "sshtunnel" },
     { name = "statsd" },
@@ -2828,6 +2829,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = "==1.3.24" },
     { name = "sqlalchemy-searchable", specifier = "==1.2.0" },
     { name = "sqlalchemy-utils", specifier = "==0.38.3" },
+    { name = "sqlglot", specifier = "==30.19.0" },
     { name = "sqlparse", specifier = "==0.5.0" },
     { name = "sshtunnel", specifier = "==0.1.5" },
     { name = "statsd", specifier = "==3.3.0" },
@@ -2911,6 +2913,15 @@ dev = [
     { name = "watchdog", specifier = "==3.0.0" },
 ]
 ldap3 = [{ name = "ldap3", specifier = "==2.9.1" }]
+
+[[package]]
+name = "sqlglot"
+version = "30.19.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/48/996687ba146c07deee6cc3528738e645d2e72805e023ed9672b483648378/sqlglot-30.19.0.tar.gz", hash = "sha256:6fcfbe93c5ee76e07faadf0930dd119eebb545c4f317f8e4f205f177305d8b08", size = 6042945, upload-time = "2026-09-22T15:19:58.64Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/10/94/094d83ec808b50374f33a3024c9e60ca3074595e1f9581c1692591fda81e/sqlglot-30.19.0-py3-none-any.whl", hash = "sha256:b4500fcced395359feea582f09d2d4433bf1f36362a3a9d0d6d5ebbc1f84242e", size = 756203, upload-time = "2026-09-22T15:19:56.761Z" },
+]
 
 [[package]]
 name = "sqlparse"

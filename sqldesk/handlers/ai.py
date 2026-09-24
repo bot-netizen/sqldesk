@@ -1,9 +1,11 @@
+from flask import request
 from flask_login import login_required
 
 from sqldesk import models, settings
 from sqldesk.ai import ModelError, get_provider
-from sqldesk.handlers.base import BaseResource
-from sqldesk.permissions import require_super_admin
+from sqldesk.ai.optimizer import analyze
+from sqldesk.handlers.base import BaseResource, get_object_or_404
+from sqldesk.permissions import require_access, require_super_admin, view_only
 
 
 class AIStatusResource(BaseResource):
@@ -65,3 +67,37 @@ class AITestResource(BaseResource):
 
         self.record_event({"action": "test", "object_type": "ai_provider", "object_id": provider_row.id})
         return {"ok": True, "answer": answer}
+
+
+class QueryOptimizeResource(BaseResource):
+    @login_required
+    def post(self):
+        """
+        Look at some SQL and say what is wrong with it.
+
+        Stateless on purpose: the editor sends whatever is in it, saved or
+        not, because the query you want checked is usually the one you have
+        not saved yet.
+
+        Needs no model and no key. This is the deterministic half -- parse and
+        rules -- so it works on an instance with no AI configured at all,
+        which is why it is gated on access to the data source rather than on
+        the AI feature flag.
+        """
+        body = request.get_json(force=True, silent=True) or {}
+        query_text = body.get("query", "")
+
+        data_source_type = None
+        data_source_id = body.get("data_source_id")
+        if data_source_id:
+            # `get_object_or_404`, not a bare lookup: a data source in another
+            # org raises NoResultFound, which without this is a 500 rather than
+            # the 404 every other handler here returns.
+            data_source = get_object_or_404(models.DataSource.get_by_id_and_org, data_source_id, self.current_org)
+            # Whoever can read the data source can have its SQL parsed. Nothing
+            # is executed and nothing is sent anywhere, but the dialect and the
+            # findings describe that source.
+            require_access(data_source, self.current_user, view_only)
+            data_source_type = data_source.type
+
+        return analyze(query_text, data_source_type)

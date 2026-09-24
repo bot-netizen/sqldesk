@@ -22,6 +22,8 @@ import ScheduleControl from "@/components/ScheduleControl";
 import QueryVisualizationTabs from "./components/QueryVisualizationTabs";
 import QueryExecutionStatus from "./components/QueryExecutionStatus";
 import QuerySourceAlerts from "./components/QuerySourceAlerts";
+import QueryOptimizeDialog from "@/components/queries/QueryOptimizeDialog";
+import { axios } from "@/services/axios";
 import wrapQueryPage from "./components/wrapQueryPage";
 import QueryExecutionMetadata from "./components/QueryExecutionMetadata";
 
@@ -215,6 +217,27 @@ function QuerySource(props) {
     loading: isQuerySaving,
   };
 
+  // Beside Execute, because it is about the query you are about to run. It
+  // asks no model and executes nothing -- it parses what is in the editor and
+  // applies rules -- so it works on an instance with no AI configured, and is
+  // not gated on the AI feature flag.
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const optimizeQuery = useCallback(() => {
+    setIsOptimizing(true);
+    axios
+      .post("api/queries/optimize", {
+        query: selectedText === null ? query.query : selectedText,
+        data_source_id: dataSource ? dataSource.id : null,
+      })
+      .then((result) => QueryOptimizeDialog.showModal({ result }))
+      .catch(() =>
+        QueryOptimizeDialog.showModal({
+          result: { applicable: false, reason: "The request failed before the query could be parsed.", findings: [] },
+        })
+      )
+      .finally(() => setIsOptimizing(false));
+  }, [query.query, selectedText, dataSource]);
+
   const executeButtonProps = {
     disabled: !queryFlags.canExecute || isQueryExecuting || areParametersDirty,
     shortcut: "mod+enter, alt+enter, ctrl+enter, shift+enter",
@@ -343,6 +366,13 @@ function QuerySource(props) {
                         shortcut: isFormatQueryAvailable ? "mod+shift+f" : null,
                         onClick: formatQuery,
                       }}
+                      optimizeButtonProps={{
+                        title: "Look for expensive patterns in this query",
+                        disabled: !dataSource || isOptimizing,
+                        loading: isOptimizing,
+                        onClick: optimizeQuery,
+                        text: <span className="hidden-xs">Optimize</span>,
+                      }}
                       saveButtonProps={saveButtonProps}
                       executeButtonProps={executeButtonProps}
                       autocompleteToggleProps={{
@@ -387,7 +417,7 @@ function QuerySource(props) {
                       }}
                       onParametersEdit={() => {
                         // save if query clean
-                        
+
                         if (!isDirty) {
                           saveQuery();
                         }
