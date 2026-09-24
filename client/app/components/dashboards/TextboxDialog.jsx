@@ -54,7 +54,7 @@ function TextboxDialog({ dialog, isNew, ...props }) {
       onOk={saveWidget}
       onCancel={confirmDialogDismiss}
       okText={isNew ? "Add to Dashboard" : "Save"}
-      width={500}
+      width={560}
       wrapProps={{ "data-test": "TextboxDialog" }}
     >
       <div className="textbox-dialog">
@@ -73,38 +73,46 @@ function TextboxDialog({ dialog, isNew, ...props }) {
           previewStyle={{ textAlign: align }}
         />
 
+        {/*
+          Both controls on one line. The explanation used to sit in the same
+          flex row asking for the full width of it, which squeezed the buttons
+          beside it until Card and Plain stacked on top of each other -- so it
+          gets its own line underneath, where it cannot push anything.
+        */}
         <div className="textbox-settings">
-          <div className="textbox-setting">
-            <span className="textbox-setting-label">Style</span>
-            <Radio.Group
-              size="small"
-              value={textStyle}
-              data-test="TextboxDialog.Style"
-              onChange={(e) => setTextStyle(e.target.value)}
-            >
-              <Radio.Button value="card">Card</Radio.Button>
-              <Radio.Button value="plain">Plain</Radio.Button>
-            </Radio.Group>
-            <span className="textbox-setting-help">
-              {textStyle === "plain"
-                ? "No tile around it, so a heading divides the page instead of sitting on it."
-                : "A tile, like every other widget."}
+          <div className="textbox-settings-row">
+            <span className="textbox-setting">
+              <span className="textbox-setting-label">Style</span>
+              <Radio.Group
+                size="small"
+                value={textStyle}
+                data-test="TextboxDialog.Style"
+                onChange={(e) => setTextStyle(e.target.value)}
+              >
+                <Radio.Button value="card">Card</Radio.Button>
+                <Radio.Button value="plain">Plain</Radio.Button>
+              </Radio.Group>
+            </span>
+
+            <span className="textbox-setting">
+              <span className="textbox-setting-label">Align</span>
+              <Radio.Group
+                size="small"
+                value={align}
+                data-test="TextboxDialog.Align"
+                onChange={(e) => setAlign(e.target.value)}
+              >
+                <Radio.Button value="left">Left</Radio.Button>
+                <Radio.Button value="center">Centre</Radio.Button>
+                <Radio.Button value="right">Right</Radio.Button>
+              </Radio.Group>
             </span>
           </div>
-
-          <div className="textbox-setting">
-            <span className="textbox-setting-label">Align</span>
-            <Radio.Group
-              size="small"
-              value={align}
-              data-test="TextboxDialog.Align"
-              onChange={(e) => setAlign(e.target.value)}
-            >
-              <Radio.Button value="left">Left</Radio.Button>
-              <Radio.Button value="center">Centre</Radio.Button>
-              <Radio.Button value="right">Right</Radio.Button>
-            </Radio.Group>
-          </div>
+          <p className="textbox-setting-help" data-test="TextboxDialog.Help">
+            {textStyle === "plain"
+              ? "No tile around it, so a heading divides the page instead of sitting on it."
+              : "A tile, like every other widget."}
+          </p>
         </div>
       </div>
     </Modal>
