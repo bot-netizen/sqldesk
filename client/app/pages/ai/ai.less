@@ -1,0 +1,98 @@
+.ai-page {
+  padding-top: 15px;
+
+  .ai-header {
+    margin-bottom: 20px;
+
+    h2 {
+      margin: 0 0 6px;
+    }
+  }
+
+  .ai-muted {
+    color: var(--color-text-muted);
+    max-width: 78ch;
+    margin: 0;
+  }
+
+  .ai-panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card, 8px);
+    padding: 20px 22px;
+    margin-bottom: 28px;
+
+    h3 {
+      margin: 0 0 12px;
+      font-size: 17px;
+      font-weight: 600;
+    }
+  }
+
+  .ai-pre {
+    background: var(--color-surface-sunken);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-input, 4px);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    padding: 12px 14px;
+    margin: 0;
+    overflow: auto;
+  }
+
+  // Label beside value, because there are three facts and a table would be
+  // more chrome than content.
+  .ai-facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 4px 18px;
+    margin: 0 0 16px;
+
+    dt {
+      color: var(--color-text-muted);
+      font-weight: 400;
+      font-size: 13px;
+    }
+
+    dd {
+      margin: 0;
+      font-size: 13px;
+    }
+  }
+
+  .ai-section-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 12px;
+  }
+
+  .ai-grid {
+    display: grid;
+    gap: 12px;
+    // Escaped: less 3.13 reads CSS `min()` as its own function and fails to
+    // compile. `~"..."` hands it to the browser untouched.
+    grid-template-columns: repeat(auto-fit, minmax(~"min(100%, 260px)", 1fr));
+    margin-bottom: 30px;
+  }
+
+  .ai-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card, 8px);
+    padding: 16px 18px;
+
+    h4 {
+      margin: 0 0 6px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    p {
+      margin: 0;
+      font-size: 13.5px;
+      line-height: 1.55;
+      color: var(--color-text-muted);
+    }
+  }
+}

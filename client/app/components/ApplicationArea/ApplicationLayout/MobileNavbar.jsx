@@ -6,7 +6,7 @@ import MenuOutlinedIcon from "@ant-design/icons/MenuOutlined";
 import Dropdown from "antd/lib/dropdown";
 import Menu from "antd/lib/menu";
 import Link from "@/components/Link";
-import { Auth, currentUser } from "@/services/auth";
+import { Auth, clientConfig, currentUser } from "@/services/auth";
 import settingsMenu from "@/services/settingsMenu";
 import logoUrl from "@/assets/images/sqldesk_icon.svg";
 
@@ -37,6 +37,11 @@ export default function MobileNavbar({ getPopupContainer }) {
               {currentUser.hasPermission("view_query") && (
                 <Menu.Item key="queries">
                   <Link href="queries">Queries</Link>
+                </Menu.Item>
+              )}
+              {clientConfig.aiEnabled && (
+                <Menu.Item key="ai">
+                  <Link href="ai">AI</Link>
                 </Menu.Item>
               )}
               {currentUser.hasPermission("list_alerts") && (

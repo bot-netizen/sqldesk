@@ -9,7 +9,7 @@ import PlainButton from "@/components/PlainButton";
 import HelpTrigger from "@/components/HelpTrigger";
 import CreateDashboardDialog from "@/components/dashboards/CreateDashboardDialog";
 import { useCurrentRoute } from "@/components/ApplicationArea/Router";
-import { Auth, currentUser } from "@/services/auth";
+import { Auth, clientConfig, currentUser } from "@/services/auth";
 import settingsMenu from "@/services/settingsMenu";
 import logoUrl from "@/assets/images/sqldesk_icon.svg";
 
@@ -64,6 +64,7 @@ function useNavbarActiveState() {
         ],
         currentRoute.id
       ),
+      ai: includes(["AI.Home"], currentRoute.id),
       dataSources: includes(["DataSources.List"], currentRoute.id),
       alerts: includes(["Alerts.List", "Alerts.New", "Alerts.View", "Alerts.Edit"], currentRoute.id),
       admin: includes(["Admin.Overview", "Admin.SystemStatus", "Admin.Jobs", "Admin.OutdatedQueries"], currentRoute.id),
@@ -166,6 +167,17 @@ export default function DesktopNavbar() {
         {currentUser.hasPermission("view_query") && (
           <NavLink href="queries" active={activeState.queries}>
             Queries
+          </NavLink>
+        )}
+        {/*
+          Next to Queries rather than behind a menu: 0.6 puts AI in the middle
+          of the product, and a feature filed under the ellipsis is a feature
+          nobody uses. Hidden entirely when SQLDESK_FEATURE_AI is off, because
+          a tab that only ever says "not configured" is worse than no tab.
+        */}
+        {clientConfig.aiEnabled && (
+          <NavLink href="ai" active={activeState.ai}>
+            AI
           </NavLink>
         )}
         {currentUser.hasPermission("list_alerts") && (

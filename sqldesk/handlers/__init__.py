@@ -25,6 +25,7 @@ def status_api():
 def init_app(app):
     from sqldesk.handlers import (
         admin,
+        ai,
         authentication,
         embed,
         home,
