@@ -6,6 +6,7 @@ import {
   resizeBy,
   GRID_ROW_HEIGHT,
   GRID_MARGINS,
+  gridRowsToPx,
 } from "../../support/dashboard";
 
 describe("Widget", () => {
@@ -191,23 +192,27 @@ describe("Widget", () => {
       cy.visit(this.dashboardUrl);
 
       /*
-        The table fills whatever the widget's chrome leaves it, which is what
-        "the correct height" means -- so that is what is asserted, rather than
-        the 380px it came to when this was written.
+        Two things, neither of them a pixel count: the widget is as tall as
+        the grid was told to make it, and the table fills the row inside it.
+        Together those are what "the correct height" means.
 
-        A pixel count here makes taking space back from a widget's header read
-        as a broken test: 0.5 reclaimed 27px from the header and the footer,
-        the table grew into exactly that, and this failed for having got what
-        it wanted.
+        Written as 380px, this failed when 0.5 took 27px of chrome off the
+        widget and the table grew into it -- the test broke for getting what
+        it asked for. Adding up the chrome instead was no better: the header
+        is a `.t-header` inside a `.body-row`, and measuring the inner one
+        missed the row around it.
+
+        `.body-row-auto` is the space the grid leaves the visualization after
+        the header and footer have taken theirs, so a table that fills it is
+        a table that fits its widget, whatever the chrome is doing.
       */
-      cy.getByTestId(elTestId).then(($widget) => {
-        const $tile = $widget.find(".tile");
-        const chrome =
-          $tile.find(".t-header.widget").outerHeight(true) + $tile.find(".tile__bottom-control").outerHeight(true);
+      cy.getByTestId(elTestId).should(($widget) => {
+        expect($widget.height(), "twenty grid rows tall").to.eq(gridRowsToPx(20));
+      });
 
-        cy.getByTestId("TableVisualization")
-          .its("0.offsetHeight")
-          .should("be.closeTo", $tile.height() - chrome, 2);
+      cy.getByTestId(elTestId).then(($widget) => {
+        const body = $widget.find(".body-row-auto")[0];
+        cy.getByTestId("TableVisualization").its("0.offsetHeight").should("be.closeTo", body.offsetHeight, 2);
       });
 
       cy.percySnapshot("Shows correct height of table visualization");
