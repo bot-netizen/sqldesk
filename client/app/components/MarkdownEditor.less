@@ -1,0 +1,48 @@
+.markdown-editor {
+  .ant-tabs-bar {
+    margin-bottom: 6px;
+  }
+
+  .ant-tabs-nav .ant-tabs-tab {
+    margin-right: 6px;
+    padding: 4px 10px;
+  }
+
+  .markdown-editor-hint {
+    color: var(--color-text-muted);
+    line-height: 30px;
+  }
+
+  // The preview is the widget, early: same box as the textarea it replaces,
+  // so the dialog does not change size when the tab does.
+  .markdown-editor-preview {
+    padding: 9px 11px;
+    background-color: var(--color-surface-sunken);
+    border-radius: var(--radius-input, 2px);
+    overflow-wrap: break-word;
+
+    > :first-child {
+      margin-top: 0;
+    }
+
+    > :last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  // A textbox with its tile turned off is words on the page, and the preview
+  // says so by losing the panel too.
+  .markdown-editor-preview.preview-plain {
+    background-color: transparent;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .markdown-editor-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    font-style: italic;
+  }
+}

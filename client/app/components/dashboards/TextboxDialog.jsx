@@ -1,16 +1,9 @@
 import { toString } from "lodash";
-import cx from "classnames";
-import toHtml from "@/lib/markdown";
 import React, { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
-import { useDebouncedCallback } from "use-debounce";
 import Modal from "antd/lib/modal";
-import Input from "antd/lib/input";
 import Radio from "antd/lib/radio";
-import Tooltip from "@/components/Tooltip";
-import Divider from "antd/lib/divider";
-import Link from "@/components/Link";
-import HtmlContent from "@sqldesk/viz/lib/components/HtmlContent";
+import MarkdownEditor from "@/components/MarkdownEditor";
 import { wrap as wrapDialog, DialogPropType } from "@/components/DialogWrapper";
 import notification from "@/services/notification";
 
@@ -22,24 +15,10 @@ function TextboxDialog({ dialog, isNew, ...props }) {
   const [text, setText] = useState(toString(props.text));
   const [textStyle, setTextStyle] = useState(props.textStyle === "plain" ? "plain" : "card");
   const [align, setAlign] = useState(ALIGNMENTS.includes(props.align) ? props.align : "left");
-  const [preview, setPreview] = useState(null);
 
   useEffect(() => {
     setText(props.text);
-    setPreview(toHtml(props.text));
   }, [props.text]);
-
-  const [updatePreview] = useDebouncedCallback(() => {
-    setPreview(toHtml(text));
-  }, 200);
-
-  const handleInputChange = useCallback(
-    (event) => {
-      setText(event.target.value);
-      updatePreview();
-    },
-    [updatePreview]
-  );
 
   const saveWidget = useCallback(() => {
     dialog.close({ text, textStyle, align }).catch(() => {
@@ -79,22 +58,20 @@ function TextboxDialog({ dialog, isNew, ...props }) {
       wrapProps={{ "data-test": "TextboxDialog" }}
     >
       <div className="textbox-dialog">
-        <Input.TextArea
-          className="resize-vertical"
-          rows="5"
+        {/*
+          The preview carries the style and alignment chosen below, so what it
+          shows is the widget, not an impression of it.
+        */}
+        <MarkdownEditor
           value={text}
-          aria-label="Textbox widget content"
-          onChange={handleInputChange}
+          onChange={setText}
+          rows={7}
           autoFocus
+          ariaLabel="Textbox widget content"
           placeholder="This is where you write some text"
+          previewClassName={textStyle === "plain" ? "preview-plain" : null}
+          previewStyle={{ textAlign: align }}
         />
-        <small>
-          Supports{" "}
-          <Link target="_blank" rel="noopener noreferrer" href="https://www.markdownguide.org/cheat-sheet/">
-            <Tooltip title="Markdown guide opens in new window">Markdown</Tooltip>
-          </Link>{" "}
-          — headings, lists, tables, code blocks — and HTML.
-        </small>
 
         <div className="textbox-settings">
           <div className="textbox-setting">
@@ -129,18 +106,6 @@ function TextboxDialog({ dialog, isNew, ...props }) {
             </Radio.Group>
           </div>
         </div>
-        {text && (
-          <React.Fragment>
-            <Divider dashed />
-            <strong className="preview-title">Preview:</strong>
-            <HtmlContent
-              className={cx("preview markdown", { "preview-plain": textStyle === "plain" })}
-              style={{ textAlign: align }}
-            >
-              {preview}
-            </HtmlContent>
-          </React.Fragment>
-        )}
       </div>
     </Modal>
   );
