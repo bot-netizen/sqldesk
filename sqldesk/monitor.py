@@ -202,6 +202,7 @@ def get_running_queries():
                 "user_name": users.get(meta.get("user_id")),
                 "data_source": sources.get(meta.get("data_source_id")),
                 "scheduled": bool(meta.get("scheduled")),
+                "mcp": bool(meta.get("mcp")),
                 "started_at": job.get("started_at"),
                 "elapsed": _elapsed_seconds(job.get("started_at")),
             }

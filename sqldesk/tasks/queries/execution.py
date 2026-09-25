@@ -99,6 +99,11 @@ def enqueue_query(query, data_source, user_id, is_api_key=False, scheduled_query
                         "scheduled": scheduled_query_id is not None,
                         "query_id": metadata.get("query_id"),
                         "user_id": user_id,
+                        # Where the run came from. The admin's list of running
+                        # queries is built from this meta, so without it a
+                        # query a model asked for looks exactly like one a
+                        # person ran, and "who is causing this" has no answer.
+                        "mcp": bool(metadata.get("mcp")),
                     },
                 }
 

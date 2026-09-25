@@ -6,7 +6,7 @@ import MenuOutlinedIcon from "@ant-design/icons/MenuOutlined";
 import Dropdown from "antd/lib/dropdown";
 import Menu from "antd/lib/menu";
 import Link from "@/components/Link";
-import { Auth, currentUser } from "@/services/auth";
+import { Auth, clientConfig, currentUser } from "@/services/auth";
 import settingsMenu from "@/services/settingsMenu";
 import logoUrl from "@/assets/images/sqldesk_icon.svg";
 
@@ -47,6 +47,13 @@ export default function MobileNavbar({ getPopupContainer }) {
               <Menu.Item key="profile">
                 <Link href="users/me">Edit Profile</Link>
               </Menu.Item>
+              {/* How to point a client at SQLDesk with your own API key --
+                  every user's business, not only an administrator's. */}
+              {clientConfig.aiEnabled && (
+                <Menu.Item key="mcp">
+                  <Link href="admin/mcp">Connect over MCP</Link>
+                </Menu.Item>
+              )}
               <Menu.Divider />
               {firstSettingsTab && (
                 <Menu.Item key="settings">

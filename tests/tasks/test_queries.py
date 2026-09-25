@@ -66,6 +66,37 @@ class TestEnqueueTask(BaseTestCase):
 
         self.assertEqual(1, enqueue.call_count)
 
+    def test_the_job_meta_says_when_a_run_came_from_mcp(self, enqueue, _):
+        # The admin's list of running queries is built from this meta. If the
+        # flag does not survive the hop into it, a query a model asked for is
+        # indistinguishable from one a person is sitting waiting for.
+        query = self.factory.create_query()
+
+        with Connection(rq_redis_connection):
+            enqueue_query(
+                query.query_text,
+                query.data_source,
+                query.user_id,
+                False,
+                metadata={"Username": "Arik", "mcp": True},
+            )
+
+        self.assertTrue(enqueue.call_args[1]["meta"]["mcp"])
+
+    def test_the_job_meta_says_when_a_run_did_not(self, enqueue, _):
+        query = self.factory.create_query()
+
+        with Connection(rq_redis_connection):
+            enqueue_query(
+                query.query_text,
+                query.data_source,
+                query.user_id,
+                False,
+                metadata={"Username": "Arik"},
+            )
+
+        self.assertFalse(enqueue.call_args[1]["meta"]["mcp"])
+
     def test_multiple_enqueue_of_expired_job(self, enqueue, fetch_job):
         query = self.factory.create_query()
 

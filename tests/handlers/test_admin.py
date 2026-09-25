@@ -180,6 +180,24 @@ class TestOverviewRunningQueries(BaseTestCase):
 
             return get_running_queries()
 
+    def test_an_mcp_run_is_named_as_one(self):
+        # An MCP run has a user -- whoever's API key it was -- but nobody is
+        # watching it, which is what the admin needs to know before killing it.
+        running = self._running(
+            [
+                {
+                    "id": "job-1",
+                    "name": "sqldesk.tasks.queries.execution.execute_query",
+                    "origin": "queries",
+                    "started_at": None,
+                    "meta": {"user_id": self.factory.user.id, "mcp": True},
+                }
+            ]
+        )
+
+        self.assertTrue(running[0]["mcp"])
+        self.assertEqual(running[0]["user_name"], self.factory.user.name)
+
     def test_names_the_query_the_user_and_the_data_source(self):
         query = self.factory.create_query(name="Revenue by region")
         db.session.commit()

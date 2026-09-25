@@ -128,7 +128,8 @@ somebody already answered this".</p>
   <dd>Executes, and returns up to 1000 rows &mdash; the same ceiling a person clicking Execute
     gets, applied by the runner that knows the dialect. It runs <strong>on a worker</strong>, as
     the user whose key it is, so it appears in Admin &rarr; Overview beside every other running
-    query and can be cancelled there.</dd>
+    query &mdash; labelled <em>via MCP</em>, because a model asking is not a person waiting &mdash;
+    and can be cancelled there.</dd>
 </dl>
 
 <div class="note">
@@ -168,6 +169,12 @@ somebody already answered this".</p>
 better than a model will answer it, because the person who wrote it knew which join was right.
 Step 3 and step 4 are different questions: one is whether the SQL is shaped badly, the other is
 what the engine thinks it will cost.</p>
+
+<h2>Finding the page</h2>
+<p>Your own name in the top right, then <strong>Connect over MCP</strong>. It shows the endpoint and
+the <code>claude mcp add</code> line for this install, and the key it tells you to use is your own,
+from your profile page &mdash; so every user can set up a client without an administrator.
+Administrators reach the same page under <strong>Admin</strong>, where it also carries the audit.</p>
 
 <h2>The audit</h2>
 <p>Admin &rarr; MCP. Every request leaves a row, <em>including the refused ones</em> — a key that does not

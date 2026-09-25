@@ -99,7 +99,17 @@ function RunningQueries({ rows, onKill }) {
       dataIndex: "user_name",
       // A scheduled refresh has no user. Saying so beats an empty cell,
       // because "nobody is waiting for this" changes what you do about it.
-      render: (name, row) => name || <span className="admin-muted">{row.scheduled ? "Scheduler" : "—"}</span>,
+      // An MCP run does have one -- whoever's API key it was -- but they are
+      // not sitting in front of it, which is the same distinction again.
+      render: (name, row) =>
+        name ? (
+          <span>
+            {name}
+            {row.mcp && <span className="admin-muted"> via MCP</span>}
+          </span>
+        ) : (
+          <span className="admin-muted">{row.scheduled ? "Scheduler" : "—"}</span>
+        ),
     },
     { title: "Data source", dataIndex: "data_source", render: (name) => name || "—" },
     {

@@ -145,6 +145,18 @@ export default function DesktopNavbar() {
       <Menu.Item key="profile">
         <Link href="users/me">Profile</Link>
       </Menu.Item>
+      {/*
+        Here as well as under Admin, and for a different reason: the page
+        tells you how to point a client at SQLDesk with your own API key,
+        which is a thing every user needs and not an administrator's job.
+        Reachable only from the Admin menu, nobody without super_admin could
+        find it at all.
+      */}
+      {clientConfig.aiEnabled && (
+        <Menu.Item key="mcp">
+          <Link href="admin/mcp">Connect over MCP</Link>
+        </Menu.Item>
+      )}
       {currentUser.hasPermission("super_admin") && (
         <Menu.Item key="status">
           <Link href="admin/status">System Status</Link>
