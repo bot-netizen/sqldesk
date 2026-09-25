@@ -447,3 +447,29 @@ class TestExplainAndRun(McpTestCase):
 
         q.get.assert_called_once_with(4242)
         self.assertIn("7", body["result"]["content"][0]["text"])
+
+
+class TestDataSourceGuidance(McpTestCase):
+    """
+    A sentence about the source applies to every question asked of it, which
+    makes it the highest-leverage context there is -- and there was nowhere
+    to write one until now.
+    """
+
+    def _call(self, tool, arguments):
+        response = self.post(rpc("tools/call", params={"name": tool, "arguments": arguments}))
+        return json.loads(response.data)["result"]["content"][0]["text"]
+
+    def test_listing_sources_repeats_what_the_admin_wrote(self):
+        self.factory.data_source.description = "Finance warehouse. raw_* is untrusted."
+        models.db.session.commit()
+
+        self.assertIn("raw_* is untrusted", self._call("list_data_sources", {}))
+
+    def test_a_source_without_one_adds_no_noise(self):
+        self.factory.data_source.description = None
+        models.db.session.commit()
+
+        listed = self._call("list_data_sources", {})
+        self.assertIn(self.factory.data_source.name, listed)
+        self.assertNotIn("None", listed)

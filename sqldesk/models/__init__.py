@@ -120,6 +120,11 @@ class DataSource(BelongsToOrgMixin, db.Model):
 
     name = Column(db.String(255))
     type = Column(db.String(255))
+    #: Standing guidance about this source, in words: which tables to prefer,
+    #: what is untrusted, what the grain is. It is the one piece of context
+    #: that applies to every question asked of it, and it is the only place
+    #: anyone can say something a schema cannot.
+    description = Column(db.Text, nullable=True)
     options = Column(
         "encrypted_options",
         ConfigurationContainer.as_mutable(
@@ -152,6 +157,7 @@ class DataSource(BelongsToOrgMixin, db.Model):
             "paused": self.paused,
             "pause_reason": self.pause_reason,
             "supports_auto_limit": self.query_runner.supports_auto_limit,
+            "description": self.description,
         }
 
         if all:

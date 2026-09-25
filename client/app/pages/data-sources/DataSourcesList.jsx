@@ -95,7 +95,7 @@ class DataSourcesList extends React.Component {
 
   createDataSource = (selectedType, values) => {
     const target = { options: {}, type: selectedType.type };
-    helper.updateTargetWithValues(target, values);
+    helper.updateTargetWithValues(target, values, ["name", "description"]);
 
     return DataSource.create(target).then((dataSource) => {
       this.setState({ loading: true });

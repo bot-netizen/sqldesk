@@ -16,6 +16,17 @@ import notification from "@/services/notification";
 import routes from "@/services/routes";
 import UploadedFilesPanel from "./UploadedFilesPanel";
 
+const DESCRIPTION_FIELD = (dataSource) => ({
+  name: "description",
+  title: "Description",
+  type: "textarea",
+  required: false,
+  initialValue: dataSource.description,
+  contentAfter: React.createElement("hr"),
+  placeholder: "What this source is for: which tables to prefer, what is untrusted, what a row means.",
+  props: { rows: 3 },
+});
+
 class EditDataSource extends React.Component {
   static propTypes = {
     dataSourceId: PropTypes.string.isRequired,
@@ -44,7 +55,7 @@ class EditDataSource extends React.Component {
 
   saveDataSource = (values, successCallback, errorCallback) => {
     const { dataSource } = this.state;
-    helper.updateTargetWithValues(dataSource, values);
+    helper.updateTargetWithValues(dataSource, values, ["name", "description"]);
     DataSource.save(dataSource)
       .then(() => successCallback("Saved."))
       .catch((error) => {
@@ -102,7 +113,9 @@ class EditDataSource extends React.Component {
 
   renderForm() {
     const { dataSource, type } = this.state;
-    const fields = helper.getFields(type, dataSource);
+    // Shown on the data source form and nowhere else: it is a column on this
+    // row, while a destination of the same shape has no such thing.
+    const fields = helper.getFields(type, dataSource, [DESCRIPTION_FIELD(dataSource)]);
     const helpTriggerType = `DS_${toUpper(type.type)}`;
     const formProps = {
       fields,

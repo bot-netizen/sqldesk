@@ -219,3 +219,42 @@ class TestDataSourcePauseDelete(BaseTestCase):
     def test_requires_admin(self):
         rv = self.make_request("delete", "/api/data_sources/{}/pause".format(self.factory.data_source.id))
         self.assertEqual(rv.status_code, 403)
+
+
+class TestDataSourceDescription(BaseTestCase):
+    """
+    Standing guidance about a source -- what to prefer, what is untrusted.
+    It reaches every MCP answer, so it has to survive a round trip.
+    """
+
+    def setUp(self):
+        super(TestDataSourceDescription, self).setUp()
+        self.path = "/api/data_sources/{}".format(self.factory.data_source.id)
+        self.admin = self.factory.create_admin()
+
+    def _post(self, data):
+        payload = {"name": self.factory.data_source.name, "type": "pg", "options": {"dbname": "db"}}
+        payload.update(data)
+        return self.make_request("post", self.path, data=payload, user=self.admin)
+
+    def test_it_is_saved_and_returned(self):
+        self._post({"description": "Finance warehouse. raw_* is untrusted."})
+
+        self.assertEqual(
+            "Finance warehouse. raw_* is untrusted.",
+            DataSource.query.get(self.factory.data_source.id).description,
+        )
+
+    def test_a_save_that_does_not_mention_it_leaves_it_alone(self):
+        # The form is saved for all sorts of reasons -- a password rotation,
+        # a host change -- and none of them should discard somebody's notes.
+        self._post({"description": "Keep me."})
+        self._post({})
+
+        self.assertEqual("Keep me.", DataSource.query.get(self.factory.data_source.id).description)
+
+    def test_clearing_it_is_possible(self):
+        self._post({"description": "Temporary."})
+        self._post({"description": ""})
+
+        self.assertIsNone(DataSource.query.get(self.factory.data_source.id).description)

@@ -233,6 +233,12 @@ def tool_find_context(user, org, arguments):
         )
 
     lines = []
+    # The source's own guidance first, where there is one and the question was
+    # narrowed to a single source. It frames everything below it -- which
+    # tables to trust, what a row means -- and is wasted at the bottom.
+    if source is not None and source.description:
+        lines.append("-- {}".format(" ".join(source.description.split())))
+        lines.append("")
     for table in found["tables"]:
         lines.append(table["card"] or table["name"])
         lines.append("")
@@ -265,14 +271,20 @@ def tool_list_data_sources(user, org, arguments):
     sources = _readable_sources(user, org)
     if not sources:
         return _text("You have access to no data sources.")
-    lines = [
-        "{} ({}{})".format(
-            source.name,
-            source.type,
-            ", dialect {}".format(dialect_for(source.type)) if dialect_for(source.type) else "",
+    lines = []
+    for source in sources:
+        lines.append(
+            "{} ({}{})".format(
+                source.name,
+                source.type,
+                ", dialect {}".format(dialect_for(source.type)) if dialect_for(source.type) else "",
+            )
         )
-        for source in sources
-    ]
+        # Standing guidance about the source -- which tables to prefer, what
+        # is untrusted. It applies to every question asked of it, so it is
+        # worth its few tokens here rather than being discovered the hard way.
+        if source.description:
+            lines.append("  {}".format(" ".join(source.description.split())))
     return _text("\n".join(lines))
 
 

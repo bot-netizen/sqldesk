@@ -65,6 +65,11 @@ class DataSourceResource(BaseResource):
 
         data_source.type = req["type"]
         data_source.name = req["name"]
+        # Optional, and absent means "leave it alone" rather than "clear it":
+        # the data source form is saved for all sorts of reasons and none of
+        # them should silently discard somebody's notes.
+        if "description" in req:
+            data_source.description = req["description"] or None
         models.db.session.add(data_source)
 
         try:
@@ -143,7 +148,11 @@ class DataSourceListResource(BaseResource):
 
         try:
             datasource = models.DataSource.create_with_group(
-                org=self.current_org, name=req["name"], type=req["type"], options=config
+                org=self.current_org,
+                name=req["name"],
+                type=req["type"],
+                options=config,
+                description=req.get("description") or None,
             )
 
             models.db.session.commit()

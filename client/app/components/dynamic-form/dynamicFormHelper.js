@@ -80,7 +80,7 @@ function setDefaultValueToFields(configurationSchema, options = {}) {
   });
 }
 
-function getFields(type = {}, target = { options: {} }) {
+function getFields(type = {}, target = { options: {} }, extraFields = []) {
   const configurationSchema = type.configuration_schema;
   normalizeSchema(configurationSchema);
   const hasTargetObject = Object.keys(target.options).length > 0;
@@ -100,16 +100,28 @@ function getFields(type = {}, target = { options: {} }) {
       placeholder: `My ${type.name}`,
       autoFocus: isNewTarget,
     },
+    ...extraFields,
     ...orderedInputs(configurationSchema.properties, configurationSchema.order, target.options),
   ];
 
   return inputs;
 }
 
-function updateTargetWithValues(target, values) {
-  target.name = values.name;
+/*
+  Everything not named here goes into the target's options blob.
+
+  The list is a parameter rather than a constant because the same form drives
+  data sources and destinations, and they disagree: a data source's
+  "description" is a column on the row, while PagerDuty's *option* of the
+  same name is the default incident description. Treating one list as true
+  for both writes PagerDuty's to a field that does not exist, and the only
+  symptom is an incident whose description quietly went missing.
+*/
+function updateTargetWithValues(target, values, topLevelFields = ["name"]) {
   Object.keys(values).forEach((key) => {
-    if (key !== "name") {
+    if (topLevelFields.includes(key)) {
+      target[key] = values[key];
+    } else {
       target.options[key] = values[key];
     }
   });

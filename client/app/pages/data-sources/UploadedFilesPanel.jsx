@@ -116,7 +116,8 @@ class UploadedFilesPanel extends React.Component {
           onCancel={this.cancelUpload}
           okText="Upload"
           okButtonProps={{ loading: uploading, disabled: !uploadName.trim() }}
-          data-test="UploadNameModal">
+          data-test="UploadNameModal"
+        >
           <label htmlFor="uploadedFileName">Name</label>
           <Input
             id="uploadedFileName"
@@ -149,12 +150,14 @@ class UploadedFilesPanel extends React.Component {
                   title="Delete this file?"
                   onConfirm={() => this.handleDelete(file)}
                   okText="Delete"
-                  okType="danger">
+                  okType="danger"
+                >
                   <Button type="link" danger>
                     Delete
                   </Button>
                 </Popconfirm>,
-              ]}>
+              ]}
+            >
               <List.Item.Meta
                 title={file.display_name || file.filename}
                 description={`Table name: ${file.view_name} · ${formatSize(file.size)}`}
