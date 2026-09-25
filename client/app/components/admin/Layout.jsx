@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import Menu from "antd/lib/menu";
 import PageHeader from "@/components/PageHeader";
 import Link from "@/components/Link";
+import { clientConfig } from "@/services/auth";
 
 import "./layout.less";
 
@@ -19,6 +20,11 @@ export default function Layout({ activeTab, children }) {
             <Menu.Item key="system_status">
               <Link href="admin/status">System Status</Link>
             </Menu.Item>
+            {clientConfig.aiEnabled && (
+              <Menu.Item key="catalog">
+                <Link href="admin/catalog">Catalog</Link>
+              </Menu.Item>
+            )}
             <Menu.Item key="jobs">
               <Link href="admin/queries/jobs">RQ Status</Link>
             </Menu.Item>

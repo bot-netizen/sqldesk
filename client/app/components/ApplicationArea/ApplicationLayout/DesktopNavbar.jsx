@@ -128,6 +128,11 @@ export default function DesktopNavbar() {
           <Link href="admin/mcp">MCP</Link>
         </Menu.Item>
       )}
+      {clientConfig.aiEnabled && (
+        <Menu.Item key="admin-catalog">
+          <Link href="admin/catalog">Catalog</Link>
+        </Menu.Item>
+      )}
       <Menu.Item key="admin-status">
         <Link href="admin/status">System Status</Link>
       </Menu.Item>

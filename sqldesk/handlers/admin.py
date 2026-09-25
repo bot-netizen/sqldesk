@@ -1,3 +1,4 @@
+from flask import request
 from flask_login import current_user, login_required
 from flask_restful import abort
 from rq.exceptions import NoSuchJobError
@@ -150,3 +151,88 @@ def run_events_cleanup():
     )
 
     return json_response({"job_id": job.id})
+
+
+@routes.route("/api/admin/catalog", methods=["GET"])
+@login_required
+@require_super_admin
+def catalog_tables():
+    """
+    The catalog, for reviewing and describing it.
+
+    Ordered by usage, because that is the order the work is worth doing in:
+    nobody documents three thousand tables, and the twenty anyone actually
+    queries are most of the value. `undescribed=1` narrows it to the ones
+    still missing a sentence, which turns an impossible job into a list with
+    an end.
+    """
+    source_id = request.args.get("data_source_id", type=int)
+    tables = models.CatalogTable.query.filter(models.CatalogTable.org == current_org)
+    if source_id:
+        tables = tables.filter(models.CatalogTable.data_source_id == source_id)
+    if request.args.get("undescribed"):
+        tables = tables.filter(models.CatalogTable.description.is_(None))
+
+    tables = tables.order_by(models.CatalogTable.usage_count.desc().nullslast()).limit(200).all()
+
+    # One query for every table's column count rather than one per table.
+    counts = dict(
+        models.db.session.query(models.CatalogColumn.catalog_table_id, models.db.func.count())
+        .filter(models.CatalogColumn.catalog_table_id.in_([t.id for t in tables] or [0]))
+        .group_by(models.CatalogColumn.catalog_table_id)
+        .all()
+    )
+
+    return json_response(
+        {
+            "tables": [
+                {
+                    "id": table.id,
+                    "name": table.name,
+                    "data_source_id": table.data_source_id,
+                    "usage_count": table.usage_count,
+                    "description": table.description,
+                    "description_source": table.description_source,
+                    "column_count": counts.get(table.id, 0),
+                    "card": table.card,
+                    "harvested_at": table.harvested_at,
+                }
+                for table in tables
+            ]
+        }
+    )
+
+
+@routes.route("/api/admin/catalog/tables/<int:table_id>", methods=["POST"])
+@login_required
+@require_super_admin
+def describe_catalog_table(table_id):
+    """
+    Write a description by hand.
+
+    Marked "human", which is what stops the next scheduled harvest replacing
+    it with whatever the warehouse does or does not say.
+    """
+    table = models.CatalogTable.query.filter(
+        models.CatalogTable.id == table_id, models.CatalogTable.org == current_org
+    ).first()
+    if table is None:
+        abort(404)
+
+    description = (request.get_json(force=True) or {}).get("description")
+    description = (description or "").strip() or None
+    table.description = description
+    # Cleared by a person is still a decision by a person -- but with nothing
+    # to protect, the source goes back to unset so the engine may fill it.
+    table.description_source = "human" if description else None
+    models.db.session.commit()
+
+    record_event(
+        current_org,
+        current_user._get_current_object(),
+        {"action": "describe", "object_id": table_id, "object_type": "catalog_table"},
+    )
+
+    return json_response(
+        {"id": table.id, "description": table.description, "description_source": table.description_source}
+    )

@@ -4,6 +4,7 @@ from unittest import mock
 from rq.exceptions import NoSuchJobError
 
 from sqldesk import utils
+from sqldesk import models
 from sqldesk.models import Event, db
 from sqldesk.tasks.queries.maintenance import cleanup_events, cleanup_query_results
 from tests import BaseTestCase
@@ -349,3 +350,98 @@ class TestEventsCleanup(BaseTestCase):
 
         self.assertEqual(cleanup_events(), 0)
         self.assertEqual(Event.query.count(), 1)
+
+
+class TestCatalogReview(BaseTestCase):
+    """
+    Describing a table by hand. The ordering matters as much as the writing:
+    nobody documents three thousand tables, so the list has to start with the
+    ones anyone actually queries.
+    """
+
+    def _table(self, name, usage=0, description=None, source=None):
+        table = models.CatalogTable(
+            org=self.factory.org,
+            data_source_id=self.factory.data_source.id,
+            name=name,
+            usage_count=usage,
+            description=description,
+            description_source=source,
+        )
+        db.session.add(table)
+        db.session.commit()
+        return table
+
+    def test_it_needs_a_super_admin(self):
+        self.assertEqual(
+            403, self.make_request("get", "/api/admin/catalog", user=self.factory.user, org=False).status_code
+        )
+
+    def test_most_used_first(self):
+        self._table("rare", usage=1)
+        self._table("popular", usage=90)
+        admin = self.factory.create_admin()
+
+        rv = self.make_request("get", "/api/admin/catalog", user=admin, org=False)
+
+        self.assertEqual(["popular", "rare"], [t["name"] for t in rv.json["tables"]])
+
+    def test_the_worklist_is_the_ones_without_a_sentence(self):
+        self._table("described", usage=5, description="Known.", source="engine")
+        self._table("bare", usage=4)
+        admin = self.factory.create_admin()
+
+        rv = self.make_request("get", "/api/admin/catalog?undescribed=1", user=admin, org=False)
+
+        self.assertEqual(["bare"], [t["name"] for t in rv.json["tables"]])
+
+    def test_writing_one_marks_it_as_a_persons(self):
+        table = self._table("orders")
+        admin = self.factory.create_admin()
+
+        self.make_request(
+            "post",
+            "/api/admin/catalog/tables/{}".format(table.id),
+            data={"description": "  Orders, excluding the test tenant.  "},
+            user=admin,
+            org=False,
+        )
+
+        db.session.expire_all()
+        stored = models.CatalogTable.query.get(table.id)
+        self.assertEqual("Orders, excluding the test tenant.", stored.description)
+        self.assertEqual("human", stored.description_source)
+
+    def test_clearing_one_lets_the_engine_speak_again(self):
+        table = self._table("orders", description="Mine.", source="human")
+        admin = self.factory.create_admin()
+
+        self.make_request(
+            "post",
+            "/api/admin/catalog/tables/{}".format(table.id),
+            data={"description": ""},
+            user=admin,
+            org=False,
+        )
+
+        db.session.expire_all()
+        stored = models.CatalogTable.query.get(table.id)
+        self.assertIsNone(stored.description)
+        self.assertIsNone(stored.description_source)
+
+    def test_another_orgs_table_is_not_found(self):
+        other = self.factory.create_org()
+        table = models.CatalogTable(org=other, data_source_id=self.factory.data_source.id, name="theirs")
+        db.session.add(table)
+        db.session.commit()
+        admin = self.factory.create_admin()
+
+        rv = self.make_request(
+            "post",
+            "/api/admin/catalog/tables/{}".format(table.id),
+            data={"description": "x"},
+            user=admin,
+            org=False,
+        )
+
+        self.assertEqual(404, rv.status_code)

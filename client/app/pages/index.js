@@ -2,6 +2,7 @@ import "./home/Home";
 
 import "./mcp/McpHome";
 import "./admin/overview/Overview";
+import "./admin/Catalog";
 import "./admin/Jobs";
 import "./admin/OutdatedQueries";
 import "./admin/SystemStatus";
