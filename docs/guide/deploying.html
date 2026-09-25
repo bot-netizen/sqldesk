@@ -28,8 +28,10 @@
     </a>
     <nav>
       <a href="../index.html">Overview</a>
+      <a href="../why.html">Why SQLDesk</a>
+      <a href="../performance.html" class="hide-sm">Performance</a>
+      <a href="../roadmap.html">Roadmap</a>
       <a href="overview.html" aria-current="page">Docs</a>
-      <a href="../releases.html" class="hide-sm">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
     </nav>
   </div>
@@ -52,8 +54,11 @@
       <h4>Running it</h4>
       <a href="administration.html">Administration</a>
       <a href="deploying.html" aria-current="page">Deploying</a>
+      <h4>Reference</h4>
+      <a href="releases.html">Releases</a>
   </nav>
   <main class="doc-body">
+
 
 <h1>Deploying</h1>
 <p>Five processes and two databases — see <a href="architecture.html">Architecture</a>. Everything below is
@@ -105,13 +110,14 @@ minikube service sqldesk</code></pre>
 <p>Back up Postgres. Redis holds queues, locks and a schema cache — losing it costs in-flight jobs and
 nothing else, which is why it can be a plain container with no persistence.</p>
 
-<div class="doc-next"><a class="btn btn-ghost" href="administration.html">&larr; Administration</a></div>
+<div class="doc-next"><a class="btn btn-ghost" href="administration.html">&larr; Administration</a><a class="btn btn-primary" href="releases.html">Releases &rarr;</a></div>
   </main>
 </div>
 
 <footer>
   <div class="wrap">
     <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+       <a href="releases.html">Releases</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
   </div>

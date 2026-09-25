@@ -23,24 +23,11 @@
   --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   color-scheme:light;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --canvas:#121116;--surface:#1b1a21;--sunken:#232229;--rule:#33313c;--rule-soft:#2a2933;
-  --ink:#f4f2ef;--ink-2:#ddd9d3;--muted:#a8a29a;--faint:#8a857e;
-  --accent:var(--ac-400);--accent-ink:#8fcbd8;--accent-wash:#14323a;--accent-edge:#1e4a56;
-  --good:#56b585;--good-wash:#163024;--warning:#d0a04f;--warning-wash:#33280f;--critical:#e37c74;
-  color-scheme:dark;}}
-:root[data-theme="dark"]{
-  --canvas:#121116;--surface:#1b1a21;--sunken:#232229;--rule:#33313c;--rule-soft:#2a2933;
-  --ink:#f4f2ef;--ink-2:#ddd9d3;--muted:#a8a29a;--faint:#8a857e;
-  --accent:var(--ac-400);--accent-ink:#8fcbd8;--accent-wash:#14323a;--accent-edge:#1e4a56;
-  --good:#56b585;--good-wash:#163024;--warning:#d0a04f;--warning-wash:#33280f;--critical:#e37c74;
-  color-scheme:dark;}
-
 *{box-sizing:border-box}
 body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
 a{color:var(--accent-ink);text-underline-offset:2px}
 a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
-.wrap{width:100%;max-width:1680px;margin:0 auto;padding:0 clamp(16px,3.2vw,44px)}
+.wrap{width:100%;max-width:1560px;margin:0 auto;padding:0 clamp(20px,4vw,72px)}
 
 .topbar{border-bottom:1px solid var(--rule);background:color-mix(in srgb,var(--canvas) 88%,transparent);backdrop-filter:blur(8px);position:sticky;top:0;z-index:10}
 .topbar-in{display:flex;align-items:center;gap:14px;height:60px}
@@ -148,11 +135,10 @@ footer a{color:var(--muted)}
     </a>
     <nav>
       <a href="index.html">Overview</a>
-      <a href="performance.html">Performance</a>
-      <a href="roadmap.html" aria-current="page">Roadmap</a>
+      <a href="why.html">Why SQLDesk</a>
+      <a href="performance.html" class="hide-sm">Performance</a>
+      <a href="roadmap.html">Roadmap</a>
       <a href="guide/overview.html">Docs</a>
-      <a href="ai.html">AI</a>
-      <a href="releases.html" class="hide-sm">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
     </nav>
   </div>
@@ -247,6 +233,50 @@ footer a{color:var(--muted)}
       <li><strong>Charts on Apache ECharts</strong><span class="st st-shipped">0.1</span><span class="d">Every chart type redrawn on ECharts 6, animating between values when data refreshes.</span></li><li><strong>Plotly and d3 v3 removed</strong><span class="st st-shipped">0.1</span><span class="d">Production JavaScript fell from 9.1 MB to 4.3 MB.</span></li><li><strong>Counting counters</strong><span class="st st-shipped">0.1</span><span class="d">A counter counts up to its new value instead of jumping.</span></li><li><strong>One table density</strong><span class="st st-shipped">0.3.2</span><span class="d">The same row height, padding and type size in the query editor, dashboards and alerts.</span></li>
     </ul>
   </div>
+</section>
+
+<section class="wrap">
+  <p class="eyebrow">0.6</p>
+  <h2>MCP, and what is not built yet</h2>
+  <p class="sub">0.6 is a tool server over your warehouse. Some of what was planned around it exists,
+    some does not, and the difference is worth stating rather than implying.</p>
+
+  <div class="cards">
+    <div class="card">
+      <h3><span class="chip chip-done">Built</span></h3>
+      <p><strong>MCP server</strong> at <code>/mcp</code> — JSON-RPC over HTTP, authenticated with a
+        SQLDesk API key. Four tools: <code>find_context</code>, <code>expand_table</code>,
+        <code>list_data_sources</code>, <code>check_sql</code>.</p>
+    </div>
+    <div class="card">
+      <h3><span class="chip chip-done">Built</span></h3>
+      <p><strong>The audit.</strong> Every request, including refused ones, under Admin → MCP: who,
+        when, which tool, the outcome, how long, and from where.</p>
+    </div>
+    <div class="card">
+      <h3><span class="chip chip-done">Built</span></h3>
+      <p><strong>The catalog.</strong> Harvested from each data source, and from the joins and columns
+        your saved queries actually use — so ranking reflects what people query, not what exists.</p>
+    </div>
+    <div class="card">
+      <h3><span class="chip chip-now">In progress</span></h3>
+      <p><strong>Running SQL through MCP.</strong> Today nothing executes: a client can be told what the
+        data looks like and told its SQL is wrong, but cannot make the warehouse work.</p>
+    </div>
+    <div class="card">
+      <h3><span class="chip chip-next">Not started</span></h3>
+      <p><strong>A semantic layer</strong> whose metric definitions are proposed from queries people
+        already wrote, approved by an admin, and kept as Cube-native YAML in git.</p>
+    </div>
+    <div class="card">
+      <h3><span class="chip chip-next">Not started</span></h3>
+      <p><strong>An assistant inside SQLDesk.</strong> A model can be configured from the CLI and
+        nothing in the interface uses it. This is a later version's problem.</p>
+    </div>
+  </div>
+
+  <p style="margin-top:26px">How the built parts work, in detail:
+    <a href="guide/mcp.html">the MCP guide</a>.</p>
 </section>
 
 <footer>

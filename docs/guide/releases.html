@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Releases — SQLDesk</title>
-<meta name="description" content="What shipped in each SQLDesk release: 0.4 live dashboards, 0.5 the interface, 0.6 AI.">
+<title>Releases — SQLDesk docs</title>
+<meta name="description" content="What shipped in each SQLDesk release: 0.4 live dashboards, 0.5 the interface, 0.6 MCP.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="../assets/site.css">
 </head>
 <body>
 
 <header class="topbar">
   <div class="wrap topbar-in">
-    <a class="brand" href="index.html">
+    <a class="brand" href="../index.html">
       <svg viewBox="0 0 120 120" aria-hidden="true">
         <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
         <g fill="currentColor">
@@ -27,51 +27,71 @@
       SQLDesk
     </a>
     <nav>
-      <a href="index.html">Overview</a>
-      <a href="why.html" class="hide-sm">Why SQLDesk</a>
-      <a href="performance.html" class="hide-sm">Performance</a>
-      <a href="roadmap.html" class="hide-sm">Roadmap</a>
-      <a href="guide/overview.html">Docs</a>
-      <a href="ai.html">AI</a>
-      <a href="releases.html" class="hide-sm" aria-current="page">Releases</a>
+      <a href="../index.html">Overview</a>
+      <a href="../why.html">Why SQLDesk</a>
+      <a href="../performance.html" class="hide-sm">Performance</a>
+      <a href="../roadmap.html">Roadmap</a>
+      <a href="overview.html" aria-current="page">Docs</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
     </nav>
   </div>
 </header>
 
-
-<section class="hero wrap">
-  <p class="eyebrow">Releases</p>
-  <h1>What shipped, and&nbsp;when</h1>
-  <p class="lede">SQLDesk is a fork of Redash that has been rebuilt one layer at a time.
+<div class="wrap doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+      <h4>Start here</h4>
+      <a href="overview.html">Overview</a>
+      <a href="concepts.html">Concepts</a>
+      <a href="architecture.html">Architecture</a>
+      <h4>Using SQLDesk</h4>
+      <a href="connectors.html">Data sources</a>
+      <a href="queries.html">Queries and parameters</a>
+      <a href="visualizations.html">Visualizations</a>
+      <a href="dashboards.html">Dashboards and textboxes</a>
+      <a href="alerts.html">Alerts</a>
+      <h4>AI</h4>
+      <a href="mcp.html">MCP</a>
+      <h4>Running it</h4>
+      <a href="administration.html">Administration</a>
+      <a href="deploying.html">Deploying</a>
+      <h4>Reference</h4>
+      <a href="releases.html" aria-current="page">Releases</a>
+  </nav>
+  <main class="doc-body">
+<div>
+  <h1>Releases</h1>
+  <p class="sub">SQLDesk is a fork of Redash that has been rebuilt one layer at a time.
     Each release has a theme, and the theme is the point &mdash; a release that does a
     little of everything is a release nobody can describe.</p>
-</section>
+</div>
 
-<section class="wrap">
+<div>
   <div class="cards">
     <div class="card"><h3>0.4 &mdash; Live</h3><p>Dashboards you watch rather than read. The server refreshes them, once for everyone looking.</p></div>
     <div class="card"><h3>0.5 &mdash; Interface</h3><p>Less chrome, more chart. Filters left their band, textboxes became somewhere to write.</p></div>
-    <div class="card"><h3>0.6 &mdash; AI</h3><p>A context layer built from your own warehouse and your own query history, and every AI surface a client of it.</p></div>
+    <div class="card"><h3>0.6 &mdash; MCP</h3><p>A tool server over your warehouse, with a catalog built from your own query history, and an audit of everything it was asked.</p></div>
   </div>
-</section>
+</div>
 
-<section class="wrap">
+<div>
   <h2>In detail</h2>
 
   <div class="rel">
     <div><div class="rel-when">In progress</div></div>
     <div>
       <p class="rel-v">0.6 <span class="chip chip-now">Building</span></p>
-      <p class="rel-theme">AI at the core &mdash; not a chat box bolted to the side.</p>
+      <p class="rel-theme">A tool server over your warehouse, and an audit of what it was asked.</p>
       <ul>
-        <li><strong>A context service</strong> built from harvested warehouse metadata and, as it accumulates, your own query history. Everything else is a client of it.</li>
-        <li><strong>An MCP server</strong>, so Claude Desktop and the in-app assistant share one tool layer, one set of guards and one permission model.</li>
-        <li><strong>An optimize button</strong> beside Execute. The first half is deterministic &mdash; parse, EXPLAIN, rule packs per engine &mdash; and needs no model at all.</li>
-        <li><strong>A semantic layer</strong> whose definitions are proposed from what people already wrote, approved by an admin, and stored as Cube-native YAML you can keep in git.</li>
-        <li><strong>Your choice of model</strong>: a hosted API, or something running on your own hardware. Configured from the CLI on the server.</li>
+        <li><span class="chip chip-done">Built</span> <strong>An MCP server</strong> at <code>/mcp</code>, authenticated with a SQLDesk API key, with an audit of every request under Admin &rarr; MCP.</li>
+        <li><span class="chip chip-done">Built</span> <strong>A context service</strong> &mdash; the catalog, harvested from each data source and from the joins and columns your saved queries actually use.</li>
+        <li><span class="chip chip-done">Built</span> <strong>Query checking</strong>: seven rules over a parsed statement, reached through the MCP <code>check_sql</code> tool.</li>
+        <li><span class="chip chip-done">Built</span> <strong>A Helm chart</strong>, NodePort for minikube.</li>
+        <li><span class="chip chip-now">In progress</span> <strong>Running SQL through MCP</strong>, with a cost estimate before anything executes.</li>
+        <li><span class="chip chip-next">Not started</span> <strong>A semantic layer</strong> proposed from queries people already wrote.</li>
+        <li><span class="chip chip-next">Not started</span> <strong>An assistant inside SQLDesk.</strong> The model configuration exists; nothing in the interface uses it.</li>
       </ul>
-      <p><a href="ai.html">The plan &rarr;</a> &nbsp;&middot;&nbsp; <a href="ai-design.html">How it works &rarr;</a></p>
+      <p class="sub">The <a href="../roadmap.html">roadmap</a> has the rest.</p>
+      <p><a href="mcp.html">MCP &rarr;</a> &nbsp;&middot;&nbsp; <a href="../roadmap.html">Roadmap &rarr;</a></p>
     </div>
   </div>
 
@@ -89,7 +109,7 @@
         <li><strong>Alerts can carry a picture</strong>, rendered by a headless browser in its own optional container. The published image does not grow for people who never turn it on.</li>
         <li><strong>A twenty-four column grid</strong>, so a widget can take a third of the width, with a migration that brings existing dashboards across.</li>
       </ul>
-      <p><a href="performance.html">The measurements &rarr;</a></p>
+      <p><a href="../performance.html">The measurements &rarr;</a></p>
     </div>
   </div>
 
@@ -105,18 +125,17 @@
       </ul>
     </div>
   </div>
-</section>
-
+</div>
+<div class="doc-next"><a class="btn btn-ghost" href="deploying.html">&larr; Deploying</a></div>
+  </main>
+</div>
 
 <footer>
   <div class="wrap">
-    <p>
-      <a href="index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
-      <a href="releases.html">Releases</a> &nbsp;&middot;&nbsp;
-      <a href="ai.html">AI</a> &nbsp;&middot;&nbsp;
-      <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
-      <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a>
-    </p>
+    <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+       <a href="releases.html">Releases</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
   </div>
 </footer>
 
