@@ -44,6 +44,12 @@ x-sqldesk-environment: &sqldesk-environment
   # The address people reach SQLDesk on. Links in emails and alerts use it, so
   # it has to be right or they point at localhost.
   SQLDESK_HOST: ${SQLDESK_HOST:-http://localhost:5000}
+  # The AI features, off unless asked for -- and asking for them here is only
+  # half of it: `manage ai configure` still has to name a model before
+  # anything calls out. Without this line the variable never reaches the
+  # container, and setting it in the shell appears to do nothing.
+  SQLDESK_FEATURE_AI: ${SQLDESK_FEATURE_AI:-false}
+  SQLDESK_AI_TIMEOUT: ${SQLDESK_AI_TIMEOUT:-60}
 
 services:
   server:
