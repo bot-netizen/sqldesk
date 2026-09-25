@@ -1,6 +1,9 @@
 import datetime
+import io
+import zipfile
 from unittest import mock
 
+import yaml
 from rq.exceptions import NoSuchJobError
 
 from sqldesk import models, utils
@@ -572,3 +575,79 @@ class TestMeasureReview(BaseTestCase):
         self.assertEqual(400, rv.status_code)
         db.session.expire_all()
         self.assertEqual(models.MEASURE_PROPOSED, models.CatalogMeasure.query.get(measure.id).status)
+
+
+class TestCatalogDownload(BaseTestCase):
+    """
+    The same files `manage ai export` writes, for somebody with no shell.
+    A curation step that requires docker access is one that does not happen.
+    """
+
+    def _harvested(self):
+        source = self.factory.create_data_source(name="Warehouse")
+        table = models.CatalogTable(
+            org=self.factory.org,
+            data_source_id=source.id,
+            name="orders",
+            usage_count=3,
+            description="One row per order.",
+            description_source="human",
+        )
+        db.session.add(table)
+        db.session.commit()
+        return source
+
+    def test_it_needs_a_super_admin(self):
+        self._harvested()
+        rv = self.make_request("get", "/api/admin/catalog/export", user=self.factory.user, org=False)
+
+        self.assertEqual(403, rv.status_code)
+
+    def test_it_returns_a_zip_of_the_same_yaml(self):
+        self._harvested()
+        admin = self.factory.create_admin()
+
+        rv = self.make_request("get", "/api/admin/catalog/export", user=admin, org=False)
+
+        self.assertEqual(200, rv.status_code)
+        archive = zipfile.ZipFile(io.BytesIO(rv.data))
+        self.assertIn("warehouse/orders.yml", archive.namelist())
+        cube = yaml.safe_load(archive.read("warehouse/orders.yml"))["cubes"][0]
+        self.assertEqual("orders", cube["sql_table"])
+        self.assertEqual("One row per order.", cube["description"])
+
+    def test_it_arrives_as_a_download_with_a_dated_name(self):
+        self._harvested()
+        admin = self.factory.create_admin()
+
+        rv = self.make_request("get", "/api/admin/catalog/export", user=admin, org=False)
+
+        self.assertIn("attachment", rv.headers["Content-Disposition"])
+        self.assertIn("sqldesk-semantic-", rv.headers["Content-Disposition"])
+
+    def test_one_data_source_can_be_asked_for(self):
+        self._harvested()
+        other = self.factory.create_data_source(name="Other")
+        db.session.add(
+            models.CatalogTable(org=self.factory.org, data_source_id=other.id, name="elsewhere", usage_count=1)
+        )
+        db.session.commit()
+        admin = self.factory.create_admin()
+
+        rv = self.make_request(
+            "get", "/api/admin/catalog/export?data_source_id={}".format(other.id), user=admin, org=False
+        )
+
+        names = zipfile.ZipFile(io.BytesIO(rv.data)).namelist()
+        self.assertEqual(["other/elsewhere.yml"], names)
+
+    def test_a_data_source_that_is_not_yours_is_not_found(self):
+        elsewhere = self.factory.create_org()
+        theirs = self.factory.create_data_source(name="Theirs", org=elsewhere)
+        admin = self.factory.create_admin()
+
+        rv = self.make_request(
+            "get", "/api/admin/catalog/export?data_source_id={}".format(theirs.id), user=admin, org=False
+        )
+
+        self.assertEqual(404, rv.status_code)

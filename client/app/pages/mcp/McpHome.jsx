@@ -147,7 +147,7 @@ export default function McpHome({ onError }) {
   const load = useCallback(() => {
     setLoading(true);
     axios
-      .get("api/mcp/audit")
+      .get("/api/mcp/audit")
       .then(setData)
       .catch(onError)
       .finally(() => setLoading(false));

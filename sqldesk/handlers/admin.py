@@ -1,9 +1,14 @@
-from flask import request
+import datetime
+import io
+import zipfile
+
+from flask import request, send_file
 from flask_login import current_user, login_required
 from flask_restful import abort
 from rq.exceptions import NoSuchJobError
 
 from sqldesk import models, redis_connection, rq_redis_connection
+from sqldesk.ai.catalog.semantic import catalog_documents
 from sqldesk.authentication import current_org
 from sqldesk.handlers import routes
 from sqldesk.handlers.base import json_response, record_event
@@ -318,3 +323,47 @@ def review_catalog_measure(measure_id):
     )
 
     return json_response({"id": measure.id, "status": measure.status, "description": measure.description})
+
+
+@routes.route("/api/admin/catalog/export", methods=["GET"])
+@login_required
+@require_super_admin
+def download_catalog():
+    """
+    The semantic layer as a zip, for people who do not have a shell.
+
+    `manage ai export` writes the same files into a mounted directory, which
+    suits a deploy pipeline. It does not suit the person actually writing the
+    descriptions, who may have no access to the container at all -- and a
+    curation step that requires docker is one that does not happen.
+
+    Built in memory: the whole thing is a few kilobytes of YAML per table,
+    and writing it to disk first would mean cleaning it up afterwards.
+    """
+    source = None
+    source_id = request.args.get("data_source_id", type=int)
+    if source_id:
+        source = models.DataSource.query.filter(
+            models.DataSource.id == source_id, models.DataSource.org == current_org
+        ).first()
+        if source is None:
+            abort(404)
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        for path, text in catalog_documents(current_org, data_source=source):
+            archive.writestr(path, text)
+    buffer.seek(0)
+
+    record_event(
+        current_org,
+        current_user._get_current_object(),
+        {"action": "export", "object_type": "catalog"},
+    )
+
+    return send_file(
+        buffer,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name="sqldesk-semantic-{}.zip".format(datetime.datetime.now().strftime("%Y-%m-%d")),
+    )

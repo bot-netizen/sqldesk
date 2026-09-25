@@ -117,6 +117,11 @@ cd ./semantic &amp;&amp; git add . &amp;&amp; git commit -m "Describe the orders
 Docker Desktop the file sharing layer hides that; on Linux it does not, so
 <code>chown -R 1000: ./semantic</code> once. The export says so plainly rather than failing
 half-written.</p>
+<p>There is also a <strong>Download YAML</strong> button on <strong>Admin &rarr; Catalog</strong>,
+which sends the same files as a zip. It is for the person writing the descriptions, who often is not
+the person with access to the container &mdash; and a curation step that requires docker is one that
+does not happen. Unzip it into your repo and commit. Filter to one data source first and only that
+source is included.</p>
 <p>SQLDesk never talks to git. No deploy key, no conflict handling, no worker that needs to reach
 GitHub &mdash; the pipeline that already does those things does them better, and a change to what a
 metric means becomes a pull request rather than a row somebody altered.</p>

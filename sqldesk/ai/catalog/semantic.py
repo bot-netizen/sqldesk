@@ -128,20 +128,23 @@ def _joins_for(table):
     return edges
 
 
-def export_catalog(org, directory, data_source=None):
+def catalog_documents(org, data_source=None):
     """
-    Write every table as `<directory>/<data source>/<table>.yml`.
+    Every table as a relative path and the YAML that goes in it.
 
-    Only *agreed* measures are written. An export is a thing people read and
-    approve in a pull request, and filling it with proposals nobody has
+    Separate from writing them, because the same files are also wanted as a
+    download from the browser -- and having the zip build a directory in a
+    temporary folder just to read it back would be two implementations of
+    one format, which is how a download and a checkout start to differ.
+
+    Only *agreed* measures are included. An export is a thing people read
+    and approve in a pull request, and filling it with proposals nobody has
     looked at would make the diff meaningless.
     """
     sources = [data_source] if data_source else DataSource.query.filter(DataSource.org == org).all()
-    written = 0
 
     for source in sources:
         tables = CatalogTable.query.filter(CatalogTable.data_source_id == source.id).order_by(CatalogTable.name)
-        folder = os.path.join(directory, _slug(source.name))
 
         for table in tables:
             columns = (
@@ -160,12 +163,10 @@ def export_catalog(org, directory, data_source=None):
             )
             cube = cube_for(table, columns, measures, _joins_for(table))
 
-            os.makedirs(folder, exist_ok=True)
-            path = os.path.join(folder, "{}.yml".format(_cube_name(table.name)))
-            with open(path, "w") as handle:
+            yield (
+                "{}/{}.yml".format(_slug(source.name), _cube_name(table.name)),
                 yaml.safe_dump(
                     {"cubes": [cube]},
-                    handle,
                     sort_keys=False,
                     default_flow_style=False,
                     allow_unicode=True,
@@ -175,8 +176,21 @@ def export_catalog(org, directory, data_source=None):
                     # diff shows four changed lines for one changed word --
                     # in a file whose whole purpose is being read as a diff.
                     width=100000,
-                )
-            written += 1
+                ),
+            )
+
+
+def export_catalog(org, directory, data_source=None):
+    """Write what `catalog_documents` yields, under `directory`."""
+    sources = [data_source] if data_source else DataSource.query.filter(DataSource.org == org).all()
+    written = 0
+
+    for relative, text in catalog_documents(org, data_source=data_source):
+        path = os.path.join(directory, relative)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as handle:
+            handle.write(text)
+        written += 1
 
     return {"tables": written, "data_sources": len(sources)}
 

@@ -34,7 +34,7 @@ function DescriptionCell({ table, onSaved }) {
   const save = useCallback(() => {
     setSaving(true);
     axios
-      .post(`api/admin/catalog/tables/${table.id}`, { description: value })
+      .post(`/api/admin/catalog/tables/${table.id}`, { description: value })
       .then((saved) => {
         onSaved(table.id, saved);
         notification.success(`Described ${table.name}.`);
@@ -83,7 +83,7 @@ function Measures({ sourceId }) {
       params.push("pending=1");
     }
     axios
-      .get(`api/admin/catalog/measures${params.length ? `?${params.join("&")}` : ""}`)
+      .get(`/api/admin/catalog/measures${params.length ? `?${params.join("&")}` : ""}`)
       .then((data) => setMeasures(data.measures))
       .catch(() => notification.error("Could not load the measures."))
       .finally(() => setLoading(false));
@@ -95,7 +95,7 @@ function Measures({ sourceId }) {
 
   const review = useCallback((measure, status) => {
     axios
-      .post(`api/admin/catalog/measures/${measure.id}`, { status })
+      .post(`/api/admin/catalog/measures/${measure.id}`, { status })
       .then((saved) => {
         setMeasures((current) => current.map((m) => (m.id === saved.id ? { ...m, ...saved } : m)));
         notification.success(`${measure.name} ${SAID[saved.status]}.`);
@@ -211,7 +211,7 @@ export default function Catalog() {
       params.push("undescribed=1");
     }
     axios
-      .get(`api/admin/catalog${params.length ? `?${params.join("&")}` : ""}`)
+      .get(`/api/admin/catalog${params.length ? `?${params.join("&")}` : ""}`)
       .then((data) => setTables(data.tables))
       .catch(() => notification.error("Could not load the catalog."))
       .finally(() => setLoading(false));
@@ -223,7 +223,7 @@ export default function Catalog() {
 
   useEffect(() => {
     axios
-      .get("api/data_sources")
+      .get("/api/data_sources")
       .then(setSources)
       .catch(() => {});
   }, []);
@@ -281,7 +281,8 @@ export default function Catalog() {
             <HelpTrigger type="MCP_SEMANTIC" showTooltip={false} renderAsLink>
               kept in git
             </HelpTrigger>{" "}
-            if you would rather review it as a pull request.
+            if you would rather review it as a pull request &mdash; download the YAML here, or write it straight into a
+            checkout with <code>manage ai export</code>.
           </p>
         </div>
 
@@ -306,6 +307,19 @@ export default function Catalog() {
           <Button size="small" onClick={load} loading={loading}>
             Refresh
           </Button>
+          {/*
+            A plain link rather than a fetch: the browser handles the file,
+            the session cookie authenticates it, and nothing has to hold the
+            zip in memory to hand it straight back. Absolute, because this
+            page lives under /admin/ and a relative path resolves against
+            that and lands on the single-page app instead.
+          */}
+          <a
+            className="catalog-download"
+            href={`/api/admin/catalog/export${sourceId ? `?data_source_id=${sourceId}` : ""}`}
+          >
+            <Button size="small">Download YAML</Button>
+          </a>
         </div>
 
         <Tabs defaultActiveKey="tables" className="catalog-tabs">
