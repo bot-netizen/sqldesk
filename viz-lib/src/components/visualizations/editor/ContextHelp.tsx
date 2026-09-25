@@ -47,7 +47,7 @@ function TickFormatSpecs() {
   return (
     <HelpTriggerComponent
       title="Tick Formatting"
-      href="https://sqldesk.github.io/sqldesk"
+      href="https://bot-netizen.github.io/sqldesk/guide/visualizations.html#numbers"
       className="visualization-editor-context-help"
     >
       {ContextHelp.defaultIcon}

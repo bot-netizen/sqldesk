@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deploying — SQLDesk docs</title>
+<meta name="description" content="Docker Compose, Kubernetes with Helm on minikube, and what must be set before it starts.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="../index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="../index.html">Overview</a>
+      <a href="overview.html" aria-current="page">Docs</a>
+      <a href="../releases.html" class="hide-sm">Releases</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+      <h4>Start here</h4>
+      <a href="overview.html">Overview</a>
+      <a href="concepts.html">Concepts</a>
+      <a href="architecture.html">Architecture</a>
+      <h4>Using SQLDesk</h4>
+      <a href="connectors.html">Data sources</a>
+      <a href="queries.html">Queries and parameters</a>
+      <a href="visualizations.html">Visualizations</a>
+      <a href="dashboards.html">Dashboards and textboxes</a>
+      <a href="alerts.html">Alerts</a>
+      <h4>AI</h4>
+      <a href="mcp.html">MCP</a>
+      <h4>Running it</h4>
+      <a href="administration.html">Administration</a>
+      <a href="deploying.html" aria-current="page">Deploying</a>
+  </nav>
+  <main class="doc-body">
+
+<h1>Deploying</h1>
+<p>Five processes and two databases — see <a href="architecture.html">Architecture</a>. Everything below is
+a way of arranging those.</p>
+
+<h2>What must be set</h2>
+<table>
+  <tr><th>Variable</th><th>Why</th></tr>
+  <tr><td><code>SQLDESK_COOKIE_SECRET</code></td><td>Signs sessions. The server refuses to start without it.</td></tr>
+  <tr><td><code>SQLDESK_SECRET_KEY</code></td><td>Encrypts data source credentials. Changing it makes existing ones unreadable.</td></tr>
+  <tr><td><code>SQLDESK_DATABASE_URL</code></td><td>SQLDesk's own Postgres, not your warehouse.</td></tr>
+  <tr><td><code>SQLDESK_REDIS_URL</code></td><td>Queues and cache.</td></tr>
+  <tr><td><code>SQLDESK_HOST</code></td><td>The address in emails and alert links.</td></tr>
+</table>
+<p>Keep the two secrets somewhere they survive a redeployment. Losing the cookie secret logs everyone out;
+losing the secret key loses every stored credential.</p>
+
+<h2>Docker Compose</h2>
+<pre><code>cp .env.example .env        # then fill in the two secrets
+docker compose -f compose.prod.yaml up -d
+docker compose -f compose.prod.yaml run --rm server manage database create_tables</code></pre>
+<p>Pin the image in <code>.env</code> as <code>SQLDESK_IMAGE=</code>. Without it the compose file falls back
+to a default that may be older than what you are running.</p>
+
+<h2>Upgrading</h2>
+<pre><code>docker compose -f compose.prod.yaml run --rm server manage db upgrade</code></pre>
+<p>Run it after every image change, before the new server takes traffic. Release notes call out any
+migration that rewrites data rather than adding to it.</p>
+
+<h2>Kubernetes</h2>
+<p>A Helm chart is in <code>charts/sqldesk</code>. On minikube the server is exposed as a NodePort:</p>
+<pre><code>minikube start
+helm install sqldesk ./charts/sqldesk \
+  --set secrets.cookieSecret=$(openssl rand -hex 32) \
+  --set secrets.secretKey=$(openssl rand -hex 32)
+minikube service sqldesk</code></pre>
+<p>For a real cluster, put an Ingress in front and terminate TLS there — an API key travelling to
+<code>/mcp</code> over plain HTTP is a credential in the clear.</p>
+
+<h2>Scaling</h2>
+<ul>
+  <li><strong>Queries queueing</strong> — more workers.</li>
+  <li><strong>Pages slow to load</strong> — more web workers. A different problem with a different fix.</li>
+  <li><strong>The scheduler is one process.</strong> Two would double-schedule everything.</li>
+  <li>Give a slow data source its own queue so it cannot starve the others.</li>
+</ul>
+
+<h2>Backups</h2>
+<p>Back up Postgres. Redis holds queues, locks and a schema cache — losing it costs in-flight jobs and
+nothing else, which is why it can be a plain container with no persistence.</p>
+
+<div class="doc-next"><a class="btn btn-ghost" href="administration.html">&larr; Administration</a></div>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

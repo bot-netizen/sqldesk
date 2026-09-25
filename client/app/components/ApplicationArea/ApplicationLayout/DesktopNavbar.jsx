@@ -64,10 +64,12 @@ function useNavbarActiveState() {
         ],
         currentRoute.id
       ),
-      mcp: includes(["MCP.Home"], currentRoute.id),
       dataSources: includes(["DataSources.List"], currentRoute.id),
       alerts: includes(["Alerts.List", "Alerts.New", "Alerts.View", "Alerts.Edit"], currentRoute.id),
-      admin: includes(["Admin.Overview", "Admin.SystemStatus", "Admin.Jobs", "Admin.OutdatedQueries"], currentRoute.id),
+      admin: includes(
+        ["Admin.Overview", "Admin.MCP", "Admin.SystemStatus", "Admin.Jobs", "Admin.OutdatedQueries"],
+        currentRoute.id
+      ),
     }),
     [currentRoute.id]
   );
@@ -116,6 +118,16 @@ export default function DesktopNavbar() {
       <Menu.Item key="admin-overview">
         <Link href="admin/overview">Overview</Link>
       </Menu.Item>
+      {/*
+        MCP lives here rather than in the top row: it is an audit of who
+        connected and what they asked for, which is a thing an administrator
+        checks, not a place anyone goes between queries.
+      */}
+      {clientConfig.aiEnabled && (
+        <Menu.Item key="admin-mcp">
+          <Link href="admin/mcp">MCP</Link>
+        </Menu.Item>
+      )}
       <Menu.Item key="admin-status">
         <Link href="admin/status">System Status</Link>
       </Menu.Item>
@@ -167,17 +179,6 @@ export default function DesktopNavbar() {
         {currentUser.hasPermission("view_query") && (
           <NavLink href="queries" active={activeState.queries}>
             Queries
-          </NavLink>
-        )}
-        {/*
-          Next to Queries rather than behind a menu: 0.6 is about MCP, and a
-          feature filed under the ellipsis is a feature nobody uses. Hidden
-          entirely when SQLDESK_FEATURE_AI is off, because a tab that only
-          ever says "not configured" is worse than no tab.
-        */}
-        {clientConfig.aiEnabled && (
-          <NavLink href="mcp" active={activeState.mcp}>
-            MCP
           </NavLink>
         )}
         {currentUser.hasPermission("list_alerts") && (

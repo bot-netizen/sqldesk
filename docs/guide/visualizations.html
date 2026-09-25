@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visualizations — SQLDesk docs</title>
+<meta name="description" content="Every visualization type, how to format numbers, and how to turn a chart point or a table cell into a link.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="../index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="../index.html">Overview</a>
+      <a href="overview.html" aria-current="page">Docs</a>
+      <a href="../releases.html" class="hide-sm">Releases</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+      <h4>Start here</h4>
+      <a href="overview.html">Overview</a>
+      <a href="concepts.html">Concepts</a>
+      <a href="architecture.html">Architecture</a>
+      <h4>Using SQLDesk</h4>
+      <a href="connectors.html">Data sources</a>
+      <a href="queries.html">Queries and parameters</a>
+      <a href="visualizations.html" aria-current="page">Visualizations</a>
+      <a href="dashboards.html">Dashboards and textboxes</a>
+      <a href="alerts.html">Alerts</a>
+      <h4>AI</h4>
+      <a href="mcp.html">MCP</a>
+      <h4>Running it</h4>
+      <a href="administration.html">Administration</a>
+      <a href="deploying.html">Deploying</a>
+  </nav>
+  <main class="doc-body">
+
+<h1>Visualizations</h1>
+<p>A visualization belongs to a query and draws its rows. One query can have many, and they all show the
+same data — so fixing the SQL fixes every one of them.</p>
+
+<h2>Choosing one</h2>
+<table>
+  <tr><th>You want to show</th><th>Use</th></tr>
+  <tr><td>Rows, as rows</td><td>Table — with per-column formatting, colouring and data bars</td></tr>
+  <tr><td>Something over time</td><td>Line, area, or a stat with a sparkline</td></tr>
+  <tr><td>Categories compared</td><td>Bar or column; horizontal bars when the labels are long</td></tr>
+  <tr><td>One number that matters</td><td>Counter, or Gauge when there is a target or a healthy range</td></tr>
+  <tr><td>Parts of a whole</td><td>Pie for a handful of slices; a stacked bar for more</td></tr>
+  <tr><td>Progress toward a target</td><td>Progress bar, bullet bar, or Gauge</td></tr>
+  <tr><td>Status across many things</td><td>Status grid — one tile per row, coloured by a column</td></tr>
+  <tr><td>Two numbers related</td><td>Scatter, or a bubble chart with a third for size</td></tr>
+  <tr><td>Where something is</td><td>Map (markers), or Choropleth for regions</td></tr>
+  <tr><td>Flow between stages</td><td>Sankey, or Funnel for a conversion sequence</td></tr>
+  <tr><td>Distribution</td><td>Histogram or box plot</td></tr>
+</table>
+
+<h2 id="links">Turning a point or a cell into a link</h2>
+<p>This is the drill-down: click a bar, land on the query, dashboard or system that explains it. It is
+configured per visualization, and the important part is that <strong>the link is built from the row</strong>
+— so one setting makes every point link somewhere different.</p>
+
+<h3>On a chart</h3>
+<p>Open the visualization editor, go to <strong>Data</strong>, and fill in the link fields:</p>
+<dl>
+  <dt>Link URL template</dt>
+  <dd>A URL with placeholders taken from the clicked point — for example
+    <code>/dashboards/12?p_region={{ @@x }}</code>. Use <code>@@x</code> for the x value,
+    <code>@@y</code> for the y value, and <code>@@name</code> for the series name.</dd>
+  <dt>Link text</dt>
+  <dd>What the tooltip offers, for example <code>Open @@x</code>. Leave it empty and the URL is shown.</dd>
+  <dt>Open in a new tab</dt>
+  <dd>Usually what you want from a dashboard somebody is watching.</dd>
+</dl>
+<p>A worked example. A column chart of revenue by region, where clicking a column opens a dashboard
+filtered to that region:</p>
+<pre><code>Link URL template:  /dashboards/7-regional-detail?p_region={{ @@x }}
+Link text:          Break down @@x
+Open in new tab:    yes</code></pre>
+<p>Because <code>@@x</code> is substituted per point, the North column links to North's dashboard and the
+South column to South's. There is no per-point configuration.</p>
+
+<h3>On a table</h3>
+<p>A table column can be a link instead of text. In the visualization editor choose the column, set its
+<strong>Display as</strong> to <strong>Link</strong>, and fill in:</p>
+<ul>
+  <li><strong>URL template</strong> — <code>https://tickets.internal/{{ @@id }}</code>, where
+    <code>@@id</code> is any column in the row, named as it appears in the result;</li>
+  <li><strong>Text template</strong> — what the cell shows, for example <code>#{{ @@id }}</code>;</li>
+  <li><strong>Title template</strong> — the hover text.</li>
+</ul>
+<p>Any column of the row can be used, not only the one being displayed. A common shape is to select an
+<code>id</code> you never show, and use it to build links in the column you do.</p>
+
+<h3>If the link does not appear</h3>
+<ul>
+  <li>The placeholder has to match the column name exactly, including case.</li>
+  <li>A relative URL (<code>/dashboards/7</code>) stays inside SQLDesk. An external one needs its scheme —
+    <code>https://</code> — or the browser treats it as relative.</li>
+  <li>On a chart, the link is offered in the point's tooltip; it is not the whole point becoming
+    clickable.</li>
+</ul>
+
+<h2 id="numbers">Formatting numbers</h2>
+<p>Every numeric column and most chart values take a format string. It is applied in the browser, so it
+changes what is shown and never what was fetched.</p>
+<table>
+  <tr><th>Format</th><th>1234567.891 becomes</th></tr>
+  <tr><td><code>0,0</code></td><td>1,234,568</td></tr>
+  <tr><td><code>0,0.00</code></td><td>1,234,567.89</td></tr>
+  <tr><td><code>0.0a</code></td><td>1.2m</td></tr>
+  <tr><td><code>$0,0.00</code></td><td>$1,234,567.89</td></tr>
+  <tr><td><code>0.00%</code></td><td>applied to 0.1234 gives 12.34%</td></tr>
+  <tr><td><code>0[.]00</code></td><td>decimals only when there are any</td></tr>
+</table>
+<p>Thousands and decimal separators follow the organization's setting, so the same format string reads
+correctly for everyone.</p>
+
+<h2>Dates and times</h2>
+<p>Times are stored as the warehouse returned them and displayed in the organization's configured format.
+If a chart's x axis looks wrong by exactly some number of hours, the column is almost certainly a
+timestamp without a time zone — the fix belongs in the SQL, where the intent is known.</p>
+
+<div class="doc-next"><a class="btn btn-ghost" href="queries.html">&larr; Queries and parameters</a><a class="btn btn-primary" href="dashboards.html">Dashboards and textboxes &rarr;</a></div>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

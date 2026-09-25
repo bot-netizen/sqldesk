@@ -206,9 +206,9 @@ McpHome.propTypes = { onError: PropTypes.func };
 McpHome.defaultProps = { onError: () => {} };
 
 routes.register(
-  "MCP.Home",
+  "Admin.MCP",
   routeWithUserSession({
-    path: "/mcp",
+    path: "/admin/mcp",
     title: "MCP",
     render: (pageProps) => <McpHome {...pageProps} />,
   })

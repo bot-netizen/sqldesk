@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboards and textboxes — SQLDesk docs</title>
+<meta name="description" content="Arranging widgets, dashboard filters, and what markdown a textbox accepts.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="../index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="../index.html">Overview</a>
+      <a href="overview.html" aria-current="page">Docs</a>
+      <a href="../releases.html" class="hide-sm">Releases</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+      <h4>Start here</h4>
+      <a href="overview.html">Overview</a>
+      <a href="concepts.html">Concepts</a>
+      <a href="architecture.html">Architecture</a>
+      <h4>Using SQLDesk</h4>
+      <a href="connectors.html">Data sources</a>
+      <a href="queries.html">Queries and parameters</a>
+      <a href="visualizations.html">Visualizations</a>
+      <a href="dashboards.html" aria-current="page">Dashboards and textboxes</a>
+      <a href="alerts.html">Alerts</a>
+      <h4>AI</h4>
+      <a href="mcp.html">MCP</a>
+      <h4>Running it</h4>
+      <a href="administration.html">Administration</a>
+      <a href="deploying.html">Deploying</a>
+  </nav>
+  <main class="doc-body">
+
+<h1>Dashboards and textboxes</h1>
+<p>A dashboard is a grid of widgets — visualizations from any number of queries, plus textboxes for the
+words that explain them.</p>
+
+<h2>Arranging</h2>
+<p>Press <strong>Edit</strong> to move and resize. The grid is twenty-four columns wide, so a widget can
+take a third of the width as easily as a half. <strong>Nothing is saved until you press Done Editing</strong>
+— moving a widget and navigating away changes nothing, deliberately.</p>
+
+<h2>Filters and parameters</h2>
+<p>Two different things that look alike on screen:</p>
+<dl>
+  <dt>Dashboard-level parameters</dt>
+  <dd>A query parameter mapped to the dashboard rather than the widget. Changing it re-runs every
+    query mapped to it. Use this when the warehouse should do different work.</dd>
+  <dt>Dashboard filters</dt>
+  <dd>Switched on per dashboard, driven by naming a column <code>something::filter</code> in the SELECT.
+    They narrow rows already fetched, in the browser, without re-running anything.</dd>
+</dl>
+<p>Both live in one button beside Refresh, with a count. While you are editing the layout they move into
+a row of their own, because that is where they can be dragged into order.</p>
+<p>A widget can also keep its own parameter, on its title row. Two visualizations of the same query each
+keep their own value — so you can show North and South side by side — and they share a single fetch
+whenever their values agree.</p>
+
+<h2 id="textboxes">Textboxes</h2>
+<p>Add one from Edit &rarr; Add Textbox. A textbox has three settings: the text, a <strong>style</strong>,
+and an <strong>alignment</strong>.</p>
+<p>Style <strong>Plain</strong> removes the tile — no white card, no border — which is what you want for a
+heading dividing a page. A section heading sitting in a card reads as a widget that failed to load.
+Style <strong>Card</strong> is the ordinary widget look.</p>
+
+<h3 id="markdown">What markdown is allowed</h3>
+<p>Standard markdown with GitHub extensions, plus raw HTML. The editor has <strong>Write</strong> and
+<strong>Preview</strong> tabs, and the preview carries the style and alignment you chose, so it shows the
+widget rather than an impression of it.</p>
+<table>
+  <tr><th>Works</th><th>Written as</th></tr>
+  <tr><td>Headings</td><td><code># One</code> … <code>###### Six</code></td></tr>
+  <tr><td>Bold, italic, strikethrough</td><td><code>**bold**</code>, <code>*italic*</code>, <code>~~struck~~</code></td></tr>
+  <tr><td>Links and bare URLs</td><td><code>[text](https://…)</code>, or the URL on its own</td></tr>
+  <tr><td>Lists, nested</td><td><code>- item</code> / <code>1. item</code>, indented two spaces</td></tr>
+  <tr><td>Task lists</td><td><code>- [x] done</code> / <code>- [ ] not</code></td></tr>
+  <tr><td>Tables</td><td><code>| a | b |</code> with <code>|---|---|</code> under the header</td></tr>
+  <tr><td>Code, inline and fenced</td><td><code>`code`</code>, or three backticks with a language</td></tr>
+  <tr><td>Quotes</td><td><code>&gt; quoted</code></td></tr>
+  <tr><td>Horizontal rule</td><td><code>---</code></td></tr>
+  <tr><td>Images</td><td><code>![alt](https://…)</code></td></tr>
+  <tr><td>Line breaks</td><td>A single newline is a line break — no trailing spaces needed</td></tr>
+</table>
+
+<h3>Raw HTML</h3>
+<p>Allowed, and sanitised on the way in. This is how you get two columns, a coloured callout, or an image
+at a chosen width:</p>
+<pre><code>&lt;div style="display:flex;gap:14px"&gt;
+  &lt;div style="flex:1;padding:10px;background:#e4f4f7;border-radius:6px"&gt;
+    Left
+  &lt;/div&gt;
+  &lt;div style="flex:1;padding:10px;background:#f7eedd;border-radius:6px"&gt;
+    Right
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+<p><code>style</code> and <code>class</code> survive. <code>&lt;script&gt;</code> does not, and neither does
+an <code>onerror</code> or any other event handler — every string is sanitised before it reaches the page,
+whoever wrote it.</p>
+
+<h2 id="sharing">Sharing</h2>
+<p>A dashboard can be given a public link that needs no login. Anyone with the URL sees it, so it is a
+secret-by-obscurity share rather than a permission — treat the link as the credential. Public links can
+be disabled for the whole instance in settings.</p>
+
+<h2>On a wall</h2>
+<p>A dashboard can be made <strong>live</strong>: the server refreshes it every 30 seconds to 5 minutes,
+once for everyone looking, and only while somebody has it open. <code>/wall/dashboards/&lt;token&gt;</code>
+gives a version with no chrome, for a screen nobody interacts with.</p>
+
+<div class="doc-next"><a class="btn btn-ghost" href="visualizations.html">&larr; Visualizations</a><a class="btn btn-primary" href="alerts.html">Alerts &rarr;</a></div>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

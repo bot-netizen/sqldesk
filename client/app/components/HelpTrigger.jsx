@@ -12,44 +12,60 @@ import DynamicComponent, { registerComponent } from "@/components/DynamicCompone
 
 import "./HelpTrigger.less";
 
-const DOMAIN = "https://sqldesk.github.io/sqldesk";
-const HELP_PATH = "/help";
+// The documentation, which lives in this repository under `docs/` and is
+// published by GitHub Pages. Every link here used to point at
+// `sqldesk.github.io/sqldesk/help/...` with paths inherited from Redash's
+// docs site -- a domain that is not ours and paths that never existed, so
+// all twenty-five of them answered 404.
+const DOMAIN = "https://bot-netizen.github.io/sqldesk";
+const GUIDE = "/guide";
 const IFRAME_TIMEOUT = 20000;
 const IFRAME_URL_UPDATE_MESSAGE = "iframe_url";
 
 export const TYPES = mapValues(
   {
-    HOME: ["", "Help"],
-    VALUE_SOURCE_OPTIONS: ["/user-guide/querying/query-parameters#Value-Source-Options", "Guide: Value Source Options"],
-    SHARE_DASHBOARD: ["/user-guide/dashboards/sharing-dashboards", "Guide: Sharing and Embedding Dashboards"],
-    AUTHENTICATION_OPTIONS: ["/user-guide/users/authentication-options", "Guide: Authentication Options"],
-    USAGE_DATA_SHARING: ["/open-source/admin-guide/usage-data", "Help: Anonymous Usage Data Sharing"],
-    DS_ATHENA: ["/data-sources/amazon-athena-setup", "Guide: Help Setting up Amazon Athena"],
-    DS_BIGQUERY: ["/data-sources/bigquery-setup", "Guide: Help Setting up BigQuery"],
-    DS_URL: ["/data-sources/querying-urls", "Guide: Help Setting up URL"],
-    DS_MONGODB: ["/data-sources/mongodb-setup", "Guide: Help Setting up MongoDB"],
-    DS_GOOGLE_SPREADSHEETS: [
-      "/data-sources/querying-a-google-spreadsheet",
-      "Guide: Help Setting up Google Spreadsheets",
-    ],
-    DS_GOOGLE_ANALYTICS: ["/data-sources/google-analytics-setup", "Guide: Help Setting up Google Analytics"],
-    DS_AXIBASETSD: ["/data-sources/axibase-time-series-database", "Guide: Help Setting up Axibase Time Series"],
-    DS_RESULTS: ["/user-guide/querying/query-results-data-source", "Guide: Help Setting up Query Results"],
-    ALERT_SETUP: ["/user-guide/alerts/setting-up-an-alert", "Guide: Setting Up a New Alert"],
-    MAIL_CONFIG: ["/open-source/setup/#Mail-Configuration", "Guide: Mail Configuration"],
-    ALERT_NOTIF_TEMPLATE_GUIDE: ["/user-guide/alerts/custom-alert-notifications", "Guide: Custom Alerts Notifications"],
-    FAVORITES: ["/user-guide/querying/favorites-tagging/#Favorites", "Guide: Favorites"],
-    MANAGE_PERMISSIONS: [
-      "/user-guide/querying/writing-queries#Managing-Query-Permissions",
-      "Guide: Managing Query Permissions",
-    ],
-    NUMBER_FORMAT_SPECS: ["/user-guide/visualizations/formatting-numbers", "Formatting Numbers"],
-    GETTING_STARTED: ["/user-guide/getting-started", "Guide: Getting Started"],
-    DASHBOARDS: ["/user-guide/dashboards", "Guide: Dashboards"],
-    QUERIES: ["/user-guide/querying", "Guide: Queries"],
-    ALERTS: ["/user-guide/alerts", "Guide: Alerts"],
+    HOME: ["/overview.html", "Documentation"],
+    GETTING_STARTED: ["/overview.html", "Guide: Getting Started"],
+    CONCEPTS: ["/concepts.html", "Guide: Concepts"],
+    ARCHITECTURE: ["/architecture.html", "Guide: Architecture"],
+
+    QUERIES: ["/queries.html", "Guide: Queries"],
+    VALUE_SOURCE_OPTIONS: ["/queries.html#parameters", "Guide: Parameter Types"],
+    MANAGE_PERMISSIONS: ["/queries.html#permissions", "Guide: Query Permissions"],
+    FAVORITES: ["/queries.html", "Guide: Queries"],
+    SCHEDULES: ["/queries.html#scheduling", "Guide: Scheduling"],
+
+    DASHBOARDS: ["/dashboards.html", "Guide: Dashboards"],
+    SHARE_DASHBOARD: ["/dashboards.html#sharing", "Guide: Sharing Dashboards"],
+    TEXTBOX_MARKDOWN: ["/dashboards.html#markdown", "Guide: What Markdown Is Allowed"],
+
+    VISUALIZATIONS: ["/visualizations.html", "Guide: Visualizations"],
+    NUMBER_FORMAT_SPECS: ["/visualizations.html#numbers", "Guide: Formatting Numbers"],
+    LINK_COLUMN: ["/visualizations.html#links", "Guide: Linking From a Chart or Table"],
+
+    ALERTS: ["/alerts.html", "Guide: Alerts"],
+    ALERT_SETUP: ["/alerts.html", "Guide: Setting Up an Alert"],
+    ALERT_NOTIF_TEMPLATE_GUIDE: ["/alerts.html", "Guide: Custom Alert Notifications"],
+
+    // One page per family rather than one per driver: what people need is
+    // the shape of the form and what permission the credential wants, and
+    // that is the same answer for every Postgres-like source.
+    DS_ATHENA: ["/connectors.html", "Guide: Data Sources"],
+    DS_BIGQUERY: ["/connectors.html", "Guide: Data Sources"],
+    DS_URL: ["/connectors.html", "Guide: Data Sources"],
+    DS_MONGODB: ["/connectors.html", "Guide: Data Sources"],
+    DS_GOOGLE_SPREADSHEETS: ["/connectors.html", "Guide: Data Sources"],
+    DS_GOOGLE_ANALYTICS: ["/connectors.html", "Guide: Data Sources"],
+    DS_AXIBASETSD: ["/connectors.html", "Guide: Data Sources"],
+    DS_RESULTS: ["/connectors.html", "Guide: Query Results as a Data Source"],
+
+    MCP: ["/mcp.html", "Guide: MCP"],
+    AUTHENTICATION_OPTIONS: ["/administration.html", "Guide: Administration"],
+    USAGE_DATA_SHARING: ["/administration.html", "Guide: Administration"],
+    MAIL_CONFIG: ["/deploying.html", "Guide: Mail Configuration"],
+    DEPLOYING: ["/deploying.html", "Guide: Deploying"],
   },
-  ([url, title]) => [DOMAIN + HELP_PATH + url, title]
+  ([url, title]) => [DOMAIN + GUIDE + url, title]
 );
 
 const HelpTriggerPropTypes = {

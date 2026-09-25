@@ -31,11 +31,7 @@ function DeprecatedEmbedFeatureAlert() {
         <>
           You have enabled <code>ALLOW_PARAMETERS_IN_EMBEDS</code>. This setting is now deprecated and should be turned
           off. Parameters in embeds are supported by default.{" "}
-          <Link
-            href="https://sqldesk.github.io/sqldesk"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <Link href="https://bot-netizen.github.io/sqldesk" target="_blank" rel="noopener noreferrer">
             Read more
           </Link>
           .
@@ -128,10 +124,7 @@ export default function Home() {
             <DashboardAndQueryFavoritesList />
           </div>
           <div className="home-column">
-            <ScheduledQueriesList
-              queries={summary ? summary.top_scheduled_queries : []}
-              loading={loadingSummary}
-            />
+            <ScheduledQueriesList queries={summary ? summary.top_scheduled_queries : []} loading={loadingSummary} />
           </div>
         </div>
 

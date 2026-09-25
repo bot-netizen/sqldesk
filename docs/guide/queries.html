@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Queries and parameters — SQLDesk docs</title>
+<meta name="description" content="Writing queries, parameters, scheduling, and what happens when one runs.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="../index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="../index.html">Overview</a>
+      <a href="overview.html" aria-current="page">Docs</a>
+      <a href="../releases.html" class="hide-sm">Releases</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+      <h4>Start here</h4>
+      <a href="overview.html">Overview</a>
+      <a href="concepts.html">Concepts</a>
+      <a href="architecture.html">Architecture</a>
+      <h4>Using SQLDesk</h4>
+      <a href="connectors.html">Data sources</a>
+      <a href="queries.html" aria-current="page">Queries and parameters</a>
+      <a href="visualizations.html">Visualizations</a>
+      <a href="dashboards.html">Dashboards and textboxes</a>
+      <a href="alerts.html">Alerts</a>
+      <h4>AI</h4>
+      <a href="mcp.html">MCP</a>
+      <h4>Running it</h4>
+      <a href="administration.html">Administration</a>
+      <a href="deploying.html">Deploying</a>
+  </nav>
+  <main class="doc-body">
+
+<h1>Queries and parameters</h1>
+<p>A query is SQL against one data source, saved, with a history of every version and who changed it.</p>
+
+<h2>Running one</h2>
+<p><strong>Execute</strong> runs it and stores the result. Selecting part of the SQL runs only the
+selection, which is the fastest way to work on a piece of a long statement.</p>
+<p>The result is kept. Everyone opening a dashboard sees the stored result and its age rather than
+causing a fresh run, which is why dashboards open quickly.</p>
+
+<h2 id="parameters">Parameters</h2>
+<p>Write <code>{{ name }}</code> in the SQL and a control appears. Press the settings icon beside it to
+choose what kind it is:</p>
+<dl>
+  <dt>Text</dt>
+  <dd>Free text. Refused on publicly shared dashboards, because text spliced into SQL is how a shared
+    link becomes a way to run arbitrary statements.</dd>
+  <dt>Number</dt>
+  <dd>A number, safely.</dd>
+  <dt>Dropdown</dt>
+  <dd>A fixed list you type. Safe to share, and usually what a text parameter should have been.</dd>
+  <dt>Query-based dropdown</dt>
+  <dd>The list comes from another query, so it stays current.</dd>
+  <dt>Date / date range</dt>
+  <dd>With relative options — last 7 days, this month — that move with the calendar.</dd>
+</dl>
+<p>Parameter values travel in the URL (<code>?p_region=North</code>), so a filtered view can be linked and
+bookmarked.</p>
+
+<h2 id="scheduling">Scheduling</h2>
+<p>A query can refresh on a schedule so its dashboards are ready before anyone opens them. Pick the
+longest interval that is still useful — a five-minute refresh on a query nobody reads before Monday is
+paid for by your warehouse every five minutes.</p>
+<p>Scheduled runs use the parameter <em>defaults</em>; there is nobody there to choose.</p>
+
+<h2 id="permissions">Permissions</h2>
+<p>You can query any data source your groups allow. A query can be shared for editing with specific
+people; without that, others can run and view it but not change it.</p>
+
+<h2>Snippets and formatting</h2>
+<p>Snippets are reusable fragments — Settings &rarr; Query Snippets — inserted by typing their trigger.
+<strong>Format Query</strong> tidies SQL for the dialects that support it.</p>
+
+<div class="doc-next"><a class="btn btn-ghost" href="connectors.html">&larr; Data sources</a><a class="btn btn-primary" href="visualizations.html">Visualizations &rarr;</a></div>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

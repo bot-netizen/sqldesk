@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data sources — SQLDesk docs</title>
+<meta name="description" content="Connecting a data source, what each one needs, and how permissions work.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="../index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="../index.html">Overview</a>
+      <a href="overview.html" aria-current="page">Docs</a>
+      <a href="../releases.html" class="hide-sm">Releases</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+      <h4>Start here</h4>
+      <a href="overview.html">Overview</a>
+      <a href="concepts.html">Concepts</a>
+      <a href="architecture.html">Architecture</a>
+      <h4>Using SQLDesk</h4>
+      <a href="connectors.html" aria-current="page">Data sources</a>
+      <a href="queries.html">Queries and parameters</a>
+      <a href="visualizations.html">Visualizations</a>
+      <a href="dashboards.html">Dashboards and textboxes</a>
+      <a href="alerts.html">Alerts</a>
+      <h4>AI</h4>
+      <a href="mcp.html">MCP</a>
+      <h4>Running it</h4>
+      <a href="administration.html">Administration</a>
+      <a href="deploying.html">Deploying</a>
+  </nav>
+  <main class="doc-body">
+
+<h1>Data sources</h1>
+<p>A data source is a connection to somewhere data lives. SQLDesk ships runners for more than
+thirty-five of them; which are available depends on what was installed with the image.</p>
+
+<h2>Adding one</h2>
+<p>Settings &rarr; Data Sources &rarr; New. Pick the type, fill in the connection, press <strong>Test
+Connection</strong> before saving — it is the difference between finding a typo now and finding it in
+somebody's dashboard later.</p>
+<p>Credentials are encrypted at rest with the instance's secret key. <strong>Rotating that key makes
+existing credentials unreadable</strong>, which is worth knowing before you rotate it.</p>
+
+<h2>Who can use it</h2>
+<p>Permission is by group. A data source is attached to one or more groups; whoever is in one of those
+groups can query it, and whoever is not cannot see it exists. There is no per-user grant.</p>
+<p>A group can be given <strong>view only</strong> access, which lets people see results without being
+able to write new queries against the source.</p>
+
+<h2>What each kind needs</h2>
+<table>
+  <tr><th>Kind</th><th>Typically</th></tr>
+  <tr><td>Postgres, MySQL, SQL Server, Vertica, ClickHouse</td><td>Host, port, database, user, password. TLS options where the server wants them.</td></tr>
+  <tr><td>Trino, Presto, Athena</td><td>A coordinator URL or an AWS region, plus a catalog and schema.</td></tr>
+  <tr><td>BigQuery</td><td>A service account JSON key. The project comes from the key.</td></tr>
+  <tr><td>Snowflake, Databricks</td><td>Account or host, warehouse, database, and a user or token.</td></tr>
+  <tr><td>MongoDB, Elasticsearch</td><td>A connection string. These are not SQL — queries are JSON, and SQL-shaped features do not apply to them.</td></tr>
+  <tr><td>Google Sheets</td><td>A service account key, and the sheet shared with that account's address.</td></tr>
+  <tr><td>Query Results</td><td>Not external at all: query the results of other queries, in SQLite. Useful for joining across sources.</td></tr>
+</table>
+
+<h2>Schema and autocomplete</h2>
+<p>SQLDesk periodically reads the table and column list and caches it in Redis so the editor can
+autocomplete. It is refreshed on a schedule and can be refreshed by hand from the editor. A missing table
+in autocomplete usually means the cache is older than the table.</p>
+
+<h2>When a connection fails</h2>
+<ul>
+  <li><strong>From the browser it works, from SQLDesk it does not</strong> — the workers connect, not your
+    laptop. The host has to be reachable from the container or pod.</li>
+  <li><strong>It worked yesterday</strong> — check whether the secret key changed, which makes stored
+    credentials undecryptable.</li>
+  <li><strong>Only some queries fail</strong> — usually a per-query timeout rather than the connection.</li>
+</ul>
+
+<div class="doc-next"><a class="btn btn-ghost" href="architecture.html">&larr; Architecture</a><a class="btn btn-primary" href="queries.html">Queries and parameters &rarr;</a></div>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

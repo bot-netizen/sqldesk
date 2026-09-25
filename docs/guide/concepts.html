@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Concepts — SQLDesk docs</title>
+<meta name="description" content="The words SQLDesk uses: data source, query, visualization, widget, parameter, filter.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="../index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="../index.html">Overview</a>
+      <a href="overview.html" aria-current="page">Docs</a>
+      <a href="../releases.html" class="hide-sm">Releases</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+      <h4>Start here</h4>
+      <a href="overview.html">Overview</a>
+      <a href="concepts.html" aria-current="page">Concepts</a>
+      <a href="architecture.html">Architecture</a>
+      <h4>Using SQLDesk</h4>
+      <a href="connectors.html">Data sources</a>
+      <a href="queries.html">Queries and parameters</a>
+      <a href="visualizations.html">Visualizations</a>
+      <a href="dashboards.html">Dashboards and textboxes</a>
+      <a href="alerts.html">Alerts</a>
+      <h4>AI</h4>
+      <a href="mcp.html">MCP</a>
+      <h4>Running it</h4>
+      <a href="administration.html">Administration</a>
+      <a href="deploying.html">Deploying</a>
+  </nav>
+  <main class="doc-body">
+
+<h1>Concepts</h1>
+<p>Nine words, used precisely throughout. Most confusion about SQLDesk is really confusion between two of
+these — a parameter and a filter especially.</p>
+
+<h2>Data source</h2>
+<p>A connection to somewhere data lives: a Postgres database, a Trino cluster, a BigQuery project, a
+Google Sheet. It holds the credentials, which are encrypted, and it belongs to one or more
+<em>groups</em>. Whoever is in a group can use the data source; whoever is not cannot see it at all.</p>
+
+<h2>Query</h2>
+<p>SQL, saved, against one data source. A query has an owner, can be scheduled, and keeps its history —
+every version, and who changed it.</p>
+
+<h2>Query result</h2>
+<p>What came back the last time a query ran, kept in SQLDesk's own database. Opening a dashboard shows
+the stored result rather than running the query again, which is why a dashboard opens quickly and why
+what it shows has an age on it.</p>
+
+<h2>Visualization</h2>
+<p>A way of drawing one query's result — a table, a line chart, a counter, a gauge. A query can have
+several, and they all draw the same rows. Changing the SQL changes all of them at once.</p>
+
+<h2>Dashboard and widget</h2>
+<p>A dashboard is a grid of <em>widgets</em>. A widget is either a visualization from some query, or a
+textbox. Two widgets showing the same query share one fetch, so a dashboard with five views of one query
+asks the warehouse once.</p>
+
+<h2>Parameter</h2>
+<p>A hole in the SQL, written <code>{{ region }}</code>. The value is substituted before the query runs, so
+the warehouse does different work. Parameters can be text, numbers, dates, or a list of allowed values.</p>
+
+<h2>Filter</h2>
+<p>Not a parameter. A filter narrows rows <em>already fetched</em>, in the browser, by naming a column
+<code>something::filter</code> in the SELECT. Nothing is re-run. Use a parameter to change what the
+warehouse does; use a filter to slice what it already returned.</p>
+
+<h2>Group</h2>
+<p>How permission works. A user belongs to groups; a data source is available to groups. There is no
+per-user data source permission and no per-query one — it is groups, all the way down.</p>
+
+<h2>Alert</h2>
+<p>A rule over one query's result — a column, a comparison, a value — and a list of destinations. It is
+checked after the query runs, not on a timer of its own, so an alert on an unscheduled query only fires
+when somebody runs it.</p>
+
+<div class="doc-next"><a class="btn btn-ghost" href="overview.html">&larr; Overview</a><a class="btn btn-primary" href="architecture.html">Architecture &rarr;</a></div>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

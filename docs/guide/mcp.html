@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP — SQLDesk docs</title>
+<meta name="description" content="Connecting an MCP client to SQLDesk, the tools it gets, and the audit of what it did.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="../index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="../index.html">Overview</a>
+      <a href="overview.html" aria-current="page">Docs</a>
+      <a href="../releases.html" class="hide-sm">Releases</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+      <h4>Start here</h4>
+      <a href="overview.html">Overview</a>
+      <a href="concepts.html">Concepts</a>
+      <a href="architecture.html">Architecture</a>
+      <h4>Using SQLDesk</h4>
+      <a href="connectors.html">Data sources</a>
+      <a href="queries.html">Queries and parameters</a>
+      <a href="visualizations.html">Visualizations</a>
+      <a href="dashboards.html">Dashboards and textboxes</a>
+      <a href="alerts.html">Alerts</a>
+      <h4>AI</h4>
+      <a href="mcp.html" aria-current="page">MCP</a>
+      <h4>Running it</h4>
+      <a href="administration.html">Administration</a>
+      <a href="deploying.html">Deploying</a>
+  </nav>
+  <main class="doc-body">
+
+<h1>MCP</h1>
+<p>SQLDesk answers questions about your warehouse over the Model Context Protocol. An MCP client — Claude
+Code, or anything else that speaks it — gets a handful of tools backed by a catalog built from your
+schema and the queries your team has already written.</p>
+
+<h2>Turning it on</h2>
+<pre><code>SQLDESK_FEATURE_AI=true</code></pre>
+<p>Off by default. Until it is set, the endpoint answers 404 and the Admin page says so.</p>
+
+<h2>Filling the catalog</h2>
+<p>The tools answer from a catalog rather than from a live schema read. Build it, and rebuild it on a
+schedule:</p>
+<pre><code>manage ai harvest                      # every data source
+manage ai harvest --data-source "Warehouse"
+manage ai context "revenue by region"  # what a client would be told</code></pre>
+<p>Harvesting reads each source's schema and parses every saved query, which is where the useful part
+comes from: which tables anyone actually uses, which columns anyone selects, and which joins anyone
+writes. A warehouse with three thousand tables and no usage data can only be ranked alphabetically.</p>
+
+<h2>Connecting a client</h2>
+<p>One endpoint, JSON-RPC over HTTP, authenticated with a SQLDesk API key — the one on your profile page.</p>
+<pre><code>POST https://sqldesk.example.com/mcp
+Authorization: Bearer &lt;your SQLDesk API key&gt;</code></pre>
+<p>With Claude Code:</p>
+<pre><code>claude mcp add --transport http sqldesk https://sqldesk.example.com/mcp \
+  --header "Authorization: Bearer &lt;your API key&gt;"</code></pre>
+<p><strong>Every call runs as the user whose key it is.</strong> The client sees the data sources that user
+can see and nothing else. There is no service account and no way to configure one, which is deliberate:
+a tool server with more access than its user is a way to launder permissions.</p>
+
+<h2>The tools</h2>
+<dl>
+  <dt><code>find_context(question)</code></dt>
+  <dd>The handful of tables most likely to answer a question, with columns already pruned to the ones
+    people use, and the joins observed between them. One call, rather than the forty a
+    list-tables-then-get-schema pair provokes.</dd>
+  <dt><code>expand_table(names)</code></dt>
+  <dd>Every column of named tables, when the pruned list is not enough.</dd>
+  <dt><code>list_data_sources()</code></dt>
+  <dd>What this user can read, with each one's dialect.</dd>
+  <dt><code>check_sql(sql)</code></dt>
+  <dd>Parses SQL for the right dialect and reports expensive patterns — a join with no condition,
+    <code>SELECT *</code> on a columnar table, a filter that defeats partition pruning. Nothing is
+    executed.</dd>
+</dl>
+<p><strong>No tool runs a query.</strong> A model can be told what the data looks like and be told its SQL
+is wrong, but it cannot make your warehouse do work.</p>
+
+<h2>The audit</h2>
+<p>Admin &rarr; MCP. Every request leaves a row, <em>including the refused ones</em> — a key that does not
+work, tried repeatedly, is exactly what an audit is for. Each row records who, when, which method, which
+tool, the outcome, how long it took, and where it came from.</p>
+<p>Arguments are summarised rather than stored: the question is worth keeping, a megabyte of SQL is not.</p>
+<p>The page also shows <strong>active sessions</strong> — clients seen in the last fifteen minutes. This
+transport holds no connection open, so "connected" can only honestly mean "recently active", and the
+page says so rather than showing a light that implies otherwise.</p>
+
+<h2>What it costs your warehouse</h2>
+<p>Nothing, directly. The tools read SQLDesk's own catalog; only <code>harvest</code> touches a data
+source, and that is a schema read on a schedule you choose.</p>
+
+<h2>If a client cannot connect</h2>
+<ul>
+  <li><strong>404</strong> — <code>SQLDESK_FEATURE_AI</code> is not set.</li>
+  <li><strong>401</strong> — the key is missing, wrong, or belongs to a disabled user. It goes in the
+    <code>Authorization</code> header rather than the URL, because a URL is logged by every proxy in
+    between. Check the audit: a refused attempt is recorded.</li>
+  <li><strong>Tools answer but find nothing</strong> — the catalog is empty. Run
+    <code>manage ai harvest</code>.</li>
+</ul>
+
+<div class="doc-next"><a class="btn btn-ghost" href="alerts.html">&larr; Alerts</a><a class="btn btn-primary" href="administration.html">Administration &rarr;</a></div>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

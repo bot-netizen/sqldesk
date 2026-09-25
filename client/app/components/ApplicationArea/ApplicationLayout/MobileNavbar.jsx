@@ -6,7 +6,7 @@ import MenuOutlinedIcon from "@ant-design/icons/MenuOutlined";
 import Dropdown from "antd/lib/dropdown";
 import Menu from "antd/lib/menu";
 import Link from "@/components/Link";
-import { Auth, clientConfig, currentUser } from "@/services/auth";
+import { Auth, currentUser } from "@/services/auth";
 import settingsMenu from "@/services/settingsMenu";
 import logoUrl from "@/assets/images/sqldesk_icon.svg";
 
@@ -39,11 +39,6 @@ export default function MobileNavbar({ getPopupContainer }) {
                   <Link href="queries">Queries</Link>
                 </Menu.Item>
               )}
-              {clientConfig.aiEnabled && (
-                <Menu.Item key="mcp">
-                  <Link href="mcp">MCP</Link>
-                </Menu.Item>
-              )}
               {currentUser.hasPermission("list_alerts") && (
                 <Menu.Item key="alerts">
                   <Link href="alerts">Alerts</Link>
@@ -66,7 +61,7 @@ export default function MobileNavbar({ getPopupContainer }) {
               {currentUser.hasPermission("super_admin") && <Menu.Divider />}
               <Menu.Item key="help">
                 {/* eslint-disable-next-line react/jsx-no-target-blank */}
-                <Link href="https://sqldesk.github.io/sqldesk" target="_blank" rel="noopener">
+                <Link href="https://bot-netizen.github.io/sqldesk" target="_blank" rel="noopener">
                   Help
                 </Link>
               </Menu.Item>

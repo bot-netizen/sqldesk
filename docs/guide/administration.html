@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Administration — SQLDesk docs</title>
+<meta name="description" content="Users, groups, the admin pages, and keeping an instance healthy.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="../index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="../index.html">Overview</a>
+      <a href="overview.html" aria-current="page">Docs</a>
+      <a href="../releases.html" class="hide-sm">Releases</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+      <h4>Start here</h4>
+      <a href="overview.html">Overview</a>
+      <a href="concepts.html">Concepts</a>
+      <a href="architecture.html">Architecture</a>
+      <h4>Using SQLDesk</h4>
+      <a href="connectors.html">Data sources</a>
+      <a href="queries.html">Queries and parameters</a>
+      <a href="visualizations.html">Visualizations</a>
+      <a href="dashboards.html">Dashboards and textboxes</a>
+      <a href="alerts.html">Alerts</a>
+      <h4>AI</h4>
+      <a href="mcp.html">MCP</a>
+      <h4>Running it</h4>
+      <a href="administration.html" aria-current="page">Administration</a>
+      <a href="deploying.html">Deploying</a>
+  </nav>
+  <main class="doc-body">
+
+<h1>Administration</h1>
+<p>Everything an administrator does, and where to look when something is wrong.</p>
+
+<h2>Users and groups</h2>
+<p>Groups carry permission. A user in the <strong>admin</strong> group can do everything; the
+<strong>default</strong> group is what everyone else starts in. Data sources are attached to groups, so
+adding somebody to a group is how they get access to data.</p>
+<p>Users can be disabled rather than deleted, which keeps their queries and dashboards intact and
+attributed.</p>
+
+<h2>The Admin pages</h2>
+<dl>
+  <dt>Overview</dt>
+  <dd>What is running now, who is running it, and what is about to run out — connections, memory,
+    disk. Queries can be cancelled from here.</dd>
+  <dt>MCP</dt>
+  <dd>Who has connected over MCP, what they asked for, and every refused attempt. See
+    <a href="mcp.html">MCP</a>.</dd>
+  <dt>System Status</dt>
+  <dd>Queue depths, worker counts, database size.</dd>
+  <dt>RQ Status</dt>
+  <dd>The job queues themselves, in detail.</dd>
+  <dt>Outdated Queries</dt>
+  <dd>Scheduled queries that have not refreshed when they should have — usually the first sign a worker
+    has stopped or a data source is unreachable.</dd>
+</dl>
+
+<h2>Keeping it healthy</h2>
+<ul>
+  <li><strong>Query results are the biggest thing in the database.</strong> A cleanup job removes results
+    nothing points at; if the database is growing, check that it is running.</li>
+  <li><strong>Dashboards stale?</strong> Look at Outdated Queries, then at worker count. Slow queries
+    queueing behind each other is the usual cause.</li>
+  <li><strong>Pages slow but data fresh?</strong> That is the web tier, not the workers.</li>
+  <li><strong>Give slow data sources their own queue</strong> so one warehouse cannot starve the rest.</li>
+</ul>
+
+<h2>Settings worth knowing</h2>
+<table>
+  <tr><th>Setting</th><th>Why</th></tr>
+  <tr><td><code>SQLDESK_SECRET_KEY</code></td><td>Encrypts data source credentials. Rotating it makes them unreadable.</td></tr>
+  <tr><td><code>SQLDESK_HOST</code></td><td>The address in emails and alerts. Wrong, and every link points at localhost.</td></tr>
+  <tr><td><code>SQLDESK_FEATURE_AI</code></td><td>Turns MCP on. Off by default.</td></tr>
+  <tr><td>Mail settings</td><td>Without them, alerts and invitations silently do nothing.</td></tr>
+  <tr><td>Public URLs</td><td>Can be disabled instance-wide if shared links are not acceptable.</td></tr>
+</table>
+
+<div class="doc-next"><a class="btn btn-ghost" href="mcp.html">&larr; MCP</a><a class="btn btn-primary" href="deploying.html">Deploying &rarr;</a></div>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
+  </div>
+</footer>
+
+</body>
+</html>
