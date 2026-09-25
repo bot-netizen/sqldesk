@@ -1,6 +1,6 @@
 import "./home/Home";
 
-import "./ai/AIHome";
+import "./mcp/McpHome";
 import "./admin/overview/Overview";
 import "./admin/Jobs";
 import "./admin/OutdatedQueries";

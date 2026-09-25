@@ -64,7 +64,7 @@ function useNavbarActiveState() {
         ],
         currentRoute.id
       ),
-      ai: includes(["AI.Home"], currentRoute.id),
+      mcp: includes(["MCP.Home"], currentRoute.id),
       dataSources: includes(["DataSources.List"], currentRoute.id),
       alerts: includes(["Alerts.List", "Alerts.New", "Alerts.View", "Alerts.Edit"], currentRoute.id),
       admin: includes(["Admin.Overview", "Admin.SystemStatus", "Admin.Jobs", "Admin.OutdatedQueries"], currentRoute.id),
@@ -170,14 +170,14 @@ export default function DesktopNavbar() {
           </NavLink>
         )}
         {/*
-          Next to Queries rather than behind a menu: 0.6 puts AI in the middle
-          of the product, and a feature filed under the ellipsis is a feature
-          nobody uses. Hidden entirely when SQLDESK_FEATURE_AI is off, because
-          a tab that only ever says "not configured" is worse than no tab.
+          Next to Queries rather than behind a menu: 0.6 is about MCP, and a
+          feature filed under the ellipsis is a feature nobody uses. Hidden
+          entirely when SQLDESK_FEATURE_AI is off, because a tab that only
+          ever says "not configured" is worse than no tab.
         */}
         {clientConfig.aiEnabled && (
-          <NavLink href="ai" active={activeState.ai}>
-            AI
+          <NavLink href="mcp" active={activeState.mcp}>
+            MCP
           </NavLink>
         )}
         {currentUser.hasPermission("list_alerts") && (

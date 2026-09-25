@@ -114,3 +114,62 @@ class QueryOptimizeResource(BaseResource):
             data_source_type = data_source.type
 
         return analyze(query_text, data_source_type)
+
+
+class McpAuditResource(BaseResource):
+    #: What a page of the audit shows. More than this and nobody reads it;
+    #: fewer and the interesting request has already scrolled past.
+    DEFAULT_LIMIT = 200
+    MAX_LIMIT = 1000
+    #: A session with nothing in this window is not connected. The transport
+    #: holds no socket open, so "connected" can only mean "recently active",
+    #: and saying otherwise on a page would be a lie with a green dot on it.
+    ACTIVE_MINUTES = 15
+
+    @require_super_admin
+    def get(self):
+        """
+        Who has been using MCP, and what they asked for.
+
+        Admin only: it names every user, every question and every address,
+        which is the whole point and also not everyone's business.
+        """
+        import datetime
+
+        limit = min(int(request.args.get("limit", self.DEFAULT_LIMIT)), self.MAX_LIMIT)
+        events = (
+            models.McpEvent.query.filter(models.McpEvent.org == self.current_org)
+            .order_by(models.McpEvent.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+        since = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=self.ACTIVE_MINUTES)
+        active = {}
+        for event in models.McpEvent.query.filter(
+            models.McpEvent.org == self.current_org,
+            models.McpEvent.created_at >= since,
+            models.McpEvent.session_id.isnot(None),
+        ).order_by(models.McpEvent.created_at.desc()):
+            session = active.setdefault(
+                event.session_id,
+                {
+                    "session_id": event.session_id,
+                    "user": event.user.name if event.user else None,
+                    "client": None,
+                    "last_seen": event.created_at,
+                    "calls": 0,
+                },
+            )
+            session["calls"] += 1
+            # The name arrives with `initialize`, which is the oldest row in
+            # the session rather than the newest.
+            if event.client and not session["client"]:
+                session["client"] = event.client
+
+        return {
+            "events": [event.to_dict() for event in events],
+            "active": sorted(active.values(), key=lambda s: s["last_seen"], reverse=True),
+            "active_minutes": self.ACTIVE_MINUTES,
+            "enabled": settings.FEATURE_AI,
+        }

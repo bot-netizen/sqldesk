@@ -29,6 +29,7 @@ def init_app(app):
         authentication,
         embed,
         home,
+        mcp,
         organization,
         queries,
         setup,

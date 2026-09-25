@@ -40,8 +40,8 @@ export default function MobileNavbar({ getPopupContainer }) {
                 </Menu.Item>
               )}
               {clientConfig.aiEnabled && (
-                <Menu.Item key="ai">
-                  <Link href="ai">AI</Link>
+                <Menu.Item key="mcp">
+                  <Link href="mcp">MCP</Link>
                 </Menu.Item>
               )}
               {currentUser.hasPermission("list_alerts") && (

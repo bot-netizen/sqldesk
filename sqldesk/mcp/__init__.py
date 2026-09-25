@@ -1,0 +1,276 @@
+"""
+An MCP server, on the SQLDesk server.
+
+The 0.6 plan said this would be a separate optional container, on the
+reasoning that kept the screenshot renderer out of the image. That reasoning
+was about Chromium -- 400MB nobody who turns the feature off should carry.
+MCP is JSON-RPC over HTTP and adds no dependency at all, while a separate
+process would need its own copy of the permission model, its own database
+connection and its own deployment. So it lives here, and the argument for
+splitting it out can be made again the day it needs something heavy.
+
+The tools are task-shaped rather than CRUD-shaped: `find_context` answers a
+question in one call, where a `list_tables`/`get_schema` pair makes a model
+issue forty and wander. Retrieval happens here, with the catalog, not in the
+model's context window.
+
+Every call runs as the SQLDesk user whose API key was presented, and every
+data source access goes through the same `require_access` the rest of the
+application uses. There is no service account.
+"""
+
+import logging
+
+from sqldesk import models, settings
+from sqldesk.ai.catalog.retrieve import context_for, find_tables
+from sqldesk.ai.optimizer import analyze
+from sqldesk.permissions import has_access, view_only
+
+logger = logging.getLogger(__name__)
+
+PROTOCOL_VERSION = "2025-06-18"
+SERVER_INFO = {
+    "name": "sqldesk",
+    "title": "SQLDesk",
+    "version": settings.VERSION if hasattr(settings, "VERSION") else "0.6.0",
+}
+
+#: Kept small on purpose. Every tool here is one a model can use well; a tool
+#: it uses badly costs more than not having it.
+TOOLS = [
+    {
+        "name": "find_context",
+        "title": "Find the tables a question is about",
+        "description": (
+            "Given a question in plain English, return the handful of tables most likely to answer it, "
+            "with their columns already pruned to the ones people actually use, and the joins observed "
+            "between them. One call replaces browsing the schema."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "question": {"type": "string", "description": "The question, in plain English."},
+                "data_source": {"type": "string", "description": "Restrict to one data source by name."},
+            },
+            "required": ["question"],
+        },
+    },
+    {
+        "name": "expand_table",
+        "title": "Every column of one table",
+        "description": (
+            "Full column detail for named tables. Use after find_context when the pruned column list " "is not enough."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "names": {"type": "array", "items": {"type": "string"}, "description": "Table names."},
+                "data_source": {"type": "string"},
+            },
+            "required": ["names"],
+        },
+    },
+    {
+        "name": "list_data_sources",
+        "title": "Data sources this user can read",
+        "description": "The data sources available, with their type and dialect.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "check_sql",
+        "title": "Check SQL before running it",
+        "description": (
+            "Parse SQL for the given data source's dialect and report expensive patterns -- a join with "
+            "no condition, SELECT * on a columnar table, a filter that defeats partition pruning. "
+            "Nothing is executed."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sql": {"type": "string"},
+                "data_source": {"type": "string"},
+            },
+            "required": ["sql"],
+        },
+    },
+]
+
+
+class McpError(Exception):
+    """A JSON-RPC error with a code, rather than a 500."""
+
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+INVALID_REQUEST = -32600
+METHOD_NOT_FOUND = -32601
+INVALID_PARAMS = -32602
+
+
+def _readable_sources(user, org):
+    """
+    The data sources this user may read, by the same rule the rest of the
+    application uses. An MCP client gets no more than its user would.
+    """
+    return [
+        source
+        for source in models.DataSource.query.filter(models.DataSource.org == org).order_by(models.DataSource.name)
+        if has_access(source, user, view_only)
+    ]
+
+
+def _resolve_source(user, org, name):
+    sources = _readable_sources(user, org)
+    if not name:
+        return None
+    for source in sources:
+        if source.name == name:
+            return source
+    raise McpError(
+        INVALID_PARAMS,
+        "No data source called {!r} that you can read. Available: {}".format(
+            name, ", ".join(s.name for s in sources) or "none"
+        ),
+    )
+
+
+def _text(body):
+    """MCP tool results are content blocks; ours are all text."""
+    return {"content": [{"type": "text", "text": body}], "isError": False}
+
+
+def tool_find_context(user, org, arguments):
+    question = (arguments or {}).get("question", "")
+    if not question.strip():
+        raise McpError(INVALID_PARAMS, "`question` is required.")
+    source = _resolve_source(user, org, (arguments or {}).get("data_source"))
+
+    found = context_for(org, question, data_source=source)
+    if not found["tables"]:
+        return _text(
+            "Nothing in the catalog matched, and the catalog may be empty. "
+            "An administrator fills it with `manage ai harvest`."
+        )
+
+    lines = []
+    for table in found["tables"]:
+        lines.append(table["card"] or table["name"])
+        lines.append("")
+    return _text("\n".join(lines).strip())
+
+
+def tool_expand_table(user, org, arguments):
+    names = (arguments or {}).get("names") or []
+    if not names:
+        raise McpError(INVALID_PARAMS, "`names` is required.")
+    source = _resolve_source(user, org, (arguments or {}).get("data_source"))
+
+    query = models.CatalogTable.query.filter(models.CatalogTable.org == org, models.CatalogTable.name.in_(names))
+    if source is not None:
+        query = query.filter(models.CatalogTable.data_source_id == source.id)
+
+    blocks = []
+    for table in query:
+        columns = table.columns.order_by(models.CatalogColumn.usage_count.desc())
+        body = ", ".join("{} {}".format(c.name, c.type or "?") for c in columns)
+        blocks.append("{}({})".format(table.name, body))
+    if not blocks:
+        raise McpError(INVALID_PARAMS, "None of those tables are in the catalog.")
+    return _text("\n\n".join(blocks))
+
+
+def tool_list_data_sources(user, org, arguments):
+    from sqldesk.ai.optimizer import dialect_for
+
+    sources = _readable_sources(user, org)
+    if not sources:
+        return _text("You have access to no data sources.")
+    lines = [
+        "{} ({}{})".format(
+            source.name,
+            source.type,
+            ", dialect {}".format(dialect_for(source.type)) if dialect_for(source.type) else "",
+        )
+        for source in sources
+    ]
+    return _text("\n".join(lines))
+
+
+def tool_check_sql(user, org, arguments):
+    sql = (arguments or {}).get("sql", "")
+    if not sql.strip():
+        raise McpError(INVALID_PARAMS, "`sql` is required.")
+    source = _resolve_source(user, org, (arguments or {}).get("data_source"))
+
+    result = analyze(sql, source.type if source else None)
+    if not result["applicable"]:
+        return _text(result["reason"])
+    if not result["findings"]:
+        return _text("Parsed as {}. No findings.".format(result["dialect"]))
+
+    lines = ["Parsed as {}.".format(result["dialect"]), ""]
+    for finding in result["findings"]:
+        lines.append("{}: {}".format(finding["severity"].upper(), finding["title"]))
+        lines.append("  {}".format(finding["detail"]))
+        if finding["suggestion"]:
+            lines.append("  -> {}".format(finding["suggestion"]))
+        lines.append("")
+    return _text("\n".join(lines).strip())
+
+
+HANDLERS = {
+    "find_context": tool_find_context,
+    "expand_table": tool_expand_table,
+    "list_data_sources": tool_list_data_sources,
+    "check_sql": tool_check_sql,
+}
+
+
+def handle(message, user, org):
+    """
+    One JSON-RPC message in, one result out.
+
+    Returns None for a notification, which has no id and expects no answer --
+    `notifications/initialized` is the one every client sends.
+    """
+    if not isinstance(message, dict) or message.get("jsonrpc") != "2.0":
+        raise McpError(INVALID_REQUEST, "Expected a JSON-RPC 2.0 message.")
+
+    method = message.get("method")
+    if method is None:
+        raise McpError(INVALID_REQUEST, "No method.")
+    if "id" not in message:
+        return None
+
+    if method == "initialize":
+        return {
+            "protocolVersion": PROTOCOL_VERSION,
+            "capabilities": {"tools": {}},
+            "serverInfo": SERVER_INFO,
+        }
+    if method == "ping":
+        return {}
+    if method == "tools/list":
+        return {"tools": TOOLS}
+    if method == "tools/call":
+        params = message.get("params") or {}
+        name = params.get("name")
+        if name not in HANDLERS:
+            raise McpError(INVALID_PARAMS, "No tool called {!r}.".format(name))
+        try:
+            return HANDLERS[name](user, org, params.get("arguments"))
+        except McpError:
+            raise
+        except Exception:
+            # A tool that breaks reports that it broke. A transport-level
+            # error would make the client drop the session over one bad call.
+            logger.exception("MCP tool %s failed", name)
+            return {
+                "content": [{"type": "text", "text": "That tool failed. An administrator can see why in the log."}],
+                "isError": True,
+            }
+
+    raise McpError(METHOD_NOT_FOUND, "No method {!r}.".format(method))

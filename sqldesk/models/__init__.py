@@ -1552,6 +1552,64 @@ class Visualization(TimestampMixin, BelongsToOrgMixin, db.Model):
 
 
 @generic_repr("id", "visualization_id", "dashboard_id")
+class McpEvent(TimestampMixin, BelongsToOrgMixin, db.Model):
+    """
+    One thing an MCP client asked for, and what happened.
+
+    Written for every request including the refused ones. An audit that only
+    records what succeeded answers "what did this work do" and not "who has
+    been trying", and the second question is the one somebody asks at two in
+    the morning.
+
+    Arguments are summarised rather than stored whole: a question is worth
+    keeping and a megabyte of SQL is not, and neither is anything a caller
+    chose to put in a field we did not design.
+    """
+
+    id = primary_key("McpEvent")
+    org_id = Column(key_type("Organization"), db.ForeignKey("organizations.id"))
+    org = db.relationship(Organization, backref="mcp_events")
+    #: Null for a request that was refused before anyone was identified --
+    #: which is exactly the row worth having.
+    user_id = Column(key_type("User"), db.ForeignKey("users.id"), nullable=True)
+    user = db.relationship(User, backref="mcp_events")
+
+    #: The client's session, issued at initialize. Lets "who is connected"
+    #: mean something on a transport that holds no connection open.
+    session_id = Column(db.String(64), nullable=True)
+    client = Column(db.String(255), nullable=True)
+    method = Column(db.String(64))
+    tool = Column(db.String(64), nullable=True)
+    #: ok | error | refused
+    outcome = Column(db.String(16))
+    detail = Column(db.String(1024), nullable=True)
+    duration_ms = Column(db.Integer, nullable=True)
+    remote_addr = Column(db.String(64), nullable=True)
+
+    __tablename__ = "mcp_events"
+    __table_args__ = (
+        # Every read of this table is "the most recent, for this org", and it
+        # is the fastest-growing thing 0.6 adds.
+        db.Index("ix_mcp_events_org_created_at", "org_id", "created_at"),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "at": self.created_at,
+            "user": self.user.name if self.user else None,
+            "user_email": self.user.email if self.user else None,
+            "session_id": self.session_id,
+            "client": self.client,
+            "method": self.method,
+            "tool": self.tool,
+            "outcome": self.outcome,
+            "detail": self.detail,
+            "duration_ms": self.duration_ms,
+            "remote_addr": self.remote_addr,
+        }
+
+
 class CatalogTable(TimestampMixin, BelongsToOrgMixin, db.Model):
     """
     What we know about one table, kept somewhere we can rank it.

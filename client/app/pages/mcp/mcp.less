@@ -1,7 +1,7 @@
-.ai-page {
+.mcp-page {
   padding-top: 15px;
 
-  .ai-header {
+  .mcp-header {
     margin-bottom: 20px;
 
     h2 {
@@ -9,13 +9,13 @@
     }
   }
 
-  .ai-muted {
+  .mcp-muted {
     color: var(--color-text-muted);
     max-width: 78ch;
     margin: 0;
   }
 
-  .ai-panel {
+  .mcp-panel {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-card, 8px);
@@ -29,7 +29,7 @@
     }
   }
 
-  .ai-pre {
+  .mcp-pre {
     background: var(--color-surface-sunken);
     border: 1px solid var(--color-border-subtle);
     border-radius: var(--radius-input, 4px);
@@ -43,7 +43,7 @@
 
   // Label beside value, because there are three facts and a table would be
   // more chrome than content.
-  .ai-facts {
+  .mcp-facts {
     display: grid;
     grid-template-columns: max-content 1fr;
     gap: 4px 18px;
@@ -61,13 +61,13 @@
     }
   }
 
-  .ai-section-title {
+  .mcp-section-title {
     font-size: 15px;
     font-weight: 600;
     margin: 0 0 12px;
   }
 
-  .ai-grid {
+  .mcp-grid {
     display: grid;
     gap: 12px;
     // Escaped: less 3.13 reads CSS `min()` as its own function and fails to
@@ -76,7 +76,7 @@
     margin-bottom: 30px;
   }
 
-  .ai-card {
+  .mcp-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-card, 8px);
@@ -94,5 +94,40 @@
       line-height: 1.55;
       color: var(--color-text-muted);
     }
+  }
+}
+
+.mcp-page {
+  // The audit is the page's reason to exist, so it gets the room.
+  .mcp-audit-table {
+    .ant-table-cell {
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .mcp-detail {
+      max-width: 420px;
+      white-space: normal;
+      color: var(--color-text-muted);
+      word-break: break-word;
+    }
+  }
+
+  .mcp-outcome-ok {
+    color: var(--color-text-muted);
+  }
+
+  .mcp-outcome-error,
+  .mcp-outcome-refused {
+    font-weight: 600;
+  }
+
+  .mcp-empty {
+    padding: 28px;
+    text-align: center;
+    color: var(--color-text-muted);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card, 8px);
   }
 }
