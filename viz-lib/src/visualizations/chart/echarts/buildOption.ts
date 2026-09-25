@@ -710,3 +710,55 @@ export default function buildOption(
 
   return { option, signature };
 }
+
+/**
+ * The values a URL template can reference when someone clicks a point.
+ *
+ * Two things differ from the tooltip's context, both on purpose. The values
+ * are **raw rather than formatted**, because a link is read by a machine and
+ * "1.2k" is not something the other end can look up. And every series at the
+ * clicked position is offered, as `@@x1`/`@@y1`, `@@x2`/`@@y2` and so on in
+ * the order the series are configured, so a link can carry the whole row and
+ * not just the line that happened to be under the pointer.
+ *
+ * `@@x` and `@@y` are the point actually clicked, which is what a person
+ * means by "this one".
+ */
+export function buildLinkContext(option: any, params: any, options: any) {
+  const horizontal = !!options.swappedAxes;
+  const valueIndex = horizontal ? 0 : 1;
+  const categoryIndex = horizontal ? 1 : 0;
+
+  const pick = (value: any, index: number) => (Array.isArray(value) ? value[index] : undefined);
+
+  const context: { [key: string]: any } = {
+    "@@name": params.seriesName,
+    // A category axis gives the label; a value axis gives a number in the
+    // pair. `name` is set for both, so fall back rather than choosing.
+    "@@x": pick(params.value, categoryIndex) ?? params.name,
+    "@@y": Array.isArray(params.value) ? params.value[valueIndex] : params.value,
+  };
+
+  const series = (option && option.series) || [];
+  series.forEach((one: any, index: number) => {
+    const point = (one.data || [])[params.dataIndex];
+    const value = point && point.value !== undefined ? point.value : point;
+    context[`@@x${index + 1}`] = pick(value, categoryIndex) ?? params.name;
+    context[`@@y${index + 1}`] = Array.isArray(value) ? value[valueIndex] : value;
+  });
+
+  return context;
+}
+
+/**
+ * Fill a drill-down URL template from a clicked point.
+ *
+ * `formatSimpleTemplate` leaves a reference it cannot resolve exactly as
+ * written, which is the right answer for a tooltip -- you can see what you
+ * typed wrong -- and the wrong one for a URL, where it produces a link with
+ * braces in it that goes nowhere. The editor has always promised that an
+ * unresolved reference becomes an empty string; here is where that happens.
+ */
+export function fillLinkTemplate(template: string, context: { [key: string]: any }) {
+  return formatSimpleTemplate(template, context).replace(/{{\s*[^\s}]+?\s*}}/g, "");
+}

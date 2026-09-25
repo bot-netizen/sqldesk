@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { RendererPropTypes } from "@/visualizations/prop-types";
 import useEChart from "@/visualizations/echarts/useEChart";
 import useElementSize from "@/visualizations/shared/useElementSize";
+import trim from "lodash/trim";
 import getChartData from "../getChartData";
-import buildOption from "../echarts/buildOption";
+import buildOption, { buildLinkContext, fillLinkTemplate } from "../echarts/buildOption";
 
 export interface EChartsChartProps {
   data: { rows: any[]; columns: any[] };
@@ -27,14 +28,22 @@ export default function EChartsChart({ options, data }: EChartsChartProps) {
     if (!chart || !options.enableLink) {
       return;
     }
-    const handler = () => {
-      if (options.linkFormat) {
-        window.open(options.linkFormat, options.linkOpenNewTab ? "_blank" : "_self");
+    const handler = (params: any) => {
+      if (!options.linkFormat) {
+        return;
+      }
+      // The template is filled in from the point that was clicked. Opening it
+      // as written -- which is what this did -- sends the browser to a URL
+      // with "{{ @@x }}" still in it, so the feature the editor documents did
+      // nothing at all.
+      const href = trim(fillLinkTemplate(options.linkFormat, buildLinkContext(built.option, params, options)));
+      if (href) {
+        window.open(href, options.linkOpenNewTab ? "_blank" : "_self");
       }
     };
     chart.on("click", handler);
     return () => chart.off("click", handler);
-  }, [chart, options.enableLink, options.linkFormat, options.linkOpenNewTab]);
+  }, [chart, built.option, options, options.enableLink, options.linkFormat, options.linkOpenNewTab]);
 
   // The same element is both the measured box and the chart's container;
   // memoised so React does not detach and reattach it on every render.
