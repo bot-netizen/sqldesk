@@ -31,18 +31,29 @@ First run — create yourself an account:
   kubectl exec -it deploy/{{ include "sqldesk.fullname" . }}-server -- \
     ./manage.py users create_root you@example.com "Your Name"
 
-{{ if .Values.ai.enabled -}}
+{{ if or .Values.mcp.enabled .Values.ai.enabled -}}
 MCP is on. Its endpoint is /mcp, authenticated with the API key from your
-profile page, and the audit is under Admin -> MCP. Fill the catalog first:
+profile page, and the audit is under Admin -> MCP. Fill the catalog first --
+nothing answers until you do:
 
   kubectl exec deploy/{{ include "sqldesk.fullname" . }}-server -- ./manage.py ai harvest
+
+{{ if and .Values.mcp.enabled .Values.mcp.queue .Values.mcp.worker.enabled -}}
+MCP queries go on the {{ .Values.mcp.queue | quote }} queue, served by
+{{ include "sqldesk.fullname" . }}-mcp-worker and nothing else, so a model
+exploring cannot slow down a dashboard somebody is watching.
+{{- else if .Values.mcp.enabled -}}
+MCP queries share the data source's ordinary queue, so they compete with
+dashboards for workers. Set `mcp.queue` and `mcp.worker.enabled` to give
+them their own.
+{{- end }}
 
 {{ if eq .Values.service.type "NodePort" -}}
 NodePort carries the API key in the clear. Fine on minikube, not off it --
 put an Ingress in front and terminate TLS there.
 {{- end }}
 {{- else -}}
-MCP is off. Turn it on with `--set ai.enabled=true` and see
+MCP is off. Turn it on with `--set mcp.enabled=true` and see
 https://bot-netizen.github.io/sqldesk/guide/mcp.html
 {{- end }}
 
