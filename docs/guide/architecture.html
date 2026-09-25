@@ -58,8 +58,6 @@
       <a href="releases.html">Releases</a>
   </nav>
   <main class="doc-body">
-
-
 <h1>Architecture</h1>
 <p>Five processes and two databases. None of them is unusual, and knowing which one is doing what
 explains almost every question about why something is slow, stale, or missing.</p>
@@ -189,7 +187,6 @@ views of one query asks once.</p>
 <p>The <a href="mcp.html">MCP server</a> is part of the web server — it is JSON-RPC over HTTP and needs
 nothing heavy. The catalog it reads is built by a job on the workers, like everything else slow. No AI
 component sits between your browser and your data.</p>
-
 <div class="doc-next"><a class="btn btn-ghost" href="concepts.html">&larr; Concepts</a><a class="btn btn-primary" href="connectors.html">Data sources &rarr;</a></div>
   </main>
 </div>
