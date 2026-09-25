@@ -1638,6 +1638,15 @@ class CatalogTable(TimestampMixin, BelongsToOrgMixin, db.Model):
     #: How many saved queries mention it. The single most useful ranking
     #: signal there is, and it costs a parse of things already stored.
     usage_count = Column(db.Integer, default=0)
+    #: What this table is *for*, in words. Structure comes from the engine and
+    #: usage comes from the query log, but neither says what a table means,
+    #: and meaning is the thing a model most needs and least can guess.
+    description = Column(db.Text, nullable=True)
+    #: Where that sentence came from: "engine" for a comment the warehouse
+    #: already carried, "human" for one somebody wrote here. Harvesting must
+    #: never overwrite a human's words with an engine's silence, and without
+    #: recording the origin there is no way to tell the two apart.
+    description_source = Column(db.String(16), nullable=True)
     #: The compact text handed to a model, built at harvest rather than per
     #: request so assembling a prompt is concatenation.
     card = Column(db.Text, nullable=True)
@@ -1659,6 +1668,10 @@ class CatalogColumn(TimestampMixin, db.Model):
 
     name = Column(db.String(1024))
     type = Column(db.String(255), nullable=True)
+    #: What the column means. `status` is guessable; `flag_c2` is not, and no
+    #: amount of usage data makes it so.
+    description = Column(db.Text, nullable=True)
+    description_source = Column(db.String(16), nullable=True)
     #: How often anyone selects or filters on it. A 300-column table usually
     #: has twenty columns anyone touches, and this is how the other 280 are
     #: kept out of a prompt.

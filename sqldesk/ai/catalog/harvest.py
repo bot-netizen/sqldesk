@@ -13,6 +13,7 @@ column's type.
 
 import logging
 
+import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert
 
 from sqldesk.ai.catalog.mine import mine_all
@@ -47,7 +48,12 @@ def catalog_metadata_for(data_source):
             logger.exception("get_catalog_metadata failed for data source %s; falling back", data_source.id)
 
     return [
-        {"name": table["name"], "columns": table.get("columns", []), "properties": {}}
+        {
+            "name": table["name"],
+            "columns": table.get("columns", []),
+            "description": table.get("description"),
+            "properties": {},
+        }
         for table in (data_source.get_schema() or [])
     ]
 
@@ -56,12 +62,16 @@ def _column_entries(columns):
     """`get_schema` yields either bare names or dicts, depending on the runner."""
     for column in columns:
         if isinstance(column, dict):
-            yield column.get("name"), column.get("type")
+            # MySQL already returns `column_comment` here as "description",
+            # and it was being dropped -- a sentence somebody wrote about
+            # their own warehouse, thrown away on the way to a model that
+            # needed it.
+            yield column.get("name"), column.get("type"), column.get("description")
         else:
-            yield column, None
+            yield column, None, None
 
 
-def build_card(name, usage_count, columns, joins):
+def build_card(name, usage_count, columns, joins, description=None):
     """
     The compact text a model is given for one table.
 
@@ -70,10 +80,17 @@ def build_card(name, usage_count, columns, joins):
 
     Plain values rather than a model instance, because the harvester writes
     these in bulk and has no ORM objects in hand at that point.
+
+    A description, where there is one, is worth more per character than
+    anything else here -- `flag_c2` with a sentence beats forty columns
+    without one -- so it goes first and is never truncated away.
     """
     shown = columns[:CARD_COLUMN_LIMIT]
-    body = ", ".join("{} {}".format(column[0], column[1] or "?") for column in shown)
-    lines = ["{}({})".format(name, body)]
+    body = ", ".join(_column_text(column) for column in shown)
+    lines = []
+    if description:
+        lines.append("-- {}".format(" ".join(description.split())))
+    lines.append("{}({})".format(name, body))
 
     hidden = len(columns) - len(shown)
     if hidden > 0:
@@ -85,7 +102,43 @@ def build_card(name, usage_count, columns, joins):
     return "\n".join(lines)
 
 
-def _upsert(table, rows, index_elements, update_columns, chunk=500):
+def _column_text(column):
+    """`name type` plus, where the warehouse said what it means, a comment."""
+    name, column_type = column[0], column[1]
+    description = column[3] if len(column) > 3 else None
+    text = "{} {}".format(name, column_type or "?")
+    if description:
+        text += " /* {} */".format(" ".join(description.split()))
+    return text
+
+
+def _keep_curated(statement, table):
+    """
+    Take the engine's description, but never over a person's.
+
+    A harvest runs on a schedule and a person writes a sentence once. If the
+    two are written the same way, the schedule wins every time and the
+    sentence disappears -- quietly, because nobody is watching a cron job. So
+    the update is conditional: a row whose description somebody wrote here
+    keeps it, and a row that has none takes whatever the warehouse offers.
+
+    The condition is on the *stored* row rather than the incoming one, which
+    is what makes it safe to run again.
+    """
+    stored_source = table.c.description_source
+    return {
+        "description": sa.case(
+            [(stored_source == "human", table.c.description)],
+            else_=statement.excluded.description,
+        ),
+        "description_source": sa.case(
+            [(stored_source == "human", stored_source)],
+            else_=statement.excluded.description_source,
+        ),
+    }
+
+
+def _upsert(table, rows, index_elements, update_columns, chunk=500, describe=False):
     """
     Write many rows in a handful of statements instead of one each.
 
@@ -99,12 +152,10 @@ def _upsert(table, rows, index_elements, update_columns, chunk=500):
     for i in range(0, len(rows), chunk):
         batch = rows[i : i + chunk]
         statement = insert(table).values(batch)
-        db.session.execute(
-            statement.on_conflict_do_update(
-                index_elements=index_elements,
-                set_={name: getattr(statement.excluded, name) for name in update_columns},
-            )
-        )
+        updates = {name: getattr(statement.excluded, name) for name in update_columns}
+        if describe:
+            updates.update(_keep_curated(statement, table))
+        db.session.execute(statement.on_conflict_do_update(index_elements=index_elements, set_=updates))
 
 
 def harvest_data_source(data_source):
@@ -140,6 +191,8 @@ def harvest_data_source(data_source):
                 "name": entry["name"],
                 "properties": entry.get("properties") or {},
                 "usage_count": used(entry["name"]),
+                "description": entry.get("description"),
+                "description_source": "engine" if entry.get("description") else None,
                 "created_at": now,
                 "updated_at": now,
                 "harvested_at": now,
@@ -148,6 +201,8 @@ def harvest_data_source(data_source):
         ],
         ["data_source_id", "name"],
         ("properties", "usage_count", "updated_at", "harvested_at"),
+        # Descriptions are not in that list on purpose -- see `_keep_curated`.
+        describe=True,
     )
     db.session.flush()
 
@@ -166,17 +221,19 @@ def harvest_data_source(data_source):
         if table_id is None:
             continue
         columns = []
-        for column_name, column_type in _column_entries(entry.get("columns") or []):
+        for column_name, column_type, column_description in _column_entries(entry.get("columns") or []):
             if not column_name:
                 continue
             count = usage["columns"].get((name, column_name), 0) or usage["columns"].get((bare, column_name), 0)
-            columns.append((column_name, column_type, count))
+            columns.append((column_name, column_type, count, column_description))
             column_rows.append(
                 {
                     "catalog_table_id": table_id,
                     "name": column_name,
                     "type": column_type,
                     "usage_count": count,
+                    "description": column_description,
+                    "description_source": "engine" if column_description else None,
                     "created_at": now,
                     "updated_at": now,
                 }
@@ -188,6 +245,7 @@ def harvest_data_source(data_source):
         column_rows,
         ["catalog_table_id", "name"],
         ("type", "usage_count", "updated_at"),
+        describe=True,
     )
 
     _store_relationships(data_source, org, usage["joins"])
@@ -265,7 +323,7 @@ def _write_cards(data_source, entries, cards, joins, ids, usage):
                 "org_id": data_source.org_id,
                 "data_source_id": data_source.id,
                 "name": name,
-                "card": build_card(name, usage.get(name, 0), ranked, edges),
+                "card": build_card(name, usage.get(name, 0), ranked, edges, entry.get("description")),
                 "updated_at": now,
                 "created_at": now,
             }

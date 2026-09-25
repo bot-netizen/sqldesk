@@ -282,3 +282,87 @@ class TestRetrievalIsOrgScopedByConstruction(BaseTestCase):
 
         found = [t.name for t in find_tables(self.factory.org, "shared_name")]
         self.assertEqual(["ours"], found)
+
+
+DESCRIBED = [
+    {
+        "name": "orders",
+        "description": "One row per placed order, net of cancellations.",
+        "columns": [
+            {"name": "id", "type": "bigint"},
+            {"name": "flag_c2", "type": "boolean", "description": "True once finance has signed the order off."},
+        ],
+    }
+]
+
+
+class TestDescriptions(BaseTestCase):
+    """
+    What a table *means* cannot be derived from its shape or from how often
+    anyone queries it. Some engines carry it already -- MySQL returns
+    `table_comment` and `column_comment` -- and it used to be dropped between
+    the runner and the catalog.
+    """
+
+    def _harvest(self, schema, source=None):
+        source = source or self.factory.create_data_source()
+        db.session.commit()
+        with mock.patch.object(type(source), "get_schema", return_value=schema):
+            harvest_data_source(source)
+        return source
+
+    def _table(self, source):
+        # The harvester writes with Core statements, which the session knows
+        # nothing about. Without expiring first, a row this test loaded or set
+        # earlier comes back from the identity map and the assertion checks
+        # what the test itself wrote -- which is how the guard below passed
+        # against an implementation that had no guard in it.
+        db.session.expire_all()
+        return CatalogTable.query.filter(CatalogTable.data_source_id == source.id, CatalogTable.name == "orders").one()
+
+    def test_a_description_the_engine_gave_us_is_kept(self):
+        source = self._harvest(DESCRIBED)
+        table = self._table(source)
+
+        self.assertEqual("One row per placed order, net of cancellations.", table.description)
+        self.assertEqual("engine", table.description_source)
+
+    def test_a_column_comment_is_kept_too(self):
+        source = self._harvest(DESCRIBED)
+        column = CatalogColumn.query.filter(
+            CatalogColumn.catalog_table_id == self._table(source).id, CatalogColumn.name == "flag_c2"
+        ).one()
+
+        self.assertEqual("True once finance has signed the order off.", column.description)
+
+    def test_the_card_puts_the_description_where_a_model_will_read_it(self):
+        source = self._harvest(DESCRIBED)
+        card = self._table(source).card
+
+        self.assertIn("One row per placed order", card)
+        self.assertIn("/* True once finance has signed the order off. */", card)
+
+    def test_harvesting_again_does_not_erase_what_a_person_wrote(self):
+        # The whole point. A harvest runs on a schedule and a person writes a
+        # sentence once; if the schedule wins, the sentence disappears and
+        # nobody is watching a cron job to notice.
+        source = self._harvest(DESCRIBED)
+        table = self._table(source)
+        table.description = "Orders, excluding the test tenant."
+        table.description_source = "human"
+        db.session.commit()
+
+        # The engine still offers its own wording, so this is a contest the
+        # human has to win -- not merely an absence they survive.
+        self._harvest(DESCRIBED, source=source)
+
+        table = self._table(source)
+        self.assertEqual("Orders, excluding the test tenant.", table.description)
+        self.assertEqual("human", table.description_source)
+
+    def test_the_engine_may_still_fill_a_blank(self):
+        source = self._harvest([{"name": "orders", "columns": [{"name": "id", "type": "bigint"}]}])
+        self.assertIsNone(self._table(source).description)
+
+        self._harvest(DESCRIBED, source=source)
+        self.assertEqual("One row per placed order, net of cancellations.", self._table(source).description)
