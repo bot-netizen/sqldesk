@@ -35,6 +35,53 @@ spec:
       {{- with .Values.nodeSelector }}
       nodeSelector: {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- if and .Values.mcp.enabled .Values.mcp.queue .Values.mcp.worker.enabled }}
+---
+# A worker that takes only MCP's queue.
+#
+# The point is what it does *not* take: with MCP queries on the ordinary
+# queue, a model working through a warehouse competes for workers with the
+# people waiting for a dashboard, and the dashboard loses because there are
+# more model queries than people. Giving MCP its own queue only helps if
+# something is listening to it, which is this.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sqldesk.fullname" . }}-mcp-worker
+  labels:
+    {{- include "sqldesk.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.mcp.worker.replicas }}
+  selector:
+    matchLabels:
+      {{- include "sqldesk.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mcp-worker
+  template:
+    metadata:
+      labels:
+        {{- include "sqldesk.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: mcp-worker
+    spec:
+      containers:
+        - name: worker
+          image: {{ include "sqldesk.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["worker"]
+          env:
+            {{- include "sqldesk.env" . | nindent 12 }}
+            - name: QUEUES
+              value: {{ .Values.mcp.queue | quote }}
+            - name: WORKERS_COUNT
+              value: {{ .Values.mcp.worker.workersCount | quote }}
+          resources:
+            {{- toYaml .Values.mcp.worker.resources | nindent 12 }}
+      # Same reasoning as the ordinary worker: a query somebody -- or
+      # something -- is waiting on should be allowed to finish.
+      terminationGracePeriodSeconds: 300
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
 {{- if .Values.scheduler.enabled }}
 ---
 apiVersion: apps/v1

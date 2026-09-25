@@ -60,5 +60,28 @@ helm install sqldesk ./charts/sqldesk --set ai.enabled=true
 kubectl exec deploy/sqldesk-server -- ./manage.py ai harvest
 ```
 
+MCP is off unless you ask for it, because an endpoint that answers questions
+about your warehouse is a decision somebody should make rather than inherit:
+
+```yaml
+mcp:
+  enabled: true
+  # A queue of MCP's own, and a worker that takes only that queue. Without
+  # it, a query a model asks for goes on the same queue as a dashboard
+  # refresh and competes with the people waiting for one -- and there are
+  # always more model queries than people, so the people lose.
+  queue: mcp
+  worker:
+    enabled: true
+    replicas: 1
+```
+
+That renders one extra Deployment, `<release>-mcp-worker`, whose `QUEUES` is
+`mcp` and nothing else. The ordinary worker's queue list does not contain
+`mcp`, so the two cannot starve each other.
+
+`ai.enabled` still works and still turns the same flag on; `mcp.enabled` is
+the name to use.
+
 Then point a client at `/mcp` with a SQLDesk API key. See
 [the MCP guide](https://bot-netizen.github.io/sqldesk/guide/mcp.html).

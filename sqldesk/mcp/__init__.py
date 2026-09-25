@@ -432,6 +432,11 @@ def _on_a_worker(user, source, sql, timeout):
         user.id,
         user.is_api_user(),
         metadata={"Username": user.get_actual_user(), "mcp": True},
+        # Empty falls back to the data source's own queue, which is where
+        # dashboards go too. An install that would rather a model could not
+        # slow down the people watching a dashboard names a queue here and
+        # gives it its own workers.
+        queue_name=settings.MCP_QUEUE or None,
     )
 
     deadline = time.time() + timeout

@@ -59,6 +59,40 @@ worker:
     requests: { cpu: 200m, memory: 512Mi }
     limits: { memory: 2Gi }
 
+# The Model Context Protocol server, and the catalog it answers from.
+#
+# Off by default: it is an endpoint that answers questions about your
+# warehouse, so turning it on is a decision somebody should make rather than
+# inherit. With it off, /mcp answers 404 and the Catalog page does not appear.
+mcp:
+  enabled: false
+  # A queue of MCP's own, served by the worker below. Left empty, a query a
+  # model asks for goes on the data source's ordinary queue -- the same one
+  # dashboards use -- and competes with the people waiting for one to load.
+  # Naming a queue here is what stops a model exploring from slowing down a
+  # dashboard somebody is watching.
+  queue: mcp
+  worker:
+    # Needs `queue` set as well; a worker with no queue of its own has
+    # nothing to take from.
+    enabled: true
+    replicas: 1
+    workersCount: 1
+    resources:
+      requests: { cpu: 100m, memory: 512Mi }
+      limits: { memory: 2Gi }
+  catalog:
+    # How often the catalog is rebuilt, in hours. 0 to turn the scheduled
+    # harvest off and run `manage ai harvest` yourself.
+    harvestHours: 24
+    # How far back to look for the queries it learns from, in hours, measured
+    # by when a query last *ran*. 0 for every saved query however old.
+    usageWindowHours: 168
+  # Where `manage ai export` writes the semantic layer and `manage ai import`
+  # reads it. Mount a volume here -- a PVC, or a git-sync sidecar's directory
+  # -- if you want to keep it under review in git.
+  semanticDir: ""
+
 # Exactly one. Two schedulers would double-schedule everything, so this is
 # not a number to raise.
 scheduler:

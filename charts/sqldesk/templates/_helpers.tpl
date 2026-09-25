@@ -102,8 +102,11 @@ reached only one of them is the kind of difference nobody finds quickly.
       key: secret-key
 - name: SQLDESK_HOST
   value: {{ .Values.host | quote }}
+# One variable gates both the MCP server and the (unused in 0.6) model
+# provider, so it is emitted once from either value. `mcp.enabled` is the
+# name to use; `ai.enabled` is kept working because charts already set it.
 - name: SQLDESK_FEATURE_AI
-  value: {{ .Values.ai.enabled | quote }}
+  value: {{ or .Values.mcp.enabled .Values.ai.enabled | quote }}
 {{- if .Values.ai.provider }}
 - name: SQLDESK_AI_PROVIDER
   value: {{ .Values.ai.provider | quote }}
@@ -118,6 +121,20 @@ reached only one of them is the kind of difference nobody finds quickly.
       name: {{ include "sqldesk.secretName" . }}
       key: ai-api-key
 {{- end }}
+{{- end }}
+{{- if .Values.mcp.enabled }}
+{{- if .Values.mcp.queue }}
+- name: SQLDESK_MCP_QUEUE
+  value: {{ .Values.mcp.queue | quote }}
+{{- end }}
+- name: SQLDESK_CATALOG_HARVEST_SCHEDULE
+  value: {{ .Values.mcp.catalog.harvestHours | quote }}
+- name: SQLDESK_CATALOG_USAGE_WINDOW_HOURS
+  value: {{ .Values.mcp.catalog.usageWindowHours | quote }}
+{{- end }}
+{{- with .Values.mcp.semanticDir }}
+- name: SQLDESK_SEMANTIC_DIR
+  value: {{ . | quote }}
 {{- end }}
 {{- range $key, $value := .Values.extraEnv }}
 - name: {{ $key }}

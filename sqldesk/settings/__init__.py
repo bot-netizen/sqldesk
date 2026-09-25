@@ -475,6 +475,11 @@ CATALOG_HARVEST_TIMEOUT = int(os.environ.get("SQLDESK_CATALOG_HARVEST_TIMEOUT", 
 # stops voting on what matters. A week by default. 0 means every saved query,
 # however old.
 CATALOG_USAGE_WINDOW_HOURS = int(os.environ.get("SQLDESK_CATALOG_USAGE_WINDOW_HOURS", "168"))
+# Which queue an MCP-issued query goes on. Empty means the data source's own,
+# which is also where dashboards go -- so a model exploring competes with the
+# people waiting for a dashboard to load. Name a queue here and give it
+# workers of its own and it cannot.
+MCP_QUEUE = os.environ.get("SQLDESK_MCP_QUEUE", "")
 
 # The provider, from the environment rather than the database.
 #

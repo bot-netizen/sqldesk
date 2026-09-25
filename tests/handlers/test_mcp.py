@@ -1,7 +1,7 @@
 import json
 from unittest import mock
 
-from sqldesk import models
+from sqldesk import models, settings
 from tests import BaseTestCase
 
 
@@ -473,3 +473,40 @@ class TestDataSourceGuidance(McpTestCase):
         listed = self._call("list_data_sources", {})
         self.assertIn(self.factory.data_source.name, listed)
         self.assertNotIn("None", listed)
+
+
+class TestQueueIsolation(McpTestCase):
+    """
+    An MCP query goes where the install says.
+
+    By default that is the data source's own queue -- the same one dashboards
+    use -- so a model exploring competes with the people waiting for a
+    dashboard to load. Naming a queue is how an install stops that.
+    """
+
+    def _run(self):
+        self.post(
+            rpc(
+                "tools/call",
+                params={
+                    "name": "run_query",
+                    "arguments": {"sql": "SELECT 1", "data_source": self.factory.data_source.name},
+                },
+            )
+        )
+
+    def test_by_default_it_shares_the_data_sources_queue(self):
+        with mock.patch("sqldesk.tasks.queries.enqueue_query") as enqueue:
+            enqueue.return_value.id = "job-1"
+            with mock.patch.object(settings, "MCP_QUEUE", ""):
+                self._run()
+
+        self.assertIsNone(enqueue.call_args[1]["queue_name"])
+
+    def test_a_named_queue_is_used_instead(self):
+        with mock.patch("sqldesk.tasks.queries.enqueue_query") as enqueue:
+            enqueue.return_value.id = "job-1"
+            with mock.patch.object(settings, "MCP_QUEUE", "mcp"):
+                self._run()
+
+        self.assertEqual("mcp", enqueue.call_args[1]["queue_name"])

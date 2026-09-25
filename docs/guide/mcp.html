@@ -284,9 +284,11 @@ page says so rather than showing a light that implies otherwise.</p>
 source at all, and the first of those is a plan rather than a scan. Harvest reads the schema SQLDesk
 has already cached for the schema browser, so on a warm cache it touches the warehouse not at all,
 and on a cold one it reads table definitions rather than table contents.</p>
-<p>Queries issued this way go on the ordinary queue, so they compete with dashboards for workers.
-If that matters, give them a queue of their own and workers to match &mdash; see
-<a href="deploying.html">Deploying</a>.</p>
+<p>Queries issued this way go on the ordinary queue by default, so they compete with dashboards for
+workers &mdash; and there are always more model queries than there are people, so the people lose.
+Set <code>SQLDESK_MCP_QUEUE</code> to a queue name and give that queue workers of its own and they
+cannot. The Helm chart does both from <code>mcp.queue</code>, which also renders a worker that takes
+only that queue.</p>
 
 <h2 id="troubleshooting">If a client cannot connect</h2>
 <ul>
