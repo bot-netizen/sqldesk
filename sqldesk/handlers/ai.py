@@ -2,7 +2,7 @@ from flask import request
 from flask_login import login_required
 
 from sqldesk import models, settings
-from sqldesk.ai import ModelError, get_provider
+from sqldesk.ai import ModelError, get_provider, load_provider
 from sqldesk.ai.optimizer import analyze
 from sqldesk.handlers.base import BaseResource, get_object_or_404
 from sqldesk.permissions import require_access, require_super_admin, view_only
@@ -28,7 +28,7 @@ class AIStatusResource(BaseResource):
         says whether a key exists, which is not everyone's business -- and it
         never carries the key itself, which is nobody's.
         """
-        provider = models.AIProvider.get_for_org(self.current_org)
+        provider, unreadable = load_provider(self.current_org)
         configured = provider is not None and provider.enabled
 
         response = {
@@ -38,6 +38,7 @@ class AIStatusResource(BaseResource):
         }
         if self.current_user.has_permission("super_admin"):
             response["provider"] = provider.to_dict() if provider else None
+            response["error"] = unreadable
             response["providerTypes"] = sorted(t for t in ("anthropic", "openai", "local"))
         return response
 
@@ -53,7 +54,9 @@ class AITestResource(BaseResource):
         this answers "is the key right and the endpoint reachable", not
         anything about a warehouse.
         """
-        provider_row = models.AIProvider.get_for_org(self.current_org)
+        provider_row, unreadable = load_provider(self.current_org)
+        if unreadable:
+            return {"ok": False, "error": unreadable}
         if provider_row is None:
             return {"ok": False, "error": "No provider configured. Run `manage ai configure` on the server."}
 

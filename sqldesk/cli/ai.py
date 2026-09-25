@@ -53,7 +53,15 @@ def configure(provider_type, model, base_url, api_key, api_key_stdin, disabled):
     cls = ai._PROVIDERS[provider_type]
 
     org = _org()
-    provider = models.AIProvider.get_for_org(org) or models.AIProvider(org=org)
+    provider, unreadable = ai.load_provider(org)
+    if unreadable:
+        # The whole point of running this again is to replace a key that
+        # cannot be read, so it must not be the thing that stops you.
+        print("Replacing credentials that could not be decrypted.")
+        models.AIProvider.query.filter(models.AIProvider.org_id == org.id).delete()
+        models.db.session.commit()
+        provider = None
+    provider = provider or models.AIProvider(org=org)
     was = provider.type
 
     # The key already on file counts. Changing the model should not mean
@@ -96,7 +104,10 @@ def configure(provider_type, model, base_url, api_key, api_key_stdin, disabled):
 def status():
     """Say what is configured, without printing the key."""
     print("SQLDESK_FEATURE_AI: {}".format("on" if settings.FEATURE_AI else "off"))
-    provider = models.AIProvider.get_for_org(_org())
+    provider, unreadable = ai.load_provider(_org())
+    if unreadable:
+        print(unreadable)
+        return
     if provider is None:
         print("No provider configured. Nothing will call out, and the AI features stay hidden.")
         print("Try: manage ai configure anthropic --api-key-stdin")
@@ -109,7 +120,9 @@ def status():
 @argument("prompt", required=False)
 def test(prompt):
     """Send one prompt and print what comes back, so a bad key fails here."""
-    provider_row = models.AIProvider.get_for_org(_org())
+    provider_row, unreadable = ai.load_provider(_org())
+    if unreadable:
+        raise SystemExit(unreadable)
     if provider_row is None:
         raise SystemExit("No provider configured. Run `manage ai configure` first.")
 
@@ -130,23 +143,22 @@ def test(prompt):
 @manager.command(name="disable")
 def disable():
     """Turn the features off without forgetting the configuration."""
-    provider = models.AIProvider.get_for_org(_org())
-    if provider is None:
-        raise SystemExit("Nothing configured.")
-    provider.enabled = False
-    models.db.session.add(provider)
+    changed = models.AIProvider.query.filter(models.AIProvider.org_id == _org().id).update({"enabled": False})
     models.db.session.commit()
+    if not changed:
+        raise SystemExit("Nothing configured.")
     print("Disabled. The configuration and key are kept; `manage ai configure` turns it back on.")
 
 
 @manager.command(name="forget")
 def forget():
     """Delete the configuration and the stored key."""
-    provider = models.AIProvider.get_for_org(_org())
-    if provider is None:
-        raise SystemExit("Nothing configured.")
-    models.db.session.delete(provider)
+    # Deleted by id rather than loaded first: a row whose key will not
+    # decrypt is exactly the one somebody wants rid of.
+    removed = models.AIProvider.query.filter(models.AIProvider.org_id == _org().id).delete()
     models.db.session.commit()
+    if not removed:
+        raise SystemExit("Nothing configured.")
     print("Forgotten.")
 
 

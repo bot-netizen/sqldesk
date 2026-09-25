@@ -55,6 +55,19 @@ const COMING = [
 
 function ProviderPanel({ status, onTest, testing, result }) {
   const provider = status.provider;
+
+  // A rotated SQLDESK_SECRET_KEY, or a database restored into an instance
+  // configured with a different one. The row is intact and useless, and the
+  // remedy is to configure it again rather than to debug anything.
+  if (status.error) {
+    return (
+      <div className="ai-panel">
+        <Alert type="warning" showIcon message="The stored credentials cannot be read" description={status.error} />
+        <pre className="ai-pre m-t-15">manage ai configure anthropic --model claude-sonnet-5 --api-key-stdin</pre>
+      </div>
+    );
+  }
+
   if (!provider) {
     return (
       <div className="ai-panel">

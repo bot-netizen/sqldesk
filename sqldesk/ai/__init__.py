@@ -30,6 +30,43 @@ class ModelError(Exception):
     """Anything that stopped a completion, in words an operator can act on."""
 
 
+class CredentialsUnreadable(ModelError):
+    """
+    The stored key will not decrypt with this SQLDESK_SECRET_KEY.
+
+    Which happens for an ordinary reason -- somebody rotated the secret, or
+    restored a database into an instance configured with a different one. The
+    row is intact and useless, and the remedy is to configure it again.
+    """
+
+
+def load_provider(org):
+    """
+    The configured provider, or why it cannot be read.
+
+    Returns `(provider, error)` and never raises on a bad key: the column
+    decrypts while the row loads, so an unreadable key takes out whatever
+    asked for it. That turned the whole AI page into a 500 -- one bad row and
+    the feature has no way to tell you what is wrong with it.
+    """
+    from cryptography.fernet import InvalidToken
+
+    from sqldesk import models
+
+    try:
+        provider = models.AIProvider.get_for_org(org)
+        if provider is not None:
+            # Force the decrypt here rather than wherever it is first read.
+            provider.api_key
+        return provider, None
+    except InvalidToken:
+        logger.warning("the stored AI credentials for org %s will not decrypt", getattr(org, "id", None))
+        return None, (
+            "The stored API key cannot be read with this instance's SQLDESK_SECRET_KEY. "
+            "It was saved under a different one -- run `manage ai configure` again to replace it."
+        )
+
+
 def register(cls):
     _PROVIDERS[cls.type] = cls
     return cls

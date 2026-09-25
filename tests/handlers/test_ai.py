@@ -97,3 +97,50 @@ class TestAITest(BaseTestCase):
         self.assertEqual(200, response.status_code)
         self.assertFalse(response.json["ok"])
         self.assertIn("401 bad key", response.json["error"])
+
+
+class TestCredentialsThatWillNotDecrypt(BaseTestCase):
+    """
+    An ordinary thing: somebody rotates SQLDESK_SECRET_KEY, or restores a
+    database into an instance configured with a different one. The row is
+    intact and useless.
+
+    It used to take out the whole AI page with a 500 -- the column decrypts
+    while the row loads, so an unreadable key takes out whatever asked for it,
+    and the feature had no way to tell you what was wrong with it.
+    """
+
+    def _unreadable_row(self):
+        provider = models.AIProvider(
+            org=self.factory.org, type="openai", model="gpt-4.1", enabled=True, options={"api_key": "sk-x"}
+        )
+        models.db.session.add(provider)
+        models.db.session.commit()
+        # What a rotated secret leaves behind: ciphertext this instance's key
+        # cannot open.
+        models.db.session.execute(
+            "UPDATE ai_providers SET encrypted_options = :junk WHERE id = :id",
+            {"junk": b"gAAAAABnot-a-valid-token", "id": provider.id},
+        )
+        models.db.session.commit()
+        models.db.session.expunge_all()
+
+    def test_the_status_endpoint_says_so_instead_of_failing(self):
+        self._unreadable_row()
+        response = self.make_request("get", "/api/ai/status", user=self.factory.create_admin())
+        self.assertEqual(200, response.status_code)
+        self.assertIn("SQLDESK_SECRET_KEY", response.json["error"])
+        self.assertFalse(response.json["configured"])
+
+    def test_an_ordinary_user_still_gets_a_page(self):
+        self._unreadable_row()
+        response = self.make_request("get", "/api/ai/status", user=self.factory.user)
+        self.assertEqual(200, response.status_code)
+        self.assertNotIn("error", response.json, "the remedy is an admin's, and so is the detail")
+
+    def test_the_test_button_reports_it_rather_than_erroring(self):
+        self._unreadable_row()
+        response = self.make_request("post", "/api/ai/test", user=self.factory.create_admin())
+        self.assertEqual(200, response.status_code)
+        self.assertFalse(response.json["ok"])
+        self.assertIn("configure", response.json["error"])
