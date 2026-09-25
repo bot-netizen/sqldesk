@@ -40,9 +40,15 @@ function ConnectPanel({ origin }) {
       <pre className="mcp-pre">{`${origin}/mcp
 
 Authorization: Bearer <your SQLDesk API key>`}</pre>
+      <p className="mcp-muted">With Claude Code:</p>
+      <pre className="mcp-pre">{`claude mcp add --transport http sqldesk ${origin}/mcp \\
+  --header "Authorization: Bearer <your API key>"`}</pre>
       <p className="mcp-muted">
-        Tools available: <code>find_context</code>, <code>expand_table</code>, <code>list_data_sources</code>,{" "}
-        <code>check_sql</code>. Nothing here executes a query.
+        Eight tools, in the order they are meant to be used: <code>find_queries</code> and <code>find_dashboards</code>{" "}
+        to look for work that already exists; <code>find_context</code>, <code>expand_table</code> and{" "}
+        <code>list_data_sources</code> to understand the data; <code>check_sql</code> for the shape and{" "}
+        <code>explain_query</code> for the cost; then <code>run_query</code>, which returns up to 1000 rows and runs on
+        a worker like any other query.
       </p>
     </div>
   );
