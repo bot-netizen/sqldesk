@@ -84,44 +84,67 @@ configured per visualization, and the important part is that <strong>the link is
 — so one setting makes every point link somewhere different.</p>
 
 <h3>On a chart</h3>
-<p>Open the visualization editor, go to <strong>Data</strong>, and fill in the link fields:</p>
+<p>Open the visualization editor and go to <strong>General</strong>. Tick <strong>Enable click
+events</strong> &mdash; until you do, the two settings under it stay greyed out and clicking a point
+does nothing:</p>
 <dl>
-  <dt>Link URL template</dt>
-  <dd>A URL with placeholders taken from the clicked point — for example
-    <code>/dashboards/12?p_region={{ @@x }}</code>. Use <code>@@x</code> for the x value,
-    <code>@@y</code> for the y value, and <code>@@name</code> for the series name.</dd>
-  <dt>Link text</dt>
-  <dd>What the tooltip offers, for example <code>Open @@x</code>. Leave it empty and the URL is shown.</dd>
-  <dt>Open in a new tab</dt>
+  <dt>Enable click events</dt>
+  <dd>Makes the points clickable. Nothing below works without it.</dd>
+  <dt>Open in new tab</dt>
   <dd>Usually what you want from a dashboard somebody is watching.</dd>
+  <dt>URL template</dt>
+  <dd>A URL with placeholders filled in from the point that was clicked, for example
+    <code>/dashboards/12?p_region={{ @@x }}</code>. The braces are part of it.</dd>
 </dl>
+<p>The placeholders are:</p>
+<ul>
+  <li><code>{{ @@x }}</code> and <code>{{ @@y }}</code> &mdash; the point you clicked;</li>
+  <li><code>{{ @@name }}</code> &mdash; the name of the series it belongs to;</li>
+  <li><code>{{ @@x1 }}</code>, <code>{{ @@y1 }}</code>, <code>{{ @@x2 }}</code>,
+    <code>{{ @@y2 }}</code> &hellip; &mdash; every series at that same position, numbered in the
+    order they appear under <strong>Series</strong>. Use these when the link needs the whole row
+    rather than the one line under the pointer.</li>
+</ul>
+<p>Values go in raw, not formatted: a tooltip may read <code>1.2k</code>, but the URL gets
+<code>1200</code>, because the other end has to be able to look it up. A placeholder that matches
+nothing is replaced with an empty string rather than left in the URL.</p>
 <p>A worked example. A column chart of revenue by region, where clicking a column opens a dashboard
 filtered to that region:</p>
-<pre><code>Link URL template:  /dashboards/7-regional-detail?p_region={{ @@x }}
-Link text:          Break down @@x
-Open in new tab:    yes</code></pre>
-<p>Because <code>@@x</code> is substituted per point, the North column links to North's dashboard and the
-South column to South's. There is no per-point configuration.</p>
+<pre><code>Enable click events:  yes
+Open in new tab:      yes
+URL template:         /dashboards/7-regional-detail?p_region={{ @@x }}</code></pre>
+<p>Because <code>{{ @@x }}</code> is filled in per point, the North column links to North's dashboard
+and the South column to South's. There is no per-point configuration.</p>
+<p>Charts have no link <em>text</em> setting &mdash; the whole point is clickable, and there is no
+label to write. Per-cell link text is a table thing, below.</p>
 
 <h3>On a table</h3>
 <p>A table column can be a link instead of text. In the visualization editor choose the column, set its
 <strong>Display as</strong> to <strong>Link</strong>, and fill in:</p>
 <ul>
-  <li><strong>URL template</strong> — <code>https://tickets.internal/{{ @@id }}</code>, where
-    <code>@@id</code> is any column in the row, named as it appears in the result;</li>
-  <li><strong>Text template</strong> — what the cell shows, for example <code>#{{ @@id }}</code>;</li>
-  <li><strong>Title template</strong> — the hover text.</li>
+  <li><strong>URL template</strong> — <code>https://tickets.internal/{{ id }}</code>, where
+    <code>id</code> is any column in the row, named exactly as it appears in the result;</li>
+  <li><strong>Text template</strong> — what the cell shows, for example <code>#{{ id }}</code>.
+    Leave it empty and the cell shows the URL;</li>
+  <li><strong>Title template</strong> — the hover text;</li>
+  <li><strong>Open in new tab</strong>.</li>
 </ul>
+<p>Note the difference from a chart: a table's placeholders are <em>column names</em>, with no
+<code>@@</code> in front of them. That prefix belongs to charts, where there are no column names to
+use. <code>{{ @ }}</code> is the one shorthand here &mdash; the value of the column being displayed.</p>
 <p>Any column of the row can be used, not only the one being displayed. A common shape is to select an
 <code>id</code> you never show, and use it to build links in the column you do.</p>
 
 <h3>If the link does not appear</h3>
 <ul>
-  <li>The placeholder has to match the column name exactly, including case.</li>
+  <li>The placeholder has to match exactly, including case: a column name on a table,
+    <code>@@x</code> and friends on a chart.</li>
+  <li>On a chart, <strong>Enable click events</strong> has to be ticked. Without it the URL template
+    is greyed out and clicking does nothing.</li>
   <li>A relative URL (<code>/dashboards/7</code>) stays inside SQLDesk. An external one needs its scheme —
     <code>https://</code> — or the browser treats it as relative.</li>
-  <li>On a chart, the link is offered in the point's tooltip; it is not the whole point becoming
-    clickable.</li>
+  <li>On a table, a URL template that resolves to nothing leaves the cell empty rather than showing a
+    broken link.</li>
 </ul>
 
 <h2 id="numbers">Formatting numbers</h2>
