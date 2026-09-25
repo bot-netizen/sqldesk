@@ -194,8 +194,9 @@ page says so rather than showing a light that implies otherwise.</p>
 <h2 id="cost">What it costs your warehouse</h2>
 <p>The lookup and context tools cost nothing &mdash; they read SQLDesk's own catalog. Only
 <code>explain_query</code>, <code>run_query</code> and <code>manage ai harvest</code> reach a data
-source at all, and the first of those is a plan rather than a scan. Harvest reads schema metadata,
-not table contents.</p>
+source at all, and the first of those is a plan rather than a scan. Harvest reads the schema SQLDesk
+has already cached for the schema browser, so on a warm cache it touches the warehouse not at all,
+and on a cold one it reads table definitions rather than table contents.</p>
 <p>Queries issued this way go on the ordinary queue, so they compete with dashboards for workers.
 If that matters, give them a queue of their own and workers to match &mdash; see
 <a href="deploying.html">Deploying</a>.</p>
