@@ -2,6 +2,7 @@ from click import argument, option
 from flask.cli import AppGroup
 
 from sqldesk import ai, models, settings
+from sqldesk.ai.catalog.harvest import harvest_data_source
 
 manager = AppGroup(help="Configure the model SQLDesk talks to.")
 
@@ -147,3 +148,58 @@ def forget():
     models.db.session.delete(provider)
     models.db.session.commit()
     print("Forgotten.")
+
+
+@manager.command(name="harvest")
+@option("--data-source", default=None, help="One data source by name. Default: all of them.")
+def harvest(data_source):
+    """
+    Fill the catalog: what each data source has, and what the saved queries
+    say anyone does with it.
+
+    Safe to run again -- everything is keyed on names, so a second run updates
+    rather than duplicates. Needs no model: this is phase 0, and it is useful
+    on its own as searchable schema.
+    """
+    org = _org()
+    sources = models.DataSource.query.filter(models.DataSource.org == org)
+    if data_source:
+        sources = sources.filter(models.DataSource.name == data_source)
+    sources = sources.all()
+    if not sources:
+        raise SystemExit("No data source matched.")
+
+    for source in sources:
+        print("Harvesting {} ({}) ...".format(source.name, source.type))
+        try:
+            result = harvest_data_source(source)
+        except Exception as error:
+            # One unreachable warehouse must not stop the others.
+            print("  failed: {}".format(error))
+            models.db.session.rollback()
+            continue
+        print("  {tables} tables, {relationships} joins, from {queries_mined} saved queries".format(**result))
+
+
+@manager.command(name="context")
+@argument("question")
+@option("--data-source", default=None, help="Restrict to one data source by name.")
+def context(question, data_source):
+    """Show what a model would be told about QUESTION."""
+    from sqldesk.ai.catalog.retrieve import context_for
+
+    org = _org()
+    source = None
+    if data_source:
+        source = models.DataSource.query.filter(
+            models.DataSource.org == org, models.DataSource.name == data_source
+        ).first()
+        if source is None:
+            raise SystemExit("No data source called {!r}.".format(data_source))
+
+    found = context_for(org, question, data_source=source)
+    if not found["tables"]:
+        raise SystemExit("Nothing in the catalog yet. Run `manage ai harvest` first.")
+    for table in found["tables"]:
+        print(table["card"] or table["name"])
+        print()

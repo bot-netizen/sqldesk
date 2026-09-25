@@ -1552,6 +1552,109 @@ class Visualization(TimestampMixin, BelongsToOrgMixin, db.Model):
 
 
 @generic_repr("id", "visualization_id", "dashboard_id")
+class CatalogTable(TimestampMixin, BelongsToOrgMixin, db.Model):
+    """
+    What we know about one table, kept somewhere we can rank it.
+
+    Today's schema cache is a JSON blob in Redis with a TTL: you cannot search
+    it, join against it, or ask which tables are used together. This is that
+    knowledge in a shape those questions can be asked of.
+
+    A derived index, not a system of record. Every row can be dropped and
+    rebuilt from the data source and the query log, and nothing here is typed
+    in by a person -- the moment it is, this becomes a catalog product that
+    has to be migrated rather than a cache that can be thrown away.
+    """
+
+    id = primary_key("CatalogTable")
+    org_id = Column(key_type("Organization"), db.ForeignKey("organizations.id"))
+    org = db.relationship(Organization, backref="catalog_tables")
+    data_source_id = Column(key_type("DataSource"), db.ForeignKey("data_sources.id"))
+    data_source = db.relationship(DataSource, backref=db.backref("catalog_tables", cascade="all, delete-orphan"))
+
+    name = Column(db.String(1024))
+    #: Whatever the source told us that does not fit in a column of its own --
+    #: partition spec, sort order, file counts. Shapes differ per engine and
+    #: pretending otherwise would mean a migration per engine.
+    properties = Column(MutableDict.as_mutable(JSONB), default={})
+    #: How many saved queries mention it. The single most useful ranking
+    #: signal there is, and it costs a parse of things already stored.
+    usage_count = Column(db.Integer, default=0)
+    #: The compact text handed to a model, built at harvest rather than per
+    #: request so assembling a prompt is concatenation.
+    card = Column(db.Text, nullable=True)
+    harvested_at = Column(db.DateTime(True), nullable=True)
+
+    __tablename__ = "catalog_tables"
+    __table_args__ = (db.Index("ix_catalog_tables_source_name", "data_source_id", "name", unique=True),)
+
+    def __str__(self):
+        return self.name
+
+
+class CatalogColumn(TimestampMixin, db.Model):
+    id = primary_key("CatalogColumn")
+    catalog_table_id = Column(key_type("CatalogTable"), db.ForeignKey("catalog_tables.id"))
+    catalog_table = db.relationship(
+        CatalogTable, backref=db.backref("columns", cascade="all, delete-orphan", lazy="dynamic")
+    )
+
+    name = Column(db.String(1024))
+    type = Column(db.String(255), nullable=True)
+    #: How often anyone selects or filters on it. A 300-column table usually
+    #: has twenty columns anyone touches, and this is how the other 280 are
+    #: kept out of a prompt.
+    usage_count = Column(db.Integer, default=0)
+
+    __tablename__ = "catalog_columns"
+    __table_args__ = (db.Index("ix_catalog_columns_table_name", "catalog_table_id", "name", unique=True),)
+
+    def __str__(self):
+        return "{}.{}".format(self.catalog_table.name, self.name)
+
+
+class CatalogRelationship(TimestampMixin, BelongsToOrgMixin, db.Model):
+    """
+    A join somebody actually wrote, and how often.
+
+    Mined rather than declared: a warehouse rarely has foreign keys, and
+    nobody is going to fill in a modelling tool. What people join on is
+    already written down in the queries they saved.
+    """
+
+    id = primary_key("CatalogRelationship")
+    org_id = Column(key_type("Organization"), db.ForeignKey("organizations.id"))
+    org = db.relationship(Organization, backref="catalog_relationships")
+    data_source_id = Column(key_type("DataSource"), db.ForeignKey("data_sources.id"))
+    data_source = db.relationship(
+        DataSource, backref=db.backref("catalog_relationships", cascade="all, delete-orphan")
+    )
+
+    left_table = Column(db.String(1024))
+    left_column = Column(db.String(1024))
+    right_table = Column(db.String(1024))
+    right_column = Column(db.String(1024))
+    #: How many distinct saved queries join this way. Confidence is a count,
+    #: not a score: a number somebody can check beats one they have to trust.
+    observed_count = Column(db.Integer, default=0)
+
+    __tablename__ = "catalog_relationships"
+    __table_args__ = (
+        db.Index(
+            "ix_catalog_relationships_edge",
+            "data_source_id",
+            "left_table",
+            "left_column",
+            "right_table",
+            "right_column",
+            unique=True,
+        ),
+    )
+
+    def __str__(self):
+        return "{}.{} = {}.{}".format(self.left_table, self.left_column, self.right_table, self.right_column)
+
+
 class AIProvider(TimestampMixin, BelongsToOrgMixin, db.Model):
     """
     Which model an organization talks to, and the key it talks with.
