@@ -553,7 +553,12 @@ footer a {
   grid-template-columns: 240px minmax(0, 1fr);
   gap: 48px;
   align-items: start;
-  padding: 40px 0 72px;
+  /* `padding-block`, not the shorthand. This element also carries `.wrap`,
+     whose horizontal padding a `padding: 40px 0 72px` silently resets to
+     zero -- which pinned the sidebar flush against the left edge of the
+     window. The hero on the front page has a comment saying exactly this;
+     the same mistake made twice. */
+  padding-block: 40px 72px;
 }
 @media (max-width: 900px) {
   .doc-layout {

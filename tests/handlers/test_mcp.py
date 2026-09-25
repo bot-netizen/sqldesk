@@ -242,3 +242,167 @@ class TestTheAudit(McpTestCase):
             response = self.post(rpc("tools/list"))
         self.assertEqual(200, response.status_code)
         self.assertIn("tools", json.loads(response.data)["result"], "and the answer still came back")
+
+
+class TestFindingExistingWork(McpTestCase):
+    """
+    A saved query carries its author's understanding of the data -- which
+    join is right, what a status means -- and no amount of schema carries
+    that. Often the answer is work somebody already did.
+    """
+
+    def call(self, name, arguments=None):
+        return json.loads(self.post(rpc("tools/call", {"name": name, "arguments": arguments or {}})).data)
+
+    def text(self, name, arguments=None):
+        return self.call(name, arguments)["result"]["content"][0]["text"]
+
+    def test_a_query_is_found_by_its_description(self):
+        self.factory.create_query(
+            name="Weekly numbers",
+            description="Revenue by region, the one finance uses",
+            data_source=self.factory.data_source,
+            is_draft=False,
+        )
+        models.db.session.commit()
+        found = self.text("find_queries", {"question": "revenue region"})
+        self.assertIn("Weekly numbers", found)
+        self.assertIn("the one finance uses", found, "the description is the useful part")
+
+    def test_a_draft_is_not_somebody_elses_answer(self):
+        self.factory.create_query(
+            name="wip revenue", description="", data_source=self.factory.data_source, is_draft=True
+        )
+        models.db.session.commit()
+        self.assertIn("No saved query", self.text("find_queries", {"question": "revenue"}))
+
+    def test_a_query_on_a_data_source_you_cannot_read_is_not_offered(self):
+        other_org = self.factory.create_org(name="Other", slug="other-fq")
+        theirs = self.factory.create_data_source(org=other_org, name="theirs")
+        self.factory.create_query(
+            name="secret revenue", description="", data_source=theirs, org=other_org, is_draft=False
+        )
+        models.db.session.commit()
+        self.assertNotIn("secret revenue", self.text("find_queries", {"question": "revenue"}))
+
+    def test_a_dashboard_is_found_by_the_words_on_it(self):
+        dashboard = self.factory.create_dashboard(name="Finance", is_draft=False)
+        models.db.session.add(models.Widget(dashboard=dashboard, width=1, text="## Revenue by region", options={}))
+        models.db.session.commit()
+        found = self.text("find_dashboards", {"question": "revenue"})
+        self.assertIn("Finance", found)
+        self.assertIn("/dashboards/{}".format(dashboard.id), found, "the address is the useful part")
+
+
+class TestExplainAndRun(McpTestCase):
+    def call(self, name, arguments):
+        return json.loads(self.post(rpc("tools/call", {"name": name, "arguments": arguments})).data)
+
+    def test_running_needs_a_named_data_source(self):
+        # Guessing which warehouse to run somebody's SQL against is not a
+        # thing to do on their behalf.
+        body = self.call("run_query", {"sql": "SELECT 1"})
+        self.assertEqual(-32602, body["error"]["code"])
+
+    def test_the_editors_own_row_limit_is_applied(self):
+        captured = {}
+
+        def fake(user, source, sql, timeout):
+            captured["sql"] = sql
+            return {"columns": [{"name": "n"}], "rows": [{"n": 1}]}, None
+
+        with mock.patch("sqldesk.mcp._on_a_worker", side_effect=fake):
+            self.call("run_query", {"sql": "SELECT 1", "data_source": self.factory.data_source.name})
+        self.assertIn("1000", captured["sql"], "the ceiling a person clicking Execute gets")
+
+    def test_it_runs_on_a_worker_and_not_in_the_web_process(self):
+        """
+        A four-minute query run here would hold a web worker for four
+        minutes, and would appear in nobody's list of running queries. The
+        queue is what makes it cancellable and attributable.
+        """
+        finished = mock.Mock(is_finished=True, is_failed=False)
+        finished.result = {"columns": [{"name": "n"}], "rows": [{"n": 1}]}
+
+        with mock.patch("sqldesk.tasks.queries.enqueue_query") as enqueue:
+            with mock.patch("sqldesk.tasks.Job.fetch", return_value=finished):
+                with mock.patch.object(type(self.factory.data_source), "query_runner") as runner:
+                    runner.apply_auto_limit.side_effect = lambda sql, _: sql
+                    self.call("run_query", {"sql": "SELECT 1", "data_source": self.factory.data_source.name})
+
+        self.assertTrue(enqueue.called, "the query has to go on the queue")
+        runner.run_query.assert_not_called()
+        # And it carries who asked, so the admin's list can say so.
+        self.assertTrue(enqueue.call_args[1]["metadata"]["mcp"])
+
+    def test_a_failing_query_reports_the_reason(self):
+        with mock.patch("sqldesk.mcp._on_a_worker", return_value=(None, ['relation "nope" does not exist'])):
+            body = self.call("run_query", {"sql": "SELECT * FROM nope", "data_source": self.factory.data_source.name})
+        self.assertTrue(body["result"]["isError"])
+        self.assertIn("does not exist", body["result"]["content"][0]["text"])
+
+    def test_explain_returns_the_plan(self):
+        plan = {"columns": [{"name": "QUERY PLAN"}], "rows": [{"QUERY PLAN": "Seq Scan on orders"}]}
+        with mock.patch("sqldesk.mcp._on_a_worker", return_value=(plan, None)) as worker:
+            body = self.call(
+                "explain_query", {"sql": "SELECT * FROM orders", "data_source": self.factory.data_source.name}
+            )
+        self.assertIn("Seq Scan", body["result"]["content"][0]["text"])
+        self.assertTrue(worker.call_args[0][2].startswith("EXPLAIN "))
+
+    def test_rows_are_truncated_for_reading_not_silently(self):
+        many = {"columns": [{"name": "n"}], "rows": [{"n": i} for i in range(500)]}
+        with mock.patch("sqldesk.mcp._on_a_worker", return_value=(many, None)):
+            body = self.call("run_query", {"sql": "SELECT 1", "data_source": self.factory.data_source.name})
+        text = body["result"]["content"][0]["text"]
+        self.assertIn("450 more rows returned", text)
+
+    def test_the_new_tools_are_advertised(self):
+        names = {t["name"] for t in json.loads(self.post(rpc("tools/list")).data)["result"]["tools"]}
+        self.assertTrue({"find_queries", "find_dashboards", "explain_query", "run_query"} <= names)
+
+    def test_a_query_the_warehouse_refuses_reports_what_it_said(self):
+        """
+        A refused query still *finishes* as far as the queue is concerned:
+        the job returns a QueryExecutionError rather than raising. Handing
+        that to the database as a result id got "can't adapt type
+        'QueryExecutionError'", which is a long way from "that table does
+        not exist".
+        """
+        from sqldesk.tasks.queries.execution import QueryExecutionError
+
+        finished = mock.Mock(is_finished=True, is_failed=False)
+        finished.result = QueryExecutionError('relation "nope" does not exist\nLINE 1: ...')
+
+        with mock.patch("sqldesk.tasks.queries.enqueue_query"):
+            with mock.patch("sqldesk.tasks.Job.fetch", return_value=finished):
+                with mock.patch.object(type(self.factory.data_source), "query_runner") as runner:
+                    runner.apply_auto_limit.side_effect = lambda sql, _: sql
+                    body = self.call(
+                        "run_query", {"sql": "SELECT * FROM nope", "data_source": self.factory.data_source.name}
+                    )
+
+        self.assertTrue(body["result"]["isError"])
+        self.assertIn("does not exist", body["result"]["content"][0]["text"])
+        self.assertNotIn("adapt type", body["result"]["content"][0]["text"])
+
+    def test_the_result_is_fetched_by_id_rather_than_used_as_rows(self):
+        # The job's result is a query_result id. Using it directly gets an
+        # integer where a result should be.
+        stored = mock.Mock()
+        stored.data = {"columns": [{"name": "n"}], "rows": [{"n": 7}]}
+        finished = mock.Mock(is_finished=True, is_failed=False)
+        finished.result = 4242
+
+        with mock.patch("sqldesk.tasks.queries.enqueue_query"):
+            with mock.patch("sqldesk.tasks.Job.fetch", return_value=finished):
+                with mock.patch("sqldesk.models.QueryResult.query") as q:
+                    q.get.return_value = stored
+                    with mock.patch.object(type(self.factory.data_source), "query_runner") as runner:
+                        runner.apply_auto_limit.side_effect = lambda sql, _: sql
+                        body = self.call(
+                            "run_query", {"sql": "SELECT 7", "data_source": self.factory.data_source.name}
+                        )
+
+        q.get.assert_called_once_with(4242)
+        self.assertIn("7", body["result"]["content"][0]["text"])
