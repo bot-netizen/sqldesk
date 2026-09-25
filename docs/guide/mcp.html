@@ -140,6 +140,37 @@ somebody already answered this".</p>
   launder permissions.</p>
 </div>
 
+<h2>A question, end to end</h2>
+<p>What the sequence looks like in practice, against a real warehouse. Each step is one tool call.</p>
+
+<pre><code>1. find_queries("revenue product")
+   → No saved query matches that.
+
+2. find_context("revenue by product")
+   → orders(amount numeric, ts timestamp with time zone, region text,
+            product text, id bigint)
+       used by 43 saved queries
+       joined with region_targets (4)
+
+3. check_sql("SELECT product, sum(amount) FROM orders GROUP BY 1 ORDER BY 2 DESC")
+   → WARNING: No WHERE clause and no LIMIT
+       This reads the whole table.
+
+4. explain_query(same SQL)
+   → Sort  (cost=80.50..80.51 rows=5 width=39)
+       HashAggregate  (cost=...)
+
+5. run_query(same SQL)
+   → product   revenue
+     Team      163571
+     Business  103105
+     Starter   96446</code></pre>
+
+<p>Step 1 matters more than it looks. The question that has already been answered is answered
+better than a model will answer it, because the person who wrote it knew which join was right.
+Step 3 and step 4 are different questions: one is whether the SQL is shaped badly, the other is
+what the engine thinks it will cost.</p>
+
 <h2>The audit</h2>
 <p>Admin &rarr; MCP. Every request leaves a row, <em>including the refused ones</em> — a key that does not
 work, tried repeatedly, is exactly what an audit is for. Each row records who, when, which method, which
