@@ -1,5 +1,58 @@
 # Changelog
 
+## 0.6.0-rc.1
+
+SQLDesk answers questions about your warehouse over the Model Context
+Protocol, and learns what to say from the queries people have already written.
+
+**MCP.** One endpoint, JSON-RPC over streamable HTTP, authenticated with a
+SQLDesk API key -- the one on your profile page. Every call runs as that user
+and sees only the data sources that user can read; there is no service account
+and no way to configure one, because a tool server with more access than its
+user is a way to launder permissions. Eight tools, in the order they are meant
+to be used: `find_queries` and `find_dashboards` to look for work that already
+exists, `find_context`, `expand_table` and `list_data_sources` to understand
+the data, `check_sql` for the shape and `explain_query` for the cost, then
+`run_query`, which returns at most 1000 rows -- the editor's own ceiling,
+reused rather than invented -- and runs on a worker like any other query, so
+it appears in Admin under the name of whoever's key it was and can be
+cancelled there. Every request leaves an audit row, including the refused
+ones. The handshake negotiates the protocol version rather than announcing
+its own regardless.
+
+**A catalog, built from what you already have.** You have no data hub, and
+most installs never will. But the warehouse states its own structure, several
+engines carry `COMMENT ON` text nobody was reading, and every dashboard is
+built on SQL somebody wrote and saved. Harvesting reads all three: what exists,
+what it is called, which tables anyone actually uses, which columns anyone
+selects, which joins anyone writes. It runs on a schedule now rather than
+waiting for somebody to remember a command, and learns only from queries that
+have *run* in the last week -- measured by when a query last ran rather than
+when it was last edited, because a dashboard refreshed every morning and
+untouched for a year is the most important thing in the warehouse.
+
+**Measures are proposed, never assumed.** `SUM(amount) AS gross_revenue` in a
+saved query is a person naming a metric, and the alias they chose becomes its
+name. Admin -> Catalog shows each proposal with how many distinct queries
+define it that way, and it reaches a model only once somebody agrees it --
+with a Deny beside Agree, because a proposal nobody can reject comes back
+every night until the list stops being read. Aggregates across a join and
+arithmetic around an aggregate are refused rather than guessed: a metric
+definition that is merely plausible is worse than none.
+
+**The semantic layer lives in git.** `manage ai export` writes it as
+cube-shaped YAML, one file per table, into a directory you can commit from;
+`manage ai import` reads it back on deploy. There is also a Download button,
+because the person writing the descriptions is often not the person with
+access to a container. SQLDesk never speaks to git itself -- no deploy key, no
+conflict handling -- and importing never creates anything the warehouse has
+not stated, nor lets a file redefine what a measure computes.
+
+**Documentation.** Twelve guide pages covering concepts, architecture,
+connectors, queries, visualizations, dashboards, alerts, MCP, administration
+and deploying, with the in-app help links pointing into them. A Helm chart for
+Kubernetes, with NodePort for minikube.
+
 ## 0.5.0
 
 A dashboard that costs less to look at, and more room on it to say things.
