@@ -253,7 +253,10 @@ def catalog_measures():
     if source_id:
         measures = measures.filter(models.CatalogMeasure.data_source_id == source_id)
     if request.args.get("pending"):
-        measures = measures.filter(models.CatalogMeasure.approved.is_(False))
+        # Proposals only. A measure somebody denied has been looked at, and
+        # putting it back on the worklist every night is how a worklist stops
+        # being read.
+        measures = measures.filter(models.CatalogMeasure.status == models.MEASURE_PROPOSED)
 
     measures = measures.order_by(models.CatalogMeasure.usage_count.desc().nullslast()).limit(200).all()
 
@@ -267,7 +270,7 @@ def catalog_measures():
                     "kind": measure.kind,
                     "column_name": measure.column_name,
                     "usage_count": measure.usage_count,
-                    "approved": measure.approved,
+                    "status": measure.status,
                     "description": measure.description,
                 }
                 for measure in measures
@@ -281,11 +284,13 @@ def catalog_measures():
 @require_super_admin
 def review_catalog_measure(measure_id):
     """
-    Approve a proposed metric, or write what it means.
+    Agree a proposed metric, deny it, or write what it means.
 
     Approval is the whole point: until somebody sets it, the definition is
     something we noticed rather than something the organisation stands
-    behind, and only the latter belongs in front of a model.
+    behind, and only the latter belongs in front of a model. Denial matters
+    for a duller reason -- a proposal nobody can reject is one that comes
+    back every night until the list stops being read.
     """
     measure = models.CatalogMeasure.query.filter(
         models.CatalogMeasure.id == measure_id, models.CatalogMeasure.org == current_org
@@ -294,8 +299,10 @@ def review_catalog_measure(measure_id):
         abort(404)
 
     body = request.get_json(force=True) or {}
-    if "approved" in body:
-        measure.approved = bool(body["approved"])
+    if "status" in body:
+        if body["status"] not in models.MEASURE_STATUSES:
+            abort(400, message="status must be one of {}.".format(", ".join(models.MEASURE_STATUSES)))
+        measure.status = body["status"]
     if "description" in body:
         measure.description = (body["description"] or "").strip() or None
     models.db.session.commit()
@@ -304,10 +311,10 @@ def review_catalog_measure(measure_id):
         current_org,
         current_user._get_current_object(),
         {
-            "action": "approve" if measure.approved else "unapprove",
+            "action": measure.status,
             "object_id": measure_id,
             "object_type": "catalog_measure",
         },
     )
 
-    return json_response({"id": measure.id, "approved": measure.approved, "description": measure.description})
+    return json_response({"id": measure.id, "status": measure.status, "description": measure.description})

@@ -6,7 +6,7 @@ import yaml
 
 from sqldesk.ai.catalog.harvest import harvest_data_source
 from sqldesk.ai.catalog.semantic import cube_type, export_catalog, import_catalog
-from sqldesk.models import CatalogColumn, CatalogMeasure, CatalogTable, db
+from sqldesk.models import MEASURE_APPROVED, CatalogColumn, CatalogMeasure, CatalogTable, db
 from tests import BaseTestCase
 
 SCHEMA = [
@@ -26,6 +26,22 @@ SCHEMA = [
 ]
 
 
+class HarvestHelpers(BaseTestCase):
+    """
+    Queries the catalog will actually learn from.
+
+    Mining reads queries that have *run* inside the usage window, so a query
+    created in a test and never executed is invisible to it -- correctly, but
+    it makes for confusing tests. This gives one a fresh result, which is
+    what every real saved query has.
+    """
+
+    def _ran(self, source, sql):
+        query = self.factory.create_query(query_text=sql, data_source=source)
+        query.latest_query_data = self.factory.create_query_result(data_source=source)
+        return query
+
+
 class TestCubeTypes(BaseTestCase):
     def test_sql_types_become_the_five_cube_knows(self):
         self.assertEqual("number", cube_type("bigint"))
@@ -39,11 +55,11 @@ class TestCubeTypes(BaseTestCase):
         self.assertEqual("string", cube_type(None))
 
 
-class TestExport(BaseTestCase):
+class TestExport(HarvestHelpers):
     def _harvest(self, queries=()):
         source = self.factory.create_data_source()
         for sql in queries:
-            self.factory.create_query(query_text=sql, data_source=source)
+            self._ran(source, sql)
         db.session.commit()
         with mock.patch.object(type(source), "get_schema", return_value=SCHEMA):
             harvest_data_source(source)
@@ -88,7 +104,7 @@ class TestExport(BaseTestCase):
         self.assertNotIn("measures", cube)
 
         measure = CatalogMeasure.query.filter(CatalogMeasure.data_source_id == source.id).one()
-        measure.approved = True
+        measure.status = MEASURE_APPROVED
         db.session.commit()
 
         cube = self._orders(self._export(source))
@@ -109,11 +125,11 @@ class TestExport(BaseTestCase):
         self.assertIsInstance(written, dict)
 
 
-class TestImport(BaseTestCase):
+class TestImport(HarvestHelpers):
     def _harvest(self, queries=(), source=None):
         source = source or self.factory.create_data_source()
         for sql in queries:
-            self.factory.create_query(query_text=sql, data_source=source)
+            self._ran(source, sql)
         db.session.commit()
         with mock.patch.object(type(source), "get_schema", return_value=SCHEMA):
             harvest_data_source(source)
@@ -173,7 +189,7 @@ class TestImport(BaseTestCase):
 
         db.session.expire_all()
         measure = CatalogMeasure.query.filter(CatalogMeasure.data_source_id == source.id).one()
-        self.assertTrue(measure.approved)
+        self.assertEqual(MEASURE_APPROVED, measure.status)
         self.assertEqual("Agreed with finance.", measure.description)
 
     def test_a_file_cannot_redefine_what_a_measure_computes(self):
@@ -237,7 +253,7 @@ class TestImport(BaseTestCase):
         self.assertEqual("Edited in the repo.", self._table(source).description)
 
 
-class TestExportedFileShape(BaseTestCase):
+class TestExportedFileShape(HarvestHelpers):
     """
     What the file on disk actually looks like, since that is what somebody
     reads in a pull request.
@@ -245,11 +261,11 @@ class TestExportedFileShape(BaseTestCase):
 
     def test_a_reviewer_sees_readable_yaml(self):
         source = self.factory.create_data_source(name="Warehouse One")
-        self.factory.create_query(query_text="SELECT SUM(amount) AS gross_revenue FROM orders", data_source=source)
+        self._ran(source, "SELECT SUM(amount) AS gross_revenue FROM orders")
         db.session.commit()
         with mock.patch.object(type(source), "get_schema", return_value=SCHEMA):
             harvest_data_source(source)
-        CatalogMeasure.query.filter(CatalogMeasure.data_source_id == source.id).one().approved = True
+        CatalogMeasure.query.filter(CatalogMeasure.data_source_id == source.id).one().status = MEASURE_APPROVED
         db.session.commit()
         with mock.patch.object(type(source), "get_schema", return_value=SCHEMA):
             harvest_data_source(source)

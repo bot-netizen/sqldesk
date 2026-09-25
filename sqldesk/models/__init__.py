@@ -1690,6 +1690,12 @@ class CatalogColumn(TimestampMixin, db.Model):
         return "{}.{}".format(self.catalog_table.name, self.name)
 
 
+MEASURE_PROPOSED = "proposed"
+MEASURE_APPROVED = "approved"
+MEASURE_DENIED = "denied"
+MEASURE_STATUSES = (MEASURE_PROPOSED, MEASURE_APPROVED, MEASURE_DENIED)
+
+
 class CatalogMeasure(TimestampMixin, BelongsToOrgMixin, db.Model):
     """
     A number somebody already computes, proposed as a metric.
@@ -1721,8 +1727,18 @@ class CatalogMeasure(TimestampMixin, BelongsToOrgMixin, db.Model):
     #: teams wrote independently is a different proposition from one somebody
     #: tried once.
     usage_count = Column(db.Integer, default=0)
-    approved = Column(db.Boolean, default=False, nullable=False)
+    #: proposed -> approved, or proposed -> denied. Three states rather than
+    #: an `approved` flag, because "nobody has looked at this yet" and "we
+    #: looked and it is wrong" are different answers and only one of them
+    #: should keep reappearing on somebody's worklist. A harvest never
+    #: changes this: what the SQL says is the harvest's business, what the
+    #: organisation stands behind is not.
+    status = Column(db.String(16), default=MEASURE_PROPOSED, nullable=False)
     description = Column(db.Text, nullable=True)
+
+    @property
+    def approved(self):
+        return self.status == MEASURE_APPROVED
 
     __tablename__ = "catalog_measures"
     __table_args__ = (

@@ -1,8 +1,12 @@
+import datetime
 from unittest import mock
 
+from sqldesk import settings
 from sqldesk.ai.catalog.harvest import build_card, harvest_data_source
 from sqldesk.ai.catalog.retrieve import context_for, find_tables
 from sqldesk.models import (
+    MEASURE_APPROVED,
+    MEASURE_DENIED,
     CatalogColumn,
     CatalogMeasure,
     CatalogRelationship,
@@ -26,11 +30,27 @@ SCHEMA = [
 ]
 
 
-class TestHarvest(BaseTestCase):
+class HarvestHelpers(BaseTestCase):
+    """
+    Queries the catalog will actually learn from.
+
+    Mining reads queries that have *run* inside the usage window, so a query
+    created in a test and never executed is invisible to it -- correctly, but
+    it makes for confusing tests. This gives one a fresh result, which is
+    what every real saved query has.
+    """
+
+    def _ran(self, source, sql):
+        query = self.factory.create_query(query_text=sql, data_source=source)
+        query.latest_query_data = self.factory.create_query_result(data_source=source)
+        return query
+
+
+class TestHarvest(HarvestHelpers):
     def _harvest(self, queries=(), schema=SCHEMA):
         source = self.factory.create_data_source()
         for sql in queries:
-            self.factory.create_query(query_text=sql, data_source=source)
+            self._ran(source, sql)
         db.session.commit()
         with mock.patch.object(type(source), "get_schema", return_value=schema):
             result = harvest_data_source(source)
@@ -302,7 +322,7 @@ DESCRIBED = [
 ]
 
 
-class TestDescriptions(BaseTestCase):
+class TestDescriptions(HarvestHelpers):
     """
     What a table *means* cannot be derived from its shape or from how often
     anyone queries it. Some engines carry it already -- MySQL returns
@@ -404,7 +424,7 @@ class TestDescriptions(BaseTestCase):
         self.assertEqual("file", table.description_source)
 
 
-class TestMeasureProposals(BaseTestCase):
+class TestMeasureProposals(HarvestHelpers):
     """
     Mined from saved SQL, and believed only once somebody says so. A metric
     definition that is merely plausible is worse than none: the wrong revenue
@@ -416,7 +436,7 @@ class TestMeasureProposals(BaseTestCase):
     def _harvest(self, queries, source=None):
         source = source or self.factory.create_data_source()
         for sql in queries:
-            self.factory.create_query(query_text=sql, data_source=source)
+            self._ran(source, sql)
         db.session.commit()
         with mock.patch.object(type(source), "get_schema", return_value=self.SCHEMA):
             harvest_data_source(source)
@@ -437,7 +457,7 @@ class TestMeasureProposals(BaseTestCase):
     def test_a_proposal_is_not_approved(self):
         source = self._harvest(["SELECT SUM(amount) AS gross_revenue FROM orders"])
 
-        self.assertFalse(self._measures(source)[0].approved)
+        self.assertEqual("proposed", self._measures(source)[0].status)
 
     def test_an_unapproved_measure_stays_off_the_card(self):
         source = self._harvest(["SELECT SUM(amount) AS gross_revenue FROM orders"])
@@ -450,7 +470,7 @@ class TestMeasureProposals(BaseTestCase):
     def test_an_approved_one_reaches_the_card(self):
         source = self._harvest(["SELECT SUM(amount) AS gross_revenue FROM orders"])
         measure = self._measures(source)[0]
-        measure.approved = True
+        measure.status = MEASURE_APPROVED
         db.session.commit()
 
         with mock.patch.object(type(source), "get_schema", return_value=self.SCHEMA):
@@ -465,7 +485,7 @@ class TestMeasureProposals(BaseTestCase):
     def test_harvesting_again_does_not_un_approve_anything(self):
         source = self._harvest(["SELECT SUM(amount) AS gross_revenue FROM orders"])
         measure = self._measures(source)[0]
-        measure.approved = True
+        measure.status = MEASURE_APPROVED
         measure.description = "Agreed with finance."
         db.session.commit()
 
@@ -473,5 +493,153 @@ class TestMeasureProposals(BaseTestCase):
             harvest_data_source(source)
 
         again = self._measures(source)[0]
-        self.assertTrue(again.approved)
+        self.assertEqual(MEASURE_APPROVED, again.status)
         self.assertEqual("Agreed with finance.", again.description)
+
+
+class TestDenial(HarvestHelpers):
+    """
+    A proposal nobody can reject is one that comes back every night until
+    the list stops being read.
+    """
+
+    SCHEMA = [{"name": "orders", "columns": [{"name": "amount", "type": "numeric"}]}]
+    SQL = "SELECT SUM(amount) AS gross_revenue FROM orders"
+
+    def _harvest(self, source=None, queries=(SQL,)):
+        source = source or self.factory.create_data_source()
+        for sql in queries:
+            self._ran(source, sql)
+        db.session.commit()
+        with mock.patch.object(type(source), "get_schema", return_value=self.SCHEMA):
+            harvest_data_source(source)
+        return source
+
+    def _measure(self, source):
+        db.session.expire_all()
+        return CatalogMeasure.query.filter(CatalogMeasure.data_source_id == source.id).one()
+
+    def test_a_denied_measure_stays_denied_through_a_harvest(self):
+        source = self._harvest()
+        measure = self._measure(source)
+        measure.status = MEASURE_DENIED
+        db.session.commit()
+
+        with mock.patch.object(type(source), "get_schema", return_value=self.SCHEMA):
+            harvest_data_source(source)
+
+        self.assertEqual(MEASURE_DENIED, self._measure(source).status)
+
+    def test_a_denied_measure_never_reaches_a_card(self):
+        source = self._harvest()
+        measure = self._measure(source)
+        measure.status = MEASURE_DENIED
+        db.session.commit()
+
+        with mock.patch.object(type(source), "get_schema", return_value=self.SCHEMA):
+            harvest_data_source(source)
+
+        db.session.expire_all()
+        table = CatalogTable.query.filter(
+            CatalogTable.data_source_id == source.id, CatalogTable.name == "orders"
+        ).one()
+        self.assertNotIn("gross_revenue", table.card)
+
+    def test_its_count_still_moves_because_that_is_a_fact(self):
+        # Denying a definition says we do not stand behind it, not that
+        # nobody writes it. The count is evidence either way.
+        source = self._harvest()
+        measure = self._measure(source)
+        measure.status = MEASURE_DENIED
+        db.session.commit()
+        before = self._measure(source).usage_count
+
+        self._ran(source, "SELECT SUM(amount) AS gross_revenue FROM orders WHERE region = 'north'")
+        db.session.commit()
+        with mock.patch.object(type(source), "get_schema", return_value=self.SCHEMA):
+            harvest_data_source(source)
+
+        self.assertGreater(self._measure(source).usage_count, before)
+        self.assertEqual(MEASURE_DENIED, self._measure(source).status)
+
+
+class TestUsageWindow(HarvestHelpers):
+    """
+    Only what has run lately teaches the catalog anything.
+
+    Measured by when a query last *ran*, not when it was last edited: a
+    dashboard refreshed every morning and untouched for a year is the most
+    important thing in the warehouse.
+    """
+
+    SCHEMA = [{"name": "orders", "columns": [{"name": "amount", "type": "numeric"}]}]
+
+    def _table(self, source):
+        db.session.expire_all()
+        return CatalogTable.query.filter(CatalogTable.data_source_id == source.id, CatalogTable.name == "orders").one()
+
+    def _harvest(self, source):
+        with mock.patch.object(type(source), "get_schema", return_value=self.SCHEMA):
+            harvest_data_source(source)
+
+    def test_a_query_that_ran_inside_the_window_counts(self):
+        source = self.factory.create_data_source()
+        self._ran(source, "SELECT SUM(amount) FROM orders")
+        db.session.commit()
+
+        with mock.patch.object(settings, "CATALOG_USAGE_WINDOW_HOURS", 168):
+            self._harvest(source)
+
+        self.assertEqual(1, self._table(source).usage_count)
+
+    def test_a_query_that_last_ran_before_it_does_not(self):
+        source = self.factory.create_data_source()
+        query = self._ran(source, "SELECT SUM(amount) FROM orders")
+        query.latest_query_data.retrieved_at = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+            days=30
+        )
+        db.session.commit()
+
+        with mock.patch.object(settings, "CATALOG_USAGE_WINDOW_HOURS", 168):
+            self._harvest(source)
+
+        self.assertEqual(0, self._table(source).usage_count)
+
+    def test_editing_a_query_does_not_make_it_recent(self):
+        # Editing is a poor proxy for mattering, and using it would let a
+        # query somebody tweaked and never ran outvote a live dashboard.
+        source = self.factory.create_data_source()
+        query = self._ran(source, "SELECT SUM(amount) FROM orders")
+        query.latest_query_data.retrieved_at = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+            days=30
+        )
+        query.updated_at = datetime.datetime.now(datetime.timezone.utc)
+        db.session.commit()
+
+        with mock.patch.object(settings, "CATALOG_USAGE_WINDOW_HOURS", 168):
+            self._harvest(source)
+
+        self.assertEqual(0, self._table(source).usage_count)
+
+    def test_a_query_that_has_never_run_is_never_mined(self):
+        source = self.factory.create_data_source()
+        self.factory.create_query(query_text="SELECT SUM(amount) FROM orders", data_source=source)
+        db.session.commit()
+
+        with mock.patch.object(settings, "CATALOG_USAGE_WINDOW_HOURS", 168):
+            self._harvest(source)
+
+        self.assertEqual(0, self._table(source).usage_count)
+
+    def test_zero_means_every_saved_query_however_old(self):
+        source = self.factory.create_data_source()
+        query = self._ran(source, "SELECT SUM(amount) FROM orders")
+        query.latest_query_data.retrieved_at = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+            days=900
+        )
+        db.session.commit()
+
+        with mock.patch.object(settings, "CATALOG_USAGE_WINDOW_HOURS", 0):
+            self._harvest(source)
+
+        self.assertEqual(1, self._table(source).usage_count)

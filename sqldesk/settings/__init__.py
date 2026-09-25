@@ -469,6 +469,12 @@ AI_TIMEOUT = int(os.environ.get("SQLDESK_AI_TIMEOUT", "60"))
 # `manage ai harvest` yourself.
 CATALOG_HARVEST_SCHEDULE = int(os.environ.get("SQLDESK_CATALOG_HARVEST_SCHEDULE", "24"))
 CATALOG_HARVEST_TIMEOUT = int(os.environ.get("SQLDESK_CATALOG_HARVEST_TIMEOUT", "600"))
+# How far back to look for the queries the catalog learns from, in hours.
+# Usage, joins and proposed measures are all mined from queries that have
+# actually *run* inside this window, so a dashboard nobody opens any more
+# stops voting on what matters. A week by default. 0 means every saved query,
+# however old.
+CATALOG_USAGE_WINDOW_HOURS = int(os.environ.get("SQLDESK_CATALOG_USAGE_WINDOW_HOURS", "168"))
 
 # The provider, from the environment rather than the database.
 #

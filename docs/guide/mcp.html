@@ -82,6 +82,15 @@ paragraph of standing guidance that reaches every answer about it.</p>
 <p>Harvesting reads each source's schema and parses every saved query, which is where the useful part
 comes from: which tables anyone actually uses, which columns anyone selects, and which joins anyone
 writes. A warehouse with three thousand tables and no usage data can only be ranked alphabetically.</p>
+<p>Only queries that have <strong>run</strong> in the last week teach it anything
+(<code>SQLDESK_CATALOG_USAGE_WINDOW_HOURS</code>, 168 by default; 0 for every saved query however
+old). Recency is when a query last ran rather than when it was last edited, because editing is a poor
+proxy for mattering: a dashboard that refreshes every morning and has not been touched in a year is
+the most important thing in the warehouse, and a query somebody tweaked last week and never ran is
+not. A query that has never run is never mined at all &mdash; nothing has ever depended on it.</p>
+<p>What exists is unaffected: tables and columns come from the schema, so nothing disappears from the
+catalog. It is the <em>usage</em> &mdash; the ranking, the join counts, the proposed measures &mdash;
+that tracks what people are doing now.</p>
 <p>Run it again whenever the schema changes or a batch of new queries has been saved. A cron entry or
 a Kubernetes CronJob calling <code>manage ai harvest</code> is the usual arrangement; nightly is
 plenty, because what it reads &mdash; table definitions and saved SQL &mdash; does not change by the
@@ -133,6 +142,11 @@ trying it once.</p>
 <p>Nothing is believed. Proposals appear under <strong>Admin &rarr; Catalog &rarr; Measures</strong>
 and reach a model only once somebody agrees them, because a metric definition that is merely plausible
 is worse than none: the wrong revenue number is still a revenue number.</p>
+<p>Three states, not two: <strong>Agree</strong>, <strong>Deny</strong>, or leave it alone. Denying
+matters for a duller reason than agreeing &mdash; a proposal nobody can reject comes back on the list
+after every harvest, and a list that repeats itself stops being read. A denied definition keeps its
+count, because how many people write it is a fact either way, but it never reaches a model and never
+returns to the worklist. <strong>Undo</strong> puts it back.</p>
 <p>Two things it will not guess. An aggregate across a join is not attributed to either table, and an
 expression like <code>SUM(price * qty)</code> is left for a person to write, since neither can be
 checked against a column.</p>

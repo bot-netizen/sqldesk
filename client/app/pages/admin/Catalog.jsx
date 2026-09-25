@@ -64,6 +64,10 @@ function DescriptionCell({ table, onSaved }) {
   );
 }
 
+//: What each state is called where somebody reads it, rather than in the
+//: database. "Denied" is a decision, not an error, so it is not red.
+const SAID = { proposed: "back on the list", approved: "agreed", denied: "denied" };
+
 function Measures({ sourceId }) {
   const [measures, setMeasures] = useState([]);
   const [pending, setPending] = useState(true);
@@ -89,12 +93,12 @@ function Measures({ sourceId }) {
     load();
   }, [load]);
 
-  const review = useCallback((measure, body) => {
+  const review = useCallback((measure, status) => {
     axios
-      .post(`api/admin/catalog/measures/${measure.id}`, body)
+      .post(`api/admin/catalog/measures/${measure.id}`, { status })
       .then((saved) => {
         setMeasures((current) => current.map((m) => (m.id === saved.id ? { ...m, ...saved } : m)));
-        notification.success(saved.approved ? `${measure.name} agreed.` : `${measure.name} set aside.`);
+        notification.success(`${measure.name} ${SAID[saved.status]}.`);
       })
       .catch(() => notification.error("Could not save that."));
   }, []);
@@ -126,19 +130,34 @@ function Measures({ sourceId }) {
     },
     {
       title: "",
-      dataIndex: "approved",
-      width: 150,
+      dataIndex: "status",
+      width: 210,
       align: "right",
-      render: (approved, row) =>
-        approved ? (
-          <Button size="small" onClick={() => review(row, { approved: false })}>
-            Set aside
-          </Button>
-        ) : (
-          <Button size="small" type="primary" onClick={() => review(row, { approved: true })}>
-            Agree
-          </Button>
-        ),
+      // Three states, because "nobody has looked at this" and "we looked and
+      // it is wrong" are different answers -- and only one of them should
+      // keep coming back on the worklist.
+      render: (status, row) => {
+        if (status === "proposed") {
+          return (
+            <span className="catalog-review">
+              <Button size="small" type="primary" onClick={() => review(row, "approved")}>
+                Agree
+              </Button>
+              <Button size="small" danger onClick={() => review(row, "denied")}>
+                Deny
+              </Button>
+            </span>
+          );
+        }
+        return (
+          <span className="catalog-review">
+            <Tag color={status === "approved" ? "green" : null}>{SAID[status]}</Tag>
+            <Button size="small" onClick={() => review(row, "proposed")}>
+              Undo
+            </Button>
+          </span>
+        );
+      },
     },
   ];
 
@@ -151,8 +170,13 @@ function Measures({ sourceId }) {
       </p>
       <div className="catalog-controls">
         <span className="catalog-toggle">
-          <Switch size="small" checked={pending} onChange={setPending} aria-label="Show only measures not yet agreed" />{" "}
-          Only ones not yet agreed
+          <Switch
+            size="small"
+            checked={pending}
+            onChange={setPending}
+            aria-label="Show only measures nobody has decided on"
+          />{" "}
+          Only ones nobody has decided on
         </span>
         <Button size="small" onClick={load} loading={loading}>
           Refresh

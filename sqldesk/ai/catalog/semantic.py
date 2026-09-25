@@ -25,6 +25,7 @@ import yaml
 
 from sqldesk.ai.catalog.harvest import FILE
 from sqldesk.models import (
+    MEASURE_APPROVED,
     CatalogColumn,
     CatalogMeasure,
     CatalogRelationship,
@@ -152,7 +153,7 @@ def export_catalog(org, directory, data_source=None):
                 CatalogMeasure.query.filter(
                     CatalogMeasure.data_source_id == source.id,
                     CatalogMeasure.table_name == table.name,
-                    CatalogMeasure.approved.is_(True),
+                    CatalogMeasure.status == MEASURE_APPROVED,
                 )
                 .order_by(CatalogMeasure.name)
                 .all()
@@ -258,7 +259,10 @@ def _apply_measures(table, measures):
         CatalogMeasure.table_name == table.name,
         CatalogMeasure.name.in_(named),
     ):
-        measure.approved = True
+        # A file naming a measure is an explicit, reviewed statement, so it
+        # wins even over an earlier denial -- somebody put it in the repo on
+        # purpose, and exports only ever contain approved ones anyway.
+        measure.status = MEASURE_APPROVED
         if named[measure.name]:
             measure.description = named[measure.name]
         count += 1

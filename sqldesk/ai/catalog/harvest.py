@@ -11,18 +11,23 @@ data ranks them alphabetically; usage data with no schema cannot tell you a
 column's type.
 """
 
+import datetime
 import logging
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert
 
+from sqldesk import settings
 from sqldesk.ai.catalog.mine import mine_all
 from sqldesk.models import (
+    MEASURE_APPROVED,
+    MEASURE_PROPOSED,
     CatalogColumn,
     CatalogMeasure,
     CatalogRelationship,
     CatalogTable,
     Query,
+    QueryResult,
     db,
 )
 
@@ -182,6 +187,35 @@ def _upsert(table, rows, index_elements, update_columns, chunk=500, describe=Fal
         db.session.execute(statement.on_conflict_do_update(index_elements=index_elements, set_=updates))
 
 
+def _queries_to_mine(data_source):
+    """
+    The saved SQL worth learning from: what has actually run lately.
+
+    Recency is measured by when a query last *ran*, not when it was last
+    edited. A dashboard that refreshes every morning and has not been touched
+    in a year is the most important thing in the warehouse; a query somebody
+    tweaked last week and never ran again is not. Editing is a poor proxy for
+    mattering, and on a real instance almost nothing is edited in a given
+    week while almost everything runs.
+
+    A query that has never run has no latest result and so is never mined --
+    which is right. Nothing has ever depended on it.
+
+    `with_entities`, because the text is all that is wanted and a Query row
+    carries its options, its schedule and its latest result with it.
+    """
+    query = Query.query.filter(Query.data_source_id == data_source.id, Query.is_archived.is_(False))
+
+    hours = settings.CATALOG_USAGE_WINDOW_HOURS
+    if hours > 0:
+        since = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=hours)
+        query = query.join(QueryResult, Query.latest_query_data_id == QueryResult.id).filter(
+            QueryResult.retrieved_at >= since
+        )
+
+    return [row.query_text for row in query.with_entities(Query.query_text)]
+
+
 def harvest_data_source(data_source):
     """
     Bring one data source's catalog up to date. Safe to run again: everything
@@ -190,14 +224,7 @@ def harvest_data_source(data_source):
     org = data_source.org
     entries = [entry for entry in catalog_metadata_for(data_source) if entry.get("name")]
 
-    # `with_entities`, because the text is all that is wanted and a Query row
-    # carries its options, its schedule and its latest result with it.
-    saved = [
-        row.query_text
-        for row in Query.query.filter(
-            Query.data_source_id == data_source.id, Query.is_archived.is_(False)
-        ).with_entities(Query.query_text)
-    ]
+    saved = _queries_to_mine(data_source)
     usage = mine_all((text, data_source.type) for text in saved)
 
     def used(name):
@@ -289,10 +316,11 @@ def _store_measures(data_source, org, measures):
     """
     Proposed metrics, with their counts kept current.
 
-    `approved` is deliberately not in the update list: a harvest may discover
-    a definition and may revise how popular it is, but whether somebody has
-    blessed it is not a harvest's business. Nor is the description, for the
-    same reason a table's is not.
+    `status` is deliberately not in the update list: a harvest may discover a
+    definition and may revise how popular it is, but whether somebody has
+    blessed it -- or rejected it -- is not a harvest's business. Without that,
+    a measure somebody denied would come back on the worklist every night.
+    Nor is the description, for the same reason a table's is not.
     """
     if not measures:
         return
@@ -307,7 +335,7 @@ def _store_measures(data_source, org, measures):
             "kind": kind,
             "column_name": column,
             "usage_count": count,
-            "approved": False,
+            "status": MEASURE_PROPOSED,
             "created_at": now,
             "updated_at": now,
         }
@@ -399,7 +427,8 @@ def _approved_measures(data_source):
     """`name = SUM(column)` per table, for the tables that have any."""
     by_table = {}
     for measure in CatalogMeasure.query.filter(
-        CatalogMeasure.data_source_id == data_source.id, CatalogMeasure.approved.is_(True)
+        CatalogMeasure.data_source_id == data_source.id,
+        CatalogMeasure.status == MEASURE_APPROVED,
     ):
         text = "{} = {}({})".format(measure.name, (measure.kind or "").upper(), measure.column_name)
         by_table.setdefault(measure.table_name, []).append(text)

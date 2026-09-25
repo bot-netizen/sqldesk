@@ -452,7 +452,7 @@ class TestMeasureReview(BaseTestCase):
     something we noticed rather than something the organisation stands behind.
     """
 
-    def _measure(self, name, usage=0, approved=False):
+    def _measure(self, name, usage=0, status=None):
         measure = models.CatalogMeasure(
             org=self.factory.org,
             data_source_id=self.factory.data_source.id,
@@ -461,7 +461,7 @@ class TestMeasureReview(BaseTestCase):
             kind="sum",
             column_name="amount",
             usage_count=usage,
-            approved=approved,
+            status=status or models.MEASURE_PROPOSED,
         )
         db.session.add(measure)
         db.session.commit()
@@ -482,7 +482,7 @@ class TestMeasureReview(BaseTestCase):
         self.assertEqual(["everywhere", "rare"], [m["name"] for m in rv.json["measures"]])
 
     def test_pending_leaves_out_what_is_already_agreed(self):
-        self._measure("agreed", usage=9, approved=True)
+        self._measure("agreed", usage=9, status=models.MEASURE_APPROVED)
         self._measure("proposed", usage=8)
         admin = self.factory.create_admin()
 
@@ -497,30 +497,30 @@ class TestMeasureReview(BaseTestCase):
         self.make_request(
             "post",
             "/api/admin/catalog/measures/{}".format(measure.id),
-            data={"approved": True, "description": "Agreed with finance."},
+            data={"status": "approved", "description": "Agreed with finance."},
             user=admin,
             org=False,
         )
 
         db.session.expire_all()
         stored = models.CatalogMeasure.query.get(measure.id)
-        self.assertTrue(stored.approved)
+        self.assertEqual(models.MEASURE_APPROVED, stored.status)
         self.assertEqual("Agreed with finance.", stored.description)
 
-    def test_taking_approval_back(self):
-        measure = self._measure("wrong", approved=True)
+    def test_denying_one(self):
+        measure = self._measure("wrong", status=models.MEASURE_APPROVED)
         admin = self.factory.create_admin()
 
         self.make_request(
             "post",
             "/api/admin/catalog/measures/{}".format(measure.id),
-            data={"approved": False},
+            data={"status": "denied"},
             user=admin,
             org=False,
         )
 
         db.session.expire_all()
-        self.assertFalse(models.CatalogMeasure.query.get(measure.id).approved)
+        self.assertEqual(models.MEASURE_DENIED, models.CatalogMeasure.query.get(measure.id).status)
 
     def test_another_orgs_measure_is_not_found(self):
         other = self.factory.create_org()
@@ -532,6 +532,7 @@ class TestMeasureReview(BaseTestCase):
             kind="sum",
             column_name="amount",
             usage_count=0,
+            status=models.MEASURE_PROPOSED,
         )
         db.session.add(measure)
         db.session.commit()
@@ -540,9 +541,34 @@ class TestMeasureReview(BaseTestCase):
         rv = self.make_request(
             "post",
             "/api/admin/catalog/measures/{}".format(measure.id),
-            data={"approved": True},
+            data={"status": "approved"},
             user=admin,
             org=False,
         )
 
         self.assertEqual(404, rv.status_code)
+
+    def test_a_denied_measure_leaves_the_worklist(self):
+        self._measure("wrong", usage=5, status=models.MEASURE_DENIED)
+        self._measure("still_thinking", usage=4)
+        admin = self.factory.create_admin()
+
+        rv = self.make_request("get", "/api/admin/catalog/measures?pending=1", user=admin, org=False)
+
+        self.assertEqual(["still_thinking"], [m["name"] for m in rv.json["measures"]])
+
+    def test_a_status_that_is_not_one_of_the_three_is_refused(self):
+        measure = self._measure("gross_revenue")
+        admin = self.factory.create_admin()
+
+        rv = self.make_request(
+            "post",
+            "/api/admin/catalog/measures/{}".format(measure.id),
+            data={"status": "probably"},
+            user=admin,
+            org=False,
+        )
+
+        self.assertEqual(400, rv.status_code)
+        db.session.expire_all()
+        self.assertEqual(models.MEASURE_PROPOSED, models.CatalogMeasure.query.get(measure.id).status)
