@@ -7,6 +7,10 @@ from sqldesk.ai.optimizer import analyze
 from sqldesk.handlers.base import BaseResource, get_object_or_404
 from sqldesk.permissions import require_access, require_super_admin, view_only
 
+#: Longer than any query anyone writes by hand, and short enough that parsing
+#: it is never the thing that hurts.
+MAX_QUERY_CHARS = 200_000
+
 
 class AIStatusResource(BaseResource):
     @login_required
@@ -85,7 +89,19 @@ class QueryOptimizeResource(BaseResource):
         the AI feature flag.
         """
         body = request.get_json(force=True, silent=True) or {}
-        query_text = body.get("query", "")
+        query_text = body.get("query", "") or ""
+
+        # sqlglot builds a tree in memory and a pathological statement costs
+        # real CPU. The editor never holds anything close to this, so a cap
+        # here only ever stops something that was not a query.
+        if len(query_text) > MAX_QUERY_CHARS:
+            return {
+                "applicable": False,
+                "reason": "That is {} characters; the optimizer looks at queries up to {}.".format(
+                    len(query_text), MAX_QUERY_CHARS
+                ),
+                "findings": [],
+            }
 
         data_source_type = None
         data_source_id = body.get("data_source_id")

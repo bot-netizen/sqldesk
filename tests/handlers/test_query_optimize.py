@@ -60,3 +60,13 @@ class TestQueryOptimize(BaseTestCase):
     def test_anonymous_callers_get_nothing(self):
         response = self.make_request("post", "/api/queries/optimize", data={"query": "SELECT 1"}, user=False)
         self.assertIn(response.status_code, (302, 401, 404))
+
+    def test_something_far_too_large_is_declined_rather_than_parsed(self):
+        # sqlglot builds a tree in memory; a pathological statement costs real
+        # CPU. The editor never holds anything close to this.
+        response = self.make_request(
+            "post", "/api/queries/optimize", data={"query": "SELECT 1, " * 60000}, user=self.factory.user
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertFalse(response.json["applicable"])
+        self.assertIn("characters", response.json["reason"])

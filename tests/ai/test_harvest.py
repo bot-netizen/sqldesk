@@ -111,18 +111,14 @@ class TestHarvest(BaseTestCase):
 
 class TestCards:
     def test_a_card_is_ddl_shaped_not_json(self):
-        table = mock.Mock(name_="orders", usage_count=4)
-        table.name = "orders"
-        card = build_card(table, [("id", "bigint"), ("amount", "decimal")], [("users", 9)])
+        card = build_card("orders", 4, [("id", "bigint", 0), ("amount", "decimal", 0)], [("users", 9)])
         assert "orders(id bigint, amount decimal)" in card
         assert "used by 4 saved queries" in card
         assert "joined with users (9)" in card
 
     def test_a_wide_table_says_how_much_it_left_out(self):
-        table = mock.Mock(usage_count=0)
-        table.name = "wide"
-        columns = [("c{}".format(i), "int") for i in range(60)]
-        card = build_card(table, columns, [])
+        columns = [("c{}".format(i), "int", 0) for i in range(60)]
+        card = build_card("wide", 0, columns, [])
         assert "+30 more columns" in card
 
 
@@ -206,3 +202,56 @@ class TestRankingOnRealShapes(BaseTestCase):
         source = self._warehouse()
         context = context_for(self.factory.org, "amount", data_source=source)
         self.assertEqual("orders", context["tables"][0]["name"])
+
+
+class TestHarvestDoesNotScaleWithRowCount(BaseTestCase):
+    """
+    The first version read then wrote one row at a time: 200 tables of 40
+    columns came to 25,031 statements and 13 seconds, which extrapolates to
+    roughly 375,000 statements on a three-thousand table warehouse.
+
+    Bulk upserts made that 22 statements and 0.7s. This pins the shape of it
+    -- a constant, not a multiple of the schema -- because the regression is
+    invisible on the small schemas every other test here uses.
+    """
+
+    def test_the_statement_count_does_not_follow_the_schema(self):
+        from sqlalchemy import event
+
+        source = self.factory.create_data_source()
+        big = [
+            {"name": "t{}".format(i), "columns": [{"name": "c{}".format(j), "type": "int"} for j in range(40)]}
+            for i in range(100)
+        ]
+
+        counted = []
+
+        def count(*args, **kwargs):
+            counted.append(1)
+
+        # The same function object has to be handed to `remove` that was
+        # handed to `listen`; a lambda cannot be taken off again.
+        event.listen(db.engine, "before_cursor_execute", count)
+        try:
+            with mock.patch.object(type(source), "get_schema", return_value=big):
+                harvest_data_source(source)
+        finally:
+            event.remove(db.engine, "before_cursor_execute", count)
+
+        self.assertLess(
+            len(counted),
+            120,
+            "harvest issued {} statements for 100 tables; it should not grow with the schema".format(len(counted)),
+        )
+        self.assertEqual(100, CatalogTable.query.filter(CatalogTable.data_source_id == source.id).count())
+
+    def test_a_table_dropped_from_the_warehouse_leaves_the_catalog(self):
+        # Otherwise it is offered to a model forever and every query written
+        # against it fails.
+        source = self.factory.create_data_source()
+        with mock.patch.object(type(source), "get_schema", return_value=SCHEMA):
+            harvest_data_source(source)
+        with mock.patch.object(type(source), "get_schema", return_value=SCHEMA[:1]):
+            harvest_data_source(source)
+        names = {t.name for t in CatalogTable.query.filter(CatalogTable.data_source_id == source.id)}
+        self.assertEqual({"orders"}, names)
