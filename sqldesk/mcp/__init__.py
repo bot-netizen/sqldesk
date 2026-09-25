@@ -22,7 +22,7 @@ application uses. There is no service account.
 import logging
 import time
 
-from sqldesk import models, settings
+from sqldesk import __version__, models, settings
 from sqldesk.ai.catalog.retrieve import context_for, find_tables
 from sqldesk.ai.optimizer import analyze
 from sqldesk.permissions import has_access, view_only
@@ -36,11 +36,19 @@ RUN_TIMEOUT = 120
 
 logger = logging.getLogger(__name__)
 
-PROTOCOL_VERSION = "2025-06-18"
+#: Newest first. A client names the version it wants when it calls initialize;
+#: if it is one of these we answer in that version, and otherwise we answer in
+#: ours and leave the client to decide whether it can go on. Answering with our
+#: own version at a client that asked for an older one is a handshake that
+#: fails in a way nobody can read.
+SUPPORTED_PROTOCOLS = ("2025-06-18", "2025-03-26", "2024-11-05")
+PROTOCOL_VERSION = SUPPORTED_PROTOCOLS[0]
 SERVER_INFO = {
     "name": "sqldesk",
     "title": "SQLDesk",
-    "version": settings.VERSION if hasattr(settings, "VERSION") else "0.6.0",
+    # Read from the one place the version is written down, so it cannot
+    # disagree with itself after a release.
+    "version": __version__,
 }
 
 #: Kept small on purpose. Every tool here is one a model can use well; a tool
@@ -512,8 +520,9 @@ def handle(message, user, org):
         return None
 
     if method == "initialize":
+        asked = ((message.get("params") or {}).get("protocolVersion")) or ""
         return {
-            "protocolVersion": PROTOCOL_VERSION,
+            "protocolVersion": asked if asked in SUPPORTED_PROTOCOLS else PROTOCOL_VERSION,
             "capabilities": {"tools": {}},
             "serverInfo": SERVER_INFO,
         }

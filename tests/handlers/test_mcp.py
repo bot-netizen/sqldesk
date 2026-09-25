@@ -37,6 +37,26 @@ class TestTheHandshake(McpTestCase):
         self.assertEqual("sqldesk", body["result"]["serverInfo"]["name"])
         self.assertIn("tools", body["result"]["capabilities"])
 
+    def test_the_server_answers_in_the_version_the_client_asked_for(self):
+        # A client that speaks an older protocol says so, and gets that version
+        # back. Answering in ours regardless is how a handshake fails silently.
+        for asked in ("2024-11-05", "2025-03-26", "2025-06-18"):
+            response = self.post(rpc("initialize", params={"protocolVersion": asked}))
+            self.assertEqual(asked, json.loads(response.data)["result"]["protocolVersion"])
+
+    def test_an_unknown_version_gets_ours_back(self):
+        # The client decides whether it can proceed; we say what we speak.
+        for asked in ("1999-01-01", "", None):
+            params = {"protocolVersion": asked} if asked is not None else {}
+            response = self.post(rpc("initialize", params=params))
+            self.assertEqual("2025-06-18", json.loads(response.data)["result"]["protocolVersion"])
+
+    def test_the_server_reports_the_version_we_actually_ship(self):
+        from sqldesk import __version__
+
+        response = self.post(rpc("initialize"))
+        self.assertEqual(__version__, json.loads(response.data)["result"]["serverInfo"]["version"])
+
     def test_a_notification_gets_no_reply_at_all(self):
         # Every client sends notifications/initialized, which has no id.
         response = self.post(rpc("notifications/initialized", message_id=None))
