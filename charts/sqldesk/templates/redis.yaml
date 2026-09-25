@@ -1,0 +1,47 @@
+{{- if .Values.redis.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sqldesk.fullname" . }}-redis
+  labels:
+    {{- include "sqldesk.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: 6379
+      targetPort: redis
+  selector:
+    {{- include "sqldesk.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sqldesk.fullname" . }}-redis
+  labels:
+    {{- include "sqldesk.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "sqldesk.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+  template:
+    metadata:
+      labels:
+        {{- include "sqldesk.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+    spec:
+      containers:
+        - name: redis
+          image: {{ .Values.redis.image }}
+          ports:
+            - name: redis
+              containerPort: 6379
+          # No volume on purpose. Redis holds job queues, locks and a schema
+          # cache; losing it costs in-flight jobs and nothing else.
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 3
+            periodSeconds: 5
+{{- end }}

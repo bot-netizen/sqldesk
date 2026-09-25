@@ -1,0 +1,13 @@
+apiVersion: v2
+name: sqldesk
+description: SQLDesk — query 35+ data sources, build dashboards, share what you find.
+type: application
+# The chart's own version, bumped when the chart changes.
+version: 0.1.0
+# The application it installs by default. `image.tag` overrides it.
+appVersion: "0.6.0"
+home: https://bot-netizen.github.io/sqldesk
+sources:
+  - https://github.com/bot-netizen/sqldesk
+maintainers:
+  - name: bot-netizen

@@ -1,0 +1,110 @@
+# SQLDesk.
+#
+# Out of the box this installs everything needed to run on minikube: the
+# application, a Postgres and a Redis. Both bundled databases are meant for
+# development -- for anything you care about, point `postgres.external` and
+# `redis.external` at a managed one and turn the bundled ones off.
+
+image:
+  repository: ghcr.io/bot-netizen/sqldesk
+  # Defaults to the chart's appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# How the application is reached.
+#
+#   NodePort  — minikube. `minikube service sqldesk` opens it.
+#   ClusterIP — behind an Ingress, which is what a real cluster wants.
+service:
+  type: NodePort
+  port: 5000
+  # Leave empty and Kubernetes picks one from its range. Pin it if you want a
+  # stable URL between installs.
+  nodePort: ""
+
+ingress:
+  enabled: false
+  className: ""
+  host: sqldesk.local
+  annotations: {}
+  tls: []
+
+# The two secrets SQLDesk will not start without.
+#
+# Left empty they are generated on first install and then kept: the chart
+# reads back what is already in the cluster rather than making new ones.
+# That matters -- a new secretKey makes every stored data source credential
+# undecryptable, so a chart that rotated them on `helm upgrade` would break
+# an instance every time it was upgraded.
+secrets:
+  cookieSecret: ""
+  secretKey: ""
+  # Name an existing Secret instead, if it is managed elsewhere.
+  existingSecret: ""
+
+server:
+  replicas: 1
+  webWorkers: 4
+  resources:
+    requests: { cpu: 200m, memory: 512Mi }
+    limits: { memory: 2Gi }
+
+worker:
+  replicas: 1
+  # Which queues this worker takes from. Give a slow data source its own
+  # queue and its own workers, so it cannot starve the rest.
+  queues: "queries,scheduled_queries,schemas,periodic,emails,default"
+  workersCount: 2
+  resources:
+    requests: { cpu: 200m, memory: 512Mi }
+    limits: { memory: 2Gi }
+
+# Exactly one. Two schedulers would double-schedule everything, so this is
+# not a number to raise.
+scheduler:
+  enabled: true
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { memory: 512Mi }
+
+postgres:
+  # false when you point `external` at a managed database
+  enabled: true
+  image: postgres:18-alpine
+  database: sqldesk
+  user: sqldesk
+  password: ""          # generated and kept, like the secrets above
+  storage: 8Gi
+  storageClass: ""
+  # postgresql://user:password@host:5432/database
+  external: ""
+
+redis:
+  enabled: true
+  image: redis:7-alpine
+  # Queues, locks and a schema cache. Nothing here needs to survive a
+  # restart, which is why there is no volume.
+  external: ""
+
+# Runs `manage db upgrade` before the new version takes traffic, as a Helm
+# hook. Also creates the tables on a first install.
+migrations:
+  enabled: true
+
+# AI and MCP. Off by default; see the MCP guide.
+ai:
+  enabled: false
+  # Not needed for MCP, which is tool-serving rather than model-calling.
+  provider: ""
+  model: ""
+  apiKey: ""
+  baseUrl: ""
+
+# The address that appears in emails and alert links. Wrong, and every link
+# points at localhost.
+host: ""
+
+extraEnv: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

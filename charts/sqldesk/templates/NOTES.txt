@@ -1,0 +1,60 @@
+SQLDesk {{ .Values.image.tag | default .Chart.AppVersion }} is installing.
+
+The migration job runs first; the server will not be ready until it finishes.
+
+  kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }} -w
+
+{{- if eq .Values.service.type "NodePort" }}
+
+Reaching it on minikube:
+
+  minikube service {{ include "sqldesk.fullname" . }}{{ if .Release.Namespace }} -n {{ .Release.Namespace }}{{ end }}
+
+or, without minikube:
+
+  kubectl port-forward svc/{{ include "sqldesk.fullname" . }} 5000:{{ .Values.service.port }}
+  open http://localhost:5000
+{{- else if .Values.ingress.enabled }}
+
+Reaching it:
+
+  http{{ if .Values.ingress.tls }}s{{ end }}://{{ .Values.ingress.host }}
+{{- else }}
+
+The service is ClusterIP, so reach it from inside the cluster or forward a port:
+
+  kubectl port-forward svc/{{ include "sqldesk.fullname" . }} 5000:{{ .Values.service.port }}
+{{- end }}
+
+First run — create yourself an account:
+
+  kubectl exec -it deploy/{{ include "sqldesk.fullname" . }}-server -- \
+    ./manage.py users create_root you@example.com "Your Name"
+
+{{ if .Values.ai.enabled -}}
+MCP is on. Its endpoint is /mcp, authenticated with the API key from your
+profile page, and the audit is under Admin -> MCP. Fill the catalog first:
+
+  kubectl exec deploy/{{ include "sqldesk.fullname" . }}-server -- ./manage.py ai harvest
+
+{{ if eq .Values.service.type "NodePort" -}}
+NodePort carries the API key in the clear. Fine on minikube, not off it --
+put an Ingress in front and terminate TLS there.
+{{- end }}
+{{- else -}}
+MCP is off. Turn it on with `--set ai.enabled=true` and see
+https://bot-netizen.github.io/sqldesk/guide/mcp.html
+{{- end }}
+
+{{- if not .Values.host }}
+
+WARNING: `host` is unset, so links in emails and alerts will point at
+localhost. Set it to the address people actually use.
+{{- end }}
+
+{{- if and .Values.postgres.enabled (not .Values.postgres.external) }}
+
+NOTE: this installed a Postgres for you, which is meant for development. For
+anything you care about, point `postgres.external` at a managed database and
+set `postgres.enabled=false`.
+{{- end }}
