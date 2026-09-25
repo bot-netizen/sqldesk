@@ -2,7 +2,7 @@ from flask import request
 from flask_login import login_required
 
 from sqldesk import models, settings
-from sqldesk.ai import ModelError, get_provider, load_provider
+from sqldesk.ai import ModelError, load_provider, provider_from
 from sqldesk.ai.optimizer import analyze
 from sqldesk.handlers.base import BaseResource, get_object_or_404
 from sqldesk.permissions import require_access, require_super_admin, view_only
@@ -61,13 +61,7 @@ class AITestResource(BaseResource):
             return {"ok": False, "error": "No provider configured. Run `manage ai configure` on the server."}
 
         try:
-            provider = get_provider(
-                provider_row.type,
-                model=provider_row.model,
-                api_key=provider_row.api_key,
-                base_url=provider_row.base_url,
-                timeout=settings.AI_TIMEOUT,
-            )
+            provider = provider_from(provider_row, timeout=settings.AI_TIMEOUT)
             answer = provider.complete("Reply with the single word: ready")
         except ModelError as error:
             return {"ok": False, "error": str(error)}

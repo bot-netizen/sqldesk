@@ -82,3 +82,67 @@ class TestConfigureCommand(BaseTestCase):
         self.assertEqual(1, result.exit_code)
         self.assertIn("no route to host", result.output)
         self.assertNotIn("Traceback", result.output)
+
+
+class TestDeclaredByTheEnvironment(BaseTestCase):
+    """
+    `configure` writes a row, which is right for one machine somebody looks
+    after and wrong for a cluster: it means `kubectl exec` into a pod, it does
+    not survive a fresh deployment, and the key cannot come from a Secret.
+    """
+
+    def test_the_environment_is_the_configuration_when_it_names_one(self):
+        with mock.patch.multiple(
+            "sqldesk.settings",
+            AI_PROVIDER="anthropic",
+            AI_MODEL="claude-sonnet-5",
+            AI_API_KEY="sk-from-a-secret",
+            AI_BASE_URL="",
+            AI_COMMAND="",
+        ):
+            provider, error = ai.load_provider(self.factory.org)
+        self.assertIsNone(error)
+        self.assertEqual("anthropic", provider.type)
+        self.assertEqual("sk-from-a-secret", provider.api_key)
+        self.assertTrue(provider.to_dict()["from_environment"])
+
+    def test_it_outranks_a_row_somebody_wrote_three_deploys_ago(self):
+        models.db.session.add(
+            models.AIProvider(org=self.factory.org, type="local", model="stale", base_url="http://old", enabled=True)
+        )
+        models.db.session.commit()
+        with mock.patch.multiple(
+            "sqldesk.settings", AI_PROVIDER="openai", AI_MODEL="gpt-4.1", AI_API_KEY="k", AI_BASE_URL="", AI_COMMAND=""
+        ):
+            provider, _ = ai.load_provider(self.factory.org)
+        self.assertEqual("openai", provider.type)
+
+    def test_the_key_still_never_appears_in_what_is_reported(self):
+        with mock.patch.multiple(
+            "sqldesk.settings",
+            AI_PROVIDER="openai",
+            AI_MODEL="gpt-4.1",
+            AI_API_KEY="sk-secret",
+            AI_BASE_URL="",
+            AI_COMMAND="",
+        ):
+            provider, _ = ai.load_provider(self.factory.org)
+        self.assertNotIn("sk-secret", str(provider.to_dict()))
+        self.assertTrue(provider.to_dict()["has_api_key"])
+
+    def _run(self, *args, **kwargs):
+        with mock.patch.object(ai_cli, "_org", return_value=self.factory.org):
+            return CliRunner().invoke(ai_cli.manager, list(args), **kwargs)
+
+    def test_configure_refuses_rather_than_writing_something_unread(self):
+        with mock.patch.multiple("sqldesk.settings", AI_PROVIDER="anthropic"):
+            result = self._run("configure", "openai", "--api-key-stdin", input="k\n")
+        self.assertEqual(1, result.exit_code)
+        self.assertIn("environment", result.output)
+
+    def test_a_misspelled_provider_is_reported_not_guessed_at(self):
+        with mock.patch.multiple(
+            "sqldesk.settings", AI_PROVIDER="claude", AI_MODEL="", AI_API_KEY="", AI_BASE_URL="", AI_COMMAND=""
+        ):
+            provider, error = ai.load_provider(self.factory.org)
+        self.assertIsNone(provider, "an unknown name must not silently fall through to a stored row")

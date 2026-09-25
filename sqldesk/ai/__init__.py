@@ -16,6 +16,8 @@ same class serves a saved configuration, a CLI flag and a test double.
 """
 
 import logging
+import shutil
+import subprocess
 
 import requests
 
@@ -40,6 +42,78 @@ class CredentialsUnreadable(ModelError):
     """
 
 
+def provider_from(row, timeout=None):
+    """
+    A live provider from a stored row.
+
+    One place that knows a row's fields map to a provider's arguments, because
+    three callers doing it separately is three places to forget `command`.
+    """
+    kwargs = {"model": row.model, "api_key": row.api_key, "base_url": row.base_url}
+    if timeout:
+        kwargs["timeout"] = timeout
+    if row.type == "cli":
+        # A CLI has no endpoint and no key; it has a command.
+        kwargs = {"model": row.model, "command": (row.options or {}).get("command")}
+        if timeout:
+            kwargs["timeout"] = timeout
+    return get_provider(row.type, **kwargs)
+
+
+class EnvironmentProvider:
+    """
+    A provider declared by the operator, standing in for a stored row.
+
+    Quacks like `models.AIProvider` where it is read -- the handlers, the CLI
+    and `provider_from` all take a row -- so naming it in the environment
+    needs no second path through any of them.
+    """
+
+    from_environment = True
+    enabled = True
+    updated_at = None
+
+    def __init__(self, type, model, api_key, base_url, command):
+        self.type = type
+        self.model = model or None
+        self.api_key = api_key or None
+        self.base_url = base_url or None
+        self.options = {"command": command} if command else {}
+
+    def to_dict(self):
+        return {
+            "type": self.type,
+            "model": self.model,
+            "base_url": self.base_url,
+            "enabled": True,
+            "has_api_key": bool(self.api_key),
+            "from_environment": True,
+            "updated_at": None,
+        }
+
+
+def provider_from_environment():
+    """The configured provider from the environment, or None if none is named."""
+    from sqldesk import settings
+
+    if not settings.AI_PROVIDER:
+        return None
+    if settings.AI_PROVIDER not in _PROVIDERS:
+        logger.error(
+            "SQLDESK_AI_PROVIDER is %r, which is not one of: %s",
+            settings.AI_PROVIDER,
+            ", ".join(provider_types()),
+        )
+        return None
+    return EnvironmentProvider(
+        settings.AI_PROVIDER,
+        settings.AI_MODEL,
+        settings.AI_API_KEY,
+        settings.AI_BASE_URL,
+        settings.AI_COMMAND,
+    )
+
+
 def load_provider(org):
     """
     The configured provider, or why it cannot be read.
@@ -52,6 +126,13 @@ def load_provider(org):
     from cryptography.fernet import InvalidToken
 
     from sqldesk import models
+
+    # The environment wins. An operator who named a provider in a Secret has
+    # said what this instance talks to, and a row somebody wrote with
+    # `kubectl exec` three deploys ago should not quietly outrank it.
+    declared = provider_from_environment()
+    if declared is not None:
+        return declared, None
 
     try:
         provider = models.AIProvider.get_for_org(org)
@@ -209,3 +290,84 @@ class LocalProvider(OpenAIProvider):
         if not choices:
             raise ModelError("{} returned no choices: {}".format(self.type, str(body)[:200]))
         return (choices[0].get("message", {}).get("content") or "").strip()
+
+
+@register
+class ClaudeCLIProvider(BaseProvider):
+    """
+    The `claude` command, on this machine.
+
+    If somebody has signed Claude Code in with their subscription there is no
+    API key to find, buy or paste anywhere -- which is the whole appeal, and
+    also the whole caveat. `~/.claude` holds one person's session, so every
+    question the instance asks is asked as them.
+
+    That makes this right for a developer running SQLDesk on their own laptop
+    and wrong for a shared server: the authentication is personal, each call
+    spawns a Node process so it does not thread, and a personal subscription
+    standing behind a multi-user product's backend is a question for whoever
+    owns the subscription rather than an assumption to make quietly. Use
+    `anthropic` for anything other people rely on.
+
+    Nothing is passed to a shell. The prompt is an argument, so a question
+    containing a backtick is a question containing a backtick.
+    """
+
+    type = "cli"
+    example_model = None  # whatever the CLI is already set to
+    needs_api_key = False
+    #: Generous: a local CLI starts a Node runtime before it starts thinking.
+    default_timeout = 180
+
+    def __init__(self, model=None, api_key=None, base_url=None, timeout=None, command=None):
+        self.model = model
+        self.api_key = None
+        self.base_url = None
+        self.command = command or "claude"
+        self.timeout = timeout or self.default_timeout
+
+    @property
+    def default_base_url(self):
+        return ""
+
+    def _argv(self, prompt, system):
+        argv = [self.command, "-p"]
+        if self.model:
+            argv += ["--model", self.model]
+        if system:
+            argv += ["--append-system-prompt", system]
+        return argv + [prompt]
+
+    def complete(self, prompt, system=None, max_tokens=1024):
+        if shutil.which(self.command) is None:
+            raise ModelError(
+                "`{}` is not on this container's PATH. The CLI runs on the machine SQLDesk runs on, "
+                "so it has to be installed there or mounted in -- see the AI setup page.".format(self.command)
+            )
+
+        try:
+            finished = subprocess.run(  # noqa: S603 - argv, never a shell
+                self._argv(prompt, system),
+                capture_output=True,
+                text=True,
+                timeout=self.timeout,
+            )
+        except subprocess.TimeoutExpired:
+            raise ModelError("`{}` did not answer within {}s.".format(self.command, self.timeout))
+        except OSError as error:
+            raise ModelError("Could not run `{}`: {}".format(self.command, error))
+
+        if finished.returncode != 0:
+            # The CLI puts the reason on stderr -- not signed in, unknown
+            # model, no network. A bare exit code sends people nowhere.
+            detail = (finished.stderr or finished.stdout or "").strip()[:400]
+            raise ModelError("`{}` exited {}: {}".format(self.command, finished.returncode, detail or "no output"))
+
+        answer = (finished.stdout or "").strip()
+        if not answer:
+            raise ModelError(
+                "`{}` returned nothing. Is it signed in? Try `{} -p hello` yourself.".format(
+                    self.command, self.command
+                )
+            )
+        return answer

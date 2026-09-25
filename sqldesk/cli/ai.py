@@ -36,8 +36,9 @@ def _read_key(api_key, api_key_stdin, env_var):
 @option("--base-url", default=None, help="Required for `local`; overrides the endpoint otherwise.")
 @option("--api-key", default=None, help="Discouraged: lands in shell history. Prefer --api-key-stdin.")
 @option("--api-key-stdin", is_flag=True, default=False, help="Read the key from standard input.")
+@option("--command", default=None, help="For `cli`: the executable, if it is not simply `claude`.")
 @option("--disabled", is_flag=True, default=False, help="Save it, but leave the features off.")
-def configure(provider_type, model, base_url, api_key, api_key_stdin, disabled):
+def configure(provider_type, model, base_url, api_key, api_key_stdin, command, disabled):
     """
     Point SQLDesk at a model. PROVIDER_TYPE is one of: anthropic, openai, local.
 
@@ -45,9 +46,20 @@ def configure(provider_type, model, base_url, api_key, api_key_stdin, disabled):
       manage ai configure anthropic --model claude-sonnet-5 --api-key-stdin
       manage ai configure openai --model gpt-4.1 --api-key-stdin
       manage ai configure local --base-url http://ollama:11434/v1 --model llama3.1
+      manage ai configure cli
+
+    `cli` shells out to the `claude` command on this machine and needs no key
+    at all, which makes it the quickest way to try this on a laptop. It is
+    for one developer on their own machine -- see `docs/ai-setup.md`.
     """
     if provider_type not in ai.provider_types():
         raise SystemExit("Unknown provider {!r}. Known: {}".format(provider_type, ", ".join(ai.provider_types())))
+
+    if settings.AI_PROVIDER:
+        raise SystemExit(
+            "SQLDESK_AI_PROVIDER is set to {!r}, so the environment is the configuration and a stored "
+            "row would never be read. Change the environment instead.".format(settings.AI_PROVIDER)
+        )
 
     key = _read_key(api_key, api_key_stdin, "SQLDESK_AI_API_KEY")
     cls = ai._PROVIDERS[provider_type]
@@ -81,8 +93,12 @@ def configure(provider_type, model, base_url, api_key, api_key_stdin, disabled):
         options.pop("api_key", None)
     if key:
         options["api_key"] = key
+    if command:
+        options["command"] = command
 
     provider.type = provider_type
+    # `cli` has no default model: whatever the command is already set to is
+    # the right answer, and naming one here overrides a choice somebody made.
     provider.model = model or cls.example_model
     provider.base_url = base_url
     provider.enabled = not disabled
@@ -114,6 +130,8 @@ def status():
         return
     for key, value in provider.to_dict().items():
         print("  {}: {}".format(key, value))
+    if getattr(provider, "from_environment", False):
+        print("  (declared by SQLDESK_AI_PROVIDER; `manage ai configure` would not be read)")
 
 
 @manager.command(name="test")
@@ -126,12 +144,7 @@ def test(prompt):
     if provider_row is None:
         raise SystemExit("No provider configured. Run `manage ai configure` first.")
 
-    provider = ai.get_provider(
-        provider_row.type,
-        model=provider_row.model,
-        api_key=provider_row.api_key,
-        base_url=provider_row.base_url,
-    )
+    provider = ai.provider_from(provider_row)
     print("Asking {} / {} ...".format(provider_row.type, provider_row.model))
     try:
         answer = provider.complete(prompt or "Reply with the single word: ready")

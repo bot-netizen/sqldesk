@@ -463,6 +463,24 @@ FEATURE_AI = parse_boolean(os.environ.get("SQLDESK_FEATURE_AI", "false"))
 # How long to wait on a model before giving up. Generous, because a local
 # model on modest hardware is slow rather than broken.
 AI_TIMEOUT = int(os.environ.get("SQLDESK_AI_TIMEOUT", "60"))
+
+# The provider, from the environment rather than the database.
+#
+# `manage ai configure` writes a row, which is right for one machine somebody
+# looks after by hand and wrong for a cluster: it means `kubectl exec` into a
+# pod, it does not survive a fresh deployment, and the key cannot come from a
+# Secret. Named here, the operator's declaration is the configuration and the
+# database row is not consulted at all.
+#
+#   SQLDESK_AI_PROVIDER=anthropic
+#   SQLDESK_AI_MODEL=claude-sonnet-5
+#   SQLDESK_AI_API_KEY=<from a Secret, never a manifest>
+#   SQLDESK_AI_BASE_URL=http://ollama:11434/v1   # local models
+AI_PROVIDER = os.environ.get("SQLDESK_AI_PROVIDER", "")
+AI_MODEL = os.environ.get("SQLDESK_AI_MODEL", "")
+AI_API_KEY = os.environ.get("SQLDESK_AI_API_KEY", "")
+AI_BASE_URL = os.environ.get("SQLDESK_AI_BASE_URL", "")
+AI_COMMAND = os.environ.get("SQLDESK_AI_COMMAND", "")
 FEATURE_DISABLE_REFRESH_QUERIES = parse_boolean(os.environ.get("SQLDESK_FEATURE_DISABLE_REFRESH_QUERIES", "false"))
 FEATURE_SHOW_QUERY_RESULTS_COUNT = parse_boolean(os.environ.get("SQLDESK_FEATURE_SHOW_QUERY_RESULTS_COUNT", "true"))
 FEATURE_AUTO_PUBLISH_NAMED_QUERIES = parse_boolean(
