@@ -28,6 +28,12 @@ from sqldesk.models import (
 
 logger = logging.getLogger(__name__)
 
+#: Where a description came from. Only the engine's may be replaced by a
+#: later harvest; everything else is somebody's words.
+ENGINE = "engine"
+HUMAN = "human"
+FILE = "file"
+
 #: Past this many, a card lists the most-used columns and says how many it left
 #: out. A three-hundred column table is most of a prompt otherwise.
 CARD_COLUMN_LIMIT = 30
@@ -131,20 +137,26 @@ def _keep_curated(statement, table):
     A harvest runs on a schedule and a person writes a sentence once. If the
     two are written the same way, the schedule wins every time and the
     sentence disappears -- quietly, because nobody is watching a cron job. So
-    the update is conditional: a row whose description somebody wrote here
-    keeps it, and a row that has none takes whatever the warehouse offers.
+    the update is conditional: a row whose description came from a person --
+    typed here, or imported from a file they wrote -- keeps it, and a row
+    that has none takes whatever the warehouse offers.
+
+    Phrased as "anything the engine did not write" rather than a list of the
+    sources that count, so that a new way for a person to say something is
+    protected by default instead of the first harvest after it lands.
 
     The condition is on the *stored* row rather than the incoming one, which
     is what makes it safe to run again.
     """
     stored_source = table.c.description_source
+    written_by_a_person = sa.and_(stored_source.isnot(None), stored_source != ENGINE)
     return {
         "description": sa.case(
-            [(stored_source == "human", table.c.description)],
+            [(written_by_a_person, table.c.description)],
             else_=statement.excluded.description,
         ),
         "description_source": sa.case(
-            [(stored_source == "human", stored_source)],
+            [(written_by_a_person, stored_source)],
             else_=statement.excluded.description_source,
         ),
     }
@@ -204,7 +216,7 @@ def harvest_data_source(data_source):
                 "properties": entry.get("properties") or {},
                 "usage_count": used(entry["name"]),
                 "description": entry.get("description"),
-                "description_source": "engine" if entry.get("description") else None,
+                "description_source": ENGINE if entry.get("description") else None,
                 "created_at": now,
                 "updated_at": now,
                 "harvested_at": now,
@@ -245,7 +257,7 @@ def harvest_data_source(data_source):
                     "type": column_type,
                     "usage_count": count,
                     "description": column_description,
-                    "description_source": "engine" if column_description else None,
+                    "description_source": ENGINE if column_description else None,
                     "created_at": now,
                     "updated_at": now,
                 }

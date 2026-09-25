@@ -373,6 +373,21 @@ class TestDescriptions(BaseTestCase):
         self._harvest(DESCRIBED, source=source)
         self.assertEqual("One row per placed order, net of cancellations.", self._table(source).description)
 
+    def test_a_description_imported_from_a_file_is_protected_too(self):
+        # "file" is a person's words that arrived by another road. Protecting
+        # only "human" would let the next harvest overwrite a repo.
+        source = self._harvest(DESCRIBED)
+        table = self._table(source)
+        table.description = "From the semantic repo."
+        table.description_source = "file"
+        db.session.commit()
+
+        self._harvest(DESCRIBED, source=source)
+
+        table = self._table(source)
+        self.assertEqual("From the semantic repo.", table.description)
+        self.assertEqual("file", table.description_source)
+
 
 class TestMeasureProposals(BaseTestCase):
     """

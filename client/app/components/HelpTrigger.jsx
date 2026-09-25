@@ -64,6 +64,8 @@ export const TYPES = mapValues(
     MCP_TOOLS: ["/mcp.html#tools", "Guide: What the Tools Do"],
     MCP_CATALOG: ["/mcp.html#catalog", "Guide: Filling the Catalog"],
     MCP_AUDIT: ["/mcp.html#audit", "Guide: The MCP Audit"],
+    MCP_SEMANTIC: ["/mcp.html#semantic", "Guide: Keeping Meaning in Git"],
+    MCP_MEASURES: ["/mcp.html#measures", "Guide: Where Measures Come From"],
     AUTHENTICATION_OPTIONS: ["/administration.html", "Guide: Administration"],
     USAGE_DATA_SHARING: ["/administration.html", "Guide: Administration"],
     MAIL_CONFIG: ["/deploying.html", "Guide: Mail Configuration"],

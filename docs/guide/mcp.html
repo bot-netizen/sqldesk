@@ -74,6 +74,11 @@ the context tools have nothing to say:</p>
 <pre><code>manage ai harvest                      # every data source
 manage ai harvest --data-source "Warehouse"
 manage ai context "revenue by region"  # what a client would be told</code></pre>
+<p>Descriptions come with it where the warehouse carries them &mdash; <code>COMMENT ON</code> in
+Postgres, <code>table_comment</code> and <code>column_comment</code> in MySQL. Where it carries none,
+write them under <strong>Admin &rarr; Catalog</strong>, which lists the most-queried tables first and
+can show only the ones still missing a sentence. A data source also has a description of its own: one
+paragraph of standing guidance that reaches every answer about it.</p>
 <p>Harvesting reads each source's schema and parses every saved query, which is where the useful part
 comes from: which tables anyone actually uses, which columns anyone selects, and which joins anyone
 writes. A warehouse with three thousand tables and no usage data can only be ranked alphabetically.</p>
@@ -82,6 +87,55 @@ a Kubernetes CronJob calling <code>manage ai harvest</code> is the usual arrange
 plenty, because what it reads &mdash; table definitions and saved SQL &mdash; does not change by the
 minute. It is safe to run while people are working: it reads the schema, reads
 <code>queries.query_text</code>, and writes only to its own catalog tables.</p>
+
+<h2 id="semantic">Keeping meaning in git</h2>
+<p>Structure is the warehouse's to state and usage is mined from saved queries, but what a table
+<em>means</em> is written by people &mdash; and the place to review what people wrote is the place you
+already review things. So the catalog is the cache and a directory of YAML is the record:</p>
+<pre><code>manage ai export ./semantic     # catalog &rarr; files, then commit them
+manage ai import ./semantic     # files &rarr; catalog, on deploy</code></pre>
+<p>SQLDesk never talks to git. No deploy key, no conflict handling, no worker that needs to reach
+GitHub &mdash; the pipeline that already does those things does them better, and a change to what a
+metric means becomes a pull request rather than a row somebody altered.</p>
+<p>The shape is <a href="https://cube.dev/docs/product/data-modeling/reference/cube">cube's</a>, one
+file per table, so the diff is readable and the files are worth something outside SQLDesk:</p>
+<pre><code>cubes:
+  - name: orders
+    sql_table: orders
+    description: One row per placed order, net of cancellations.
+    dimensions:
+      - name: amount
+        sql: amount
+        type: number
+        description: Gross, before refunds.
+    measures:
+      - name: gross_revenue
+        type: sum
+        sql: amount
+    joins:
+      - name: users
+        sql: "{CUBE}.user_id = {users}.id"
+        relationship: many_to_one</code></pre>
+<p>Two rules make the round trip safe. <strong>Importing never creates anything</strong> &mdash; a file
+naming a table the catalog has not harvested is skipped rather than invented, because a row that is not
+in the warehouse has no business in front of a model. And <strong>a file cannot redefine what a measure
+computes</strong>: its <code>sql</code> and <code>type</code> are what the miner found in real queries,
+so a file can agree with a definition and describe it, but not claim one nobody writes.</p>
+<p>A description that arrived from a file is marked as a person's, so the next harvest will not replace
+it with whatever the warehouse does or does not say.</p>
+
+<h2 id="measures">Where measures come from</h2>
+<p>You have no data hub, and most warehouses do not. But every dashboard here is built on SQL somebody
+wrote and saved, and <code>SUM(amount) AS gross_revenue</code> is a person naming a metric. The
+harvester collects those: the alias becomes the name, and the count is how many distinct saved queries
+define it that way &mdash; four teams agreeing independently is a different proposition from one person
+trying it once.</p>
+<p>Nothing is believed. Proposals appear under <strong>Admin &rarr; Catalog &rarr; Measures</strong>
+and reach a model only once somebody agrees them, because a metric definition that is merely plausible
+is worse than none: the wrong revenue number is still a revenue number.</p>
+<p>Two things it will not guess. An aggregate across a join is not attributed to either table, and an
+expression like <code>SUM(price * qty)</code> is left for a person to write, since neither can be
+checked against a column.</p>
 
 <h2 id="connecting">Connecting a client</h2>
 <p>One endpoint, JSON-RPC over HTTP, authenticated with a SQLDesk API key — the one on your profile page.</p>

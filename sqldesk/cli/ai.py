@@ -1,8 +1,11 @@
+import os
+
 from click import argument, option
 from flask.cli import AppGroup
 
 from sqldesk import ai, models, settings
 from sqldesk.ai.catalog.harvest import harvest_data_source
+from sqldesk.ai.catalog.semantic import export_catalog, import_catalog
 
 manager = AppGroup(help="Configure the model SQLDesk talks to.")
 
@@ -228,3 +231,53 @@ def context(question, data_source):
     for table in found["tables"]:
         print(table["card"] or table["name"])
         print()
+
+
+@manager.command(name="export")
+@argument("directory")
+@option("--data-source", default=None, help="One data source by name. Default: all of them.")
+def export_semantic(directory, data_source):
+    """
+    Write the catalog out as cube-shaped YAML, one file per table.
+
+    This is the half of the loop that belongs in git: commit the directory,
+    review changes as a pull request, and run `manage ai import` on deploy.
+    Only measures somebody has agreed are written -- an export full of
+    unreviewed proposals has a diff nobody can read.
+    """
+    org = _org()
+    source = None
+    if data_source:
+        source = models.DataSource.query.filter(
+            models.DataSource.org == org, models.DataSource.name == data_source
+        ).first()
+        if source is None:
+            raise SystemExit("No data source matched.")
+
+    result = export_catalog(org, directory, data_source=source)
+    print(
+        "Wrote {} tables from {} data source(s) into {}.".format(result["tables"], result["data_sources"], directory)
+    )
+
+
+@manager.command(name="import")
+@argument("directory")
+def import_semantic(directory):
+    """
+    Read descriptions and agreed measures back out of a directory of YAML.
+
+    Structure is not imported: what tables and columns exist is the
+    warehouse's to state, and a file claiming otherwise is a second opinion
+    about a fact. What a file carries is what people wrote -- descriptions,
+    and which definitions they stand behind.
+    """
+    if not os.path.isdir(directory):
+        raise SystemExit("{} is not a directory.".format(directory))
+
+    result = import_catalog(_org(), directory)
+    print(
+        "Applied {} table and {} column descriptions, and agreed {} measures. "
+        "Skipped {} that the catalog has not heard of.".format(
+            result["tables"], result["columns"], result["measures"], result["skipped"]
+        )
+    )

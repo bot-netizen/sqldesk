@@ -145,9 +145,9 @@ function Measures({ sourceId }) {
   return (
     <div>
       <p className="catalog-muted">
-        Numbers people already compute, found in saved SQL. Nothing here reaches a model until you agree it &mdash; a
-        definition that is merely plausible is worse than none, because the wrong revenue figure is still a revenue
-        figure.
+        <HelpTrigger type="MCP_MEASURES" /> Numbers people already compute, found in saved SQL. Nothing here reaches a
+        model until you agree it &mdash; a definition that is merely plausible is worse than none, because the wrong
+        revenue figure is still a revenue figure.
       </p>
       <div className="catalog-controls">
         <span className="catalog-toggle">
@@ -253,7 +253,11 @@ export default function Catalog() {
           </h3>
           <p className="catalog-muted">
             What the MCP tools know about your warehouse. Structure and usage are harvested; what a table is{" "}
-            <em>for</em> is the part only a person can write.
+            <em>for</em> is the part only a person can write, and{" "}
+            <HelpTrigger type="MCP_SEMANTIC" showTooltip={false} renderAsLink>
+              kept in git
+            </HelpTrigger>{" "}
+            if you would rather review it as a pull request.
           </p>
         </div>
 
