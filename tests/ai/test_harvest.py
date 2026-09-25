@@ -366,6 +366,21 @@ class TestDescriptions(BaseTestCase):
         self.assertEqual("Orders, excluding the test tenant.", table.description)
         self.assertEqual("human", table.description_source)
 
+    def test_a_persons_words_reach_the_card_too(self):
+        # Keeping the description in the row is only half of it. The card is
+        # what a model is actually handed, and it was rebuilt from what the
+        # *engine* said -- so a sentence somebody typed survived in the
+        # database and vanished from the one place it was meant to appear.
+        source = self._harvest(DESCRIBED)
+        table = self._table(source)
+        table.description = "Orders, excluding the test tenant."
+        table.description_source = "human"
+        db.session.commit()
+
+        self._harvest(DESCRIBED, source=source)
+
+        self.assertIn("Orders, excluding the test tenant.", self._table(source).card)
+
     def test_the_engine_may_still_fill_a_blank(self):
         source = self._harvest([{"name": "orders", "columns": [{"name": "id", "type": "bigint"}]}])
         self.assertIsNone(self._table(source).description)

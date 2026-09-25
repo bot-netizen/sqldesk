@@ -161,3 +161,36 @@ class TestMeasures:
         found = mine_all([(sql, "pg")] * 4)["measures"]
 
         assert found[("orders", "gross_revenue", "sum", "amount")] == 4
+
+    def test_an_aggregate_wrapped_for_display_is_still_a_measure(self):
+        # Real SQL almost never writes SUM(amount) bare. Missing this found
+        # one measure in a hundred and twenty queries that were full of them.
+        found = self._measures("SELECT ROUND(SUM(amount)) AS revenue FROM orders")
+
+        assert found == {("orders", "revenue", "sum", "amount"): 1}
+
+    def test_wrappers_nest(self):
+        found = self._measures("SELECT COALESCE(ROUND(SUM(amount)), 0) AS revenue FROM orders")
+
+        assert found == {("orders", "revenue", "sum", "amount"): 1}
+
+    def test_a_ratio_is_its_own_metric_and_not_either_half(self):
+        found = self._measures("SELECT SUM(a) / SUM(b) AS ratio FROM orders")
+
+        assert found == {}
+
+    def test_arithmetic_around_an_aggregate_is_refused(self):
+        # SUM(amount) * 1.2 is a different number from SUM(amount), and
+        # proposing the second as a definition of the first is the confident
+        # wrong answer a metric layer cannot afford.
+        found = self._measures("SELECT SUM(amount) * 1.2 AS with_tax FROM orders")
+
+        assert found == {}
+
+    def test_several_measures_in_one_select(self):
+        found = self._measures(
+            "SELECT region, ROUND(SUM(amount)) AS revenue, COUNT(*) AS orders, "
+            "ROUND(AVG(amount)) AS avg_order FROM orders GROUP BY region"
+        )
+
+        assert sorted(name for (_t, name, _k, _c) in found) == ["avg_order", "orders", "revenue"]

@@ -361,6 +361,40 @@ def _store_relationships(data_source, org, joins):
     )
 
 
+def _stored_descriptions(data_source):
+    """
+    The descriptions as they now stand, table and column.
+
+    Read back rather than taken from the harvest entry, because the entry
+    only ever holds what the *engine* said. A sentence somebody typed here,
+    or imported from the semantic repo, is deliberately kept out of the
+    engine's answer by the upsert -- so building a card from the entry
+    rebuilds it without the very words a person went to the trouble of
+    writing, and the curation disappears everywhere it was supposed to show.
+    """
+    tables = {}
+    columns = {}
+    rows = (
+        db.session.query(CatalogTable.id, CatalogTable.name, CatalogTable.description)
+        .filter(CatalogTable.data_source_id == data_source.id)
+        .all()
+    )
+    by_id = {}
+    for table_id, name, description in rows:
+        tables[name] = description
+        by_id[table_id] = name
+
+    if by_id:
+        for table_id, name, description in (
+            db.session.query(CatalogColumn.catalog_table_id, CatalogColumn.name, CatalogColumn.description)
+            .filter(CatalogColumn.catalog_table_id.in_(by_id), CatalogColumn.description.isnot(None))
+            .all()
+        ):
+            columns[(by_id[table_id], name)] = description
+
+    return tables, columns
+
+
 def _approved_measures(data_source):
     """`name = SUM(column)` per table, for the tables that have any."""
     by_table = {}
@@ -380,6 +414,7 @@ def _write_cards(data_source, entries, cards, joins, ids, usage):
 
     now = db.func.now()
     approved = _approved_measures(data_source)
+    described, described_columns = _stored_descriptions(data_source)
     rows = []
     for entry in entries:
         name = entry["name"]
@@ -389,7 +424,10 @@ def _write_cards(data_source, entries, cards, joins, ids, usage):
         # Usage came back with the columns, so ranking them costs nothing --
         # the first version asked the database for each table's counts, which
         # is a query per table for something already in hand.
-        ranked = sorted(cards.get(name, []), key=lambda column: -column[2])
+        ranked = [
+            (column[0], column[1], column[2], described_columns.get((name, column[0])) or column[3])
+            for column in sorted(cards.get(name, []), key=lambda column: -column[2])
+        ]
         edges = sorted(neighbours.get(name, neighbours.get(bare, [])), key=lambda edge: -edge[1])[:4]
         rows.append(
             {
@@ -401,7 +439,7 @@ def _write_cards(data_source, entries, cards, joins, ids, usage):
                     usage.get(name, 0),
                     ranked,
                     edges,
-                    entry.get("description"),
+                    described.get(name),
                     approved.get(name) or approved.get(bare) or (),
                 ),
                 "updated_at": now,

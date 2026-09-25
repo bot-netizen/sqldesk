@@ -131,6 +131,41 @@ AGGREGATES = {
 }
 
 
+#: Wrappers to look through on the way to an aggregate. Real SQL almost never
+#: writes `SUM(amount)` bare -- it writes `ROUND(SUM(amount))` or
+#: `COALESCE(SUM(amount), 0)`, and treating those as "not an aggregate" found
+#: one measure in a hundred and twenty queries that were full of them.
+#:
+#: Only presentation and null-handling belong here. Arithmetic does not:
+#: `SUM(amount) * 1.2` is a different number from `SUM(amount)`, and
+#: proposing the second as a definition of the first is exactly the confident
+#: wrong answer a metric layer cannot afford.
+UNWRAP = {"round", "coalesce", "cast", "trycast", "nullif"}
+
+
+def _aggregate_in(expression):
+    """
+    The single aggregate inside a projection, or None.
+
+    None when there is no aggregate, when there is more than one -- a ratio
+    like `SUM(a) / SUM(b)` is its own metric and not either half of itself --
+    or when reaching it means passing through something that changes the
+    value.
+    """
+    found = [node for node in expression.walk() if type(node).__name__.lower() in AGGREGATES]
+    if len(found) != 1:
+        return None
+
+    node = expression
+    while True:
+        name = type(node).__name__.lower()
+        if name in AGGREGATES:
+            return node
+        if name not in UNWRAP or node.this is None:
+            return None
+        node = node.this
+
+
 def _measure_name(projection, function_name, column_name):
     """
     What to call it.
@@ -167,10 +202,11 @@ def _count_measures(tree, aliases, measures):
         return
 
     for projection in select.expressions:
-        function = projection.this if isinstance(projection, exp.Alias) else projection
-        kind = AGGREGATES.get(type(function).__name__.lower())
-        if kind is None:
+        body = projection.this if isinstance(projection, exp.Alias) else projection
+        function = _aggregate_in(body)
+        if function is None:
             continue
+        kind = AGGREGATES[type(function).__name__.lower()]
 
         inner = function.this
         if isinstance(inner, exp.Column):
