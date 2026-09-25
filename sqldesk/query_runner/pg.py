@@ -112,6 +112,53 @@ def build_schema(query_result, schema):
         schema[table_name]["columns"].append(column)
 
 
+def apply_comments(query_result, schema):
+    """
+    Fold `COMMENT ON` text into a schema already built.
+
+    A comment is the only place most warehouses record what a thing means,
+    and it is worth more to a reader -- person or model -- than any amount of
+    structure. Kept as a separate pass over `pg_description` rather than
+    folded into the schema query, because that query runs on every schema
+    refresh over every table, and `pg_description` holds a row only for the
+    objects somebody actually documented. On a warehouse with no comments it
+    returns nothing and costs one index scan.
+
+    A column's description turns it into a dict if it was a bare name, since
+    the schema format allows either and only the dict can carry one.
+    """
+    by_table = {}
+    for row in query_result["rows"]:
+        key = full_table_name(row["table_schema"], row["table_name"])
+        by_table.setdefault(key, {"table": None, "columns": {}})
+        if row.get("column_name"):
+            by_table[key]["columns"][row["column_name"]] = row["description"]
+        else:
+            by_table[key]["table"] = row["description"]
+
+    for table in schema.values():
+        # The schema drops "public." from a name unless it would collide, so
+        # match on either spelling rather than rebuilding that decision here.
+        found = by_table.get(table["name"]) or by_table.get(full_table_name("public", table["name"]))
+        if not found:
+            continue
+        if found["table"]:
+            table["description"] = found["table"]
+        if not found["columns"]:
+            continue
+        table["columns"] = [_described(column, found["columns"]) for column in table["columns"]]
+
+
+def _described(column, descriptions):
+    name = column["name"] if isinstance(column, dict) else column
+    description = descriptions.get(name)
+    if not description:
+        return column
+    if isinstance(column, dict):
+        return dict(column, description=description)
+    return {"name": name, "description": description}
+
+
 def _create_cert_file(configuration, key, ssl_config):
     file_key = key + "File"
     if file_key in configuration:
@@ -249,8 +296,42 @@ class PostgreSQL(BaseSQLQueryRunner):
         """
 
         self._get_definitions(schema, query)
+        self._get_comments(schema)
 
         return list(schema.values())
+
+    def _get_comments(self, schema):
+        """
+        What `COMMENT ON TABLE` and `COMMENT ON COLUMN` say.
+
+        `objsubid` is 0 for a comment on the table itself and the column's
+        `attnum` otherwise, which is how one query returns both.
+
+        Failure here is not failure of the schema: a reader whose role cannot
+        see `pg_description` should still get their tables. The comments are
+        an enrichment, so they are attempted and then let go.
+        """
+        query = """
+        SELECT n.nspname AS table_schema,
+               c.relname AS table_name,
+               a.attname AS column_name,
+               d.description AS description
+        FROM pg_description d
+        JOIN pg_class c ON c.oid = d.objoid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        LEFT JOIN pg_attribute a
+          ON a.attrelid = c.oid AND a.attnum = d.objsubid AND NOT a.attisdropped
+        WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+        AND c.relkind IN ('r', 'v', 'm', 'f', 'p')
+        AND d.description <> ''
+        AND has_table_privilege(c.oid, 'select')
+        """
+        try:
+            results, error = self.run_query(query, None)
+            if error is None:
+                apply_comments(results, schema)
+        except Exception:
+            logger.warning("Could not read column comments", exc_info=True)
 
     def _get_connection(self):
         self.ssl_config = _get_ssl_config(self.configuration)

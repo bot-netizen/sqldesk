@@ -463,6 +463,12 @@ FEATURE_AI = parse_boolean(os.environ.get("SQLDESK_FEATURE_AI", "false"))
 # How long to wait on a model before giving up. Generous, because a local
 # model on modest hardware is slow rather than broken.
 AI_TIMEOUT = int(os.environ.get("SQLDESK_AI_TIMEOUT", "60"))
+# How often the catalog is rebuilt, in hours, and how long one data source
+# gets. Daily is plenty: it reads table definitions and saved SQL, neither of
+# which changes by the minute. Set the schedule to 0 to turn it off and run
+# `manage ai harvest` yourself.
+CATALOG_HARVEST_SCHEDULE = int(os.environ.get("SQLDESK_CATALOG_HARVEST_SCHEDULE", "24"))
+CATALOG_HARVEST_TIMEOUT = int(os.environ.get("SQLDESK_CATALOG_HARVEST_TIMEOUT", "600"))
 
 # The provider, from the environment rather than the database.
 #

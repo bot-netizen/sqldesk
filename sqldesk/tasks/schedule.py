@@ -9,6 +9,7 @@ from rq_scheduler import Scheduler
 
 from sqldesk import rq_redis_connection, settings
 from sqldesk.live import refresh_live_dashboards
+from sqldesk.tasks.catalog import harvest_catalogs
 from sqldesk.tasks.failure_report import send_aggregated_errors
 from sqldesk.tasks.general import sync_user_details, version_check
 from sqldesk.tasks.queries import (
@@ -104,6 +105,16 @@ def periodic_job_definitions():
             "interval": timedelta(minutes=settings.SEND_FAILURE_EMAIL_INTERVAL),
         },
     ]
+
+    # The catalog the MCP context tools read. Off unless the feature is on,
+    # and off entirely at 0 for anyone who would rather run it themselves.
+    if settings.FEATURE_AI and settings.CATALOG_HARVEST_SCHEDULE > 0:
+        jobs.append(
+            {
+                "func": harvest_catalogs,
+                "interval": timedelta(hours=settings.CATALOG_HARVEST_SCHEDULE),
+            }
+        )
 
     if settings.VERSION_CHECK:
         jobs.append({"func": version_check, "interval": timedelta(days=1)})
