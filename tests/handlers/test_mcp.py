@@ -57,6 +57,27 @@ class TestTheHandshake(McpTestCase):
         response = self.post(rpc("initialize"))
         self.assertEqual(__version__, json.loads(response.data)["result"]["serverInfo"]["version"])
 
+    def test_a_body_that_is_not_json_is_a_parse_error(self):
+        # -32700, not -32600: the codes are how a client decides whether
+        # sending the same thing again could ever work.
+        response = self.client.post(
+            "/mcp",
+            data="{not json",
+            headers={"Authorization": "Bearer {}".format(self.factory.user.api_key)},
+            content_type="application/json",
+        )
+
+        self.assertEqual(400, response.status_code)
+        self.assertEqual(-32700, json.loads(response.data)["error"]["code"])
+
+    def test_a_crash_is_an_internal_error_not_a_bad_request(self):
+        # Telling a client its request was invalid when the server broke
+        # invites it to give up on a request that was fine.
+        with mock.patch("sqldesk.handlers.mcp.handle", side_effect=RuntimeError("boom")):
+            response = self.post(rpc("tools/list"))
+
+        self.assertEqual(-32603, json.loads(response.data)["error"]["code"])
+
     def test_a_notification_gets_no_reply_at_all(self):
         # Every client sends notifications/initialized, which has no id.
         response = self.post(rpc("notifications/initialized", message_id=None))

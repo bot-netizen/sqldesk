@@ -175,9 +175,16 @@ class McpError(Exception):
         self.message = message
 
 
+#: The JSON-RPC codes, used for what they mean. A client that retries is
+#: entitled to decide from the code whether retrying is pointless: -32600 says
+#: "you sent nonsense, sending it again will not help", and -32603 says "we
+#: broke, it might work next time". Answering a crash with the former tells
+#: the client to give up on a request that was fine.
+PARSE_ERROR = -32700
 INVALID_REQUEST = -32600
 METHOD_NOT_FOUND = -32601
 INVALID_PARAMS = -32602
+INTERNAL_ERROR = -32603
 
 
 def _readable_sources(user, org):

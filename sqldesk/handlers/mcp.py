@@ -24,7 +24,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqldesk import models, settings
 from sqldesk.authentication import current_org
 from sqldesk.handlers.base import routes
-from sqldesk.mcp import INVALID_REQUEST, McpError, handle
+from sqldesk.mcp import INTERNAL_ERROR, INVALID_REQUEST, PARSE_ERROR, McpError, handle
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +141,7 @@ def mcp_endpoint():
     payload = request.get_json(force=True, silent=True)
     if payload is None:
         _record(org, user, session_id, None, "?", None, "error", "body was not JSON", started)
-        return jsonify(_error(INVALID_REQUEST, "Expected a JSON body.")), 400
+        return jsonify(_error(PARSE_ERROR, "Expected a JSON body.")), 400
 
     # A batch is a list. Notifications inside it produce no reply, and a batch
     # of nothing but notifications is answered with 202 and no body.
@@ -173,7 +173,7 @@ def mcp_endpoint():
         except Exception:
             logger.exception("MCP request failed")
             _record(org, user, session_id, None, method, tool, "error", "unhandled", message_started)
-            replies.append(_error(INVALID_REQUEST, "That request could not be handled.", message_id))
+            replies.append(_error(INTERNAL_ERROR, "That request could not be handled.", message_id))
             continue
 
         outcome = "error" if isinstance(result, dict) and result.get("isError") else "ok"
