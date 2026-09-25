@@ -101,8 +101,22 @@ minute. It is safe to run while people are working: it reads the schema, reads
 <p>Structure is the warehouse's to state and usage is mined from saved queries, but what a table
 <em>means</em> is written by people &mdash; and the place to review what people wrote is the place you
 already review things. So the catalog is the cache and a directory of YAML is the record:</p>
-<pre><code>manage ai export ./semantic     # catalog &rarr; files, then commit them
-manage ai import ./semantic     # files &rarr; catalog, on deploy</code></pre>
+<p>What you type in the browser goes straight into SQLDesk's own database and is live at once
+&mdash; the next answer includes it. Git is a separate, deliberate step, and nothing is committed for
+you:</p>
+<pre><code>manage ai export /app/semantic   # catalog &rarr; files, then commit them
+manage ai import /app/semantic   # files &rarr; catalog, on deploy</code></pre>
+<p>Point <code>SQLDESK_SEMANTIC_DIR</code> at a directory on the host &mdash; a checkout of your model
+repo, if you like &mdash; and it is mounted at <code>/app/semantic</code>, so what the export writes
+appears where you can commit it:</p>
+<pre><code>docker compose -f compose.prod.yaml exec server \
+  /app/manage.py ai export /app/semantic
+
+cd ./semantic &amp;&amp; git add . &amp;&amp; git commit -m "Describe the orders table"</code></pre>
+<p>The directory has to be writable by the container, which runs as uid 1000 rather than as you. On
+Docker Desktop the file sharing layer hides that; on Linux it does not, so
+<code>chown -R 1000: ./semantic</code> once. The export says so plainly rather than failing
+half-written.</p>
 <p>SQLDesk never talks to git. No deploy key, no conflict handling, no worker that needs to reach
 GitHub &mdash; the pipeline that already does those things does them better, and a change to what a
 metric means becomes a pull request rather than a row somebody altered.</p>

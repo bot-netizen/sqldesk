@@ -36,6 +36,18 @@ x-sqldesk-service: &sqldesk-service
     # The development compose.yaml does not need this: it bind-mounts the whole
     # working tree into every service, which is why uploads work there.
     - sqldesk-uploads:/app/uploads
+    # Where `manage ai export` writes the semantic layer, and where
+    # `manage ai import` reads it. A bind mount rather than a named volume
+    # on purpose: the whole point of those files is that you commit them,
+    # so they have to land somewhere you can run git in.
+    #
+    #   docker compose -f compose.prod.yaml exec server \
+    #     /app/manage.py ai export /app/semantic
+    #
+    # and the YAML appears in ./semantic on the host, one file per table.
+    # Point SQLDESK_SEMANTIC_DIR at a checkout of your model repo to write
+    # straight into it. In Kubernetes this is a PVC, or a git-sync sidecar.
+    - ${SQLDESK_SEMANTIC_DIR:-./semantic}:/app/semantic
 
 x-sqldesk-environment: &sqldesk-environment
   SQLDESK_REDIS_URL: "redis://redis:6379/0"

@@ -233,6 +233,18 @@ def context(question, data_source):
         print()
 
 
+def _must_be_writable(directory):
+    try:
+        os.makedirs(directory, exist_ok=True)
+    except OSError as error:
+        raise SystemExit("Cannot create {}: {}".format(directory, error))
+    if not os.access(directory, os.W_OK | os.X_OK):
+        raise SystemExit(
+            "{} is not writable by this container (running as uid {}). "
+            "If it is a bind mount, `chown -R {}: <the host directory>`.".format(directory, os.getuid(), os.getuid())
+        )
+
+
 @manager.command(name="export")
 @argument("directory")
 @option("--data-source", default=None, help="One data source by name. Default: all of them.")
@@ -253,6 +265,12 @@ def export_semantic(directory, data_source):
         ).first()
         if source is None:
             raise SystemExit("No data source matched.")
+
+    # Checked here rather than left to fail mid-write, because the usual
+    # cause is a bind mount owned by the host's user while the container runs
+    # as `sqldesk` -- which is invisible on Docker Desktop, where the file
+    # sharing layer is permissive, and immediate on Linux.
+    _must_be_writable(directory)
 
     result = export_catalog(org, directory, data_source=source)
     print(
