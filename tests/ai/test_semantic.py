@@ -6,7 +6,13 @@ import yaml
 
 from sqldesk.ai.catalog.harvest import harvest_data_source
 from sqldesk.ai.catalog.semantic import cube_type, export_catalog, import_catalog
-from sqldesk.models import MEASURE_APPROVED, CatalogColumn, CatalogMeasure, CatalogTable, db
+from sqldesk.models import (
+    MEASURE_APPROVED,
+    CatalogColumn,
+    CatalogMeasure,
+    CatalogTable,
+    db,
+)
 from tests import BaseTestCase
 
 SCHEMA = [
