@@ -288,3 +288,24 @@ class TestExportedFileShape(HarvestHelpers):
         self.assertLess(text.index("name:"), text.index("dimensions:"))
         self.assertIn("gross_revenue", text)
         self.assertNotIn("!!python", text, "safe_dump only, no Python tags")
+
+    def test_a_long_description_stays_on_one_line(self):
+        # The default wraps at 80 columns, which turns a one-word edit into a
+        # four-line diff in a file that exists to be read as a diff.
+        source = self.factory.create_data_source(name="Wrapping")
+        long_text = (
+            "One row per placed order, net of cancellations and excluding the internal test "
+            "tenant, which is the thing everybody gets wrong the first time they use this table."
+        )
+        schema = [{"name": "orders", "description": long_text, "columns": [{"name": "id", "type": "bigint"}]}]
+        db.session.commit()
+        with mock.patch.object(type(source), "get_schema", return_value=schema):
+            harvest_data_source(source)
+
+        directory = tempfile.mkdtemp()
+        export_catalog(self.factory.org, directory, data_source=source)
+
+        text = open(os.path.join(directory, "wrapping", "orders.yml")).read()
+        description_lines = [line for line in text.splitlines() if line.strip().startswith("description:")]
+        self.assertEqual(1, len(description_lines))
+        self.assertIn(long_text, description_lines[0])

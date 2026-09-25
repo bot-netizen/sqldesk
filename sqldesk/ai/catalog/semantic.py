@@ -169,6 +169,12 @@ def export_catalog(org, directory, data_source=None):
                     sort_keys=False,
                     default_flow_style=False,
                     allow_unicode=True,
+                    # One fact per line, however long. The default wraps
+                    # scalars at 80 columns, so changing a word in the middle
+                    # of a description rewraps the lines after it and the
+                    # diff shows four changed lines for one changed word --
+                    # in a file whose whole purpose is being read as a diff.
+                    width=100000,
                 )
             written += 1
 
