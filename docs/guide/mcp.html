@@ -91,22 +91,54 @@ can see and nothing else. There is no service account and no way to configure on
 a tool server with more access than its user is a way to launder permissions.</p>
 
 <h2>The tools</h2>
+<p>Eight, and the order matters. The first question is not "what SQL should I write" but "has
+somebody already answered this".</p>
+
+<h3>Look for work that already exists</h3>
+<dl>
+  <dt><code>find_queries(question)</code></dt>
+  <dd>Saved queries matching, with their descriptions. A saved query carries its author's
+    understanding of the data &mdash; which join is the right one, what a status means &mdash; and no
+    amount of schema carries that.</dd>
+  <dt><code>find_dashboards(question)</code></dt>
+  <dd>Dashboards matching, with their addresses. Often the useful answer is a page that already
+    exists rather than a new query.</dd>
+</dl>
+
+<h3>Understand the data</h3>
 <dl>
   <dt><code>find_context(question)</code></dt>
-  <dd>The handful of tables most likely to answer a question, with columns already pruned to the ones
-    people use, and the joins observed between them. One call, rather than the forty a
+  <dd>The handful of tables most likely to answer a question, with columns already pruned to the
+    ones people use, and the joins observed between them. One call, rather than the forty a
     list-tables-then-get-schema pair provokes.</dd>
   <dt><code>expand_table(names)</code></dt>
   <dd>Every column of named tables, when the pruned list is not enough.</dd>
   <dt><code>list_data_sources()</code></dt>
   <dd>What this user can read, with each one's dialect.</dd>
-  <dt><code>check_sql(sql)</code></dt>
-  <dd>Parses SQL for the right dialect and reports expensive patterns — a join with no condition,
-    <code>SELECT *</code> on a columnar table, a filter that defeats partition pruning. Nothing is
-    executed.</dd>
 </dl>
-<p><strong>No tool runs a query.</strong> A model can be told what the data looks like and be told its SQL
-is wrong, but it cannot make your warehouse do work.</p>
+
+<h3>Check, then run</h3>
+<dl>
+  <dt><code>check_sql(sql)</code></dt>
+  <dd>Parses for the right dialect and reports expensive patterns &mdash; a join with no condition,
+    <code>SELECT *</code> on a columnar table, a filter that defeats partition pruning. Nothing is
+    executed. This says whether the <em>shape</em> is wrong.</dd>
+  <dt><code>explain_query(sql, data_source)</code></dt>
+  <dd>The engine's own plan, with its own cost estimates. This says what it will <em>cost</em>,
+    which is the number that decides whether running it is reasonable.</dd>
+  <dt><code>run_query(sql, data_source)</code></dt>
+  <dd>Executes, and returns up to 1000 rows &mdash; the same ceiling a person clicking Execute
+    gets, applied by the runner that knows the dialect. It runs <strong>on a worker</strong>, as
+    the user whose key it is, so it appears in Admin &rarr; Overview beside every other running
+    query and can be cancelled there.</dd>
+</dl>
+
+<div class="note">
+  <p><strong>Nothing here has more access than the person whose key it is.</strong> Every data
+  source check is the same one the rest of the application makes, and there is no service account
+  and no way to configure one &mdash; a tool server with more access than its user is a way to
+  launder permissions.</p>
+</div>
 
 <h2>The audit</h2>
 <p>Admin &rarr; MCP. Every request leaves a row, <em>including the refused ones</em> — a key that does not
@@ -118,8 +150,12 @@ transport holds no connection open, so "connected" can only honestly mean "recen
 page says so rather than showing a light that implies otherwise.</p>
 
 <h2>What it costs your warehouse</h2>
-<p>Nothing, directly. The tools read SQLDesk's own catalog; only <code>harvest</code> touches a data
-source, and that is a schema read on a schedule you choose.</p>
+<p>The lookup and context tools cost nothing &mdash; they read SQLDesk's own catalog. Only
+<code>explain_query</code>, <code>run_query</code> and the scheduled <code>harvest</code> reach a
+data source at all, and the first of those is a plan rather than a scan.</p>
+<p>Queries issued this way go on the ordinary queue, so they compete with dashboards for workers.
+If that matters, give them a queue of their own and workers to match &mdash; see
+<a href="deploying.html">Deploying</a>.</p>
 
 <h2>If a client cannot connect</h2>
 <ul>
