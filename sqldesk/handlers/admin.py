@@ -236,3 +236,78 @@ def describe_catalog_table(table_id):
     return json_response(
         {"id": table.id, "description": table.description, "description_source": table.description_source}
     )
+
+
+@routes.route("/api/admin/catalog/measures", methods=["GET"])
+@login_required
+@require_super_admin
+def catalog_measures():
+    """
+    Metrics mined from saved SQL, most-written first.
+
+    A definition four teams wrote independently is a different proposition
+    from one somebody tried once, which is what the count is for.
+    """
+    source_id = request.args.get("data_source_id", type=int)
+    measures = models.CatalogMeasure.query.filter(models.CatalogMeasure.org == current_org)
+    if source_id:
+        measures = measures.filter(models.CatalogMeasure.data_source_id == source_id)
+    if request.args.get("pending"):
+        measures = measures.filter(models.CatalogMeasure.approved.is_(False))
+
+    measures = measures.order_by(models.CatalogMeasure.usage_count.desc().nullslast()).limit(200).all()
+
+    return json_response(
+        {
+            "measures": [
+                {
+                    "id": measure.id,
+                    "table_name": measure.table_name,
+                    "name": measure.name,
+                    "kind": measure.kind,
+                    "column_name": measure.column_name,
+                    "usage_count": measure.usage_count,
+                    "approved": measure.approved,
+                    "description": measure.description,
+                }
+                for measure in measures
+            ]
+        }
+    )
+
+
+@routes.route("/api/admin/catalog/measures/<int:measure_id>", methods=["POST"])
+@login_required
+@require_super_admin
+def review_catalog_measure(measure_id):
+    """
+    Approve a proposed metric, or write what it means.
+
+    Approval is the whole point: until somebody sets it, the definition is
+    something we noticed rather than something the organisation stands
+    behind, and only the latter belongs in front of a model.
+    """
+    measure = models.CatalogMeasure.query.filter(
+        models.CatalogMeasure.id == measure_id, models.CatalogMeasure.org == current_org
+    ).first()
+    if measure is None:
+        abort(404)
+
+    body = request.get_json(force=True) or {}
+    if "approved" in body:
+        measure.approved = bool(body["approved"])
+    if "description" in body:
+        measure.description = (body["description"] or "").strip() or None
+    models.db.session.commit()
+
+    record_event(
+        current_org,
+        current_user._get_current_object(),
+        {
+            "action": "approve" if measure.approved else "unapprove",
+            "object_id": measure_id,
+            "object_type": "catalog_measure",
+        },
+    )
+
+    return json_response({"id": measure.id, "approved": measure.approved, "description": measure.description})

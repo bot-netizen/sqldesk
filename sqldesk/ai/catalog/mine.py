@@ -118,6 +118,76 @@ def _count_joins(tree, aliases, joins):
             joins[pair] += 1
 
 
+#: The aggregates worth proposing as a measure, mapped to what cube calls
+#: them. Others exist -- `stddev`, `percentile_cont` -- but a measure nobody
+#: recognises is worse than no measure, and these five are what a dashboard
+#: is actually made of.
+AGGREGATES = {
+    "sum": "sum",
+    "count": "count",
+    "avg": "avg",
+    "min": "min",
+    "max": "max",
+}
+
+
+def _measure_name(projection, function_name, column_name):
+    """
+    What to call it.
+
+    An alias is a name a person chose while writing the query, which beats
+    anything derived: `SUM(amount) AS gross_revenue` is somebody telling us
+    what the number is called. Failing that, compose one that at least says
+    what it does.
+    """
+    alias = projection.alias if isinstance(projection, exp.Alias) else None
+    if alias and alias != PARAMETER_TOKEN:
+        return alias
+    if column_name:
+        return "{}_{}".format(function_name, column_name)
+    return function_name
+
+
+def _count_measures(tree, aliases, measures):
+    """
+    Aggregates in the select list, as proposed measures.
+
+    Only where one table is in scope. `SUM(amount)` across a three-way join
+    is a number about the join, not about a table, and filing it under
+    whichever table happened to be first would be a definition nobody could
+    trust -- which is the one thing a metric layer cannot afford.
+    """
+    scope = set(aliases.values())
+    if len(scope) != 1:
+        return
+    table = next(iter(scope))
+
+    select = tree.find(exp.Select)
+    if select is None:
+        return
+
+    for projection in select.expressions:
+        function = projection.this if isinstance(projection, exp.Alias) else projection
+        kind = AGGREGATES.get(type(function).__name__.lower())
+        if kind is None:
+            continue
+
+        inner = function.this
+        if isinstance(inner, exp.Column):
+            column_name = inner.name
+        elif isinstance(inner, exp.Star) or inner is None:
+            column_name = None
+        else:
+            # An expression rather than a column -- `SUM(price * qty)`. Real,
+            # but it is a definition we cannot check against a column, so it
+            # is left for a person to write rather than guessed at.
+            continue
+        if column_name == PARAMETER_TOKEN:
+            continue
+
+        measures[(table, _measure_name(projection, kind, column_name), kind, column_name or "*")] += 1
+
+
 def mine(sql, data_source_type=None):
     """
     One query's contribution: the tables it names, the columns it touches, and
@@ -127,15 +197,15 @@ def mine(sql, data_source_type=None):
     database and callable over thousands of queries before a single commit.
     """
     if data_source_type in NOT_SQL or not (sql or "").strip():
-        return {"tables": Counter(), "columns": Counter(), "joins": Counter()}
+        return {"tables": Counter(), "columns": Counter(), "joins": Counter(), "measures": Counter()}
 
     try:
         statements = sqlglot.parse(strip_parameters(sql), read=dialect_for(data_source_type))
     except Exception as error:
         logger.debug("could not parse a saved query while mining: %s", error)
-        return {"tables": Counter(), "columns": Counter(), "joins": Counter()}
+        return {"tables": Counter(), "columns": Counter(), "joins": Counter(), "measures": Counter()}
 
-    tables, columns, joins = Counter(), Counter(), Counter()
+    tables, columns, joins, measures = Counter(), Counter(), Counter(), Counter()
     for tree in statements:
         if tree is None:
             continue
@@ -143,8 +213,9 @@ def mine(sql, data_source_type=None):
         _count_tables(tree, tables)
         _count_columns(tree, aliases, columns)
         _count_joins(tree, aliases, joins)
+        _count_measures(tree, aliases, measures)
 
-    return {"tables": tables, "columns": columns, "joins": joins}
+    return {"tables": tables, "columns": columns, "joins": joins, "measures": measures}
 
 
 def mine_all(queries):
@@ -155,10 +226,11 @@ def mine_all(queries):
     in five subqueries is one team habit, not five, and counting mentions
     would let one baroque query outvote a department.
     """
-    tables, columns, joins = Counter(), Counter(), Counter()
+    tables, columns, joins, measures = Counter(), Counter(), Counter(), Counter()
     for sql, data_source_type in queries:
         found = mine(sql, data_source_type)
         tables.update(set(found["tables"]))
         columns.update(set(found["columns"]))
         joins.update(set(found["joins"]))
-    return {"tables": tables, "columns": columns, "joins": joins}
+        measures.update(set(found["measures"]))
+    return {"tables": tables, "columns": columns, "joins": joins, "measures": measures}

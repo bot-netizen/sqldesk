@@ -112,3 +112,52 @@ class TestTheParameterTokenDoesNotBecomeData:
     def test_a_parameter_is_not_mistaken_for_a_join(self):
         found = mine("SELECT 1 FROM orders o JOIN users u ON o.user_id = {{ user }}")
         assert found["joins"] == {}
+
+
+class TestMeasures:
+    """
+    `SUM(amount) AS gross_revenue` is somebody naming a metric. It is the one
+    part of a semantic layer that can be found rather than asked for.
+    """
+
+    def _measures(self, sql):
+        return dict(mine(sql, "pg")["measures"])
+
+    def test_the_authors_own_alias_becomes_the_name(self):
+        found = self._measures("SELECT SUM(amount) AS gross_revenue FROM orders")
+
+        assert found == {("orders", "gross_revenue", "sum", "amount"): 1}
+
+    def test_an_unnamed_aggregate_gets_a_composed_name(self):
+        found = self._measures("SELECT MAX(created_at) FROM orders")
+
+        assert ("orders", "max_created_at", "max", "created_at") in found
+
+    def test_count_star_is_kept(self):
+        found = self._measures("SELECT COUNT(*) AS orders FROM orders")
+
+        assert found == {("orders", "orders", "count", "*"): 1}
+
+    def test_an_aggregate_over_a_join_is_not_attributed_to_either_table(self):
+        # A number about a join is not a number about a table, and filing it
+        # under whichever came first is a definition nobody could trust.
+        found = self._measures("SELECT AVG(o.total) FROM orders o JOIN users u ON o.user_id = u.id")
+
+        assert found == {}
+
+    def test_an_expression_is_left_for_a_person_to_write(self):
+        # SUM(price * qty) is real, but it cannot be checked against a column.
+        found = self._measures("SELECT SUM(price * qty) AS weird FROM orders")
+
+        assert found == {}
+
+    def test_something_that_is_not_an_aggregate_is_not_a_measure(self):
+        found = self._measures("SELECT region, created_at FROM orders")
+
+        assert found == {}
+
+    def test_the_same_definition_in_four_queries_counts_four(self):
+        sql = "SELECT SUM(amount) AS gross_revenue FROM orders"
+        found = mine_all([(sql, "pg")] * 4)["measures"]
+
+        assert found[("orders", "gross_revenue", "sum", "amount")] == 4

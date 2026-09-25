@@ -17,7 +17,14 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert
 
 from sqldesk.ai.catalog.mine import mine_all
-from sqldesk.models import CatalogColumn, CatalogRelationship, CatalogTable, Query, db
+from sqldesk.models import (
+    CatalogColumn,
+    CatalogMeasure,
+    CatalogRelationship,
+    CatalogTable,
+    Query,
+    db,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +78,7 @@ def _column_entries(columns):
             yield column, None, None
 
 
-def build_card(name, usage_count, columns, joins, description=None):
+def build_card(name, usage_count, columns, joins, description=None, measures=()):
     """
     The compact text a model is given for one table.
 
@@ -99,6 +106,11 @@ def build_card(name, usage_count, columns, joins, description=None):
         lines.append("  used by {} saved queries".format(usage_count))
     if joins:
         lines.append("  joined with " + ", ".join("{} ({})".format(other, count) for other, count in joins))
+    if measures:
+        # Only the approved ones reach here. An agreed definition of revenue
+        # is the single most valuable line on a card -- and a guessed one is
+        # the most dangerous, which is why nobody's guess gets in.
+        lines.append("  measures: " + ", ".join(sorted(measures)))
     return "\n".join(lines)
 
 
@@ -249,6 +261,7 @@ def harvest_data_source(data_source):
     )
 
     _store_relationships(data_source, org, usage["joins"])
+    _store_measures(data_source, org, usage["measures"])
     _drop_tables_that_went_away(data_source, {entry["name"] for entry in entries})
     _write_cards(data_source, entries, cards, usage["joins"], ids, {e["name"]: used(e["name"]) for e in entries})
     db.session.commit()
@@ -258,6 +271,42 @@ def harvest_data_source(data_source):
         "queries_mined": len(saved),
         "relationships": len(usage["joins"]),
     }
+
+
+def _store_measures(data_source, org, measures):
+    """
+    Proposed metrics, with their counts kept current.
+
+    `approved` is deliberately not in the update list: a harvest may discover
+    a definition and may revise how popular it is, but whether somebody has
+    blessed it is not a harvest's business. Nor is the description, for the
+    same reason a table's is not.
+    """
+    if not measures:
+        return
+
+    now = db.func.now()
+    rows = [
+        {
+            "org_id": org.id,
+            "data_source_id": data_source.id,
+            "table_name": table,
+            "name": name,
+            "kind": kind,
+            "column_name": column,
+            "usage_count": count,
+            "approved": False,
+            "created_at": now,
+            "updated_at": now,
+        }
+        for (table, name, kind, column), count in measures.items()
+    ]
+    _upsert(
+        CatalogMeasure.__table__,
+        rows,
+        ["data_source_id", "table_name", "name"],
+        ("kind", "column_name", "usage_count", "updated_at"),
+    )
 
 
 def _drop_tables_that_went_away(data_source, still_there):
@@ -300,6 +349,17 @@ def _store_relationships(data_source, org, joins):
     )
 
 
+def _approved_measures(data_source):
+    """`name = SUM(column)` per table, for the tables that have any."""
+    by_table = {}
+    for measure in CatalogMeasure.query.filter(
+        CatalogMeasure.data_source_id == data_source.id, CatalogMeasure.approved.is_(True)
+    ):
+        text = "{} = {}({})".format(measure.name, (measure.kind or "").upper(), measure.column_name)
+        by_table.setdefault(measure.table_name, []).append(text)
+    return by_table
+
+
 def _write_cards(data_source, entries, cards, joins, ids, usage):
     neighbours = {}
     for ((left_table, _), (right_table, _)), count in joins.items():
@@ -307,6 +367,7 @@ def _write_cards(data_source, entries, cards, joins, ids, usage):
         neighbours.setdefault(right_table, []).append((left_table, count))
 
     now = db.func.now()
+    approved = _approved_measures(data_source)
     rows = []
     for entry in entries:
         name = entry["name"]
@@ -323,7 +384,14 @@ def _write_cards(data_source, entries, cards, joins, ids, usage):
                 "org_id": data_source.org_id,
                 "data_source_id": data_source.id,
                 "name": name,
-                "card": build_card(name, usage.get(name, 0), ranked, edges, entry.get("description")),
+                "card": build_card(
+                    name,
+                    usage.get(name, 0),
+                    ranked,
+                    edges,
+                    entry.get("description"),
+                    approved.get(name) or approved.get(bare) or (),
+                ),
                 "updated_at": now,
                 "created_at": now,
             }

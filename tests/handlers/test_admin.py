@@ -3,8 +3,7 @@ from unittest import mock
 
 from rq.exceptions import NoSuchJobError
 
-from sqldesk import utils
-from sqldesk import models
+from sqldesk import models, utils
 from sqldesk.models import Event, db
 from sqldesk.tasks.queries.maintenance import cleanup_events, cleanup_query_results
 from tests import BaseTestCase
@@ -440,6 +439,108 @@ class TestCatalogReview(BaseTestCase):
             "post",
             "/api/admin/catalog/tables/{}".format(table.id),
             data={"description": "x"},
+            user=admin,
+            org=False,
+        )
+
+        self.assertEqual(404, rv.status_code)
+
+
+class TestMeasureReview(BaseTestCase):
+    """
+    Approval is the whole point: until somebody sets it, a definition is
+    something we noticed rather than something the organisation stands behind.
+    """
+
+    def _measure(self, name, usage=0, approved=False):
+        measure = models.CatalogMeasure(
+            org=self.factory.org,
+            data_source_id=self.factory.data_source.id,
+            table_name="orders",
+            name=name,
+            kind="sum",
+            column_name="amount",
+            usage_count=usage,
+            approved=approved,
+        )
+        db.session.add(measure)
+        db.session.commit()
+        return measure
+
+    def test_it_needs_a_super_admin(self):
+        rv = self.make_request("get", "/api/admin/catalog/measures", user=self.factory.user, org=False)
+
+        self.assertEqual(403, rv.status_code)
+
+    def test_most_written_first(self):
+        self._measure("rare", usage=1)
+        self._measure("everywhere", usage=40)
+        admin = self.factory.create_admin()
+
+        rv = self.make_request("get", "/api/admin/catalog/measures", user=admin, org=False)
+
+        self.assertEqual(["everywhere", "rare"], [m["name"] for m in rv.json["measures"]])
+
+    def test_pending_leaves_out_what_is_already_agreed(self):
+        self._measure("agreed", usage=9, approved=True)
+        self._measure("proposed", usage=8)
+        admin = self.factory.create_admin()
+
+        rv = self.make_request("get", "/api/admin/catalog/measures?pending=1", user=admin, org=False)
+
+        self.assertEqual(["proposed"], [m["name"] for m in rv.json["measures"]])
+
+    def test_approving_one(self):
+        measure = self._measure("gross_revenue")
+        admin = self.factory.create_admin()
+
+        self.make_request(
+            "post",
+            "/api/admin/catalog/measures/{}".format(measure.id),
+            data={"approved": True, "description": "Agreed with finance."},
+            user=admin,
+            org=False,
+        )
+
+        db.session.expire_all()
+        stored = models.CatalogMeasure.query.get(measure.id)
+        self.assertTrue(stored.approved)
+        self.assertEqual("Agreed with finance.", stored.description)
+
+    def test_taking_approval_back(self):
+        measure = self._measure("wrong", approved=True)
+        admin = self.factory.create_admin()
+
+        self.make_request(
+            "post",
+            "/api/admin/catalog/measures/{}".format(measure.id),
+            data={"approved": False},
+            user=admin,
+            org=False,
+        )
+
+        db.session.expire_all()
+        self.assertFalse(models.CatalogMeasure.query.get(measure.id).approved)
+
+    def test_another_orgs_measure_is_not_found(self):
+        other = self.factory.create_org()
+        measure = models.CatalogMeasure(
+            org=other,
+            data_source_id=self.factory.data_source.id,
+            table_name="t",
+            name="theirs",
+            kind="sum",
+            column_name="amount",
+            usage_count=0,
+        )
+        db.session.add(measure)
+        db.session.commit()
+        admin = self.factory.create_admin()
+
+        rv = self.make_request(
+            "post",
+            "/api/admin/catalog/measures/{}".format(measure.id),
+            data={"approved": True},
             user=admin,
             org=False,
         )

@@ -5,6 +5,7 @@ import Input from "antd/lib/input";
 import Select from "antd/lib/select";
 import Switch from "antd/lib/switch";
 import Table from "antd/lib/table";
+import Tabs from "antd/lib/tabs";
 import Tag from "antd/lib/tag";
 
 import routeWithUserSession from "@/components/ApplicationArea/routeWithUserSession";
@@ -59,6 +60,112 @@ function DescriptionCell({ table, onSaved }) {
           Save
         </Button>
       </div>
+    </div>
+  );
+}
+
+function Measures({ sourceId }) {
+  const [measures, setMeasures] = useState([]);
+  const [pending, setPending] = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    const params = [];
+    if (sourceId) {
+      params.push(`data_source_id=${sourceId}`);
+    }
+    if (pending) {
+      params.push("pending=1");
+    }
+    axios
+      .get(`api/admin/catalog/measures${params.length ? `?${params.join("&")}` : ""}`)
+      .then((data) => setMeasures(data.measures))
+      .catch(() => notification.error("Could not load the measures."))
+      .finally(() => setLoading(false));
+  }, [sourceId, pending]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const review = useCallback((measure, body) => {
+    axios
+      .post(`api/admin/catalog/measures/${measure.id}`, body)
+      .then((saved) => {
+        setMeasures((current) => current.map((m) => (m.id === saved.id ? { ...m, ...saved } : m)));
+        notification.success(saved.approved ? `${measure.name} agreed.` : `${measure.name} set aside.`);
+      })
+      .catch(() => notification.error("Could not save that."));
+  }, []);
+
+  const columns = [
+    {
+      title: "Table",
+      dataIndex: "table_name",
+      width: 200,
+      render: (name) => <span className="catalog-name">{name}</span>,
+    },
+    {
+      title: "Definition",
+      dataIndex: "name",
+      render: (name, row) => (
+        <span className="catalog-name">
+          {name} = {(row.kind || "").toUpperCase()}({row.column_name})
+        </span>
+      ),
+    },
+    {
+      title: "Written in",
+      dataIndex: "usage_count",
+      width: 130,
+      align: "right",
+      // Four teams writing the same definition independently is a different
+      // proposition from one person trying it once.
+      render: (count) => (count ? `${count} queries` : <span className="catalog-muted">—</span>),
+    },
+    {
+      title: "",
+      dataIndex: "approved",
+      width: 150,
+      align: "right",
+      render: (approved, row) =>
+        approved ? (
+          <Button size="small" onClick={() => review(row, { approved: false })}>
+            Set aside
+          </Button>
+        ) : (
+          <Button size="small" type="primary" onClick={() => review(row, { approved: true })}>
+            Agree
+          </Button>
+        ),
+    },
+  ];
+
+  return (
+    <div>
+      <p className="catalog-muted">
+        Numbers people already compute, found in saved SQL. Nothing here reaches a model until you agree it &mdash; a
+        definition that is merely plausible is worse than none, because the wrong revenue figure is still a revenue
+        figure.
+      </p>
+      <div className="catalog-controls">
+        <span className="catalog-toggle">
+          <Switch size="small" checked={pending} onChange={setPending} aria-label="Show only measures not yet agreed" />{" "}
+          Only ones not yet agreed
+        </span>
+        <Button size="small" onClick={load} loading={loading}>
+          Refresh
+        </Button>
+      </div>
+      <Table
+        dataSource={measures}
+        columns={columns}
+        rowKey="id"
+        size="small"
+        loading={loading}
+        pagination={{ pageSize: 20, showSizeChanger: false }}
+      />
     </div>
   );
 }
@@ -173,30 +280,37 @@ export default function Catalog() {
           </Button>
         </div>
 
-        {!loading && tables.length === 0 && (
-          <Alert
-            type="info"
-            showIcon
-            message="Nothing harvested yet"
-            description="The catalog fills on a schedule, or immediately with `manage ai harvest`."
-          />
-        )}
+        <Tabs defaultActiveKey="tables" className="catalog-tabs">
+          <Tabs.TabPane tab="Tables" key="tables">
+            {!loading && tables.length === 0 && (
+              <Alert
+                type="info"
+                showIcon
+                message="Nothing harvested yet"
+                description="The catalog fills on a schedule, or immediately with `manage ai harvest`."
+              />
+            )}
 
-        {tables.length > 0 && missing > 0 && !undescribed && (
-          <p className="catalog-muted catalog-count">
-            {missing} of these {tables.length} have no description.
-          </p>
-        )}
+            {tables.length > 0 && missing > 0 && !undescribed && (
+              <p className="catalog-muted catalog-count">
+                {missing} of these {tables.length} have no description.
+              </p>
+            )}
 
-        <Table
-          className="catalog-table"
-          dataSource={tables}
-          columns={columns}
-          rowKey="id"
-          size="small"
-          loading={loading}
-          pagination={{ pageSize: 20, showSizeChanger: false }}
-        />
+            <Table
+              className="catalog-table"
+              dataSource={tables}
+              columns={columns}
+              rowKey="id"
+              size="small"
+              loading={loading}
+              pagination={{ pageSize: 20, showSizeChanger: false }}
+            />
+          </Tabs.TabPane>
+          <Tabs.TabPane tab="Measures" key="measures">
+            <Measures sourceId={sourceId} />
+          </Tabs.TabPane>
+        </Tabs>
       </div>
     </Layout>
   );

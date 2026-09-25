@@ -2,7 +2,13 @@ from unittest import mock
 
 from sqldesk.ai.catalog.harvest import build_card, harvest_data_source
 from sqldesk.ai.catalog.retrieve import context_for, find_tables
-from sqldesk.models import CatalogColumn, CatalogRelationship, CatalogTable, db
+from sqldesk.models import (
+    CatalogColumn,
+    CatalogMeasure,
+    CatalogRelationship,
+    CatalogTable,
+    db,
+)
 from tests import BaseTestCase
 
 SCHEMA = [
@@ -366,3 +372,76 @@ class TestDescriptions(BaseTestCase):
 
         self._harvest(DESCRIBED, source=source)
         self.assertEqual("One row per placed order, net of cancellations.", self._table(source).description)
+
+
+class TestMeasureProposals(BaseTestCase):
+    """
+    Mined from saved SQL, and believed only once somebody says so. A metric
+    definition that is merely plausible is worse than none: the wrong revenue
+    number is still a revenue number.
+    """
+
+    SCHEMA = [{"name": "orders", "columns": [{"name": "amount", "type": "numeric"}]}]
+
+    def _harvest(self, queries, source=None):
+        source = source or self.factory.create_data_source()
+        for sql in queries:
+            self.factory.create_query(query_text=sql, data_source=source)
+        db.session.commit()
+        with mock.patch.object(type(source), "get_schema", return_value=self.SCHEMA):
+            harvest_data_source(source)
+        return source
+
+    def _measures(self, source):
+        db.session.expire_all()
+        return CatalogMeasure.query.filter(CatalogMeasure.data_source_id == source.id).all()
+
+    def test_a_named_aggregate_is_proposed(self):
+        source = self._harvest(["SELECT SUM(amount) AS gross_revenue FROM orders"])
+        found = self._measures(source)
+
+        self.assertEqual(1, len(found))
+        self.assertEqual("gross_revenue", found[0].name)
+        self.assertEqual("sum", found[0].kind)
+
+    def test_a_proposal_is_not_approved(self):
+        source = self._harvest(["SELECT SUM(amount) AS gross_revenue FROM orders"])
+
+        self.assertFalse(self._measures(source)[0].approved)
+
+    def test_an_unapproved_measure_stays_off_the_card(self):
+        source = self._harvest(["SELECT SUM(amount) AS gross_revenue FROM orders"])
+        table = CatalogTable.query.filter(
+            CatalogTable.data_source_id == source.id, CatalogTable.name == "orders"
+        ).one()
+
+        self.assertNotIn("gross_revenue", table.card)
+
+    def test_an_approved_one_reaches_the_card(self):
+        source = self._harvest(["SELECT SUM(amount) AS gross_revenue FROM orders"])
+        measure = self._measures(source)[0]
+        measure.approved = True
+        db.session.commit()
+
+        with mock.patch.object(type(source), "get_schema", return_value=self.SCHEMA):
+            harvest_data_source(source)
+
+        db.session.expire_all()
+        table = CatalogTable.query.filter(
+            CatalogTable.data_source_id == source.id, CatalogTable.name == "orders"
+        ).one()
+        self.assertIn("gross_revenue = SUM(amount)", table.card)
+
+    def test_harvesting_again_does_not_un_approve_anything(self):
+        source = self._harvest(["SELECT SUM(amount) AS gross_revenue FROM orders"])
+        measure = self._measures(source)[0]
+        measure.approved = True
+        measure.description = "Agreed with finance."
+        db.session.commit()
+
+        with mock.patch.object(type(source), "get_schema", return_value=self.SCHEMA):
+            harvest_data_source(source)
+
+        again = self._measures(source)[0]
+        self.assertTrue(again.approved)
+        self.assertEqual("Agreed with finance.", again.description)

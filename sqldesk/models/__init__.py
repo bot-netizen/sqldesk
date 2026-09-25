@@ -1690,6 +1690,52 @@ class CatalogColumn(TimestampMixin, db.Model):
         return "{}.{}".format(self.catalog_table.name, self.name)
 
 
+class CatalogMeasure(TimestampMixin, BelongsToOrgMixin, db.Model):
+    """
+    A number somebody already computes, proposed as a metric.
+
+    Mined from saved SQL rather than declared: `SUM(amount) AS gross_revenue`
+    is a person telling us what that number is called, and a warehouse's
+    dashboards are full of such statements. It is the one part of a semantic
+    layer that can be found rather than asked for.
+
+    Proposed, not true. Nothing reaches a model or an export until somebody
+    says it is right -- a metric definition that is merely plausible is worse
+    than none, because the wrong revenue number is still a revenue number.
+    """
+
+    id = primary_key("CatalogMeasure")
+    org_id = Column(key_type("Organization"), db.ForeignKey("organizations.id"))
+    org = db.relationship(Organization)
+    data_source_id = Column(key_type("DataSource"), db.ForeignKey("data_sources.id"))
+    data_source = db.relationship(DataSource)
+
+    table_name = Column(db.String(1024))
+    #: The alias the author used where there was one, so `gross_revenue`
+    #: rather than `sum_amount`.
+    name = Column(db.String(255))
+    #: sum, count, avg, min, max -- the words cube uses for the same thing.
+    kind = Column(db.String(32))
+    column_name = Column(db.String(1024))
+    #: How many distinct saved queries compute it this way. A definition four
+    #: teams wrote independently is a different proposition from one somebody
+    #: tried once.
+    usage_count = Column(db.Integer, default=0)
+    approved = Column(db.Boolean, default=False, nullable=False)
+    description = Column(db.Text, nullable=True)
+
+    __tablename__ = "catalog_measures"
+    __table_args__ = (
+        db.Index(
+            "catalog_measures_source_table_name",
+            "data_source_id",
+            "table_name",
+            "name",
+            unique=True,
+        ),
+    )
+
+
 class CatalogRelationship(TimestampMixin, BelongsToOrgMixin, db.Model):
     """
     A join somebody actually wrote, and how often.
