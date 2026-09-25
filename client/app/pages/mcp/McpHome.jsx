@@ -6,6 +6,7 @@ import Table from "antd/lib/table";
 import Tag from "antd/lib/tag";
 import Tooltip from "@/components/Tooltip";
 
+import HelpTrigger from "@/components/HelpTrigger";
 import routeWithUserSession from "@/components/ApplicationArea/routeWithUserSession";
 import TimeAgo from "@/components/TimeAgo";
 import { axios } from "@/services/axios";
@@ -32,10 +33,12 @@ const OUTCOME = {
 function ConnectPanel({ origin }) {
   return (
     <div className="mcp-panel">
-      <h3>Connecting a client</h3>
+      <h3>
+        Connecting a client <HelpTrigger type="MCP_CONNECT" />
+      </h3>
       <p className="mcp-muted">
-        One endpoint, JSON-RPC over HTTP, authenticated with a SQLDesk API key — the one on your profile page. Every
-        call runs as that user and sees only the data sources that user can read.
+        One endpoint, authenticated with a SQLDesk API key &mdash; the one on your profile page. Every call runs as that
+        user and sees only the data sources that user can read.
       </p>
       <pre className="mcp-pre">{`${origin}/mcp
 
@@ -43,12 +46,25 @@ Authorization: Bearer <your SQLDesk API key>`}</pre>
       <p className="mcp-muted">With Claude Code:</p>
       <pre className="mcp-pre">{`claude mcp add --transport http sqldesk ${origin}/mcp \\
   --header "Authorization: Bearer <your API key>"`}</pre>
+      {/*
+        The endpoint and the command stay on the page: they carry this
+        install's own origin, so they are the one thing the documentation
+        cannot give you. Everything else about connecting -- what the eight
+        tools do, what they cost, what to check when a client will not
+        attach -- is written once, in the guide.
+      */}
       <p className="mcp-muted">
-        Eight tools, in the order they are meant to be used: <code>find_queries</code> and <code>find_dashboards</code>{" "}
-        to look for work that already exists; <code>find_context</code>, <code>expand_table</code> and{" "}
-        <code>list_data_sources</code> to understand the data; <code>check_sql</code> for the shape and{" "}
-        <code>explain_query</code> for the cost; then <code>run_query</code>, which returns up to 1000 rows and runs on
-        a worker like any other query.
+        <HelpTrigger type="MCP_TOOLS" showTooltip={false} renderAsLink>
+          What the eight tools do
+        </HelpTrigger>{" "}
+        &middot;{" "}
+        <HelpTrigger type="MCP_CATALOG" showTooltip={false} renderAsLink>
+          Filling the catalog
+        </HelpTrigger>{" "}
+        &middot;{" "}
+        <HelpTrigger type="MCP" showTooltip={false} renderAsLink>
+          The whole guide
+        </HelpTrigger>
       </p>
     </div>
   );
@@ -183,7 +199,7 @@ export default function McpHome({ onError }) {
       {isAdmin && (
         <React.Fragment>
           <h3 className="mcp-section-title">
-            Audit{" "}
+            Audit <HelpTrigger type="MCP_AUDIT" />{" "}
             <Button size="small" onClick={load} loading={loading} data-test="McpAuditRefresh">
               Refresh
             </Button>

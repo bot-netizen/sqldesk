@@ -63,21 +63,27 @@
 Code, or anything else that speaks it — gets a handful of tools backed by a catalog built from your
 schema and the queries your team has already written.</p>
 
-<h2>Turning it on</h2>
+<h2 id="enabling">Turning it on</h2>
 <pre><code>SQLDESK_FEATURE_AI=true</code></pre>
 <p>Off by default. Until it is set, the endpoint answers 404 and the Admin page says so.</p>
 
-<h2>Filling the catalog</h2>
-<p>The tools answer from a catalog rather than from a live schema read. Build it, and rebuild it on a
-schedule:</p>
+<h2 id="catalog">Filling the catalog</h2>
+<p>The tools answer from a catalog rather than from a live schema read. Nothing builds it for you
+&mdash; there is <strong>no scheduled harvest</strong>. It is a command you run, and until you run it
+the context tools have nothing to say:</p>
 <pre><code>manage ai harvest                      # every data source
 manage ai harvest --data-source "Warehouse"
 manage ai context "revenue by region"  # what a client would be told</code></pre>
 <p>Harvesting reads each source's schema and parses every saved query, which is where the useful part
 comes from: which tables anyone actually uses, which columns anyone selects, and which joins anyone
 writes. A warehouse with three thousand tables and no usage data can only be ranked alphabetically.</p>
+<p>Run it again whenever the schema changes or a batch of new queries has been saved. A cron entry or
+a Kubernetes CronJob calling <code>manage ai harvest</code> is the usual arrangement; nightly is
+plenty, because what it reads &mdash; table definitions and saved SQL &mdash; does not change by the
+minute. It is safe to run while people are working: it reads the schema, reads
+<code>queries.query_text</code>, and writes only to its own catalog tables.</p>
 
-<h2>Connecting a client</h2>
+<h2 id="connecting">Connecting a client</h2>
 <p>One endpoint, JSON-RPC over HTTP, authenticated with a SQLDesk API key — the one on your profile page.</p>
 <pre><code>POST https://sqldesk.example.com/mcp
 Authorization: Bearer &lt;your SQLDesk API key&gt;</code></pre>
@@ -88,7 +94,7 @@ Authorization: Bearer &lt;your SQLDesk API key&gt;</code></pre>
 can see and nothing else. There is no service account and no way to configure one, which is deliberate:
 a tool server with more access than its user is a way to launder permissions.</p>
 
-<h2>The tools</h2>
+<h2 id="tools">The tools</h2>
 <p>Eight, and the order matters. The first question is not "what SQL should I write" but "has
 somebody already answered this".</p>
 
@@ -139,7 +145,7 @@ somebody already answered this".</p>
   launder permissions.</p>
 </div>
 
-<h2>A question, end to end</h2>
+<h2 id="example">A question, end to end</h2>
 <p>What the sequence looks like in practice, against a real warehouse. Each step is one tool call.</p>
 
 <pre><code>1. find_queries("revenue product")
@@ -170,13 +176,13 @@ better than a model will answer it, because the person who wrote it knew which j
 Step 3 and step 4 are different questions: one is whether the SQL is shaped badly, the other is
 what the engine thinks it will cost.</p>
 
-<h2>Finding the page</h2>
+<h2 id="page">Finding the page</h2>
 <p>Your own name in the top right, then <strong>Connect over MCP</strong>. It shows the endpoint and
 the <code>claude mcp add</code> line for this install, and the key it tells you to use is your own,
 from your profile page &mdash; so every user can set up a client without an administrator.
 Administrators reach the same page under <strong>Admin</strong>, where it also carries the audit.</p>
 
-<h2>The audit</h2>
+<h2 id="audit">The audit</h2>
 <p>Admin &rarr; MCP. Every request leaves a row, <em>including the refused ones</em> — a key that does not
 work, tried repeatedly, is exactly what an audit is for. Each row records who, when, which method, which
 tool, the outcome, how long it took, and where it came from.</p>
@@ -185,15 +191,16 @@ tool, the outcome, how long it took, and where it came from.</p>
 transport holds no connection open, so "connected" can only honestly mean "recently active", and the
 page says so rather than showing a light that implies otherwise.</p>
 
-<h2>What it costs your warehouse</h2>
+<h2 id="cost">What it costs your warehouse</h2>
 <p>The lookup and context tools cost nothing &mdash; they read SQLDesk's own catalog. Only
-<code>explain_query</code>, <code>run_query</code> and the scheduled <code>harvest</code> reach a
-data source at all, and the first of those is a plan rather than a scan.</p>
+<code>explain_query</code>, <code>run_query</code> and <code>manage ai harvest</code> reach a data
+source at all, and the first of those is a plan rather than a scan. Harvest reads schema metadata,
+not table contents.</p>
 <p>Queries issued this way go on the ordinary queue, so they compete with dashboards for workers.
 If that matters, give them a queue of their own and workers to match &mdash; see
 <a href="deploying.html">Deploying</a>.</p>
 
-<h2>If a client cannot connect</h2>
+<h2 id="troubleshooting">If a client cannot connect</h2>
 <ul>
   <li><strong>404</strong> — <code>SQLDESK_FEATURE_AI</code> is not set.</li>
   <li><strong>401</strong> — the key is missing, wrong, or belongs to a disabled user. It goes in the

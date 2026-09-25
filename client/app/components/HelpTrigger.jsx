@@ -60,6 +60,10 @@ export const TYPES = mapValues(
     DS_RESULTS: ["/connectors.html", "Guide: Query Results as a Data Source"],
 
     MCP: ["/mcp.html", "Guide: MCP"],
+    MCP_CONNECT: ["/mcp.html#connecting", "Guide: Connecting a Client"],
+    MCP_TOOLS: ["/mcp.html#tools", "Guide: What the Tools Do"],
+    MCP_CATALOG: ["/mcp.html#catalog", "Guide: Filling the Catalog"],
+    MCP_AUDIT: ["/mcp.html#audit", "Guide: The MCP Audit"],
     AUTHENTICATION_OPTIONS: ["/administration.html", "Guide: Administration"],
     USAGE_DATA_SHARING: ["/administration.html", "Guide: Administration"],
     MAIL_CONFIG: ["/deploying.html", "Guide: Mail Configuration"],
