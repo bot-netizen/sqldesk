@@ -255,3 +255,30 @@ class TestHarvestDoesNotScaleWithRowCount(BaseTestCase):
             harvest_data_source(source)
         names = {t.name for t in CatalogTable.query.filter(CatalogTable.data_source_id == source.id)}
         self.assertEqual({"orders"}, names)
+
+
+class TestRetrievalIsOrgScopedByConstruction(BaseTestCase):
+    def test_another_orgs_columns_are_not_even_scanned(self):
+        """
+        A CatalogColumn carries no org of its own -- it belongs to one through
+        its table. The column subquery was unconstrained, and the outer filter
+        still made the result correct, which is exactly what makes it the kind
+        of mistake nobody notices until the subquery is reused somewhere the
+        outer filter is not.
+        """
+        mine = self.factory.create_data_source()
+        ours = CatalogTable(org=self.factory.org, data_source=mine, name="ours", usage_count=1, card="ours")
+        db.session.add(ours)
+        db.session.flush()
+        db.session.add(CatalogColumn(catalog_table=ours, name="shared_name", usage_count=1))
+
+        other_org = self.factory.create_org(name="Other", slug="other-scope")
+        theirs_source = self.factory.create_data_source(org=other_org)
+        theirs = CatalogTable(org=other_org, data_source=theirs_source, name="theirs", usage_count=99, card="theirs")
+        db.session.add(theirs)
+        db.session.flush()
+        db.session.add(CatalogColumn(catalog_table=theirs, name="shared_name", usage_count=99))
+        db.session.commit()
+
+        found = [t.name for t in find_tables(self.factory.org, "shared_name")]
+        self.assertEqual(["ours"], found)
