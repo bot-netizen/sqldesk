@@ -667,40 +667,112 @@ footer a {
 }
 
 /* ---------- blog ---------- */
-/* Posts share the guide's frame but not its sidebar: a post is read from
-   the top, not navigated around. */
-.post-layout{padding-block:40px 72px;max-width:760px}
-.post-head{margin-bottom:28px;padding-bottom:22px;border-bottom:1px solid var(--rule)}
-.post-head h1{margin:6px 0 10px;font-size:clamp(28px,4vw,40px);line-height:1.15;letter-spacing:-0.02em}
-.post-meta{color:var(--faint);font-size:14px}
-.post-meta time{font-variant-numeric:tabular-nums}
+/* Three columns: every post on the left, the post itself in the middle,
+   its own headings on the right. The middle column keeps a readable
+   measure -- widening the text is not the same as using the page -- and
+   the space either side does the work instead. */
+.post-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 180px;
+  gap: 44px;
+  align-items: start;
+  max-width: 1320px;
+  /* `padding-block`, not the shorthand: this element also carries `.wrap`,
+     whose horizontal padding the shorthand silently resets to zero. */
+  padding-block: 40px 72px;
+}
 
-.post-body{font-size:17px;line-height:1.72}
-.post-body h2{margin:36px 0 12px;font-size:22px;letter-spacing:-0.01em}
-.post-body h3{margin:26px 0 8px;font-size:18px}
-.post-body p{margin:0 0 16px}
-.post-body ul,.post-body ol{margin:0 0 16px;padding-left:22px}
-.post-body li{margin:0 0 7px}
-.post-body pre{
-  background:var(--code-bg);border:1px solid var(--rule);border-radius:var(--r-control);
-  padding:14px 16px;overflow:auto;font-family:var(--mono);font-size:13.5px;line-height:1.6;
+
+
+/* Both rails stay put while the middle scrolls. */
+.post-nav, .post-toc {
+  position: sticky;
+  top: 24px;
+  font-size: 14px;
+  line-height: 1.5;
 }
-.post-body code{font-family:var(--mono);font-size:0.92em}
-.post-body :not(pre)>code{
-  background:var(--sunken);border:1px solid var(--rule-soft);
-  border-radius:var(--r-chip);padding:1px 5px;
+
+.post-nav h4, .post-toc h4 {
+  margin: 0 0 10px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--faint);
+  font-family: var(--mono);
 }
-.post-body blockquote{
-  margin:0 0 16px;padding:2px 0 2px 18px;border-left:3px solid var(--accent-edge);
-  color:var(--ink-2);
+
+.post-nav a {
+  display: block; padding: 7px 10px; margin: 0 -10px 2px;
+  border-radius: var(--r-chip);
+  color: var(--ink-2); text-decoration: none;
+}
+.post-nav a:hover { color: var(--accent-ink); background: var(--accent-wash) }
+.post-nav a[aria-current="page"] {
+  color: var(--accent-ink); background: var(--accent-wash); font-weight: 600;
+}
+.post-nav .post-nav-when {
+  display: block; font-size: 12px; color: var(--faint); margin-top: 1px;
+}
+
+.post-toc a {
+  display: block; padding: 5px 0 5px 12px;
+  border-left: 2px solid var(--rule);
+  color: var(--muted); text-decoration: none;
+}
+.post-toc a:hover { color: var(--accent-ink); border-left-color: var(--accent-edge) }
+
+/* Posts are read from the top, so the heading block sits above the prose
+   rather than in a rail. */
+.post-head { margin-bottom: 28px; padding-bottom: 22px; border-bottom: 1px solid var(--rule) }
+.post-head h1 { margin: 6px 0 10px; font-size: clamp(28px, 3.4vw, 38px); line-height: 1.15; letter-spacing: -0.02em }
+.post-meta { color: var(--faint); font-size: 14px }
+.post-meta time { font-variant-numeric: tabular-nums }
+
+.post-body { font-size: 16.5px; line-height: 1.72; max-width: 72ch }
+.post-body h2 { margin: 38px 0 12px; font-size: 22px; letter-spacing: -0.01em; scroll-margin-top: 20px }
+.post-body h3 { margin: 26px 0 8px; font-size: 18px }
+.post-body p { margin: 0 0 16px }
+.post-body ul, .post-body ol { margin: 0 0 16px; padding-left: 22px }
+.post-body li { margin: 0 0 7px }
+.post-body pre {
+  background: var(--code-bg); border: 1px solid var(--rule); border-radius: var(--r-control);
+  padding: 14px 16px; overflow: auto; font-family: var(--mono); font-size: 13.5px; line-height: 1.6;
+}
+.post-body code { font-family: var(--mono); font-size: 0.92em }
+.post-body :not(pre) > code {
+  background: var(--sunken); border: 1px solid var(--rule-soft);
+  border-radius: var(--r-chip); padding: 1px 5px;
+}
+.post-body blockquote {
+  margin: 0 0 16px; padding: 2px 0 2px 18px;
+  border-left: 3px solid var(--accent-edge); color: var(--ink-2);
 }
 
 /* The listing. One row per post, newest first. */
-.post-list{list-style:none;margin:0;padding:0}
-.post-list li{padding:20px 0;border-bottom:1px solid var(--rule-soft)}
-.post-list li:first-child{padding-top:6px}
-.post-list h2{margin:0 0 6px;font-size:20px;letter-spacing:-0.01em}
-.post-list h2 a{color:var(--ink);text-decoration:none}
-.post-list h2 a:hover{color:var(--accent-ink)}
-.post-list p{margin:6px 0 0;color:var(--muted)}
-.post-list .post-meta{margin-bottom:2px}
+.post-list { list-style: none; margin: 0; padding: 0; max-width: 72ch }
+.post-list li { padding: 20px 0; border-bottom: 1px solid var(--rule-soft) }
+.post-list li:first-child { padding-top: 6px }
+.post-list h2 { margin: 0 0 6px; font-size: 20px; letter-spacing: -0.01em }
+.post-list h2 a { color: var(--ink); text-decoration: none }
+.post-list h2 a:hover { color: var(--accent-ink) }
+.post-list p { margin: 6px 0 0; color: var(--muted) }
+.post-list .post-meta { margin-bottom: 2px }
+
+/* Narrow screens last, so an override here is not undone by a default
+   declared further down the file. It was: `.post-nav { position: static }`
+   sat above the sticky rule and lost to it, leaving the rail stuck over the
+   article on a phone. */
+@media (max-width: 1180px) {
+  /* The table of contents is the first thing to go: it is a convenience,
+     while the list of posts is how you get anywhere else. */
+  .post-layout { grid-template-columns: 190px minmax(0, 1fr); gap: 36px }
+  .post-toc { display: none }
+}
+
+@media (max-width: 860px) {
+  .post-layout { grid-template-columns: minmax(0, 1fr); gap: 0 }
+  .post-nav {
+    position: static;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+  }
+}

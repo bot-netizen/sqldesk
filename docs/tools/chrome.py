@@ -87,6 +87,123 @@ def rewrite_topbar_nav(path, prefix, current):
     return False
 
 
+def _between(html, opening, closing, start=0):
+    """The span between two markers, as (start index, end index)."""
+    a = html.index(opening, start) + len(opening)
+    return a, html.index(closing, a)
+
+
+def _slug(text):
+    keep = [c.lower() if c.isalnum() else "-" for c in text]
+    out = "".join(keep)
+    while "--" in out:
+        out = out.replace("--", "-")
+    out = out.strip("-")
+    # An id may begin with a digit in HTML but not in a CSS selector, so
+    # "0.6: your warehouse" would produce an anchor the browser can jump to
+    # and no stylesheet or script can ever select. Prefixed rather than
+    # renumbered, so the heading keeps its own words.
+    if out and out[0].isdigit():
+        out = "s-" + out
+    return out
+
+
+def _post_meta(path):
+    """A post's title and date, read from the page rather than a sidecar."""
+    html = open(path).read()
+    a, b = _between(html, "<h1>", "</h1>")
+    title = html[a:b].strip()
+    when, shown = "", ""
+    if '<time datetime="' in html:
+        c, d = _between(html, '<time datetime="', '"')
+        when = html[c:d]
+        e, f = _between(html, "<time", "</time>")
+        shown = html[html.index(">", e) + 1 : f].strip()
+    return {"file": os.path.basename(path), "title": title, "when": when, "shown": shown}
+
+
+def posts(blog_dir):
+    """Every post, newest first. index.html is the listing, not a post."""
+    found = []
+    for name in os.listdir(blog_dir):
+        if name.endswith(".html") and name != "index.html":
+            found.append(_post_meta(os.path.join(blog_dir, name)))
+    return sorted(found, key=lambda p: p["when"], reverse=True)
+
+
+def post_nav(all_posts, current):
+    out = ["      <h4>All posts</h4>"]
+    for post in all_posts:
+        mark = ' aria-current="page"' if post["file"] == current else ""
+        out.append('      <a href="{}"{}>{}'.format(post["file"], mark, post["title"]))
+        if post["shown"]:
+            out.append('        <span class="post-nav-when">{}</span>'.format(post["shown"]))
+        out.append("      </a>")
+    return "\n".join(out)
+
+
+def post_toc(html):
+    """
+    The post's own h2s, linked.
+
+    Ids are added here rather than written by hand, because a heading whose
+    id does not match the link to it is a link that silently goes nowhere.
+    """
+    body_a, body_b = _between(html, '<div class="post-body">', "  </div>")
+    body = html[body_a:body_b]
+
+    entries, cursor, rebuilt = [], 0, []
+    while True:
+        try:
+            start = body.index("<h2", cursor)
+        except ValueError:
+            break
+        open_end = body.index(">", start)
+        close = body.index("</h2>", open_end)
+        text = body[open_end + 1 : close].strip()
+        # Strip any markup inside the heading for the link text.
+        plain = "".join(part.split(">")[-1] for part in text.split("<")).strip()
+        ident = _slug(plain)
+        rebuilt.append(body[cursor:start])
+        rebuilt.append('<h2 id="{}">{}</h2>'.format(ident, text))
+        entries.append((ident, plain))
+        cursor = close + len("</h2>")
+    rebuilt.append(body[cursor:])
+
+    nav = ["      <h4>On this page</h4>"]
+    for ident, plain in entries:
+        nav.append('      <a href="#{}">{}</a>'.format(ident, plain))
+    return html[:body_a] + "".join(rebuilt) + html[body_b:], "\n".join(nav)
+
+
+def rewrite_post(path, all_posts):
+    """Fill a post's two rails, and give its headings ids to link to."""
+    before = open(path).read()
+    html, toc = post_toc(before)
+
+    a, b = _between(html, '<nav class="post-nav" aria-label="Posts">', "</nav>")
+    html = html[:a] + "\n" + post_nav(all_posts, os.path.basename(path)) + "\n    " + html[b:]
+
+    a, b = _between(html, '<nav class="post-toc" aria-label="On this page">', "</nav>")
+    html = html[:a] + "\n" + toc + "\n    " + html[b:]
+
+    if html != before:
+        open(path, "w").write(html)
+        return True
+    return False
+
+
+def rewrite_listing(path, all_posts):
+    """The listing's own left rail, so it matches every post's."""
+    before = open(path).read()
+    a, b = _between(before, '<nav class="post-nav" aria-label="Posts">', "</nav>")
+    html = before[:a] + "\n" + post_nav(all_posts, "index.html") + "\n    " + before[b:]
+    if html != before:
+        open(path, "w").write(html)
+        return True
+    return False
+
+
 # (file, title, section) -- the order is the reading order.
 PAGES = [
     ("overview.html", "Overview", "Start here"),
@@ -229,11 +346,17 @@ def main():
 
     blog = os.path.join(docs, BLOG_PAGES_DIR)
     if os.path.isdir(blog):
+        all_posts = posts(blog)
         for filename in sorted(os.listdir(blog)):
             if not filename.endswith(".html"):
                 continue
             path = os.path.join(blog, filename)
-            if rewrite_topbar_nav(path, "../", "blog/index.html"):
+            touched = rewrite_topbar_nav(path, "../", "blog/index.html")
+            if filename == "index.html":
+                touched = rewrite_listing(path, all_posts) or touched
+            else:
+                touched = rewrite_post(path, all_posts) or touched
+            if touched:
                 changed.append(BLOG_PAGES_DIR + "/" + filename)
 
     print("rewrote {} page(s)".format(len(changed)))

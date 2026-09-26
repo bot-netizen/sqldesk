@@ -42,6 +42,13 @@
 </header>
 
 <div class="wrap post-layout">
+  <nav class="post-nav" aria-label="Posts">
+      <h4>All posts</h4>
+      <a href="sqldesk-and-what-it-is-for.html" aria-current="page">SQLDesk, and what it is for
+        <span class="post-nav-when">26 September 2026</span>
+      </a>
+    </nav>
+
   <article>
   <div class="post-head">
     <div class="post-meta"><time datetime="2026-09-26">26 September 2026</time></div>
@@ -61,7 +68,7 @@ Viewers are free, because there is nobody to charge you for them.</p>
 <p>That part is not new and is not the interesting part. This is a first post, so here is what the fork is
 <em>for</em>, and what 0.6 adds.</p>
 
-<h2>What the fork changed</h2>
+<h2 id="what-the-fork-changed">What the fork changed</h2>
 
 <p>Mostly it made the thing cheaper to look at. A dashboard with five widgets behind one query used to fetch
 and parse that query five times; now one request serves all of them. The charts moved off Plotly to Apache
@@ -73,7 +80,7 @@ watching, so nobody pays for a dashboard on a television in an empty room.</p>
 the numbers and the <a href="../why.html">why page</a> has the rest of the reasoning, including the things
 other tools do better.</p>
 
-<h2>0.6: your warehouse, answerable</h2>
+<h2 id="s-0-6-your-warehouse-answerable">0.6: your warehouse, answerable</h2>
 
 <p>The new thing is an <a href="https://modelcontextprotocol.io">MCP</a> server. Point a client at
 <code>/mcp</code> with a SQLDesk API key and it gets eight tools, in the order they are meant to be used:</p>
@@ -91,7 +98,7 @@ other tools do better.</p>
 <p>The ordering is the point. A model that reads the plan before it runs the query, and looks for an existing
 query before it writes a new one, behaves more like a careful colleague and less like a bill.</p>
 
-<h2>The catalog is built from what you already have</h2>
+<h2 id="the-catalog-is-built-from-what-you-already-have">The catalog is built from what you already have</h2>
 
 <p>Most teams have no data hub, no OpenMetadata, nobody filling in a modelling tool. But the warehouse states
 its own structure, several engines carry <code>COMMENT ON</code> text nobody was reading, and every dashboard
@@ -106,7 +113,7 @@ of <code>orders_backup_2019</code> without being told.</p>
 they were last edited. A dashboard that refreshes every morning and has not been touched in a year is the most
 important thing in the warehouse. A query somebody tweaked last week and never ran again is not.</p>
 
-<h2>Metrics are proposed, never assumed</h2>
+<h2 id="metrics-are-proposed-never-assumed">Metrics are proposed, never assumed</h2>
 
 <p><code>SUM(amount) AS gross_revenue</code> in a saved query is a person naming a metric. That is the one part
 of a semantic layer that can be found rather than asked for, so SQLDesk finds them &mdash; the alias the author
@@ -120,7 +127,7 @@ merely plausible is worse than none, because the wrong revenue number is still a
 <p>Two things it will not guess: an aggregate across a join is not attributed to either table, and
 <code>SUM(price * qty)</code> is left for a person to write. Neither can be checked against a column.</p>
 
-<h2>What people write down, you keep in git</h2>
+<h2 id="what-people-write-down-you-keep-in-git">What people write down, you keep in git</h2>
 
 <p>Descriptions and agreed metrics export as cube-shaped YAML, one file per table, into a directory you can
 commit from:</p>
@@ -133,7 +140,7 @@ you already have does that better, and a change to what a metric means should be
 row somebody altered. Importing never creates anything the warehouse has not stated, and a file cannot redefine
 what a measure computes: it may agree with a definition and describe it, not claim one nobody writes.</p>
 
-<h2>On your own hardware</h2>
+<h2 id="on-your-own-hardware">On your own hardware</h2>
 
 <p>The Helm chart runs it on your cluster, with MCP behind a switch and, if you want it, a queue of its own so a
 model exploring cannot slow down a dashboard somebody is watching:</p>
@@ -152,7 +159,7 @@ to launder permissions. Every request leaves an audit row &mdash; who, when, whi
 <p>If your company signs in through SSO, that covers the browser and not this: MCP uses each person's own API
 key, so the audit names a person rather than an integration.</p>
 
-<h2>One honest limitation</h2>
+<h2 id="one-honest-limitation">One honest limitation</h2>
 
 <p>This works today with a <strong>local</strong> MCP client &mdash; Claude Code on a laptop, on your VPN,
 reaching your internal ingress:</p>
@@ -167,7 +174,7 @@ than the OAuth flow those connectors expect. Both are solvable and neither is so
 expecting to add it from a phone, you will be disappointed; deploy it expecting your engineers and analysts to
 use it from their own machines, and it works now.</p>
 
-<h2>Where it is</h2>
+<h2 id="where-it-is">Where it is</h2>
 
 <p>0.6 is at release candidate, published as
 <code>ghcr.io/bot-netizen/sqldesk:0.6.0-rc.1</code>, and being validated. The
@@ -180,6 +187,20 @@ part that only real data can test.</p>
   </div>
   </article>
 
+  <nav class="post-toc" aria-label="On this page">
+      <h4>On this page</h4>
+      <a href="#what-the-fork-changed">What the fork changed</a>
+      <a href="#s-0-6-your-warehouse-answerable">0.6: your warehouse, answerable</a>
+      <a href="#the-catalog-is-built-from-what-you-already-have">The catalog is built from what you already have</a>
+      <a href="#metrics-are-proposed-never-assumed">Metrics are proposed, never assumed</a>
+      <a href="#what-people-write-down-you-keep-in-git">What people write down, you keep in git</a>
+      <a href="#on-your-own-hardware">On your own hardware</a>
+      <a href="#one-honest-limitation">One honest limitation</a>
+      <a href="#where-it-is">Where it is</a>
+    </nav>
+</div>
+
+<div class="wrap post-after">
   <div class="doc-next"><a class="btn btn-ghost" href="index.html">&larr; All posts</a><a class="btn btn-primary" href="../guide/mcp.html">The MCP guide &rarr;</a></div>
 </div>
 
