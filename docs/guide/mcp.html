@@ -315,7 +315,9 @@ and on a cold one it reads table definitions rather than table contents.</p>
 workers &mdash; and there are always more model queries than there are people, so the people lose.
 Set <code>SQLDESK_MCP_QUEUE</code> to a queue name and give that queue workers of its own and they
 cannot. The Helm chart does both from <code>mcp.queue</code>, which also renders a worker that takes
-only that queue.</p>
+only that queue; with Compose, set <code>SQLDESK_MCP_QUEUE=mcp</code> and start the <code>mcp</code>
+profile (see <a href="deploying.html#mcp-catalog">Deploying</a>). Either way the ordinary worker takes
+<code>mcp</code> last when nothing else does, so the queue is never left without a worker.</p>
 
 <h2 id="troubleshooting">If a client cannot connect</h2>
 <ul>

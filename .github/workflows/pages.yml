@@ -28,10 +28,18 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
+      # The pages, not the working papers: the plans and the tool that
+      # regenerates the navigation live in docs/ too, and uploading the
+      # directory as it stands published them.
+      - name: Gather the site
+        run: |
+          mkdir -p "$RUNNER_TEMP/site"
+          rsync -a --exclude '*.md' --exclude 'tools/' docs/ "$RUNNER_TEMP/site/"
+
       - name: Upload the site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs
+          path: ${{ runner.temp }}/site
 
       - id: deployment
         uses: actions/deploy-pages@v4

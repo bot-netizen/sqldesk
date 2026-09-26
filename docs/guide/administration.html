@@ -77,6 +77,9 @@ attributed.</p>
   <dt>MCP</dt>
   <dd>Who has connected over MCP, what they asked for, and every refused attempt. See
     <a href="mcp.html">MCP</a>.</dd>
+  <dt>Catalog</dt>
+  <dd>What the MCP tools know about each table: descriptions to write, proposed measures to agree or
+    deny, and the semantic layer to download as YAML. Shown when MCP is on.</dd>
   <dt>System Status</dt>
   <dd>Queue depths, worker counts, database size.</dd>
   <dt>RQ Status</dt>
@@ -93,7 +96,9 @@ attributed.</p>
   <li><strong>Dashboards stale?</strong> Look at Outdated Queries, then at worker count. Slow queries
     queueing behind each other is the usual cause.</li>
   <li><strong>Pages slow but data fresh?</strong> That is the web tier, not the workers.</li>
-  <li><strong>Give slow data sources their own queue</strong> so one warehouse cannot starve the rest.</li>
+  <li><strong>Give a slow data source its own queue</strong> so one warehouse cannot starve the rest.
+    There is no screen for it yet: set <code>queue_name</code> and <code>scheduled_queue_name</code> on its
+    row in <code>data_sources</code>, and run a worker whose <code>QUEUES</code> names them.</li>
 </ul>
 
 <h2>Settings worth knowing</h2>

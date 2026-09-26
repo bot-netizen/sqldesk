@@ -25,7 +25,7 @@
 # matching SQLDESK_HOST) in .env, or turn AirPlay Receiver off.
 
 x-sqldesk-service: &sqldesk-service
-  image: ${SQLDESK_IMAGE:-ghcr.io/bot-netizen/sqldesk:0.6.0}
+  image: ${SQLDESK_IMAGE:-ghcr.io/bot-netizen/sqldesk:0.6.0-rc.2}
   depends_on:
     postgres:
       condition: service_healthy
@@ -56,7 +56,8 @@ x-sqldesk-service: &sqldesk-service
     #
     # and the YAML appears in ./semantic on the host, one file per table.
     # Point SQLDESK_SEMANTIC_DIR at a checkout of your model repo to write
-    # straight into it. In Kubernetes this is a PVC, or a git-sync sidecar.
+    # straight into it. The Helm chart mounts nothing here: export to a path in
+    # the pod and `kubectl cp` it out.
     - ${SQLDESK_SEMANTIC_DIR:-./semantic}:/app/semantic
 
 x-sqldesk-environment: &sqldesk-environment
@@ -160,7 +161,7 @@ services:
   # Start it with --profile rendering, and put the three lines from the
   # "Pictures in alert emails" part of .env.example into .env.
   screenshots:
-    image: ${SQLDESK_SCREENSHOTS_IMAGE:-ghcr.io/bot-netizen/sqldesk-screenshots:0.6.0}
+    image: ${SQLDESK_SCREENSHOTS_IMAGE:-ghcr.io/bot-netizen/sqldesk-screenshots:0.6.0-rc.2}
     profiles: ["rendering"]
     restart: unless-stopped
     # Chromium wants more than Docker's default 64MB of shared memory, and

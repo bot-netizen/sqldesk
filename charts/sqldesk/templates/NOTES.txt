@@ -38,8 +38,9 @@ somebody fills it in, so do that before telling anyone else the address.
 
 {{ if .Values.mcp.enabled -}}
 MCP is on. Its endpoint is /mcp, authenticated with the API key from your
-profile page, and the audit is under Admin -> MCP. Fill the catalog first --
-nothing answers until you do:
+profile page, and the audit is under Admin -> MCP. The catalog it answers
+from is rebuilt every {{ .Values.mcp.catalog.harvestHours }} hours; to fill it now, after adding a
+data source:
 
   kubectl exec deploy/{{ include "sqldesk.fullname" . }}-server -- ./manage.py ai harvest
 

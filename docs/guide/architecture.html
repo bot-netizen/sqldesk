@@ -60,7 +60,8 @@
   </nav>
   <main class="doc-body">
 <h1>Architecture</h1>
-<p>Five processes and two databases. None of them is unusual, and knowing which one is doing what
+<p>Three SQLDesk processes &mdash; the server, the workers and the scheduler &mdash; and two databases,
+Postgres and Redis. None of them is unusual, and knowing which one is doing what
 explains almost every question about why something is slow, stale, or missing.</p>
 
 <div class="flow">
@@ -147,7 +148,7 @@ minutes, so it does not happen here.</p>
 <ul>
   <li>users, groups and permissions;</li>
   <li>data source definitions, with credentials encrypted at rest;</li>
-  <li>queries and every version of them, dashboards, widgets, alerts;</li>
+  <li>queries, dashboards, widgets, alerts, and a record of changes to them;</li>
   <li><strong>query results</strong> — the rows that came back, as JSON, until they are cleaned up;</li>
   <li>the <a href="mcp.html">catalog</a>, if you have harvested one.</li>
 </ul>
@@ -159,8 +160,8 @@ nothing points at any more; how long they are kept is configurable.</p>
 <dl>
   <dt>Job queues</dt>
   <dd>Every query execution, scheduled refresh, alert check and email is a job on an RQ queue. The
-    server puts them on; workers take them off. Queue names are configurable so slow data sources can
-    have workers of their own.</dd>
+    server puts them on; workers take them off. MCP's queries can have a queue of their own
+    (<code>SQLDESK_MCP_QUEUE</code>) and workers that take only that.</dd>
   <dt>Locks</dt>
   <dd>If five people open a dashboard at once, one job runs and the others wait on its result rather
     than each hammering the warehouse with the same SQL.</dd>
@@ -180,7 +181,8 @@ rarely the same one.</p>
 
 <h2>The scheduler</h2>
 <p>One process, and only one. It watches the clock and puts due work on the queue — scheduled query
-refreshes, cleanup, alert checks. It runs nothing itself. Two schedulers would double-schedule
+refreshes, live dashboards, schema and catalog refreshes, cleanup. Alerts are not on the clock: one is
+checked when its query's new result is stored. The scheduler runs nothing itself. Two schedulers would double-schedule
 everything, so this is the one component you do not scale horizontally.</p>
 
 <h2>What happens when you open a dashboard</h2>

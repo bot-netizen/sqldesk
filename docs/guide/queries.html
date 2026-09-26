@@ -60,7 +60,7 @@
   </nav>
   <main class="doc-body">
 <h1>Queries and parameters</h1>
-<p>A query is SQL against one data source, saved, with a history of every version and who changed it.</p>
+<p>A query is SQL against one data source, saved, with an owner and, if you like, a schedule.</p>
 
 <h2>Running one</h2>
 <p><strong>Execute</strong> runs it and stores the result. Selecting part of the SQL runs only the
@@ -94,8 +94,10 @@ paid for by your warehouse every five minutes.</p>
 <p>Scheduled runs use the parameter <em>defaults</em>; there is nobody there to choose.</p>
 
 <h2 id="permissions">Permissions</h2>
-<p>You can query any data source your groups allow. A query can be shared for editing with specific
-people; without that, others can run and view it but not change it.</p>
+<p>You can query any data source your groups give full access to; view-only access shows results but
+runs no new SQL. With <em>Enable experimental multiple owners support</em> on (Settings &rarr; General), a
+query can be shared for editing with specific people; without that, others can run and view it but not
+change it.</p>
 
 <h2>Snippets and formatting</h2>
 <p>Snippets are reusable fragments — Settings &rarr; Query Snippets — inserted by typing their trigger.

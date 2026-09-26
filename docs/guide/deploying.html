@@ -121,10 +121,23 @@ off &mdash; with it on, the renderer is redirected to an address it cannot reach
   <tr><td><code>SQLDESK_HOST</code></td><td>The address in emails and alert links.</td></tr>
 </table>
 <p>Keep the two secrets somewhere they survive a redeployment. Losing the cookie secret logs everyone out;
-losing the secret key loses every stored credential.</p>
+losing the secret key loses every stored credential. Set both: with <code>SQLDESK_SECRET_KEY</code> unset,
+the cookie secret encrypts credentials too, and rotating it for sessions then loses them.</p>
 <p>Both files also turn on CSRF checks (<code>SQLDESK_ENFORCE_CSRF</code>), which upstream leaves off so as
 not to break old installs. The application has always sent the token; API-key calls, MCP included, are not
 affected.</p>
+
+<h2 id="mail">Mail</h2>
+<p>Invitations, password resets and alert emails need a mail server. In <code>.env</code>:</p>
+<pre><code>SQLDESK_MAIL_SERVER=smtp.example.com
+SQLDESK_MAIL_PORT=587
+SQLDESK_MAIL_USE_TLS=true
+SQLDESK_MAIL_USERNAME=…
+SQLDESK_MAIL_PASSWORD=…
+SQLDESK_MAIL_DEFAULT_SENDER=sqldesk@example.com</code></pre>
+<p>Then send yourself one to check it arrives:
+<code>docker compose -f compose.prod.yaml run --rm server manage send_test_mail you@example.com</code>.
+Without mail, people are invited with a link an admin copies to them by hand.</p>
 
 <h2 id="compose">Docker Compose</h2>
 <pre><code>cp .env.example .env        # then fill in the secrets and POSTGRES_PASSWORD
@@ -166,14 +179,20 @@ the server's node so they can mount it. With a <code>ReadWriteMany</code> storag
   <li><strong>Queries queueing</strong> — more workers.</li>
   <li><strong>Pages slow to load</strong> — more web workers. A different problem with a different fix.</li>
   <li><strong>The scheduler is one process.</strong> Two would double-schedule everything.</li>
-  <li>Give a slow data source its own queue so it cannot starve the others.</li>
+  <li>Give a slow data source its own queue so it cannot starve the others &mdash; see
+    <a href="administration.html">Administration</a> for how, since there is no screen for it yet.</li>
   <li>A worker being stopped finishes the query it is running, for up to five minutes, before it exits.</li>
 </ul>
 
 <h2 id="backups">Backups</h2>
-<p>Back up Postgres, and the uploads volume if people upload files. Redis holds queues, locks and a schema
-cache — losing it costs in-flight jobs and nothing else, which is why it can be a plain container with no
-persistence.</p>
+<p>Back up Postgres, and the uploads volume if people upload files &mdash; uploaded files live on disk, not
+in the database. Keep the <code>semantic/</code> directory in git if you export the catalog. Redis holds
+queues, locks and a schema cache — losing it costs in-flight jobs and nothing else, which is why it can be a
+plain container with no persistence.</p>
+<p><strong>Restoring or moving the database</strong> needs the same <code>SQLDESK_SECRET_KEY</code> it was
+made with: data source and alert destination credentials are encrypted with it. To change the key, re-encrypt
+first rather than after:</p>
+<pre><code>manage database reencrypt &lt;old key&gt; &lt;new key&gt;</code></pre>
 <div class="doc-next"><a class="btn btn-ghost" href="administration.html">&larr; Administration</a><a class="btn btn-primary" href="releases.html">Releases &rarr;</a></div>
   </main>
 </div>

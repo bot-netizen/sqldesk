@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SQLDesk, and what it is for — SQLDesk</title>
-<meta name="description" content="A self-hosted place to query your data and build dashboards on it — and, in 0.6, an MCP server that lets a model ask your warehouse questions without the data leaving your network.">
+<meta name="description" content="A self-hosted place to query your data and build dashboards on it — and, in 0.6, an MCP server over your warehouse, on hardware you control.">
 <meta property="og:title" content="SQLDesk, and what it is for">
 <meta property="og:description" content="A self-hosted place to query your data and build dashboards — and an MCP server that answers from your own saved queries.">
 <meta property="og:type" content="article">
@@ -91,8 +91,8 @@ other tools do better.</p>
   <li><code>find_context</code>, <code>expand_table</code>, <code>list_data_sources</code> &mdash; understand
     the data;</li>
   <li><code>check_sql</code> for the shape and <code>explain_query</code> for the cost;</li>
-  <li><code>run_query</code>, which returns at most 1000 rows &mdash; the same ceiling a person clicking
-    Execute gets &mdash; and runs on a worker like any other query.</li>
+  <li><code>run_query</code>, which runs one read &mdash; never a write &mdash; returns at most 1000 rows,
+    the same ceiling a person clicking Execute gets, and runs on a worker like any other query.</li>
 </ul>
 
 <p>The ordering is the point. A model that reads the plan before it runs the query, and looks for an existing
@@ -132,7 +132,8 @@ merely plausible is worse than none, because the wrong revenue number is still a
 <p>Descriptions and agreed metrics export as cube-shaped YAML, one file per table, into a directory you can
 commit from:</p>
 
-<pre><code>manage ai export /app/semantic   # catalog → files, then commit them
+<pre><code># in the server container, where manage is /app/manage.py
+manage ai export /app/semantic   # catalog → files, then commit them
 manage ai import /app/semantic   # files → catalog, on deploy</code></pre>
 
 <p>SQLDesk never speaks to git itself &mdash; no deploy key, no conflict handling &mdash; because the pipeline
@@ -151,9 +152,9 @@ model exploring cannot slow down a dashboard somebody is watching:</p>
   worker:
     enabled: true</code></pre>
 
-<p>Every call runs as the user whose API key it is and sees only the data sources that user can read. There is
-no service account and no way to configure one, because a tool server with more access than its user is a way
-to launder permissions. Every request leaves an audit row &mdash; who, when, which tool, the outcome, how long
+<p>Every call runs as the user whose API key it is and sees only the data sources that user can read; running
+SQL needs the same full access the query editor does. There is no service account and no way to configure one,
+because a tool server with more access than its user is a way to launder permissions. Every request leaves an audit row &mdash; who, when, which tool, the outcome, how long
 &mdash; including the refused ones, which are the rows an audit exists for.</p>
 
 <p>If your company signs in through SSO, that covers the browser and not this: MCP uses each person's own API
@@ -177,7 +178,7 @@ use it from their own machines, and it works now.</p>
 <h2 id="where-it-is">Where it is</h2>
 
 <p>0.6 is at release candidate, published as
-<code>ghcr.io/bot-netizen/sqldesk:0.6.0-rc.1</code>, and being validated. The
+<code>ghcr.io/bot-netizen/sqldesk:0.6.0-rc.2</code>, and being validated. The
 <a href="../guide/mcp.html">MCP guide</a> covers setup, the tools, the audit and what it costs your warehouse;
 <a href="../guide/deploying.html">Deploying</a> covers Docker and Kubernetes.</p>
 

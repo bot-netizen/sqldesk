@@ -300,8 +300,8 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
       <div class="card">
         <h3>Keep your secret key</h3>
         <p>Data-source passwords are encrypted with <code>SQLDESK_SECRET_KEY</code>.
-        Back it up and do not rotate it casually — changing it makes every stored
-        credential unreadable, and they have to be entered again.</p>
+        Back it up and do not rotate it casually — changing it without
+        <code>manage database reencrypt</code> makes every stored credential unreadable.</p>
       </div>
       <div class="card">
         <h3>No phone home</h3>
@@ -322,7 +322,7 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
     <div class="features">
       <div class="feature">
         <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h7"/></svg>Query editor</h3>
-        <p>Schema browser, autocomplete, query formatting, parameters and scheduled refresh. Fork a query, version it, publish it.</p>
+        <p>Schema browser, autocomplete, query formatting, parameters and scheduled refresh. Fork a query, schedule it, publish it.</p>
       </div>
       <div class="feature">
         <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="9" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/></svg>Dashboards</h3>
@@ -330,7 +330,7 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
       </div>
       <div class="feature">
         <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 1.8a4 4 0 0 0-4 4c0 3.2-1.4 4.2-1.4 4.2h10.8S12 9 12 5.8a4 4 0 0 0-4-4Z"/><path d="M6.6 12.6a1.6 1.6 0 0 0 2.8 0"/></svg>Alerts</h3>
-        <p>Trigger on a query result and notify Slack, email, PagerDuty, webhooks and a dozen more destinations.</p>
+        <p>Trigger on a query result and notify email, Slack, Microsoft Teams, PagerDuty, webhooks and seven more destinations.</p>
       </div>
       <div class="feature">
         <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><ellipse cx="8" cy="3.6" rx="5.4" ry="2.2"/><path d="M2.6 3.6v8.8c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2V3.6"/><path d="M2.6 8c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2"/></svg>Upload a file</h3>
@@ -374,16 +374,25 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 
     <div class="road">
       <div class="road-item">
-        <div class="road-k"><span class="road-status s-now">Shipping</span>v27</div>
+        <div class="road-k"><span class="road-status s-now">New</span>0.6</div>
         <div>
-          <h3>A rebuilt interface</h3>
-          <p class="road-b">New design system with proper contrast and density, a top navigation bar that gives the
-          content its full width, row actions across dashboards, queries and alerts, and branded PDF and image
-          export with full lineage on the header.</p>
+          <h3>Your warehouse, answerable over MCP</h3>
+          <p class="road-b">An endpoint at <code>/mcp</code> with eight tools over a catalog built from your schema
+          and the SQL your team has already saved. It runs as the person whose API key it is, only reads, and
+          audits every request. Metrics are proposed from saved queries and agreed by a person before a model
+          sees them. The <a href="guide/mcp.html">MCP guide</a> has the details.</p>
         </div>
       </div>
       <div class="road-item">
-        <div class="road-k"><span class="road-status s-now">In testing</span>0.4</div>
+        <div class="road-k"><span class="road-status s-next">Shipped</span>0.5</div>
+        <div>
+          <h3>Less chrome, more chart</h3>
+          <p class="road-b">Textboxes you can write in, eight more chart types, an Admin section that says what is
+          running and who asked for it, and alert emails that carry a picture of the dashboard.</p>
+        </div>
+      </div>
+      <div class="road-item">
+        <div class="road-k"><span class="road-status s-next">Shipped</span>0.4</div>
         <div>
           <h3>Live dashboards and KPI tiles</h3>
           <p class="road-b">Dashboards that update every 30 seconds without every viewer re-running the queries,
@@ -443,8 +452,8 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
       </div>
       <div class="card">
         <h3>Deployment</h3>
-        <p>Docker Compose for a single box, or split the web and worker tiers across machines. No managed service
-        required and no license server to call.</p>
+        <p>Docker Compose for a single box, or the Helm chart in <code>charts/sqldesk</code> for Kubernetes. No
+        managed service required and no license server to call.</p>
       </div>
     </div>
   </div>

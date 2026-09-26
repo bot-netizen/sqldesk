@@ -39,9 +39,12 @@ charge you for them.
 - **35+ data sources** — PostgreSQL, MySQL, BigQuery, Snowflake, Databricks, Athena, ClickHouse, MongoDB, DuckDB and many more
 - **File upload** — drop a CSV or Parquet file and query it with SQL, backed by DuckDB
 - **Visualizations** — charts, tables, cohorts, funnels, maps, pivot tables
-- **Dashboards** — arrange visualizations, filter across them, export to PDF or image
+- **Dashboards** — arrange visualizations, filter across them, export a one-page report as PDF or image
 - **Alerts** — trigger on a query result and notify Slack, email, PagerDuty, webhooks and more
 - **Permissions** — groups, per-data-source access, view-only roles, shareable public links
+- **MCP** — an endpoint at `/mcp` with eight read-only tools over your schema and saved queries, run as the
+  user whose API key it is and audited; off until `SQLDESK_FEATURE_AI=true`. See the
+  [MCP guide](https://bot-netizen.github.io/sqldesk/guide/mcp.html)
 
 ## Running it
 
@@ -60,8 +63,17 @@ docker compose -f compose.prod.yaml run --rm server create_db
 docker compose -f compose.prod.yaml up -d
 ```
 
-SQLDesk comes up on `http://localhost:5000`. Set `SQLDESK_IMAGE` in `.env` to
-pin a different tag.
+SQLDesk comes up on `http://localhost:5000`, and the first page makes your
+organization and administrator account. Set `SQLDESK_IMAGE` in `.env` to pin a
+different tag. MCP and the alert-picture renderer are add-ons, off by default:
+[Deploying](https://bot-netizen.github.io/sqldesk/guide/deploying.html#services)
+says how to turn each on.
+
+On Kubernetes, the Helm chart in `charts/sqldesk` does the same:
+
+```bash
+helm install sqldesk ./charts/sqldesk --timeout 15m
+```
 
 > On macOS, port 5000 is taken by AirPlay Receiver and `up` fails with "address
 > already in use". Set `SQLDESK_PORT` and `SQLDESK_HOST` in `.env` to another

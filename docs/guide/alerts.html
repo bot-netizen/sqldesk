@@ -66,7 +66,8 @@
 <p>An alert is checked <strong>after its query runs</strong>, not on a timer of its own. An alert on a
 query that is not scheduled only fires when somebody runs the query — which is the single most common
 surprise, and the fix is to give the query a schedule.</p>
-<p>It reads one column of the first row, compares it, and is then either <em>triggered</em> or
+<p>It reads one column &mdash; its value in the first row, or its minimum or maximum across rows &mdash;
+compares it, and is then either <em>triggered</em> or
 <em>ok</em>. Notifications are sent on the change between those states, not on every check, so a metric
 sitting above its threshold for a day is one message rather than a hundred.</p>
 

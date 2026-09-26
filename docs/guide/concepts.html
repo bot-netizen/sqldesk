@@ -69,8 +69,7 @@ Google Sheet. It holds the credentials, which are encrypted, and it belongs to o
 <em>groups</em>. Whoever is in a group can use the data source; whoever is not cannot see it at all.</p>
 
 <h2>Query</h2>
-<p>SQL, saved, against one data source. A query has an owner, can be scheduled, and keeps its history —
-every version, and who changed it.</p>
+<p>SQL, saved, against one data source. A query has an owner, can be scheduled, forked and published.</p>
 
 <h2>Query result</h2>
 <p>What came back the last time a query ran, kept in SQLDesk's own database. Opening a dashboard shows
@@ -84,7 +83,7 @@ several, and they all draw the same rows. Changing the SQL changes all of them a
 <h2>Dashboard and widget</h2>
 <p>A dashboard is a grid of <em>widgets</em>. A widget is either a visualization from some query, or a
 textbox. Two widgets showing the same query share one fetch, so a dashboard with five views of one query
-asks the warehouse once.</p>
+fetches its stored result once.</p>
 
 <h2>Parameter</h2>
 <p>A hole in the SQL, written <code>{{ region }}</code>. The value is substituted before the query runs, so
@@ -96,8 +95,10 @@ the warehouse does different work. Parameters can be text, numbers, dates, or a 
 warehouse does; use a filter to slice what it already returned.</p>
 
 <h2>Group</h2>
-<p>How permission works. A user belongs to groups; a data source is available to groups. There is no
-per-user data source permission and no per-query one — it is groups, all the way down.</p>
+<p>How permission works. A user belongs to groups; a data source is available to groups, fully or
+view-only. Viewing and running is groups all the way down. Editing a query or dashboard can also be granted
+to named people, once an admin turns on <em>Enable experimental multiple owners support</em> under
+Settings &rarr; General.</p>
 
 <h2>Alert</h2>
 <p>A rule over one query's result — a column, a comparison, a value — and a list of destinations. It is

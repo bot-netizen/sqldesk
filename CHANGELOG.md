@@ -1,5 +1,89 @@
 # Changelog
 
+## 0.6.0-rc.2
+
+The second release candidate: an audit of rc.1 before anyone depends on it.
+Most of what changed is things rc.1 got wrong.
+
+**MCP gives no more than the editor gives.** In rc.1 a user in a view-only
+group could run any SQL through `/mcp` that the editor refuses them, and a
+user without the `execute_query` permission could run SQL at all; `run_query`
+and `explain_query` now check what the editor checks, paused sources
+included. With no data source named, `find_context` and `expand_table`
+searched the whole organization's catalog, and `find_dashboards` listed every
+dashboard in it; both are now limited to what the user can see. And
+`explain_query` put `EXPLAIN` in front of whatever it was given, so
+`ANALYZE DELETE FROM t` deleted.
+
+**MCP only reads.** `run_query` and `explain_query` accept one statement that
+reads -- `SELECT`, `WITH`, `SHOW`, `DESCRIBE` -- and refuse a write anywhere in
+it, a `DELETE` inside a `WITH` and `SELECT ... INTO` included. This stops a
+model doing damage by accident; the database account's grants are still what
+stop it on purpose, so give each data source a read-only user.
+
+**MCP keeps within the web server's time.** One request waits at most ten
+seconds less than gunicorn's timeout, across all its calls, rather than 120
+seconds a call against a 60-second timeout. Batches hold at most ten
+messages, SQL at most 100,000 characters. `/mcp` also worked only with CSRF
+checks off -- the development compose file turns them on -- and is now exempt,
+since an API key is not a session.
+
+**File uploads are confined to their own folder.** The DuckDB behind file
+uploads let SQL read any file the worker could -- another organization's
+uploads, `/etc/passwd` -- write over the application, and install extensions.
+Each upload source's SQL now reads its own uploads and nothing else, with the
+setting locked so SQL cannot switch it back.
+
+**Dashboard export is a one-page report.** Past twelve widgets or one page
+tall, Export says "Too big to export" straight away. What fits exports in
+under a second: the capture copies the styles that decide how a widget looks
+rather than all 560, and draws the widgets at once. Export of rc.1 failed
+outright on any dashboard with a map, on any dashboard of real size, and on
+the sankey.
+
+**Core and add-ons.** The core is the server, worker, scheduler, Postgres and
+Redis. MCP & Catalog and Rendering (pictures in alert emails) are add-ons:
+compose profiles `mcp` and `rendering`, and `mcp.enabled` and
+`rendering.enabled` in the chart. The renderer is published as
+`ghcr.io/bot-netizen/sqldesk-screenshots`, sends the API key only to SQLDesk,
+and no longer runs as root.
+
+**Removed: the model-provider layer.** SQLDesk calls no model; MCP serves
+tools to the client's. `manage ai configure/status/test/disable/forget`,
+`/api/ai/status`, `/api/ai/test`, `/api/queries/optimize`, the
+`SQLDESK_AI_PROVIDER` family and the chart's `ai.*` values are gone, and a
+migration drops the `ai_providers` table. `SQLDESK_FEATURE_AI` stays: it is
+the MCP switch.
+
+**Also fixed.**
+- The Helm chart had no volume for uploads, so an upload succeeded and every
+  query on it failed. It has one now, shared by the server and every worker.
+- A worker being stopped was killed ten seconds in, mid-query, whatever the
+  grace period said. It now finishes the query, for up to five minutes.
+- The chart's first-run note ran `users create_root` without a password, which
+  makes an account nobody can sign in to. It points at the setup page.
+- A harvest that got an empty schema -- a failed read, usually -- deleted the
+  catalog and the descriptions people had written. It now keeps them.
+- `manage ai import` matched tables by name across every data source, so
+  staging's description could land on production's table. The folder a file
+  is in now says which source it is about. Export no longer reads the join
+  list once per table.
+- The MCP audit is pruned after 90 days (`SQLDESK_MCP_AUDIT_RETENTION_DAYS`),
+  and a script trying keys can no longer fill it: refusals past 60 a minute
+  from one address are still refused, just not each written down.
+- Every in-app help drawer was blank: the content security policy lost its
+  `frame-src` for the docs site in the rename.
+- The compose file's default image was still 0.5.0.
+
+**Upgrading from rc.1.** Run `manage db upgrade`: it adds nothing and drops
+`ai_providers`. If you set `ai.enabled` on the chart, set `mcp.enabled`
+instead; the chart now refuses to render with `ai.*` set rather than silently
+ignoring it. With Compose, move `SQLDESK_FEATURE_AI` into `.env` if it is not
+there, and add `COMPOSE_PROFILES=mcp` for MCP's own worker.
+
+**Upgrading from 0.5.** Set `SQLDESK_IMAGE`, `pull`, `run --rm server manage db
+upgrade`, then `up -d`. MCP stays off until `SQLDESK_FEATURE_AI=true`.
+
 ## 0.6.0-rc.1
 
 SQLDesk answers questions about your warehouse over the Model Context
