@@ -16,6 +16,15 @@ const MARGIN = 40;
 const HEADER_HEIGHT = 64;
 const LOGO_SIZE = 30;
 
+// What the page adds around the capture, in CSS pixels, so the capture can
+// be sized with the finished page in mind rather than just the grid.
+export const PAGE_FURNITURE = {
+  width: MARGIN * 2,
+  height: HEADER_HEIGHT + MARGIN * 2,
+  // Where the dashboard itself starts on the page, below the header.
+  top: MARGIN + HEADER_HEIGHT,
+};
+
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const image = new Image();

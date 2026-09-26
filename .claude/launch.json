@@ -21,6 +21,17 @@
         "docs"
       ],
       "port": 4173
+    },
+    {
+      "name": "dev-minikube",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": [
+        "SQLDESK_BACKEND=http://127.0.0.1:5091",
+        "pnpm",
+        "exec",
+        "webpack-dev-server"
+      ],
+      "port": 8080
     }
   ]
 }

@@ -35,16 +35,35 @@ export default function ShareDashboardButton({ dashboard, getExportTarget, onSho
       }
       setBusy(kind);
       try {
-        const blob = await render(element);
+        const { blob, skippedImages, failedWidgets } = await render(element);
         if (!blob) {
           throw new Error("The dashboard could not be captured.");
         }
         downloadBlob(blob, filenameFor(dashboard.name, extension));
+        // The file is made either way; what the user needs to know is what
+        // is missing from it and why, not a vague "something broke".
+        const missing = [];
+        if (failedWidgets > 0) {
+          missing.push(
+            `${failedWidgets} widget${failedWidgets === 1 ? " could" : "s could"} not be drawn and ` +
+              `${failedWidgets === 1 ? "is" : "are"} marked as a gap.`
+          );
+        }
+        if (skippedImages > 0) {
+          missing.push(
+            `${skippedImages} image${skippedImages === 1 ? "" : "s"} from other websites — map tiles, pictures in ` +
+              "text boxes — cannot be copied by the browser and " +
+              `${skippedImages === 1 ? "is" : "are"} blank.`
+          );
+        }
+        if (missing.length > 0) {
+          notification.warning("Exported, with something missing", `${missing.join(" ")} Everything else is included.`);
+        }
       } catch (error) {
-        // Capture failures are usually a widget the renderer could not read
-        // (a cross-origin image, say), which is worth saying rather than
-        // failing silently.
-        notification.error(`Could not export as ${extension.toUpperCase()}`, error && error.message);
+        notification.error(
+          `Could not export as ${extension.toUpperCase()}`,
+          (error && error.message) || "The dashboard could not be captured."
+        );
       } finally {
         setBusy(null);
       }
