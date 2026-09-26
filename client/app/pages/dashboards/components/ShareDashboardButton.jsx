@@ -60,6 +60,10 @@ export default function ShareDashboardButton({ dashboard, getExportTarget, onSho
           notification.warning("Exported, with something missing", `${missing.join(" ")} Everything else is included.`);
         }
       } catch (error) {
+        if (error && error.name === "TooBigToExport") {
+          notification.warning("Too big to export", error.message);
+          return;
+        }
         notification.error(
           `Could not export as ${extension.toUpperCase()}`,
           (error && error.message) || "The dashboard could not be captured."

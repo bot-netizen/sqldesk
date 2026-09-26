@@ -1,4 +1,4 @@
-import { captureScale, foreignImageCount, stripXmlIllegal } from "./index";
+import { MAX_WIDGETS, captureScale, foreignImageCount, stripXmlIllegal, tooBigToExport } from "./index";
 
 jest.mock("html-to-image", () => ({ toPng: jest.fn() }));
 jest.mock("@sqldesk/viz/lib/services/offscreen", () => ({ revealAllCharts: jest.fn() }));
@@ -88,5 +88,37 @@ describe("stripXmlIllegal", () => {
     const cleaned = stripXmlIllegal(wrap("x￾y￿z"));
 
     expect(decodeURIComponent(cleaned.split(",")[1])).toBe("<svg><text>xyz</text></svg>");
+  });
+});
+
+describe("tooBigToExport", () => {
+  /*
+    Export is a one-page report. Past one page, or past a dozen widgets, the
+    answer is "too big" at once rather than a long wait for a file nobody
+    will read.
+  */
+  test("a short dashboard of a few charts exports", () => {
+    expect(tooBigToExport({ width: 1440, height: 900, widgets: 6 })).toBeNull();
+  });
+
+  test("a little over a page still fits, shrunk to one", () => {
+    // A4 landscape at 1520px wide is 1074px tall; 1250 + 144 is 1.3 pages.
+    expect(tooBigToExport({ width: 1440, height: 1250, widgets: 8 })).toBeNull();
+  });
+
+  test("a tall dashboard is too big, and says how many pages it would take", () => {
+    // The "Every visualization" demo dashboard.
+    const reason = tooBigToExport({ width: 1440, height: 10615, widgets: 10 });
+    expect(reason).toMatch(/one-page report/);
+    expect(reason).toMatch(/11 pages/);
+  });
+
+  test("more widgets than a report holds is too big, however short", () => {
+    const reason = tooBigToExport({ width: 1440, height: 600, widgets: MAX_WIDGETS + 1 });
+    expect(reason).toMatch(new RegExp(`${MAX_WIDGETS + 1} widgets`));
+  });
+
+  test("exactly the limit is allowed", () => {
+    expect(tooBigToExport({ width: 1440, height: 600, widgets: MAX_WIDGETS })).toBeNull();
   });
 });

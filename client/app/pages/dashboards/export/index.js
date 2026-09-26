@@ -1,6 +1,6 @@
 import { getFontEmbedCSS, toSvg } from "html-to-image";
 import { revealAllCharts } from "@sqldesk/viz/lib/services/offscreen";
-import { A4_LANDSCAPE, buildImagePdf, paginate } from "./imagePdf";
+import buildSingleImagePdf, { A4_LANDSCAPE } from "./singleImagePdf";
 import composeExportCanvas, { PAGE_FURNITURE } from "./compose";
 import { capitalizeFirst, formatDateTime } from "@/lib/utils";
 import { currentUser } from "@/services/auth";
@@ -22,6 +22,60 @@ import { currentUser } from "@/services/auth";
 // Captures are taken at 2x so text in the exported image is not soft on
 // high-DPI screens, and so a PDF scaled down to A4 still has detail.
 const CAPTURE_SCALE = 2;
+
+/*
+  Export is for a one-page report: the few charts somebody reads, as a PDF or
+  a picture that takes a second or two to make. A dashboard of eighty widgets
+  is something to scroll, not to print, and exporting it meant ten seconds of
+  a frozen tab and an eleven-page PDF nobody reads -- so past one page the
+  answer is "too big", straight away, before anything is drawn.
+
+  One page is A4 landscape at the dashboard's width, allowed to shrink by up
+  to 30% to fit; a page shrunk further than that is too small to read. The
+  widget count keeps it quick: twelve charts took 0.6-0.9s to export in
+  Chrome, as a PDF or a PNG.
+*/
+export const MAX_WIDGETS = 12;
+const ONE_PAGE_STRETCH = 1.3;
+
+export class TooBigToExport extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "TooBigToExport";
+  }
+}
+
+/*
+  Why a grid of this size cannot be exported, or null if it can.
+  `width` and `height` are the grid's, in CSS pixels.
+*/
+export function tooBigToExport({ width, height, widgets }) {
+  const pageWidth = width + PAGE_FURNITURE.width;
+  const pageHeight = pageWidth * (A4_LANDSCAPE.height / A4_LANDSCAPE.width);
+  const needed = height + PAGE_FURNITURE.height;
+  const pages = Math.ceil(needed / pageHeight);
+
+  if (widgets <= MAX_WIDGETS && needed <= pageHeight * ONE_PAGE_STRETCH) {
+    return null;
+  }
+  const size =
+    widgets > MAX_WIDGETS ? `This dashboard has ${widgets} widgets` : `This dashboard would need ${pages} pages`;
+  return (
+    `Export makes a one-page report: up to ${MAX_WIDGETS} widgets, one page tall. ${size}. ` +
+    "Share its link instead, or put the widgets that matter on a dashboard of their own."
+  );
+}
+
+function checkSize(element) {
+  const reason = tooBigToExport({
+    width: element.scrollWidth,
+    height: element.scrollHeight,
+    widgets: element.querySelectorAll(".react-grid-item").length,
+  });
+  if (reason) {
+    throw new TooBigToExport(reason);
+  }
+}
 
 /*
   The largest canvas every browser we support will actually allocate.
@@ -109,11 +163,151 @@ function loadSvg(url) {
   });
 }
 
+/*
+  The styles copied onto every cloned node: what decides how a widget looks,
+  and nothing else. By default the library copies every computed property
+  this browser knows -- 560 of them in Chrome -- onto every node, and that
+  copying is most of the time an export takes: a chart widget cost 450ms and
+  750KB of SVG. Pointer, animation, scroll and the rest change nothing in a
+  still picture. Exported both ways, the two images matched pixel for pixel
+  -- once `content` was on the list, which icons drawn by CSS are made of.
+*/
+const SIDES = ["top", "right", "bottom", "left"];
+const CORNERS = ["top-left", "top-right", "bottom-right", "bottom-left"];
+export const EXPORT_STYLE_PROPERTIES = [
+  // Box and layout
+  "display",
+  "position",
+  ...SIDES,
+  "float",
+  "clear",
+  "z-index",
+  "box-sizing",
+  "width",
+  "height",
+  "min-width",
+  "min-height",
+  "max-width",
+  "max-height",
+  ...SIDES.map((side) => `margin-${side}`),
+  ...SIDES.map((side) => `padding-${side}`),
+  "overflow-x",
+  "overflow-y",
+  "visibility",
+  "opacity",
+  "transform",
+  "transform-origin",
+  "flex-direction",
+  "flex-wrap",
+  "flex-grow",
+  "flex-shrink",
+  "flex-basis",
+  "justify-content",
+  "justify-items",
+  "align-items",
+  "align-content",
+  "align-self",
+  "order",
+  "row-gap",
+  "column-gap",
+  "grid-template-columns",
+  "grid-template-rows",
+  "grid-template-areas",
+  "grid-auto-flow",
+  "grid-auto-columns",
+  "grid-auto-rows",
+  "grid-column-start",
+  "grid-column-end",
+  "grid-row-start",
+  "grid-row-end",
+  // Borders, backgrounds, shadows
+  ...SIDES.map((side) => `border-${side}-width`),
+  ...SIDES.map((side) => `border-${side}-style`),
+  ...SIDES.map((side) => `border-${side}-color`),
+  ...CORNERS.map((corner) => `border-${corner}-radius`),
+  "background-color",
+  "background-image",
+  "background-size",
+  "background-position-x",
+  "background-position-y",
+  "background-repeat",
+  "background-clip",
+  "background-origin",
+  "box-shadow",
+  "outline-style",
+  "outline-width",
+  "outline-color",
+  "outline-offset",
+  // Text. `content` is what an icon drawn by a ::before rule consists of:
+  // without it the refresh icon in every widget's footer came out blank.
+  "content",
+  "color",
+  "font-family",
+  "font-size",
+  "font-weight",
+  "font-style",
+  "font-stretch",
+  "font-variant-numeric",
+  "font-variant-caps",
+  "font-feature-settings",
+  "font-variant-ligatures",
+  "font-kerning",
+  "text-rendering",
+  "-webkit-font-smoothing",
+  "line-height",
+  "letter-spacing",
+  "word-spacing",
+  "text-align",
+  "text-indent",
+  "text-transform",
+  "text-overflow",
+  "text-decoration-line",
+  "text-decoration-color",
+  "text-decoration-style",
+  "text-shadow",
+  "white-space",
+  "word-break",
+  "overflow-wrap",
+  "vertical-align",
+  "direction",
+  "-webkit-line-clamp",
+  "-webkit-box-orient",
+  "list-style-type",
+  "list-style-position",
+  // Tables
+  "border-collapse",
+  "border-spacing",
+  "table-layout",
+  // Images and SVG, which charts are drawn in
+  "object-fit",
+  "object-position",
+  "fill",
+  "fill-opacity",
+  "fill-rule",
+  "stroke",
+  "stroke-width",
+  "stroke-opacity",
+  "stroke-dasharray",
+  "stroke-dashoffset",
+  "stroke-linecap",
+  "stroke-linejoin",
+  "stroke-miterlimit",
+  "text-anchor",
+  "dominant-baseline",
+  "paint-order",
+  "shape-rendering",
+  "clip-path",
+  "mask",
+  "mix-blend-mode",
+  "filter",
+];
+
 function tileOptions(fontEmbedCSS, width, height) {
   return {
     width,
     height,
     fontEmbedCSS,
+    includeStyleProperties: EXPORT_STYLE_PROPERTIES,
     imagePlaceholder: TRANSPARENT_PIXEL,
     // Belt and braces: anything that still fails to load resolves rather
     // than taking the widget down with it.
@@ -191,16 +385,15 @@ function drawGap(context, x, y, width, height, scale) {
 }
 
 /*
-  One widget at a time, stitched onto one canvas.
+  Each widget captured on its own, stitched onto one canvas.
 
   Capturing the whole grid at once serialises every element with every
   computed style into a single SVG. The 80-widget demo dashboard came to
   55 MB -- 40 of it copied CSS, 11 of it fonts -- and the browser refuses to
   decode an image that size, so the export failed with nothing to say why.
-  Per widget, each image is a small fraction of that, the export's memory is
-  bounded by its largest widget rather than by the dashboard, and a widget
-  that cannot be drawn becomes a labelled gap instead of the reason there is
-  no file at all.
+  Per widget, each image is a small fraction of that, and a widget that
+  cannot be drawn becomes a labelled gap instead of the reason there is no
+  file at all.
 */
 async function captureGrid(container, { scale, background }) {
   const box = container.getBoundingClientRect();
@@ -219,66 +412,62 @@ async function captureGrid(container, { scale, background }) {
   const items = Array.from(container.querySelectorAll(".react-grid-item"));
   let failedWidgets = 0;
 
-  // Heights a page may be cut at: the foot of each widget, unless another
-  // widget spans across it. A PDF cut there never splits a chart in half.
-  const spans = items.map((item) => {
-    const rect = item.getBoundingClientRect();
-    return [(rect.top - box.top) * scale, (rect.bottom - box.top) * scale];
-  });
-  const breaks = spans
-    .map(([, bottom]) => bottom)
-    .filter((y) => !spans.some(([top, bottom]) => top < y - 1 && bottom > y + 1));
-
-  for (const item of items) {
-    const rect = item.getBoundingClientRect();
-    if (rect.width < 1 || rect.height < 1) {
-      continue;
-    }
-    const x = (rect.left - box.left) * scale;
-    const y = (rect.top - box.top) * scale;
-    try {
-      // eslint-disable-next-line no-await-in-loop -- one at a time is the point
-      const svg = await withTimeout(
-        toSvg(item, tileOptions(fontEmbedCSS, rect.width, rect.height)),
-        20000,
-        "Drawing a widget"
-      );
-      // eslint-disable-next-line no-await-in-loop
-      const image = await withTimeout(loadSvg(stripXmlIllegal(svg)), 20000, "Reading a widget");
-      // Drawn at the export's scale: the browser rasterises an SVG at the
-      // size it is drawn, so text stays sharp at 2x.
-      context.drawImage(image, x, y, rect.width * scale, rect.height * scale);
-    } catch (error) {
-      // The drawing step waits for an animation frame, which a browser does
-      // not give a tab in the background -- so every remaining widget would
-      // time out in turn. Say what to do instead of running that out. Only
-      // for a timeout, though: a widget that fails outright is a gap, whether
-      // or not the tab happens to be in front.
-      const timedOut = error instanceof Error && /timed out/.test(error.message);
-      if (timedOut && document.visibilityState === "hidden") {
-        throw new Error("Keep this tab open until the export finishes.");
+  // All at once rather than in turn: copying styles is work on this thread,
+  // but inlining images and decoding each widget's picture are waits, and
+  // twelve of those overlap. Each is drawn where it belongs as it arrives.
+  await Promise.all(
+    items.map(async (item) => {
+      const rect = item.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) {
+        return;
       }
-      failedWidgets += 1;
-      // Which one, and why -- the notice tells the user a gap exists, this
-      // tells whoever has to fix it which widget left it.
-      const widget = item.querySelector("[data-test^='WidgetId']");
-      // eslint-disable-next-line no-console
-      console.warn(
-        "Export: a widget could not be drawn",
-        widget ? widget.getAttribute("data-test") : item.getAttribute("data-grid") || "unknown",
-        error
-      );
-      drawGap(context, x, y, rect.width * scale, rect.height * scale, scale);
-    }
-  }
+      const x = (rect.left - box.left) * scale;
+      const y = (rect.top - box.top) * scale;
+      try {
+        const svg = await withTimeout(
+          toSvg(item, tileOptions(fontEmbedCSS, rect.width, rect.height)),
+          5000,
+          "Drawing a widget"
+        );
+        const image = await withTimeout(loadSvg(stripXmlIllegal(svg)), 5000, "Reading a widget");
+        // Drawn at the export's scale: the browser rasterises an SVG at the
+        // size it is drawn, so text stays sharp at 2x.
+        context.drawImage(image, x, y, rect.width * scale, rect.height * scale);
+      } catch (error) {
+        // The drawing step waits for an animation frame, which a browser
+        // does not give a tab in the background -- so every widget would
+        // time out. Say what to do instead. Only for a timeout, though: a
+        // widget that fails outright is a gap, whether or not the tab
+        // happens to be in front.
+        const timedOut = error instanceof Error && /timed out/.test(error.message);
+        if (timedOut && document.visibilityState === "hidden") {
+          throw new Error("Keep this tab open until the export finishes.");
+        }
+        failedWidgets += 1;
+        // Which one, and why -- the notice tells the user a gap exists, this
+        // tells whoever has to fix it which widget left it.
+        const widget = item.querySelector("[data-test^='WidgetId']");
+        // eslint-disable-next-line no-console
+        console.warn(
+          "Export: a widget could not be drawn",
+          widget ? widget.getAttribute("data-test") : item.getAttribute("data-grid") || "unknown",
+          error
+        );
+        drawGap(context, x, y, rect.width * scale, rect.height * scale, scale);
+      }
+    })
+  );
 
-  return { canvas, failedWidgets, breaks };
+  return { canvas, failedWidgets };
 }
 
 // Capture once, then lay it onto the branded page. Both exports share this
 // so a PDF and an image of the same dashboard are the same artefact.
 async function capturePage(element, { title, owner }) {
-  await withTimeout(drawEverything(), 15000, "Drawing the widgets");
+  // Before anything is drawn: the answer for a dashboard that is too big
+  // should be immediate, not the end of a wait.
+  checkSize(element);
+  await withTimeout(drawEverything(), 5000, "Drawing the widgets");
   const skippedImages = foreignImageCount(element);
   // Sized for the finished page, header and margins included: those are
   // drawn after the capture at the same scale, and a capture sized exactly
@@ -303,13 +492,10 @@ async function capturePage(element, { title, owner }) {
       generatedAt: formatDateTime(new Date()),
       scale,
     }),
-    15000,
+    5000,
     "Composing the page"
   );
-  // The grid sits below the header on the finished page.
-  const top = PAGE_FURNITURE.top * scale;
-  const breaks = grid.breaks.map((y) => y + top);
-  return { canvas, skippedImages, failedWidgets: grid.failedWidgets, breaks };
+  return { canvas, skippedImages, failedWidgets: grid.failedWidgets };
 }
 
 /*
@@ -341,21 +527,13 @@ function jpegBytesOf(canvas) {
 }
 
 export async function renderDashboardToPdf(element, { title, owner } = {}) {
-  const { canvas, skippedImages, failedWidgets, breaks } = await capturePage(element, { title, owner });
-
-  // Pages at the width of the capture, as tall as A4 landscape allows at that
-  // width, cut between widgets rather than through them.
-  const pageHeight = canvas.width * (A4_LANDSCAPE.height / A4_LANDSCAPE.width);
-  const pages = paginate(canvas.height, pageHeight, breaks).map(([top, bottom]) => {
-    const height = Math.max(1, Math.round(bottom - top));
-    const slice = document.createElement("canvas");
-    slice.width = canvas.width;
-    slice.height = height;
-    slice.getContext("2d").drawImage(canvas, 0, top, canvas.width, height, 0, 0, canvas.width, height);
-    return { jpegBytes: jpegBytesOf(slice), imageWidth: slice.width, imageHeight: slice.height };
+  const { canvas, skippedImages, failedWidgets } = await capturePage(element, { title, owner });
+  const pdf = buildSingleImagePdf({
+    jpegBytes: jpegBytesOf(canvas),
+    imageWidth: canvas.width,
+    imageHeight: canvas.height,
+    title,
   });
-
-  const pdf = buildImagePdf({ pages, title });
   return { blob: new Blob([pdf], { type: "application/pdf" }), skippedImages, failedWidgets };
 }
 
