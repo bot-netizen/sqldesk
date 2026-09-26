@@ -78,7 +78,9 @@ the MCP switch.
 **Upgrading from rc.1.** Run `manage db upgrade`: it adds nothing and drops
 `ai_providers`. If you set `ai.enabled` on the chart, set `mcp.enabled`
 instead; the chart now refuses to render with `ai.*` set rather than silently
-ignoring it. With Compose, move `SQLDESK_FEATURE_AI` into `.env` if it is not
+ignoring it. Upgrade the chart with `--reset-then-reuse-values`, not
+`--reuse-values`: the latter keeps rc.1's defaults, which have no `uploads`
+or `rendering`. With Compose, move `SQLDESK_FEATURE_AI` into `.env` if it is not
 there, and add `COMPOSE_PROFILES=mcp` for MCP's own worker.
 
 **Upgrading from 0.5.** Set `SQLDESK_IMAGE`, `pull`, `run --rm server manage db

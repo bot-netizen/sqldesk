@@ -106,8 +106,15 @@ reached only one of them is the kind of difference nobody finds quickly.
 # none to break here. API-key calls, MCP included, are not affected.
 - name: SQLDESK_ENFORCE_CSRF
   value: "true"
-{{- if .Values.ai }}
+{{- /*
+  Only when `ai` says something. `helm upgrade --reuse-values` carries the
+  previous chart's defaults forward, `ai.enabled: false` among them, and
+  failing on that would stop every such upgrade from rc.1 for nothing.
+*/}}
+{{- with .Values.ai }}
+{{- if or .enabled .provider .apiKey .model .baseUrl }}
 {{- fail "`ai.*` was removed in 0.6.0-rc.2: SQLDesk calls no model itself. Use `mcp.enabled` to turn on MCP and the catalog." }}
+{{- end }}
 {{- end }}
 # The variable's name is older than the feature: it gates MCP and the catalog.
 - name: SQLDESK_FEATURE_AI

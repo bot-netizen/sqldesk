@@ -13,7 +13,9 @@ The two secrets SQLDesk needs are generated on first install and **kept
 across upgrades** — a new `secretKey` would make every stored data source
 credential undecryptable, so the chart reads back what is already in the
 cluster rather than minting new ones. Do not pass them with `--set` on an
-upgrade for the same reason. Back the generated Secret up:
+upgrade for the same reason. Upgrade with `--reset-then-reuse-values` rather
+than `--reuse-values`, which keeps the previous chart's defaults and so misses
+any value a new version adds. Back the generated Secret up:
 
 ```bash
 kubectl get secret sqldesk-secrets -o yaml > sqldesk-secrets.yaml
