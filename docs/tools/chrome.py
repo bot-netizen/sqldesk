@@ -77,7 +77,7 @@ def rewrite_topbar_nav(path, prefix, current):
     them is this list of links.
     """
     html = open(path).read()
-    opened = html.index("<header class=\"topbar\">")
+    opened = html.index('<header class="topbar">')
     start = html.index("<nav>", opened) + len("<nav>")
     end = html.index("</nav>", start)
     updated = html[:start] + "\n" + site_nav(prefix, current) + "\n    " + html[end:]
