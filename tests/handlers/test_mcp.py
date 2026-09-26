@@ -705,3 +705,16 @@ class TestLimits(McpTestCase):
 
     def test_the_budget_stays_under_the_web_servers_timeout(self):
         self.assertLess(settings.MCP_TIME_BUDGET, 60)
+
+
+class TestCsrf(McpTestCase):
+    def test_the_endpoint_is_exempt_from_csrf(self):
+        """
+        CSRF protects cookie sessions. With SQLDESK_ENFORCE_CSRF on -- the
+        development compose file sets it -- a Bearer-key call is not a
+        session, so it was refused before anybody was identified. The check
+        in `sqldesk.security` reads the exempt list by dotted name.
+        """
+        from sqldesk.security import csrf
+
+        self.assertIn("sqldesk.handlers.mcp.mcp_endpoint", csrf._exempt_views)

@@ -14,7 +14,10 @@ metadata:
     "helm.sh/hook-weight": "0"
     "helm.sh/hook-delete-policy": before-hook-creation
 spec:
-  backoffLimit: 3
+  # Room for a first install, where the database and the image may both
+  # still be arriving. Install with `--timeout 15m` to give Helm as long.
+  backoffLimit: 6
+  activeDeadlineSeconds: 900
   template:
     metadata:
       labels:

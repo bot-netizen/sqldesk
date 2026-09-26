@@ -2,12 +2,6 @@ from flask import make_response
 from flask_restful import Api
 from werkzeug.wrappers import Response
 
-from sqldesk.handlers.ai import (
-    AIStatusResource,
-    AITestResource,
-    McpAuditResource,
-    QueryOptimizeResource,
-)
 from sqldesk.handlers.alerts import (
     AlertEvaluateResource,
     AlertListResource,
@@ -62,6 +56,7 @@ from sqldesk.handlers.groups import (
     GroupPermissionsResource,
     GroupResource,
 )
+from sqldesk.handlers.mcp import McpAuditResource
 from sqldesk.handlers.permissions import (
     CheckPermissionResource,
     ObjectPermissionsListResource,
@@ -130,9 +125,6 @@ def json_representation(data, code, headers=None):
     return resp
 
 
-api.add_org_resource(AIStatusResource, "/api/ai/status", endpoint="ai_status")
-api.add_org_resource(AITestResource, "/api/ai/test", endpoint="ai_test")
-api.add_org_resource(QueryOptimizeResource, "/api/queries/optimize", endpoint="query_optimize")
 api.add_org_resource(McpAuditResource, "/api/mcp/audit", endpoint="mcp_audit")
 
 api.add_org_resource(AlertResource, "/api/alerts/<alert_id>", endpoint="alert")

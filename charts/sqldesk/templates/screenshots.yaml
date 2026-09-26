@@ -1,0 +1,68 @@
+{{- if .Values.rendering.enabled }}
+# The renderer: a browser that turns a page into a PNG for an alert email.
+#
+# Its own Deployment and its own image, so the SQLDesk image carries no
+# browser. It holds no credentials and keeps no state; the worker hands it a
+# URL and a key scoped to one query, and it sends that key to SQLDesk only.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sqldesk.fullname" . }}-screenshots
+  labels:
+    {{- include "sqldesk.labels" . | nindent 4 }}
+spec:
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+  selector:
+    {{- include "sqldesk.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: screenshots
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sqldesk.fullname" . }}-screenshots
+  labels:
+    {{- include "sqldesk.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.rendering.replicas }}
+  selector:
+    matchLabels:
+      {{- include "sqldesk.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: screenshots
+  template:
+    metadata:
+      labels:
+        {{- include "sqldesk.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: screenshots
+    spec:
+      containers:
+        - name: screenshots
+          image: {{ printf "%s:%s" .Values.rendering.image.repository (.Values.rendering.image.tag | default .Chart.AppVersion) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet: { path: /ping, port: http }
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.rendering.resources | nindent 12 }}
+          volumeMounts:
+            # Chromium keeps its shared memory here, and the container
+            # default of 64MB runs out as a blank page rather than an error.
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

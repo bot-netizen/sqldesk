@@ -69,12 +69,18 @@ schema and the queries your team has already written.</p>
 <p>Off by default. Until it is set, the endpoint answers 404 and the Admin page says so.</p>
 
 <h2 id="catalog">Filling the catalog</h2>
-<p>The tools answer from a catalog rather than from a live schema read. Nothing builds it for you
-&mdash; there is <strong>no scheduled harvest</strong>. It is a command you run, and until you run it
-the context tools have nothing to say:</p>
+<p>The tools answer from a catalog rather than from a live schema read. The scheduler rebuilds it once
+a day (<code>SQLDESK_CATALOG_HARVEST_SCHEDULE</code>, in hours; 0 turns it off), and until the first
+harvest the context tools have nothing to say &mdash; so run one yourself after turning MCP on. The
+commands run in the server container, where <code>manage</code> is <code>/app/manage.py</code>:</p>
 <pre><code>manage ai harvest                      # every data source
 manage ai harvest --data-source "Warehouse"
-manage ai context "revenue by region"  # what a client would be told</code></pre>
+manage ai context "revenue by region"  # what a client would be told
+
+# Compose
+docker compose -f compose.prod.yaml exec server /app/manage.py ai harvest
+# Kubernetes
+kubectl exec deploy/sqldesk-server -- ./manage.py ai harvest</code></pre>
 <p>Descriptions come with it where the warehouse carries them &mdash; <code>COMMENT ON</code> in
 Postgres, <code>table_comment</code> and <code>column_comment</code> in MySQL. Where it carries none,
 write them under <strong>Admin &rarr; Catalog</strong>, which lists the most-queried tables first and
@@ -92,10 +98,9 @@ not. A query that has never run is never mined at all &mdash; nothing has ever d
 <p>What exists is unaffected: tables and columns come from the schema, so nothing disappears from the
 catalog. It is the <em>usage</em> &mdash; the ranking, the join counts, the proposed measures &mdash;
 that tracks what people are doing now.</p>
-<p>Run it again whenever the schema changes or a batch of new queries has been saved. A cron entry or
-a Kubernetes CronJob calling <code>manage ai harvest</code> is the usual arrangement; nightly is
-plenty, because what it reads &mdash; table definitions and saved SQL &mdash; does not change by the
-minute. It is safe to run while people are working: it reads the schema, reads
+<p>Run it by hand when the schema has changed and you would rather not wait for the next scheduled one.
+Daily is plenty otherwise, because what it reads &mdash; table definitions and saved SQL &mdash; does
+not change by the minute. It is safe to run while people are working: it reads the schema, reads
 <code>queries.query_text</code>, and writes only to its own catalog tables.</p>
 
 <h2 id="semantic">Keeping meaning in git</h2>

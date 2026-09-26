@@ -52,7 +52,9 @@ server:
 worker:
   replicas: 1
   # Which queues this worker takes from. Give a slow data source its own
-  # queue and its own workers, so it cannot starve the rest.
+  # queue and its own workers, so it cannot starve the rest. MCP's queue is
+  # added at the end when MCP is on without a worker of its own, so it is
+  # never left with nobody to take it.
   queues: "queries,scheduled_queries,schemas,periodic,emails,default"
   workersCount: 2
   resources:
@@ -88,10 +90,36 @@ mcp:
     # How far back to look for the queries it learns from, in hours, measured
     # by when a query last *ran*. 0 for every saved query however old.
     usageWindowHours: 168
-  # Where `manage ai export` writes the semantic layer and `manage ai import`
-  # reads it. Mount a volume here -- a PVC, or a git-sync sidecar's directory
-  # -- if you want to keep it under review in git.
-  semanticDir: ""
+
+# Files people upload to query -- CSV and Parquet, read by DuckDB. The server
+# writes them and the worker reads them, so both mount the same volume;
+# without one an upload appears to succeed and every query on it then fails.
+uploads:
+  enabled: true
+  size: 5Gi
+  storageClass: ""
+  # ReadWriteOnce is what every cluster can provide, and it mounts on one
+  # node only -- so the chart keeps the workers on the server's node. With a
+  # ReadWriteMany class (EFS, Filestore, Azure Files, NFS) say so here and
+  # they schedule anywhere.
+  accessMode: ReadWriteOnce
+  # A claim you manage instead of the one the chart makes.
+  existingClaim: ""
+
+# The browser that draws pictures for alert emails, and nothing else. Off by
+# default: it is several hundred megabytes of Chromium for one feature, and
+# the SQLDesk image stays the same size either way. On, it also turns on the
+# feature and tells the worker where the renderer is.
+rendering:
+  enabled: false
+  image:
+    repository: ghcr.io/bot-netizen/sqldesk-screenshots
+    # Defaults to the chart's appVersion.
+    tag: ""
+  replicas: 1
+  resources:
+    requests: { cpu: 200m, memory: 512Mi }
+    limits: { memory: 2Gi }
 
 # Exactly one. Two schedulers would double-schedule everything, so this is
 # not a number to raise.
@@ -124,15 +152,6 @@ redis:
 # hook. Also creates the tables on a first install.
 migrations:
   enabled: true
-
-# AI and MCP. Off by default; see the MCP guide.
-ai:
-  enabled: false
-  # Not needed for MCP, which is tool-serving rather than model-calling.
-  provider: ""
-  model: ""
-  apiKey: ""
-  baseUrl: ""
 
 # The address that appears in emails and alert links. Wrong, and every link
 # points at localhost.

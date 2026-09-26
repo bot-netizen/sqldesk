@@ -102,26 +102,16 @@ reached only one of them is the kind of difference nobody finds quickly.
       key: secret-key
 - name: SQLDESK_HOST
   value: {{ .Values.host | quote }}
-# One variable gates both the MCP server and the (unused in 0.6) model
-# provider, so it is emitted once from either value. `mcp.enabled` is the
-# name to use; `ai.enabled` is kept working because charts already set it.
+# Upstream leaves CSRF checks off so as not to break old installs; there are
+# none to break here. API-key calls, MCP included, are not affected.
+- name: SQLDESK_ENFORCE_CSRF
+  value: "true"
+{{- if .Values.ai }}
+{{- fail "`ai.*` was removed in 0.6.0-rc.2: SQLDesk calls no model itself. Use `mcp.enabled` to turn on MCP and the catalog." }}
+{{- end }}
+# The variable's name is older than the feature: it gates MCP and the catalog.
 - name: SQLDESK_FEATURE_AI
-  value: {{ or .Values.mcp.enabled .Values.ai.enabled | quote }}
-{{- if .Values.ai.provider }}
-- name: SQLDESK_AI_PROVIDER
-  value: {{ .Values.ai.provider | quote }}
-- name: SQLDESK_AI_MODEL
-  value: {{ .Values.ai.model | quote }}
-- name: SQLDESK_AI_BASE_URL
-  value: {{ .Values.ai.baseUrl | quote }}
-{{- if .Values.ai.apiKey }}
-- name: SQLDESK_AI_API_KEY
-  valueFrom:
-    secretKeyRef:
-      name: {{ include "sqldesk.secretName" . }}
-      key: ai-api-key
-{{- end }}
-{{- end }}
+  value: {{ .Values.mcp.enabled | quote }}
 {{- if .Values.mcp.enabled }}
 {{- if .Values.mcp.queue }}
 - name: SQLDESK_MCP_QUEUE
@@ -132,12 +122,67 @@ reached only one of them is the kind of difference nobody finds quickly.
 - name: SQLDESK_CATALOG_USAGE_WINDOW_HOURS
   value: {{ .Values.mcp.catalog.usageWindowHours | quote }}
 {{- end }}
-{{- with .Values.mcp.semanticDir }}
-- name: SQLDESK_SEMANTIC_DIR
-  value: {{ . | quote }}
+{{- if .Values.rendering.enabled }}
+- name: SQLDESK_FEATURE_ALERT_SCREENSHOTS
+  value: "true"
+- name: SQLDESK_SCREENSHOT_URL
+  value: {{ printf "http://%s-screenshots:3000" (include "sqldesk.fullname" .) | quote }}
+# How the renderer reaches the application: the Service, not the public
+# address, which may be behind SSO the renderer cannot get through.
+- name: SQLDESK_INTERNAL_BASE_URL
+  value: {{ printf "http://%s:%v" (include "sqldesk.fullname" .) .Values.service.port | quote }}
 {{- end }}
 {{- range $key, $value := .Values.extraEnv }}
 - name: {{ $key }}
   value: {{ $value | quote }}
 {{- end }}
 {{- end -}}
+
+{{/*
+The uploads volume, for every pod that reads or writes an uploaded file.
+*/}}
+{{- define "sqldesk.uploadsVolume" -}}
+{{- if .Values.uploads.enabled }}
+- name: uploads
+  persistentVolumeClaim:
+    claimName: {{ .Values.uploads.existingClaim | default (printf "%s-uploads" (include "sqldesk.fullname" .)) }}
+{{- end }}
+{{- end -}}
+
+{{- define "sqldesk.uploadsMount" -}}
+{{- if .Values.uploads.enabled }}
+- name: uploads
+  mountPath: /app/uploads
+{{- end }}
+{{- end -}}
+
+{{/*
+A ReadWriteOnce volume mounts on one node. Workers that need it go where the
+server is, or they wait forever on a Multi-Attach error.
+*/}}
+{{- define "sqldesk.uploadsAffinity" -}}
+{{- if and .Values.uploads.enabled (eq .Values.uploads.accessMode "ReadWriteOnce") (not .Values.affinity) }}
+affinity:
+  podAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - topologyKey: kubernetes.io/hostname
+        labelSelector:
+          matchLabels:
+            {{- include "sqldesk.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: server
+{{- else }}
+{{- with .Values.affinity }}
+affinity: {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
+The image's own user. A fresh volume belongs to root; this makes it the
+application's, so the first upload is not a permission error.
+*/}}
+{{- define "sqldesk.podSecurity" -}}
+securityContext:
+  fsGroup: 1000
+{{- end -}}
+

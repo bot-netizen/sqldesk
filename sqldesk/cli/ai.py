@@ -3,11 +3,11 @@ import os
 from click import argument, option
 from flask.cli import AppGroup
 
-from sqldesk import ai, models, settings
+from sqldesk import models
 from sqldesk.ai.catalog.harvest import harvest_data_source
 from sqldesk.ai.catalog.semantic import export_catalog, import_catalog
 
-manager = AppGroup(help="Configure the model SQLDesk talks to.")
+manager = AppGroup(help="The catalog behind MCP: harvest it, look at it, export and import it.")
 
 
 def _org():
@@ -15,167 +15,6 @@ def _org():
     if org is None:
         raise SystemExit("No organization yet. Run `manage database create_tables` first.")
     return org
-
-
-def _read_key(api_key, api_key_stdin, env_var):
-    """
-    A key from a flag lands in shell history and in `ps`. Three ways in, and
-    the one on the command line is the one documented last.
-    """
-    if api_key_stdin:
-        import sys
-
-        return sys.stdin.read().strip()
-    if api_key:
-        return api_key.strip()
-    import os
-
-    return (os.environ.get(env_var) or "").strip() or None
-
-
-@manager.command(name="configure")
-@argument("provider_type")
-@option("--model", default=None, help="Model name. Defaults to the provider's usual one.")
-@option("--base-url", default=None, help="Required for `local`; overrides the endpoint otherwise.")
-@option("--api-key", default=None, help="Discouraged: lands in shell history. Prefer --api-key-stdin.")
-@option("--api-key-stdin", is_flag=True, default=False, help="Read the key from standard input.")
-@option("--command", default=None, help="For `cli`: the executable, if it is not simply `claude`.")
-@option("--disabled", is_flag=True, default=False, help="Save it, but leave the features off.")
-def configure(provider_type, model, base_url, api_key, api_key_stdin, command, disabled):
-    """
-    Point SQLDesk at a model. PROVIDER_TYPE is one of: anthropic, openai, local.
-
-    \b
-      manage ai configure anthropic --model claude-sonnet-5 --api-key-stdin
-      manage ai configure openai --model gpt-4.1 --api-key-stdin
-      manage ai configure local --base-url http://ollama:11434/v1 --model llama3.1
-      manage ai configure cli
-
-    `cli` shells out to the `claude` command on this machine and needs no key
-    at all, which makes it the quickest way to try this on a laptop. It is
-    for one developer on their own machine -- see `docs/ai-setup.md`.
-    """
-    if provider_type not in ai.provider_types():
-        raise SystemExit("Unknown provider {!r}. Known: {}".format(provider_type, ", ".join(ai.provider_types())))
-
-    if settings.AI_PROVIDER:
-        raise SystemExit(
-            "SQLDESK_AI_PROVIDER is set to {!r}, so the environment is the configuration and a stored "
-            "row would never be read. Change the environment instead.".format(settings.AI_PROVIDER)
-        )
-
-    key = _read_key(api_key, api_key_stdin, "SQLDESK_AI_API_KEY")
-    cls = ai._PROVIDERS[provider_type]
-
-    org = _org()
-    provider, unreadable = ai.load_provider(org)
-    if unreadable:
-        # The whole point of running this again is to replace a key that
-        # cannot be read, so it must not be the thing that stops you.
-        print("Replacing credentials that could not be decrypted.")
-        models.AIProvider.query.filter(models.AIProvider.org_id == org.id).delete()
-        models.db.session.commit()
-        provider = None
-    provider = provider or models.AIProvider(org=org)
-    was = provider.type
-
-    # The key already on file counts. Changing the model should not mean
-    # typing the key again, and demanding it is how people end up putting a
-    # key on the command line where the shell history keeps it.
-    already = provider.api_key if was == provider_type else None
-    if cls.needs_api_key and not key and not already:
-        raise SystemExit("{} needs a key. Pass --api-key-stdin, or set SQLDESK_AI_API_KEY.".format(provider_type))
-
-    # `to_dict()`, not `dict(...)`: a ConfigurationContainer has `get` and
-    # `__getitem__` but no `keys()`, so `dict()` falls back to iterating it as
-    # a sequence and asks it for index 0.
-    options = provider.options.to_dict() if provider.options is not None else {}
-    if was and was != provider_type:
-        # A key for Anthropic is not a key for OpenAI. Carrying it across would
-        # fail later as an unhelpful 401 rather than here as a missing key.
-        options.pop("api_key", None)
-    if key:
-        options["api_key"] = key
-    if command:
-        options["command"] = command
-
-    provider.type = provider_type
-    # `cli` has no default model: whatever the command is already set to is
-    # the right answer, and naming one here overrides a choice somebody made.
-    provider.model = model or cls.example_model
-    provider.base_url = base_url
-    provider.enabled = not disabled
-    provider.options = options
-
-    models.db.session.add(provider)
-    models.db.session.commit()
-
-    print("Configured {} / {}".format(provider.type, provider.model))
-    if provider.base_url:
-        print("  endpoint: {}".format(provider.base_url))
-    print("  key: {}".format("stored" if provider.api_key else "none"))
-    print("  features: {}".format("on" if provider.enabled else "off (saved, --disabled)"))
-    if not settings.FEATURE_AI:
-        print("  note: SQLDESK_FEATURE_AI is false, so nothing will use this yet.")
-
-
-@manager.command(name="status")
-def status():
-    """Say what is configured, without printing the key."""
-    print("SQLDESK_FEATURE_AI: {}".format("on" if settings.FEATURE_AI else "off"))
-    provider, unreadable = ai.load_provider(_org())
-    if unreadable:
-        print(unreadable)
-        return
-    if provider is None:
-        print("No provider configured. Nothing will call out, and the AI features stay hidden.")
-        print("Try: manage ai configure anthropic --api-key-stdin")
-        return
-    for key, value in provider.to_dict().items():
-        print("  {}: {}".format(key, value))
-    if getattr(provider, "from_environment", False):
-        print("  (declared by SQLDESK_AI_PROVIDER; `manage ai configure` would not be read)")
-
-
-@manager.command(name="test")
-@argument("prompt", required=False)
-def test(prompt):
-    """Send one prompt and print what comes back, so a bad key fails here."""
-    provider_row, unreadable = ai.load_provider(_org())
-    if unreadable:
-        raise SystemExit(unreadable)
-    if provider_row is None:
-        raise SystemExit("No provider configured. Run `manage ai configure` first.")
-
-    provider = ai.provider_from(provider_row)
-    print("Asking {} / {} ...".format(provider_row.type, provider_row.model))
-    try:
-        answer = provider.complete(prompt or "Reply with the single word: ready")
-    except ai.ModelError as error:
-        raise SystemExit("FAILED: {}".format(error))
-    print(answer or "(empty response)")
-
-
-@manager.command(name="disable")
-def disable():
-    """Turn the features off without forgetting the configuration."""
-    changed = models.AIProvider.query.filter(models.AIProvider.org_id == _org().id).update({"enabled": False})
-    models.db.session.commit()
-    if not changed:
-        raise SystemExit("Nothing configured.")
-    print("Disabled. The configuration and key are kept; `manage ai configure` turns it back on.")
-
-
-@manager.command(name="forget")
-def forget():
-    """Delete the configuration and the stored key."""
-    # Deleted by id rather than loaded first: a row whose key will not
-    # decrypt is exactly the one somebody wants rid of.
-    removed = models.AIProvider.query.filter(models.AIProvider.org_id == _org().id).delete()
-    models.db.session.commit()
-    if not removed:
-        raise SystemExit("Nothing configured.")
-    print("Forgotten.")
 
 
 @manager.command(name="harvest")

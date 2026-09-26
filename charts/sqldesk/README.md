@@ -56,7 +56,7 @@ The bundled Postgres has a PVC marked `helm.sh/resource-policy: keep`, so
 ## MCP
 
 ```bash
-helm install sqldesk ./charts/sqldesk --set ai.enabled=true
+helm install sqldesk ./charts/sqldesk --set mcp.enabled=true
 kubectl exec deploy/sqldesk-server -- ./manage.py ai harvest
 ```
 
@@ -79,9 +79,6 @@ mcp:
 That renders one extra Deployment, `<release>-mcp-worker`, whose `QUEUES` is
 `mcp` and nothing else. The ordinary worker's queue list does not contain
 `mcp`, so the two cannot starve each other.
-
-`ai.enabled` still works and still turns the same flag on; `mcp.enabled` is
-the name to use.
 
 Then point a client at `/mcp` with a SQLDesk API key. See
 [the MCP guide](https://bot-netizen.github.io/sqldesk/guide/mcp.html).

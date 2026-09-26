@@ -19,6 +19,7 @@ lives in sqldesk/screenshots.py, on the other side of this boundary.
 
 import logging
 import os
+from urllib.parse import urlsplit
 
 from flask import Flask, jsonify, request
 from playwright.sync_api import Error as PlaywrightError
@@ -37,6 +38,11 @@ VIEWPORT = {
 
 #: Above this, stop waiting and say so.
 MAX_TIMEOUT_SECONDS = int(os.environ.get("SCREENSHOT_MAX_TIMEOUT", "120"))
+
+
+def _origin(url):
+    parts = urlsplit(url)
+    return (parts.scheme, parts.netloc)
 
 
 def _render(url, headers, wait_for, timeout_seconds, full_page):
@@ -63,8 +69,22 @@ def _render(url, headers, wait_for, timeout_seconds, full_page):
                 # settles instantly, with no rendering code that exists only
                 # for screenshots.
                 reduced_motion="reduce",
-                extra_http_headers=headers or {},
             )
+            # The headers carry a SQLDesk API key, so they go to SQLDesk and
+            # nowhere else. `extra_http_headers` would attach them to every
+            # request the page makes -- the map tiles, a web font, an image
+            # somebody put in a textbox -- and hand the key to whoever serves
+            # those.
+            if headers:
+                ours = _origin(url)
+
+                def only_to_sqldesk(route, outgoing):
+                    if _origin(outgoing.url) == ours:
+                        route.continue_(headers={**outgoing.headers, **headers})
+                    else:
+                        route.continue_()
+
+                context.route("**/*", only_to_sqldesk)
             page = context.new_page()
             page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
 

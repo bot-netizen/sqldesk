@@ -219,7 +219,7 @@ class MigrationsTest(BaseTestCase):
         dialect = db.engine.dialect
         established = models.DataSource.__table__.c.encrypted_options.type.compile(dialect)
 
-        for model in (models.AIProvider, models.NotificationDestination):
+        for model in (models.NotificationDestination,):
             column = model.__table__.c.encrypted_options
             self.assertEqual(
                 established,

@@ -1,6 +1,8 @@
 SQLDesk {{ .Values.image.tag | default .Chart.AppVersion }} is installing.
 
-The migration job runs first; the server will not be ready until it finishes.
+On a first install the tables are made by a job that runs alongside the
+server, so the first page errors until that job completes -- usually a
+minute. On an upgrade the job runs before anything changes.
 
   kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }} -w
 
@@ -10,10 +12,14 @@ Reaching it on minikube:
 
   minikube service {{ include "sqldesk.fullname" . }}{{ if .Release.Namespace }} -n {{ .Release.Namespace }}{{ end }}
 
-or, without minikube:
+or forward a port, which keeps the same address between restarts (8080
+rather than 5000, which macOS keeps for AirPlay):
 
-  kubectl port-forward svc/{{ include "sqldesk.fullname" . }} 5000:{{ .Values.service.port }}
-  open http://localhost:5000
+  kubectl port-forward svc/{{ include "sqldesk.fullname" . }} 8080:{{ .Values.service.port }}
+  open http://localhost:8080
+
+and install with `--set host=http://localhost:8080`, so links in emails
+point there.
 {{- else if .Values.ingress.enabled }}
 
 Reaching it:
@@ -23,15 +29,14 @@ Reaching it:
 
 The service is ClusterIP, so reach it from inside the cluster or forward a port:
 
-  kubectl port-forward svc/{{ include "sqldesk.fullname" . }} 5000:{{ .Values.service.port }}
+  kubectl port-forward svc/{{ include "sqldesk.fullname" . }} 8080:{{ .Values.service.port }}
 {{- end }}
 
-First run — create yourself an account:
+First run: open that address. The first page asks for an organization name
+and your details, and makes you its administrator. It is there until
+somebody fills it in, so do that before telling anyone else the address.
 
-  kubectl exec -it deploy/{{ include "sqldesk.fullname" . }}-server -- \
-    ./manage.py users create_root you@example.com "Your Name"
-
-{{ if or .Values.mcp.enabled .Values.ai.enabled -}}
+{{ if .Values.mcp.enabled -}}
 MCP is on. Its endpoint is /mcp, authenticated with the API key from your
 profile page, and the audit is under Admin -> MCP. Fill the catalog first --
 nothing answers until you do:
@@ -61,6 +66,20 @@ https://bot-netizen.github.io/sqldesk/guide/mcp.html
 
 WARNING: `host` is unset, so links in emails and alerts will point at
 localhost. Set it to the address people actually use.
+{{- end }}
+
+{{- if .Values.rendering.enabled }}
+
+Alert emails can carry pictures: the renderer runs as
+{{ include "sqldesk.fullname" . }}-screenshots, and an alert's edit page has an
+"Attach" row for the dashboards and queries to include.
+{{- end }}
+
+{{- if and .Values.uploads.enabled (eq .Values.uploads.accessMode "ReadWriteOnce") }}
+
+Uploaded files live on a ReadWriteOnce volume, so the workers run on the
+server's node. With a ReadWriteMany storage class, set
+`uploads.accessMode=ReadWriteMany` and they can go anywhere.
 {{- end }}
 
 {{- if and .Values.postgres.enabled (not .Values.postgres.external) }}

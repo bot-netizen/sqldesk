@@ -1,0 +1,19 @@
+{{- if and .Values.uploads.enabled (not .Values.uploads.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "sqldesk.fullname" . }}-uploads
+  labels:
+    {{- include "sqldesk.labels" . | nindent 4 }}
+  annotations:
+    # People's files. Deleting the release should not delete them.
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [{{ .Values.uploads.accessMode | quote }}]
+  {{- if .Values.uploads.storageClass }}
+  storageClassName: {{ .Values.uploads.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.uploads.size }}
+{{- end }}

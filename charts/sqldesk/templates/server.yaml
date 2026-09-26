@@ -42,6 +42,7 @@ spec:
         {{- include "sqldesk.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: server
     spec:
+      {{- include "sqldesk.podSecurity" . | nindent 6 }}
       containers:
         - name: server
           image: {{ include "sqldesk.image" . }}
@@ -64,8 +65,12 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 30
             failureThreshold: 5
+          volumeMounts:
+            {{- include "sqldesk.uploadsMount" . | nindent 12 }}
           resources:
             {{- toYaml .Values.server.resources | nindent 12 }}
+      volumes:
+        {{- include "sqldesk.uploadsVolume" . | nindent 8 }}
       {{- with .Values.nodeSelector }}
       nodeSelector: {{- toYaml . | nindent 8 }}
       {{- end }}

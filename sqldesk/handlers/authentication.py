@@ -301,10 +301,7 @@ def client_config():
         "pageSize": settings.PAGE_SIZE,
         "pageSizeOptions": settings.PAGE_SIZE_OPTIONS,
         "tableCellMaxJSONSize": settings.TABLE_CELL_MAX_JSON_SIZE,
-        # Only the flag. Whether a model is actually configured is a question
-        # for /api/ai/status, because the answer is per-organization and the
-        # remedy differs -- this one is an environment variable, that one is a
-        # command on the server.
+        # Gates the MCP pages and the admin catalog.
         "aiEnabled": settings.FEATURE_AI,
     }
 

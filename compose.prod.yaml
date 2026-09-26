@@ -11,11 +11,21 @@
 #
 # SQLDesk is then on http://localhost:5000.
 #
+# That starts the core: server, worker, scheduler, Postgres, Redis. Two
+# add-ons are profiles, off unless named:
+#
+#   --profile mcp         a worker of MCP's own (set SQLDESK_MCP_QUEUE=mcp)
+#   --profile rendering   the browser that draws pictures for alert emails
+#
+#   docker compose -f compose.prod.yaml --profile mcp --profile rendering up -d
+#
+# Each needs its switch in .env as well; .env.example says which.
+#
 # macOS holds port 5000 for AirPlay Receiver, so set SQLDESK_PORT (and the
 # matching SQLDESK_HOST) in .env, or turn AirPlay Receiver off.
 
 x-sqldesk-service: &sqldesk-service
-  image: ${SQLDESK_IMAGE:-ghcr.io/bot-netizen/sqldesk:0.5.0}
+  image: ${SQLDESK_IMAGE:-ghcr.io/bot-netizen/sqldesk:0.6.0}
   depends_on:
     postgres:
       condition: service_healthy
@@ -56,12 +66,14 @@ x-sqldesk-environment: &sqldesk-environment
   # The address people reach SQLDesk on. Links in emails and alerts use it, so
   # it has to be right or they point at localhost.
   SQLDESK_HOST: ${SQLDESK_HOST:-http://localhost:5000}
-  # The AI features, off unless asked for -- and asking for them here is only
-  # half of it: `manage ai configure` still has to name a model before
-  # anything calls out. Without this line the variable never reaches the
-  # container, and setting it in the shell appears to do nothing.
+  # MCP and the catalog behind it, off unless asked for. Without this line
+  # the variable never reaches the container, and setting it in the shell
+  # appears to do nothing.
   SQLDESK_FEATURE_AI: ${SQLDESK_FEATURE_AI:-false}
-  SQLDESK_AI_TIMEOUT: ${SQLDESK_AI_TIMEOUT:-60}
+  # Upstream leaves CSRF checks off so as not to break old installs. There
+  # are none to break here, and the application has sent the token all
+  # along. API-key calls, MCP included, are not affected.
+  SQLDESK_ENFORCE_CSRF: ${SQLDESK_ENFORCE_CSRF:-true}
 
 services:
   server:
@@ -78,8 +90,27 @@ services:
     command: worker
     environment:
       <<: *sqldesk-environment
-      QUEUES: "queries,scheduled_queries,schemas,periodic,emails,default"
+      # `mcp` last: taken only when everything else is empty, and never
+      # stranded -- with SQLDESK_MCP_QUEUE=mcp and no mcp profile running,
+      # a model's query would otherwise wait for a worker that is not there.
+      QUEUES: "queries,scheduled_queries,schemas,periodic,emails,default,mcp"
       WORKERS_COUNT: ${SQLDESK_WORKERS_COUNT:-2}
+    # Time to finish the query it is running before `down` or an upgrade
+    # kills it. Docker's default is ten seconds.
+    stop_grace_period: 5m
+
+  # MCP's own worker, for when a model asking questions should never hold up
+  # a dashboard. Only useful with SQLDESK_MCP_QUEUE=mcp in .env, which is
+  # what sends MCP's queries here instead of to the data source's queue.
+  mcp-worker:
+    <<: *sqldesk-service
+    profiles: ["mcp"]
+    command: worker
+    environment:
+      <<: *sqldesk-environment
+      QUEUES: "mcp"
+      WORKERS_COUNT: ${SQLDESK_MCP_WORKERS_COUNT:-1}
+    stop_grace_period: 5m
 
   scheduler:
     <<: *sqldesk-service
@@ -121,24 +152,25 @@ services:
 
   # Pictures attached to alert emails, and nothing else.
   #
-  # Commented out because it is a browser: around 400MB that most installs
-  # never need. Bundling it into the SQLDesk image would put that on the
-  # server and the worker both, for a feature that is off by default. Grafana
+  # A profile because it is a browser: several hundred megabytes that most
+  # installs never need. Bundled into the SQLDesk image it would sit in the
+  # server and the worker both, for a feature that is off by default; Grafana
   # ships its renderer as a separate service for the same reason.
   #
-  # To turn it on: uncomment this, build it with
-  #   docker build -f Dockerfile.screenshots -t sqldesk-screenshots .
-  # and add to the server and worker environment:
-  #   SQLDESK_FEATURE_ALERT_SCREENSHOTS: "true"
-  #   SQLDESK_SCREENSHOT_URL: "http://screenshots:3000"
-  #   SQLDESK_INTERNAL_BASE_URL: "http://server:5000"
-  #
-  # screenshots:
-  #   image: sqldesk-screenshots
-  #   restart: unless-stopped
-  #   # Chromium wants more than Docker's default 64MB of shared memory, and
-  #   # runs out of it as a blank page rather than as an error.
-  #   shm_size: 1gb
+  # Start it with --profile rendering, and put the three lines from the
+  # "Pictures in alert emails" part of .env.example into .env.
+  screenshots:
+    image: ${SQLDESK_SCREENSHOTS_IMAGE:-ghcr.io/bot-netizen/sqldesk-screenshots:0.6.0}
+    profiles: ["rendering"]
+    restart: unless-stopped
+    # Chromium wants more than Docker's default 64MB of shared memory, and
+    # runs out of it as a blank page rather than as an error.
+    shm_size: 1gb
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
 
 volumes:
   sqldesk-postgres:

@@ -456,13 +456,11 @@ VERSION_CHECK = parse_boolean(os.environ.get("SQLDESK_VERSION_CHECK", "true"))
 # its own infrastructure; SQLDesk will not send anything anywhere unless an
 # operator names the destination, because the payload includes usage data.
 VERSION_CHECK_URL = os.environ.get("SQLDESK_VERSION_CHECK_URL", "")
-# Off, and off is the default on purpose: with no provider configured nothing
-# is registered, nothing is shown and nothing leaves the building. Turning this
-# on is not enough either -- `manage ai configure` has to name a model.
+# MCP and the catalog behind it: the /mcp endpoint, the scheduled harvest and
+# the admin catalog page. Off by default, because an endpoint that answers
+# questions about your warehouse is a decision somebody should make rather
+# than inherit. SQLDesk calls no model itself either way.
 FEATURE_AI = parse_boolean(os.environ.get("SQLDESK_FEATURE_AI", "false"))
-# How long to wait on a model before giving up. Generous, because a local
-# model on modest hardware is slow rather than broken.
-AI_TIMEOUT = int(os.environ.get("SQLDESK_AI_TIMEOUT", "60"))
 # How often the catalog is rebuilt, in hours, and how long one data source
 # gets. Daily is plenty: it reads table definitions and saved SQL, neither of
 # which changes by the minute. Set the schedule to 0 to turn it off and run
@@ -486,23 +484,6 @@ MCP_QUEUE = os.environ.get("SQLDESK_MCP_QUEUE", "")
 # dropped connection rather than "still running".
 MCP_TIME_BUDGET = max(10, int(os.environ.get("SQLDESK_GUNICORN_TIMEOUT", "60")) - 10)
 
-# The provider, from the environment rather than the database.
-#
-# `manage ai configure` writes a row, which is right for one machine somebody
-# looks after by hand and wrong for a cluster: it means `kubectl exec` into a
-# pod, it does not survive a fresh deployment, and the key cannot come from a
-# Secret. Named here, the operator's declaration is the configuration and the
-# database row is not consulted at all.
-#
-#   SQLDESK_AI_PROVIDER=anthropic
-#   SQLDESK_AI_MODEL=claude-sonnet-5
-#   SQLDESK_AI_API_KEY=<from a Secret, never a manifest>
-#   SQLDESK_AI_BASE_URL=http://ollama:11434/v1   # local models
-AI_PROVIDER = os.environ.get("SQLDESK_AI_PROVIDER", "")
-AI_MODEL = os.environ.get("SQLDESK_AI_MODEL", "")
-AI_API_KEY = os.environ.get("SQLDESK_AI_API_KEY", "")
-AI_BASE_URL = os.environ.get("SQLDESK_AI_BASE_URL", "")
-AI_COMMAND = os.environ.get("SQLDESK_AI_COMMAND", "")
 FEATURE_DISABLE_REFRESH_QUERIES = parse_boolean(os.environ.get("SQLDESK_FEATURE_DISABLE_REFRESH_QUERIES", "false"))
 FEATURE_SHOW_QUERY_RESULTS_COUNT = parse_boolean(os.environ.get("SQLDESK_FEATURE_SHOW_QUERY_RESULTS_COUNT", "true"))
 FEATURE_AUTO_PUBLISH_NAMED_QUERIES = parse_boolean(
