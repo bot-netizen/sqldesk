@@ -223,7 +223,7 @@ export default function Catalog() {
 
   useEffect(() => {
     axios
-      .get("/api/data_sources")
+      .get("api/data_sources")
       .then(setSources)
       .catch(() => {});
   }, []);
@@ -310,9 +310,10 @@ export default function Catalog() {
           {/*
             A plain link rather than a fetch: the browser handles the file,
             the session cookie authenticates it, and nothing has to hold the
-            zip in memory to hand it straight back. Absolute, because this
-            page lives under /admin/ and a relative path resolves against
-            that and lands on the single-page app instead.
+            zip in memory to hand it straight back. Absolute, like every
+            /api/admin/ path in the admin pages: those routes are registered
+            at the root only, not per organization. (The data source list
+            this page loads is per organization, so that one is relative.)
 
             `download` is load-bearing, not decoration. The app puts a click
             handler on the whole body and turns any anchor into a client-side

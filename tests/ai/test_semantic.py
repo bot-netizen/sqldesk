@@ -3,6 +3,7 @@ import tempfile
 from unittest import mock
 
 import yaml
+from sqlalchemy import event
 
 from sqldesk.ai.catalog.harvest import harvest_data_source
 from sqldesk.ai.catalog.semantic import cube_type, export_catalog, import_catalog
@@ -257,6 +258,76 @@ class TestImport(HarvestHelpers):
         import_catalog(self.factory.org, directory)
 
         self.assertEqual("Edited in the repo.", self._table(source).description)
+
+
+class TestImportFindsTheRightSource(HarvestHelpers):
+    """
+    Staging and production usually share table names. Matched on the name
+    alone, a description written for one landed on whichever the database
+    returned first.
+    """
+
+    _harvest = TestImport._harvest
+    _write = TestImport._write
+    _table = TestImport._table
+
+    def _two(self):
+        staging = self._harvest(source=self.factory.create_data_source(name="Staging"))
+        production = self._harvest(source=self.factory.create_data_source(name="Production"))
+        return staging, production
+
+    def _write_in(self, folder, cube):
+        directory = tempfile.mkdtemp()
+        os.makedirs(os.path.join(directory, folder))
+        with open(os.path.join(directory, folder, "orders.yml"), "w") as handle:
+            yaml.safe_dump({"cubes": [cube]}, handle)
+        return directory
+
+    def test_the_folder_says_which_data_source(self):
+        staging, production = self._two()
+        directory = self._write_in("production", {"name": "orders", "description": "Production orders."})
+
+        import_catalog(self.factory.org, directory)
+
+        self.assertEqual("Production orders.", self._table(production).description)
+        self.assertNotEqual("Production orders.", self._table(staging).description)
+
+    def test_a_flat_file_naming_two_tables_is_skipped_not_guessed(self):
+        staging, production = self._two()
+        directory = self._write({"name": "orders", "description": "Which one?"})
+
+        result = import_catalog(self.factory.org, directory)
+
+        self.assertEqual(1, result["skipped"])
+        self.assertNotEqual("Which one?", self._table(staging).description)
+        self.assertNotEqual("Which one?", self._table(production).description)
+
+
+class TestExportCost(HarvestHelpers):
+    def test_the_statements_do_not_grow_with_the_tables(self):
+        """
+        Asked per table, the joins were read in full once for every table --
+        tables times joins, inside the web request behind the download
+        button.
+        """
+        source = self.factory.create_data_source()
+        big = [{"name": "t{}".format(i), "columns": [{"name": "id", "type": "int"}]} for i in range(60)]
+        with mock.patch.object(type(source), "get_schema", return_value=big):
+            harvest_data_source(source)
+
+        counted = []
+
+        def count(*args, **kwargs):
+            counted.append(1)
+
+        event.listen(db.engine, "before_cursor_execute", count)
+        try:
+            written = export_catalog(self.factory.org, tempfile.mkdtemp(), data_source=source)
+        finally:
+            event.remove(db.engine, "before_cursor_execute", count)
+
+        self.assertEqual(60, written["tables"])
+        self.assertLess(len(counted), 10, "{} statements to export 60 tables".format(len(counted)))
 
 
 class TestExportedFileShape(HarvestHelpers):

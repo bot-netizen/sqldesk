@@ -282,6 +282,25 @@ class TestHarvestDoesNotScaleWithRowCount(BaseTestCase):
         names = {t.name for t in CatalogTable.query.filter(CatalogTable.data_source_id == source.id)}
         self.assertEqual({"orders"}, names)
 
+    def test_an_empty_schema_is_a_failed_read_not_an_empty_warehouse(self):
+        # Taken at its word it deleted every table, and every description
+        # somebody had written with them.
+        source = self.factory.create_data_source()
+        with mock.patch.object(type(source), "get_schema", return_value=SCHEMA):
+            harvest_data_source(source)
+        table = CatalogTable.query.filter(
+            CatalogTable.data_source_id == source.id, CatalogTable.name == "orders"
+        ).one()
+        table.description = "One row per order, refunds included."
+        db.session.commit()
+
+        with mock.patch.object(type(source), "get_schema", return_value=[]):
+            result = harvest_data_source(source)
+
+        self.assertIn("empty", result["skipped"])
+        kept = CatalogTable.query.filter(CatalogTable.data_source_id == source.id, CatalogTable.name == "orders").one()
+        self.assertEqual("One row per order, refunds included.", kept.description)
+
 
 class TestRetrievalIsOrgScopedByConstruction(BaseTestCase):
     def test_another_orgs_columns_are_not_even_scanned(self):

@@ -1,4 +1,4 @@
-import buildOption, { buildGraph, prepareDataRows, problemWith } from "./buildOption";
+import buildOption, { STAGE, buildGraph, prepareDataRows, problemWith } from "./buildOption";
 
 const columns = [{ name: "value" }, { name: "stage1" }, { name: "stage2" }];
 
@@ -118,7 +118,7 @@ describe("Visualizations -> Sankey -> the option", () => {
     const [series] = built.option.series;
     const node = series.data[0];
 
-    expect(node.name).toContain(""); // unique key, carries the depth
+    expect(node.name).toContain(STAGE); // unique key, carries the depth
     expect(series.label.formatter({ data: node })).toBe("a"); // what the user sees
   });
 
@@ -148,6 +148,18 @@ describe("Visualizations -> Sankey -> labels that fit on the canvas", () => {
       } else {
         expect(node.label).toBeUndefined();
       }
+    });
+  });
+});
+
+describe("node names", () => {
+  test("hold nothing XML forbids, so an exported chart stays readable", () => {
+    // A control character here reached the chart's aria-label, and one such
+    // character anywhere in a widget made its SVG unparseable on export.
+    const { nodes } = buildGraph(rows({ stage1: "Signup", stage2: "Trial", value: 3 }));
+    expect(nodes.length).toBeGreaterThan(0);
+    nodes.forEach((node: any) => {
+      expect(node.name).not.toMatch(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/);
     });
   });
 });

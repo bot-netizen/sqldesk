@@ -224,6 +224,17 @@ def harvest_data_source(data_source):
     org = data_source.org
     entries = [entry for entry in catalog_metadata_for(data_source) if entry.get("name")]
 
+    # An empty schema is far more often a failed read -- a timeout, an
+    # expired credential, a runner that swallowed its error -- than a
+    # warehouse with every table dropped. Taken at its word it deleted the
+    # whole catalog, descriptions people had written included, so a
+    # catalog that has tables keeps them until the schema says something.
+    if not entries and CatalogTable.query.filter(CatalogTable.data_source_id == data_source.id).count():
+        logger.warning(
+            "Data source %s returned an empty schema; keeping its catalog rather than emptying it.", data_source.id
+        )
+        return {"tables": 0, "queries_mined": 0, "relationships": 0, "skipped": "the schema came back empty"}
+
     saved = _queries_to_mine(data_source)
     usage = mine_all((text, data_source.type) for text in saved)
 

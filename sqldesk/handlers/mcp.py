@@ -21,7 +21,7 @@ import uuid
 from flask import jsonify, request
 from sqlalchemy.orm.exc import NoResultFound
 
-from sqldesk import models, settings
+from sqldesk import models, redis_connection, settings
 from sqldesk.authentication import current_org
 from sqldesk.handlers.base import BaseResource, routes
 from sqldesk.mcp import (
@@ -76,6 +76,25 @@ def _record(org, user, session_id, client, method, tool, outcome, detail=None, s
     except Exception:
         logger.exception("could not write an MCP audit row")
         models.db.session.rollback()
+
+
+def _refusal_worth_recording():
+    """
+    Whether this address has room left in its minute's allowance of refused
+    rows. A script trying keys would otherwise write rows as fast as it can
+    post. The answer is still 401 either way, and nobody is blocked: a limit
+    on requests would also shut out the working clients behind the same
+    address, which on a VPN is everyone.
+    """
+    try:
+        key = "mcp:refused:{}:{}".format(request.remote_addr, int(time.time() // 60))
+        count = redis_connection.incr(key)
+        if count == 1:
+            redis_connection.expire(key, 120)
+        return count <= settings.MCP_AUDIT_REFUSALS_PER_MINUTE
+    except Exception:
+        # The audit is worth more than the limit on it.
+        return True
 
 
 def _user_from_request(org):
@@ -153,8 +172,9 @@ def mcp_endpoint():
 
     if user is None:
         # Recorded before anything else: a key that does not work, tried
-        # repeatedly, is the thing an audit exists to show.
-        _record(org, None, session_id, None, "authenticate", None, "refused", "no or unknown API key", started)
+        # repeatedly, is the thing an audit exists to show -- up to a point.
+        if _refusal_worth_recording():
+            _record(org, None, session_id, None, "authenticate", None, "refused", "no or unknown API key", started)
         response = jsonify(_error(UNAUTHORIZED, "A SQLDesk API key is required: Authorization: Bearer <key>."))
         response.status_code = 401
         response.headers["WWW-Authenticate"] = "Bearer"

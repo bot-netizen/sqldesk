@@ -105,26 +105,21 @@ def cube_for(table, columns, measures, joins):
     return cube
 
 
-def _joins_for(table):
-    """This table's edges, as (their table, my column, their column)."""
-    edges = []
-    for relationship in CatalogRelationship.query.filter(CatalogRelationship.data_source_id == table.data_source_id):
-        if relationship.left_table == table.name:
-            edges.append(
-                {
-                    "table": relationship.right_table,
-                    "local": relationship.left_column,
-                    "remote": relationship.right_column,
-                }
-            )
-        elif relationship.right_table == table.name:
-            edges.append(
-                {
-                    "table": relationship.left_table,
-                    "local": relationship.right_column,
-                    "remote": relationship.left_column,
-                }
-            )
+def _joins_by_table(source):
+    """
+    Every table's edges, as (their table, my column, their column), read in
+    one query per data source. Asked per table, this read the whole
+    relationship list once for every table -- tables times joins, in a web
+    request, for the download button.
+    """
+    edges = {}
+    for relationship in CatalogRelationship.query.filter(CatalogRelationship.data_source_id == source.id):
+        edges.setdefault(relationship.left_table, []).append(
+            {"table": relationship.right_table, "local": relationship.left_column, "remote": relationship.right_column}
+        )
+        edges.setdefault(relationship.right_table, []).append(
+            {"table": relationship.left_table, "local": relationship.right_column, "remote": relationship.left_column}
+        )
     return edges
 
 
@@ -144,24 +139,26 @@ def catalog_documents(org, data_source=None):
     sources = [data_source] if data_source else DataSource.query.filter(DataSource.org == org).all()
 
     for source in sources:
-        tables = CatalogTable.query.filter(CatalogTable.data_source_id == source.id).order_by(CatalogTable.name)
+        tables = CatalogTable.query.filter(CatalogTable.data_source_id == source.id).order_by(CatalogTable.name).all()
+
+        # Four queries per data source, however many tables it has.
+        columns = {}
+        for column in (
+            CatalogColumn.query.join(CatalogTable, CatalogTable.id == CatalogColumn.catalog_table_id)
+            .filter(CatalogTable.data_source_id == source.id)
+            .order_by(CatalogColumn.name)
+        ):
+            columns.setdefault(column.catalog_table_id, []).append(column)
+        measures = {}
+        for measure in CatalogMeasure.query.filter(
+            CatalogMeasure.data_source_id == source.id,
+            CatalogMeasure.status == MEASURE_APPROVED,
+        ).order_by(CatalogMeasure.name):
+            measures.setdefault(measure.table_name, []).append(measure)
+        joins = _joins_by_table(source)
 
         for table in tables:
-            columns = (
-                CatalogColumn.query.filter(CatalogColumn.catalog_table_id == table.id)
-                .order_by(CatalogColumn.name)
-                .all()
-            )
-            measures = (
-                CatalogMeasure.query.filter(
-                    CatalogMeasure.data_source_id == source.id,
-                    CatalogMeasure.table_name == table.name,
-                    CatalogMeasure.status == MEASURE_APPROVED,
-                )
-                .order_by(CatalogMeasure.name)
-                .all()
-            )
-            cube = cube_for(table, columns, measures, _joins_for(table))
+            cube = cube_for(table, columns.get(table.id, []), measures.get(table.name, []), joins.get(table.name, []))
 
             yield (
                 "{}/{}.yml".format(_slug(source.name), _cube_name(table.name)),
@@ -218,6 +215,14 @@ def import_catalog(org, directory):
     """
     applied = {"tables": 0, "columns": 0, "measures": 0, "skipped": 0}
 
+    # Export writes `<data source>/<table>.yml`, so the folder says which
+    # source a file is about. Matching on the table name alone put staging's
+    # description on production's `orders` -- whichever the database
+    # returned first.
+    by_folder = {}
+    for source in DataSource.query.filter(DataSource.org == org):
+        by_folder.setdefault(_slug(source.name), []).append(source)
+
     for path in _files(directory):
         try:
             with open(path) as handle:
@@ -227,10 +232,14 @@ def import_catalog(org, directory):
             applied["skipped"] += 1
             continue
 
+        relative = os.path.relpath(path, directory).split(os.sep)
+        sources = by_folder.get(relative[0]) if len(relative) > 1 else None
+
         for cube in document.get("cubes") or []:
             name = cube.get("sql_table") or cube.get("name")
-            table = CatalogTable.query.filter(CatalogTable.org == org, CatalogTable.name == name).first()
+            table = _table_for(org, name, sources)
             if table is None:
+                logger.warning("%s: no single table %r in the catalog to apply it to", path, name)
                 applied["skipped"] += 1
                 continue
 
@@ -244,6 +253,24 @@ def import_catalog(org, directory):
 
     db.session.commit()
     return applied
+
+
+def _table_for(org, name, sources):
+    """
+    The one catalog table a cube is about, or None.
+
+    In a folder named for a data source, that source's table. Anywhere else
+    -- a flat directory, a folder named for nothing -- only a name that is
+    unique across the organization, because guessing between two tables of
+    the same name is how a description lands on the wrong one.
+    """
+    query = CatalogTable.query.filter(CatalogTable.org == org, CatalogTable.name == name)
+    if sources is not None:
+        if len(sources) != 1:
+            return None
+        return query.filter(CatalogTable.data_source_id == sources[0].id).first()
+    matches = query.limit(2).all()
+    return matches[0] if len(matches) == 1 else None
 
 
 def _apply_dimensions(table, dimensions):

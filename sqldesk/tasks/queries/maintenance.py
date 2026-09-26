@@ -179,6 +179,25 @@ def cleanup_events():
     return deleted_count
 
 
+def cleanup_mcp_events():
+    """
+    Drop MCP audit rows older than settings.MCP_AUDIT_RETENTION_DAYS.
+
+    Capped per run for the same reason as the event cleanup: a first run on
+    an audit nobody has pruned should not hold a long lock.
+    """
+    if settings.MCP_AUDIT_RETENTION_DAYS <= 0:
+        return 0
+    cutoff = utils.utcnow() - datetime.timedelta(days=settings.MCP_AUDIT_RETENTION_DAYS)
+    old = models.db.session.query(models.McpEvent.id).filter(models.McpEvent.created_at < cutoff)
+    deleted_count = models.McpEvent.query.filter(
+        models.McpEvent.id.in_(old.limit(settings.EVENTS_CLEANUP_COUNT).subquery())
+    ).delete(synchronize_session=False)
+    models.db.session.commit()
+    logger.info("Deleted %d MCP audit rows older than %d days.", deleted_count, settings.MCP_AUDIT_RETENTION_DAYS)
+    return deleted_count
+
+
 def remove_ghost_locks():
     """
     Removes query locks that reference a non existing RQ job.

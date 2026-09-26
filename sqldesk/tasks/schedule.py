@@ -13,6 +13,7 @@ from sqldesk.tasks.catalog import harvest_catalogs
 from sqldesk.tasks.failure_report import send_aggregated_errors
 from sqldesk.tasks.general import sync_user_details, version_check
 from sqldesk.tasks.queries import (
+    cleanup_mcp_events,
     cleanup_query_results,
     empty_schedules,
     refresh_queries,
@@ -115,6 +116,8 @@ def periodic_job_definitions():
                 "interval": timedelta(hours=settings.CATALOG_HARVEST_SCHEDULE),
             }
         )
+    if settings.FEATURE_AI and settings.MCP_AUDIT_RETENTION_DAYS > 0:
+        jobs.append({"func": cleanup_mcp_events, "interval": timedelta(hours=1)})
 
     if settings.VERSION_CHECK:
         jobs.append({"func": version_check, "interval": timedelta(days=1)})

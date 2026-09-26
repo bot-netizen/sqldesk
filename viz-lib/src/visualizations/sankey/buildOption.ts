@@ -55,6 +55,14 @@ export interface SankeyLink {
   value: number;
 }
 
+/*
+  Between a node's label and its stage in the name ECharts keys it by.
+  Invisible, and legal in XML: the control character used before ended up in
+  the chart's aria-label, and one character XML forbids anywhere in a widget
+  makes its exported SVG unreadable -- the whole widget missing from a PDF.
+*/
+export const STAGE = "\u2063";
+
 function normalizeName(name: any) {
   return isNil(name) ? "Exit" : `${name}`;
 }
@@ -79,7 +87,7 @@ export function buildGraph(rows: any[]): { nodes: SankeyNode[]; links: SankeyLin
 
   function nodeFor(label: any, depth: number) {
     const displayName = normalizeName(label);
-    const name = `${displayName}${depth}`;
+    const name = `${displayName}${STAGE}${depth}`;
     let node = nodesByKey.get(name);
     if (!node) {
       node = {
@@ -195,7 +203,7 @@ export default function buildOption(data: any): BuiltSankey {
       confine: true,
       formatter: (params: any) =>
         params.dataType === "edge"
-          ? `${params.data.source.split("")[0]} → ${params.data.target.split("")[0]}: ${params.data.value}`
+          ? `${params.data.source.split(STAGE)[0]} → ${params.data.target.split(STAGE)[0]}: ${params.data.value}`
           : `${params.data.displayName}`,
     },
     series: [

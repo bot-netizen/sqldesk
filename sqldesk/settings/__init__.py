@@ -74,7 +74,7 @@ SECRET_KEY = os.environ.get("SQLDESK_COOKIE_SECRET")
 
 if SECRET_KEY is None:
     raise Exception(
-        "You must set the SQLDESK_COOKIE_SECRET environment variable. See https://bot-netizen.github.io/sqldesk/docs/configuration for more information."
+        "You must set the SQLDESK_COOKIE_SECRET environment variable. See https://bot-netizen.github.io/sqldesk/guide/deploying.html#settings for more information."
     )
 
 # The secret key to use when encrypting data source options
@@ -126,10 +126,14 @@ HSTS_INCLUDE_SUBDOMAINS = parse_boolean(os.environ.get("SQLDESK_HSTS_INCLUDE_SUB
 # Overriding this value via an environment variables requires setting it
 # as a string in the general CSP format of a semicolon separated list of
 # individual CSP directives, see https://github.com/GoogleCloudPlatform/flask-talisman#example-7
-# for more information. E.g.:
+# for more information.
+#
+# `frame-src` names the documentation site because the help drawer (the "?"
+# beside a field) shows a docs page in an iframe. Upstream allowed its own
+# site the same way; losing it in the rename left every drawer blank.
 CONTENT_SECURITY_POLICY = os.environ.get(
     "SQLDESK_CONTENT_SECURITY_POLICY",
-    "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval'; font-src 'self' data:; img-src 'self' http: https: data: blob:; object-src 'none'; frame-ancestors 'none';",
+    "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval'; font-src 'self' data:; img-src 'self' http: https: data: blob:; object-src 'none'; frame-ancestors 'none'; frame-src 'self' https://bot-netizen.github.io;",
 )
 CONTENT_SECURITY_POLICY_REPORT_URI = os.environ.get("SQLDESK_CONTENT_SECURITY_POLICY_REPORT_URI", "")
 CONTENT_SECURITY_POLICY_REPORT_ONLY = parse_boolean(
@@ -483,6 +487,13 @@ MCP_QUEUE = os.environ.get("SQLDESK_MCP_QUEUE", "")
 # that outlives it kills the web worker mid-reply, and the client sees a
 # dropped connection rather than "still running".
 MCP_TIME_BUDGET = max(10, int(os.environ.get("SQLDESK_GUNICORN_TIMEOUT", "60")) - 10)
+# How long the MCP audit keeps a row, in days; 0 keeps them all. Every call
+# writes one, refused ones included, so without a limit it is the table that
+# grows fastest on an instance a model talks to all day.
+MCP_AUDIT_RETENTION_DAYS = int(os.environ.get("SQLDESK_MCP_AUDIT_RETENTION_DAYS", "90"))
+# Refused MCP calls recorded per address per minute. Past it they are still
+# refused, just not each written down.
+MCP_AUDIT_REFUSALS_PER_MINUTE = int(os.environ.get("SQLDESK_MCP_AUDIT_REFUSALS_PER_MINUTE", "60"))
 
 FEATURE_DISABLE_REFRESH_QUERIES = parse_boolean(os.environ.get("SQLDESK_FEATURE_DISABLE_REFRESH_QUERIES", "false"))
 FEATURE_SHOW_QUERY_RESULTS_COUNT = parse_boolean(os.environ.get("SQLDESK_FEATURE_SHOW_QUERY_RESULTS_COUNT", "true"))

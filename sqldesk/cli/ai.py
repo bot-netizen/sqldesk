@@ -45,6 +45,9 @@ def harvest(data_source):
             print("  failed: {}".format(error))
             models.db.session.rollback()
             continue
+        if result.get("skipped"):
+            print("  skipped: {}; the catalog is unchanged".format(result["skipped"]))
+            continue
         print("  {tables} tables, {relationships} joins, from {queries_mined} saved queries".format(**result))
 
 
