@@ -1,3 +1,4 @@
+import os
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -152,3 +153,55 @@ class TestDuckDBSchema(TestCase):
         with self.assertRaises(Exception) as ctx:
             self.runner.get_schema()
         self.assertIn("boom", str(ctx.exception))
+
+
+class TestTheSqlStaysInItsOwnFolder(TestCase):
+    """
+    DuckDB's defaults let SQL open any path the worker can, and this is a
+    default data source every user in the default group can query.
+    """
+
+    def setUp(self):
+        import tempfile
+
+        self.root = tempfile.mkdtemp()
+        self.mine = os.path.join(self.root, "1", "2")
+        self.theirs = os.path.join(self.root, "1", "3")
+        os.makedirs(self.mine)
+        os.makedirs(self.theirs)
+        with open(os.path.join(self.mine, "a.csv"), "w") as handle:
+            handle.write("x\n1\n")
+        with open(os.path.join(self.theirs, "b.csv"), "w") as handle:
+            handle.write("secret\n42\n")
+        self.runner = DuckDB({"dbpath": ":memory:"})
+        self.runner.confine_to(self.mine)
+
+    def run_sql(self, sql):
+        return self.runner.run_query(sql, None)
+
+    def test_its_own_uploads_are_readable(self):
+        self.runner.register_uploaded_files([("a", os.path.join(self.mine, "a.csv"))])
+        data, error = self.run_sql("SELECT * FROM a")
+        self.assertIsNone(error)
+        self.assertEqual([{"x": 1}], data["rows"])
+
+    def test_another_sources_uploads_are_not(self):
+        data, error = self.run_sql("SELECT * FROM read_csv_auto('{}/b.csv')".format(self.theirs))
+        self.assertIsNone(data)
+        self.assertIn("Permission", error)
+
+    def test_nor_is_the_rest_of_the_machine(self):
+        for sql in (
+            "SELECT * FROM read_text('/etc/passwd')",
+            "SELECT * FROM glob('{}/**')".format(self.root),
+            "COPY (SELECT 1) TO '{}/out.csv'".format(self.root),
+            "ATTACH '{}/x.db'".format(self.root),
+        ):
+            data, error = self.run_sql(sql)
+            self.assertIsNone(data, sql)
+
+    def test_and_it_cannot_be_switched_back_on(self):
+        data, error = self.run_sql("SET enable_external_access = true")
+        self.assertIsNone(data)
+        data, error = self.run_sql("SELECT * FROM read_text('/etc/passwd')")
+        self.assertIsNone(data)

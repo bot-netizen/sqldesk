@@ -1,4 +1,5 @@
 import logging
+import os
 
 from sqldesk.query_runner import (
     TYPE_BOOLEAN,
@@ -55,7 +56,26 @@ class DuckDB(BaseSQLQueryRunner):
         self.dbpath = configuration.get("dbpath", ":memory:")
         exts = configuration.get("extensions", "")
         self.extensions = [e.strip() for e in exts.split(",") if e.strip()]
+        # The one directory this source's SQL may read files from: its own
+        # uploads. Set by the data source before the first query (see
+        # `confine_to`); until then SQL can read no files at all.
+        self.upload_dir = None
         self._connect()
+
+    def confine_to(self, directory) -> None:
+        """
+        Let this source's SQL read files in `directory` and nowhere else.
+
+        DuckDB's defaults let SQL open any path the worker can: `read_text`
+        on /etc/passwd, `glob` over every organization's uploads, `COPY ...
+        TO` over the application's own code, `ATTACH`, `INSTALL httpfs`.
+        This runner is a default data source that every user in the default
+        group can query, so those defaults were everybody's.
+        """
+        directory = os.path.join(directory, "")
+        if directory != self.upload_dir:
+            self.upload_dir = directory
+            self._connect()
 
     @classmethod
     def name(cls):
@@ -103,7 +123,7 @@ class DuckDB(BaseSQLQueryRunner):
     _connections = {}
 
     def _connection_key(self):
-        return (self.dbpath, tuple(self.extensions))
+        return (self.dbpath, tuple(self.extensions), self.upload_dir)
 
     def _connect(self) -> None:
         key = self._connection_key()
@@ -129,7 +149,16 @@ class DuckDB(BaseSQLQueryRunner):
 
     def _open_connection(self):
         con = duckdb.connect(self.dbpath)
+        # Extensions first: installing one needs the network and a directory
+        # of its own, both of which the lines below take away.
         self._load_extensions(con)
+        if self.upload_dir:
+            con.execute("SET allowed_directories = ?", [[self.upload_dir]])
+        con.execute("SET enable_external_access = false")
+        con.execute("SET autoinstall_known_extensions = false")
+        con.execute("SET autoload_known_extensions = false")
+        # And so that the SQL being confined cannot simply switch it back.
+        con.execute("SET lock_configuration = true")
         return con
 
     def _load_extensions(self, con) -> None:

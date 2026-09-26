@@ -293,6 +293,8 @@ class DataSource(BelongsToOrgMixin, db.Model):
         if self.uses_ssh_tunnel:
             query_runner = with_ssh_tunnel(query_runner, self.options.get("ssh_tunnel"))
 
+        if hasattr(query_runner, "confine_to"):
+            query_runner.confine_to(os.path.join(settings.UPLOAD_ROOT, str(self.org_id), str(self.id)))
         if hasattr(query_runner, "register_uploaded_files"):
             uploads = UploadedFile.query.filter(UploadedFile.data_source_id == self.id)
             query_runner.register_uploaded_files([(upload.view_name, upload.path) for upload in uploads])

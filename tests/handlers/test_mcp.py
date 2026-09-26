@@ -718,3 +718,73 @@ class TestCsrf(McpTestCase):
         from sqldesk.security import csrf
 
         self.assertIn("sqldesk.handlers.mcp.mcp_endpoint", csrf._exempt_views)
+
+
+class TestTheAuditHasLimits(McpTestCase):
+    def test_refusals_past_the_minutes_allowance_are_refused_but_not_written(self):
+        with mock.patch.object(settings, "MCP_AUDIT_REFUSALS_PER_MINUTE", 3):
+            statuses = [
+                self.client.post("/mcp", data=json.dumps(rpc("ping")), content_type="application/json").status_code
+                for _ in range(5)
+            ]
+        self.assertEqual([401] * 5, statuses, "still refused, every time")
+        self.assertEqual(3, models.McpEvent.query.filter(models.McpEvent.outcome == "refused").count())
+
+    def test_a_working_key_is_not_held_back_by_somebody_elses_refusals(self):
+        with mock.patch.object(settings, "MCP_AUDIT_REFUSALS_PER_MINUTE", 1):
+            for _ in range(3):
+                self.client.post("/mcp", data=json.dumps(rpc("ping")), content_type="application/json")
+            response = self.post(rpc("ping"))
+        self.assertEqual(200, response.status_code)
+
+    def test_old_rows_are_pruned_and_recent_ones_kept(self):
+        import datetime
+
+        from sqldesk.tasks.queries.maintenance import cleanup_mcp_events
+
+        old = models.McpEvent(org=self.factory.org, method="ping", outcome="ok")
+        new = models.McpEvent(org=self.factory.org, method="ping", outcome="ok")
+        models.db.session.add_all([old, new])
+        models.db.session.flush()
+        old.created_at = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=200)
+        models.db.session.commit()
+
+        with mock.patch.object(settings, "MCP_AUDIT_RETENTION_DAYS", 90):
+            self.assertEqual(1, cleanup_mcp_events())
+        self.assertEqual([new.id], [e.id for e in models.McpEvent.query.all()])
+
+    def test_zero_keeps_everything(self):
+        from sqldesk.tasks.queries.maintenance import cleanup_mcp_events
+
+        with mock.patch.object(settings, "MCP_AUDIT_RETENTION_DAYS", 0):
+            self.assertEqual(0, cleanup_mcp_events())
+
+
+class TestRunningNeedsWhatTheEditorNeeds(McpTestCase):
+    def call(self, name, sql="SELECT 1", user=None):
+        body = rpc(
+            "tools/call", {"name": name, "arguments": {"sql": sql, "data_source": self.factory.data_source.name}}
+        )
+        return json.loads(self.post(body, user=user).data)
+
+    def test_without_execute_query_nothing_runs(self):
+        group = self.factory.create_group(name="Readers", permissions=["view_query"])
+        models.db.session.add(
+            models.DataSourceGroup(group=group, data_source=self.factory.data_source, view_only=False)
+        )
+        reader = self.factory.create_user(group_ids=[group.id], email="reader@example.com")
+        models.db.session.commit()
+        with mock.patch("sqldesk.mcp._on_a_worker") as worker:
+            for tool in ("run_query", "explain_query"):
+                body = self.call(tool, user=reader)
+                self.assertEqual(-32602, body["error"]["code"], tool)
+                self.assertIn("running queries", body["error"]["message"])
+        worker.assert_not_called()
+
+    def test_a_paused_source_is_refused_with_its_reason(self):
+        self.factory.data_source.pause("migrating")
+        models.db.session.commit()
+        with mock.patch("sqldesk.mcp._on_a_worker") as worker:
+            body = self.call("run_query")
+        self.assertIn("paused (migrating)", body["error"]["message"])
+        worker.assert_not_called()

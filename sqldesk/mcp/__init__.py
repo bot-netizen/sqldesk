@@ -260,6 +260,29 @@ def _resolve_source(user, org, name, need=view_only):
     )
 
 
+def _runnable_source(user, org, arguments, required_message):
+    """
+    The data source to run new SQL against, checked the way the query
+    editor checks it: the `execute_query` permission, full rather than
+    view-only access, and a source that is not paused.
+    """
+    if not user.has_permission("execute_query"):
+        raise McpError(
+            INVALID_PARAMS, "Your groups do not allow running queries, so neither can a client using your key."
+        )
+    source = _resolve_source(user, org, (arguments or {}).get("data_source"), need=not_view_only)
+    if source is None:
+        raise McpError(INVALID_PARAMS, required_message)
+    if source.paused:
+        raise McpError(
+            INVALID_PARAMS,
+            "{} is paused{}. Try again later.".format(
+                source.name, " ({})".format(source.pause_reason) if source.pause_reason else ""
+            ),
+        )
+    return source
+
+
 def _text(body):
     """MCP tool results are content blocks; ours are all text."""
     return {"content": [{"type": "text", "text": body}], "isError": False}
@@ -650,9 +673,7 @@ def _rows_as_text(result, limit=50):
 
 def tool_explain_query(user, org, arguments):
     sql = _sql_argument(arguments)
-    source = _resolve_source(user, org, (arguments or {}).get("data_source"), need=not_view_only)
-    if source is None:
-        raise McpError(INVALID_PARAMS, "`data_source` is required: a plan is the engine's, not ours.")
+    source = _runnable_source(user, org, arguments, "`data_source` is required: a plan is the engine's, not ours.")
     # Checked before EXPLAIN goes in front of it. `ANALYZE DELETE FROM t`
     # would otherwise become `EXPLAIN ANALYZE DELETE FROM t`, which deletes.
     refused = _why_not_a_read(sql, source)
@@ -669,9 +690,7 @@ def tool_explain_query(user, org, arguments):
 
 def tool_run_query(user, org, arguments):
     sql = _sql_argument(arguments)
-    source = _resolve_source(user, org, (arguments or {}).get("data_source"), need=not_view_only)
-    if source is None:
-        raise McpError(INVALID_PARAMS, "`data_source` is required.")
+    source = _runnable_source(user, org, arguments, "`data_source` is required.")
     refused = _why_not_a_read(sql, source)
     if refused:
         return {"content": [{"type": "text", "text": refused}], "isError": True}
