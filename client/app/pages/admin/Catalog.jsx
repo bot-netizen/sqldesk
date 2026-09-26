@@ -313,8 +313,16 @@ export default function Catalog() {
             zip in memory to hand it straight back. Absolute, because this
             page lives under /admin/ and a relative path resolves against
             that and lands on the single-page app instead.
+
+            `download` is load-bearing, not decoration. The app puts a click
+            handler on the whole body and turns any anchor into a client-side
+            route -- so without it the router swallowed this click, pushed
+            /<org>/api/admin/catalog/export, and drew its own "page cannot be
+            found" over a download that had in fact already succeeded.
+            handleNavigationIntent skips anchors carrying it.
           */}
           <a
+            download
             className="catalog-download"
             href={`/api/admin/catalog/export${sourceId ? `?data_source_id=${sourceId}` : ""}`}
           >
