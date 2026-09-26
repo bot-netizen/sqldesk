@@ -31,6 +31,62 @@ BRAND = """<svg viewBox="0 0 120 120" aria-hidden="true">
         </g>
       </svg>"""
 
+# The header links, in one place. The site's own pages are one directory
+# apart -- index.html at the root, guide/ and blog/ below it -- so each link
+# is rendered with the prefix its page needs rather than written out twice
+# and left to drift. The nav has drifted before; that is why this exists.
+#
+# (file, label, hide on narrow screens)
+SITE_NAV = [
+    ("index.html", "Overview", False),
+    ("why.html", "Why SQLDesk", False),
+    ("performance.html", "Performance", True),
+    ("roadmap.html", "Roadmap", False),
+    ("blog/index.html", "Blog", False),
+    ("guide/overview.html", "Docs", False),
+]
+
+#: Pages that live at the root and keep their own stylesheet, so only their
+#: header nav is rewritten.
+TOP_LEVEL = ["index.html", "why.html", "performance.html", "roadmap.html"]
+
+#: Same, one directory down.
+BLOG_PAGES_DIR = "blog"
+
+
+def site_nav(prefix, current):
+    """
+    The header links. `current` is the SITE_NAV file the page belongs to, so
+    a guide page marks Docs and a post marks Blog.
+    """
+    out = []
+    for href, label, hide_sm in SITE_NAV:
+        cls = ' class="hide-sm"' if hide_sm else ""
+        mark = ' aria-current="page"' if href == current else ""
+        out.append('      <a href="{}{}"{}{}>{}</a>'.format(prefix, href, cls, mark, label))
+    out.append('      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>')
+    return "\n".join(out)
+
+
+def rewrite_topbar_nav(path, prefix, current):
+    """
+    Replace what is between <nav> and </nav> in a page's top bar.
+
+    Surgical on purpose: these pages carry their own inline stylesheet and
+    their own content, and the only thing that has to agree across all of
+    them is this list of links.
+    """
+    html = open(path).read()
+    opened = html.index("<header class=\"topbar\">")
+    start = html.index("<nav>", opened) + len("<nav>")
+    end = html.index("</nav>", start)
+    updated = html[:start] + "\n" + site_nav(prefix, current) + "\n    " + html[end:]
+    if updated != html:
+        open(path, "w").write(updated)
+        return True
+    return False
+
+
 # (file, title, section) -- the order is the reading order.
 PAGES = [
     ("overview.html", "Overview", "Start here"),
@@ -114,12 +170,7 @@ def render(filename, description, body):
       SQLDesk
     </a>
     <nav>
-      <a href="../index.html">Overview</a>
-      <a href="../why.html">Why SQLDesk</a>
-      <a href="../performance.html" class="hide-sm">Performance</a>
-      <a href="../roadmap.html">Roadmap</a>
-      <a href="overview.html" aria-current="page">Docs</a>
-      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+{nav_site}
     </nav>
   </div>
 </header>
@@ -151,22 +202,41 @@ def render(filename, description, body):
         icon=ICON,
         brand=BRAND,
         nav=nav(filename),
+        nav_site=site_nav("../", "guide/overview.html"),
         body=body,
         next=neighbours(filename),
     )
 
 
 def main():
-    here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "guide")
+    docs = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
     changed = []
+
+    # The guide, whose whole frame is generated.
     for filename, _title, _section in PAGES:
-        path = os.path.normpath(os.path.join(here, filename))
+        path = os.path.join(docs, "guide", filename)
         before = open(path).read()
         after = render(filename, _description(path), _read(path))
         if after != before:
             open(path, "w").write(after)
+            changed.append("guide/" + filename)
+
+    # The root pages and the blog, where only the header links are ours.
+    for filename in TOP_LEVEL:
+        path = os.path.join(docs, filename)
+        if os.path.exists(path) and rewrite_topbar_nav(path, "", filename):
             changed.append(filename)
-    print("rewrote {} of {} pages".format(len(changed), len(PAGES)))
+
+    blog = os.path.join(docs, BLOG_PAGES_DIR)
+    if os.path.isdir(blog):
+        for filename in sorted(os.listdir(blog)):
+            if not filename.endswith(".html"):
+                continue
+            path = os.path.join(blog, filename)
+            if rewrite_topbar_nav(path, "../", "blog/index.html"):
+                changed.append(BLOG_PAGES_DIR + "/" + filename)
+
+    print("rewrote {} page(s)".format(len(changed)))
     for name in changed:
         print("  " + name)
 

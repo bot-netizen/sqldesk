@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blog — SQLDesk</title>
+<meta name="description" content="Notes on building SQLDesk: what shipped, what it cost, and what turned out to be wrong.">
+<meta property="og:title" content="SQLDesk blog">
+<meta property="og:description" content="Notes on building SQLDesk: what shipped, what it cost, and what turned out to be wrong.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="../index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="../index.html">Overview</a>
+      <a href="../why.html">Why SQLDesk</a>
+      <a href="../performance.html" class="hide-sm">Performance</a>
+      <a href="../roadmap.html">Roadmap</a>
+      <a href="../blog/index.html" aria-current="page">Blog</a>
+      <a href="../guide/overview.html">Docs</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap post-layout">
+  <div class="post-head">
+    <h1>Blog</h1>
+    <p class="lede">Notes on building SQLDesk &mdash; what shipped, what it cost to run, and the things that
+    turned out to be wrong once real data touched them.</p>
+  </div>
+
+  <ul class="post-list">
+    <li>
+      <div class="post-meta"><time datetime="2026-09-26">26 September 2026</time></div>
+      <h2><a href="sqldesk-and-what-it-is-for.html">SQLDesk, and what it is for</a></h2>
+      <p>A self-hosted place to query your data and build dashboards on it &mdash; and, in 0.6, an MCP server
+      that answers questions from a catalog built out of the SQL your team has already written. What the fork
+      changed, how the catalog is built, why metrics are proposed rather than assumed, and the one thing it
+      cannot do yet.</p>
+    </li>
+  </ul>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+       <a href="../guide/releases.html">Releases</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

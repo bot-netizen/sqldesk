@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQLDesk, and what it is for — SQLDesk</title>
+<meta name="description" content="A self-hosted place to query your data and build dashboards on it — and, in 0.6, an MCP server that lets a model ask your warehouse questions without the data leaving your network.">
+<meta property="og:title" content="SQLDesk, and what it is for">
+<meta property="og:description" content="A self-hosted place to query your data and build dashboards — and an MCP server that answers from your own saved queries.">
+<meta property="og:type" content="article">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="../index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="../index.html">Overview</a>
+      <a href="../why.html">Why SQLDesk</a>
+      <a href="../performance.html" class="hide-sm">Performance</a>
+      <a href="../roadmap.html">Roadmap</a>
+      <a href="../blog/index.html" aria-current="page">Blog</a>
+      <a href="../guide/overview.html">Docs</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap post-layout">
+  <article>
+  <div class="post-head">
+    <div class="post-meta"><time datetime="2026-09-26">26 September 2026</time></div>
+    <h1>SQLDesk, and what it is for</h1>
+    <p class="lede">A self-hosted place to query your data and build dashboards on it. In 0.6 it also answers
+    questions over the Model Context Protocol &mdash; from a catalog built out of the SQL your team has already
+    written, on hardware you control.</p>
+  </div>
+
+  <div class="post-body">
+
+<p>SQLDesk is a fork of <a href="https://github.com/getredash/redash">Redash</a>, Apache 2.0, and it does what
+Redash does: connect to a data source, write SQL, turn the result into a chart, put the chart on a dashboard
+somebody actually looks at. Thirty-five-odd connectors, Python and React, runs in Docker or on Kubernetes.
+Viewers are free, because there is nobody to charge you for them.</p>
+
+<p>That part is not new and is not the interesting part. This is a first post, so here is what the fork is
+<em>for</em>, and what 0.6 adds.</p>
+
+<h2>What the fork changed</h2>
+
+<p>Mostly it made the thing cheaper to look at. A dashboard with five widgets behind one query used to fetch
+and parse that query five times; now one request serves all of them. The charts moved off Plotly to Apache
+ECharts, which is smaller and keeps up with data that changes while you are watching it. Dashboards can refresh
+on the server rather than in a tab somebody left open &mdash; and only while a visible tab is actually
+watching, so nobody pays for a dashboard on a television in an empty room.</p>
+
+<p>Each of those is measured rather than asserted; the <a href="../performance.html">performance page</a> has
+the numbers and the <a href="../why.html">why page</a> has the rest of the reasoning, including the things
+other tools do better.</p>
+
+<h2>0.6: your warehouse, answerable</h2>
+
+<p>The new thing is an <a href="https://modelcontextprotocol.io">MCP</a> server. Point a client at
+<code>/mcp</code> with a SQLDesk API key and it gets eight tools, in the order they are meant to be used:</p>
+
+<ul>
+  <li><code>find_queries</code> and <code>find_dashboards</code> &mdash; look for work that already exists,
+    because most questions have been answered before;</li>
+  <li><code>find_context</code>, <code>expand_table</code>, <code>list_data_sources</code> &mdash; understand
+    the data;</li>
+  <li><code>check_sql</code> for the shape and <code>explain_query</code> for the cost;</li>
+  <li><code>run_query</code>, which returns at most 1000 rows &mdash; the same ceiling a person clicking
+    Execute gets &mdash; and runs on a worker like any other query.</li>
+</ul>
+
+<p>The ordering is the point. A model that reads the plan before it runs the query, and looks for an existing
+query before it writes a new one, behaves more like a careful colleague and less like a bill.</p>
+
+<h2>The catalog is built from what you already have</h2>
+
+<p>Most teams have no data hub, no OpenMetadata, nobody filling in a modelling tool. But the warehouse states
+its own structure, several engines carry <code>COMMENT ON</code> text nobody was reading, and every dashboard
+in the building is built on SQL somebody wrote and saved.</p>
+
+<p>So SQLDesk harvests all three. What exists, from the schema. What matters, from the query log: which tables
+anyone uses, which columns anyone selects, which joins anyone writes. A warehouse with three thousand tables
+and no usage data can only be ranked alphabetically; one with usage data can put <code>orders</code> in front
+of <code>orders_backup_2019</code> without being told.</p>
+
+<p>It learns only from queries that have <em>run</em> recently, measured by when they last ran rather than when
+they were last edited. A dashboard that refreshes every morning and has not been touched in a year is the most
+important thing in the warehouse. A query somebody tweaked last week and never ran again is not.</p>
+
+<h2>Metrics are proposed, never assumed</h2>
+
+<p><code>SUM(amount) AS gross_revenue</code> in a saved query is a person naming a metric. That is the one part
+of a semantic layer that can be found rather than asked for, so SQLDesk finds them &mdash; the alias the author
+chose becomes the name, and the count is how many distinct queries define it that way. Four teams agreeing
+independently is a different proposition from one person trying it once.</p>
+
+<p>Nothing is believed. Proposals sit under Admin &rarr; Catalog with <strong>Agree</strong> and
+<strong>Deny</strong> beside them, and only an agreed definition reaches a model. A metric definition that is
+merely plausible is worse than none, because the wrong revenue number is still a revenue number.</p>
+
+<p>Two things it will not guess: an aggregate across a join is not attributed to either table, and
+<code>SUM(price * qty)</code> is left for a person to write. Neither can be checked against a column.</p>
+
+<h2>What people write down, you keep in git</h2>
+
+<p>Descriptions and agreed metrics export as cube-shaped YAML, one file per table, into a directory you can
+commit from:</p>
+
+<pre><code>manage ai export /app/semantic   # catalog → files, then commit them
+manage ai import /app/semantic   # files → catalog, on deploy</code></pre>
+
+<p>SQLDesk never speaks to git itself &mdash; no deploy key, no conflict handling &mdash; because the pipeline
+you already have does that better, and a change to what a metric means should be a pull request rather than a
+row somebody altered. Importing never creates anything the warehouse has not stated, and a file cannot redefine
+what a measure computes: it may agree with a definition and describe it, not claim one nobody writes.</p>
+
+<h2>On your own hardware</h2>
+
+<p>The Helm chart runs it on your cluster, with MCP behind a switch and, if you want it, a queue of its own so a
+model exploring cannot slow down a dashboard somebody is watching:</p>
+
+<pre><code>mcp:
+  enabled: true
+  queue: mcp
+  worker:
+    enabled: true</code></pre>
+
+<p>Every call runs as the user whose API key it is and sees only the data sources that user can read. There is
+no service account and no way to configure one, because a tool server with more access than its user is a way
+to launder permissions. Every request leaves an audit row &mdash; who, when, which tool, the outcome, how long
+&mdash; including the refused ones, which are the rows an audit exists for.</p>
+
+<p>If your company signs in through SSO, that covers the browser and not this: MCP uses each person's own API
+key, so the audit names a person rather than an integration.</p>
+
+<h2>One honest limitation</h2>
+
+<p>This works today with a <strong>local</strong> MCP client &mdash; Claude Code on a laptop, on your VPN,
+reaching your internal ingress:</p>
+
+<pre><code>claude mcp add --transport http sqldesk https://sqldesk.internal.example.com/mcp \
+  --header "Authorization: Bearer &lt;your API key&gt;"</code></pre>
+
+<p>It does <em>not</em> work as a hosted connector in a chat app. Those are fetched by the vendor's servers
+rather than by your device, so the endpoint would have to be reachable from the public internet &mdash; which
+is the opposite of why you deployed it internally &mdash; and SQLDesk authenticates with an API key rather
+than the OAuth flow those connectors expect. Both are solvable and neither is solved. If you deploy this
+expecting to add it from a phone, you will be disappointed; deploy it expecting your engineers and analysts to
+use it from their own machines, and it works now.</p>
+
+<h2>Where it is</h2>
+
+<p>0.6 is at release candidate, published as
+<code>ghcr.io/bot-netizen/sqldesk:0.6.0-rc.1</code>, and being validated. The
+<a href="../guide/mcp.html">MCP guide</a> covers setup, the tools, the audit and what it costs your warehouse;
+<a href="../guide/deploying.html">Deploying</a> covers Docker and Kubernetes.</p>
+
+<p>If you try it, the thing worth telling us is what the catalog got wrong about your warehouse. That is the
+part that only real data can test.</p>
+
+  </div>
+  </article>
+
+  <div class="doc-next"><a class="btn btn-ghost" href="index.html">&larr; All posts</a><a class="btn btn-primary" href="../guide/mcp.html">The MCP guide &rarr;</a></div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+       <a href="../guide/releases.html">Releases</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
+  </div>
+</footer>
+
+</body>
+</html>
