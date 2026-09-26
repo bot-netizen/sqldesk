@@ -24,7 +24,14 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqldesk import models, settings
 from sqldesk.authentication import current_org
 from sqldesk.handlers.base import routes
-from sqldesk.mcp import INTERNAL_ERROR, INVALID_REQUEST, PARSE_ERROR, McpError, handle
+from sqldesk.mcp import (
+    INTERNAL_ERROR,
+    INVALID_REQUEST,
+    PARSE_ERROR,
+    McpError,
+    handle,
+    time_budget,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +40,9 @@ SESSION_HEADER = "Mcp-Session-Id"
 #: Long enough to be worth reading, short enough not to be a copy of the
 #: request. A caller can put anything in an argument.
 DETAIL_LIMIT = 500
+#: JSON-RPC batches were dropped from MCP in 2025-06-18; older clients may
+#: still send them. Each message is a tool call on this web worker's time.
+MAX_BATCH = 10
 
 
 def _error(code, message, message_id=None):
@@ -97,7 +107,10 @@ def _client_name(message):
     """What the client called itself at initialize, for the audit."""
     if not isinstance(message, dict) or message.get("method") != "initialize":
         return None
-    info = (message.get("params") or {}).get("clientInfo") or {}
+    params = message.get("params") or {}
+    info = (params.get("clientInfo") or {}) if isinstance(params, dict) else {}
+    if not isinstance(info, dict):
+        return None
     name = info.get("name")
     version = info.get("version")
     return "{} {}".format(name, version).strip() if name else None
@@ -109,7 +122,9 @@ def _summary(message):
     whole argument object, which is a caller's to fill however they like.
     """
     params = (message.get("params") or {}) if isinstance(message, dict) else {}
-    arguments = params.get("arguments") or {}
+    arguments = (params.get("arguments") or {}) if isinstance(params, dict) else {}
+    if not isinstance(arguments, dict):
+        return None
     for field in ("question", "sql"):
         if arguments.get(field):
             return "{}: {}".format(field, str(arguments[field])[:200])
@@ -146,15 +161,35 @@ def mcp_endpoint():
     # A batch is a list. Notifications inside it produce no reply, and a batch
     # of nothing but notifications is answered with 202 and no body.
     messages = payload if isinstance(payload, list) else [payload]
-    replies, issued_session = [], None
+    if not messages or len(messages) > MAX_BATCH:
+        detail = "empty batch" if not messages else "batch of {}".format(len(messages))
+        _record(org, user, session_id, None, "batch", None, "refused", detail, started)
+        return jsonify(_error(INVALID_REQUEST, "A batch holds 1 to {} messages.".format(MAX_BATCH))), 400
 
+    with time_budget(settings.MCP_TIME_BUDGET):
+        replies, issued_session = _answer(messages, org, user, session_id)
+
+    if not replies:
+        response = jsonify(None)
+        response.status_code = 202
+        response.set_data(b"")
+    else:
+        response = jsonify(replies if isinstance(payload, list) else replies[0])
+    if issued_session:
+        response.headers[SESSION_HEADER] = issued_session
+    return response
+
+
+def _answer(messages, org, user, session_id):
+    replies, issued_session = [], None
     for message in messages:
         message_started = time.time()
         message_id = message.get("id") if isinstance(message, dict) else None
         method = message.get("method") if isinstance(message, dict) else "?"
         tool = None
         if method == "tools/call":
-            tool = ((message.get("params") or {}).get("name")) if isinstance(message, dict) else None
+            params = message.get("params") if isinstance(message, dict) else None
+            tool = params.get("name") if isinstance(params, dict) else None
 
         # A session is issued at initialize and echoed by the client after.
         # Without it "who is connected" has nothing to group by, because this
@@ -182,13 +217,4 @@ def mcp_endpoint():
         )
         if result is not None:
             replies.append({"jsonrpc": "2.0", "id": message_id, "result": result})
-
-    if not replies:
-        response = jsonify(None)
-        response.status_code = 202
-        response.set_data(b"")
-    else:
-        response = jsonify(replies if isinstance(payload, list) else replies[0])
-    if issued_session:
-        response.headers[SESSION_HEADER] = issued_session
-    return response
+    return replies, issued_session

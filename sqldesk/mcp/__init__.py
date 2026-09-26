@@ -15,24 +15,43 @@ issue forty and wander. Retrieval happens here, with the catalog, not in the
 model's context window.
 
 Every call runs as the SQLDesk user whose API key was presented, and every
-data source access goes through the same `require_access` the rest of the
-application uses. There is no service account.
+data source access goes through the same `has_access` the rest of the
+application uses: reading the catalog needs what viewing a dashboard needs,
+running SQL needs what the editor needs. There is no service account.
 """
 
 import logging
+import re
 import time
+from contextlib import contextmanager
+from contextvars import ContextVar
+
+import sqlglot
+from sqlalchemy import or_
+from sqlalchemy.orm import load_only
+from sqlglot import exp
 
 from sqldesk import __version__, models, settings
-from sqldesk.ai.catalog.retrieve import context_for, find_tables
-from sqldesk.ai.optimizer import analyze
-from sqldesk.permissions import has_access, view_only
+from sqldesk.ai.catalog.retrieve import context_for
+from sqldesk.ai.optimizer import analyze, dialect_for
+from sqldesk.permissions import has_access, not_view_only, view_only
+from sqldesk.query_runner import BaseSQLQueryRunner
 
 #: The editor's own ceiling, reused rather than invented. A model exploring
 #: should not be able to ask for more than a person clicking Execute can.
 ROW_LIMIT = 1000
 #: How long a tool call waits for a worker. Past this the query is still
-#: running -- it is the waiting that stops, not the work.
-RUN_TIMEOUT = 120
+#: running -- it is the waiting that stops, not the work. Both are capped again
+#: by the request's own budget (`time_budget`), which the web server's timeout
+#: sets: a wait that outlives gunicorn's kills the worker mid-answer, and the
+#: client sees a dropped connection instead of a reason.
+RUN_TIMEOUT = 45
+EXPLAIN_TIMEOUT = 20
+#: Ceilings on what a caller can make as large as it likes. SQL is parsed in
+#: the web process, and every search term is another ILIKE.
+MAX_SQL = 100000
+MAX_TERMS = 12
+MAX_NAMES = 20
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +143,8 @@ TOOLS = [
         "title": "What a query will cost, before running it",
         "description": (
             "Run EXPLAIN against the data source and return the plan. Use this between writing SQL "
-            "and running it: check_sql says whether the shape is wrong, this says what it will cost."
+            "and running it: check_sql says whether the shape is wrong, this says what it will cost. "
+            "Pass the query itself, without EXPLAIN; only a single read is accepted."
         ),
         "inputSchema": {
             "type": "object",
@@ -136,9 +156,10 @@ TOOLS = [
         "name": "run_query",
         "title": "Run SQL and return rows",
         "description": (
-            "Execute SQL against a data source and return up to {} rows. Runs on a worker as the "
-            "user whose key this is, appears in the admin's list of running queries, and can be "
-            "cancelled there like any other. Check the plan with explain_query first."
+            "Execute one read-only statement (SELECT, WITH, SHOW, DESCRIBE) against a data source "
+            "and return up to {} rows. Runs on a worker as the user whose key this is, appears in the "
+            "admin's list of running queries, and can be cancelled there like any other. Check the "
+            "plan with explain_query first."
         ).format(ROW_LIMIT),
         "inputSchema": {
             "type": "object",
@@ -187,25 +208,50 @@ INVALID_PARAMS = -32602
 INTERNAL_ERROR = -32603
 
 
-def _readable_sources(user, org):
+#: Every wait in one HTTP request draws on this, so a batch of slow calls
+#: cannot add up to more than the web server will wait for.
+_deadline = ContextVar("mcp_deadline", default=None)
+
+
+@contextmanager
+def time_budget(seconds):
+    token = _deadline.set(time.time() + seconds)
+    try:
+        yield
+    finally:
+        _deadline.reset(token)
+
+
+def _readable_sources(user, org, need=view_only):
     """
-    The data sources this user may read, by the same rule the rest of the
+    The data sources this user may use, by the same rule the rest of the
     application uses. An MCP client gets no more than its user would.
+
+    `view_only` is enough to read the catalog and find saved work -- what a
+    person who can only view dashboards may see. Running SQL of one's own
+    takes `not_view_only`, which is what the query editor asks for too:
+    a view-only group can look at the answers, not ask new questions.
     """
     return [
         source
         for source in models.DataSource.query.filter(models.DataSource.org == org).order_by(models.DataSource.name)
-        if has_access(source, user, view_only)
+        if has_access(source, user, need)
     ]
 
 
-def _resolve_source(user, org, name):
-    sources = _readable_sources(user, org)
+def _resolve_source(user, org, name, need=view_only):
+    sources = _readable_sources(user, org, need)
     if not name:
         return None
     for source in sources:
         if source.name == name:
             return source
+    if need is not_view_only and any(source.name == name for source in _readable_sources(user, org)):
+        raise McpError(
+            INVALID_PARAMS,
+            "You can view {!r} but not run SQL against it: that needs full access to the data source, "
+            "the same as the query editor.".format(name),
+        )
     raise McpError(
         INVALID_PARAMS,
         "No data source called {!r} that you can read. Available: {}".format(
@@ -219,13 +265,108 @@ def _text(body):
     return {"content": [{"type": "text", "text": body}], "isError": False}
 
 
+def _terms(question):
+    return [word for word in question.lower().split() if len(word) > 2][:MAX_TERMS]
+
+
+def _sql_argument(arguments):
+    sql = ((arguments or {}).get("sql") or "").strip()
+    if not sql:
+        raise McpError(INVALID_PARAMS, "`sql` is required.")
+    if len(sql) > MAX_SQL:
+        raise McpError(INVALID_PARAMS, "That SQL is over {} characters.".format(MAX_SQL))
+    return sql
+
+
+#: Statements a model may run. Everything else -- a write, DDL, a GRANT, a
+#: procedure call -- belongs in the editor, where a person reads it first.
+READS = (exp.Query, exp.Values, exp.Describe, exp.Show)
+#: Anywhere in a statement, not only at its root: `WITH gone AS (DELETE ...)
+#: SELECT * FROM gone` is a SELECT that deletes, and `SELECT ... INTO`
+#: creates a table.
+WRITES = (
+    exp.Insert,
+    exp.Update,
+    exp.Delete,
+    exp.Merge,
+    exp.Into,
+    exp.Create,
+    exp.Drop,
+    exp.Alter,
+    exp.TruncateTable,
+    exp.Copy,
+    exp.LoadData,
+    exp.Command,
+)
+#: The first word of a read, for SQL the parser cannot follow.
+READ_WORDS = {"select", "with", "show", "describe", "desc", "values"}
+_LEADING_NOISE = re.compile(r"^(?:\s+|--[^\n]*(?:\n|$)|/\*.*?\*/|\()*", re.S)
+
+
+def _why_not_a_read(sql, source):
+    """
+    None when `sql` is one statement that only reads; otherwise why not.
+
+    This is not the security boundary -- the database account's grants are,
+    and an install that hands SQLDesk a writable account has decided
+    something this cannot undo. What it stops is a model doing damage by
+    accident: a DELETE it took for a SELECT, a second statement after a
+    semicolon, an `EXPLAIN ANALYZE` that runs what it was asked only to plan.
+    """
+    runner = source.query_runner
+    if not isinstance(runner, BaseSQLQueryRunner):
+        # Mongo, Elasticsearch, a URL: runners that only read, in a language
+        # that is not SQL. The exception is the one that runs a program.
+        return "This data source runs Python, which a model may not." if source.type == "python" else None
+
+    try:
+        statements = [tree for tree in sqlglot.parse(sql, read=dialect_for(source.type)) if tree is not None]
+    except Exception:
+        statements = None
+
+    if statements is None:
+        # Some engines speak SQL the parser cannot read, and refusing all of
+        # it would make those sources unusable. The first word is still a
+        # fair statement of intent; a semicolon inside is not something that
+        # can be told apart from one between two statements.
+        rest = _LEADING_NOISE.sub("", sql)
+        first = re.match(r"[A-Za-z]+", rest)
+        if not first or first.group(0).lower() not in READ_WORDS:
+            return "Only a read (SELECT, WITH, SHOW, DESCRIBE) can be run from here."
+        if ";" in sql.rstrip().rstrip(";"):
+            return "One statement at a time."
+        return None
+
+    if len(statements) != 1:
+        return "One statement at a time."
+    tree = statements[0]
+    if isinstance(tree, exp.Command):
+        if str(tree.this).lower() in ("show", "describe", "desc"):
+            return None
+        return "Only a read (SELECT, WITH, SHOW, DESCRIBE) can be run from here, not {}.".format(
+            str(tree.this).upper()
+        )
+    for node in tree.walk():
+        if isinstance(node, WRITES):
+            return "That statement changes data (it contains {}); only reads can be run from here.".format(
+                type(node).__name__.upper()
+            )
+    if not isinstance(tree, READS):
+        return "Only a read (SELECT, WITH, SHOW, DESCRIBE) can be run from here."
+    return None
+
+
 def tool_find_context(user, org, arguments):
     question = (arguments or {}).get("question", "")
     if not question.strip():
         raise McpError(INVALID_PARAMS, "`question` is required.")
     source = _resolve_source(user, org, (arguments or {}).get("data_source"))
 
-    found = context_for(org, question, data_source=source)
+    # Scoped to what this user can read even when no source is named: the
+    # catalog is the organization's, and a table's name and columns are
+    # themselves something a group may not be allowed to see.
+    readable = {s.id for s in _readable_sources(user, org)}
+    found = context_for(org, question, data_source=source, data_source_ids=readable)
     if not found["tables"]:
         return _text(
             "Nothing in the catalog matched, and the catalog may be empty. "
@@ -247,11 +388,21 @@ def tool_find_context(user, org, arguments):
 
 def tool_expand_table(user, org, arguments):
     names = (arguments or {}).get("names") or []
-    if not names:
-        raise McpError(INVALID_PARAMS, "`names` is required.")
+    if not names or not isinstance(names, list):
+        raise McpError(INVALID_PARAMS, "`names` is required: a list of table names.")
+    if len(names) > MAX_NAMES:
+        raise McpError(INVALID_PARAMS, "At most {} tables at a time.".format(MAX_NAMES))
+    names = [str(name) for name in names]
     source = _resolve_source(user, org, (arguments or {}).get("data_source"))
 
-    query = models.CatalogTable.query.filter(models.CatalogTable.org == org, models.CatalogTable.name.in_(names))
+    readable = [s.id for s in _readable_sources(user, org)]
+    if not readable:
+        raise McpError(INVALID_PARAMS, "None of those tables are in the catalog.")
+    query = models.CatalogTable.query.filter(
+        models.CatalogTable.org == org,
+        models.CatalogTable.name.in_(names),
+        models.CatalogTable.data_source_id.in_(readable),
+    )
     if source is not None:
         query = query.filter(models.CatalogTable.data_source_id == source.id)
 
@@ -266,8 +417,6 @@ def tool_expand_table(user, org, arguments):
 
 
 def tool_list_data_sources(user, org, arguments):
-    from sqldesk.ai.optimizer import dialect_for
-
     sources = _readable_sources(user, org)
     if not sources:
         return _text("You have access to no data sources.")
@@ -289,9 +438,7 @@ def tool_list_data_sources(user, org, arguments):
 
 
 def tool_check_sql(user, org, arguments):
-    sql = (arguments or {}).get("sql", "")
-    if not sql.strip():
-        raise McpError(INVALID_PARAMS, "`sql` is required.")
+    sql = _sql_argument(arguments)
     source = _resolve_source(user, org, (arguments or {}).get("data_source"))
 
     result = analyze(sql, source.type if source else None)
@@ -331,25 +478,27 @@ def tool_find_queries(user, org, arguments):
     readable = {s.id for s in _readable_sources(user, org)}
     if source is not None:
         readable &= {source.id}
+    if not readable:
+        return _text("No saved query matches that. Nobody has written it down, or it is worded differently.")
 
-    terms = [word for word in question.lower().split() if len(word) > 2]
-    found = []
-    for query in (
+    # Matched by the database rather than over the latest few hundred in
+    # Python: a query written two years ago is often exactly the answer.
+    matches = [
+        or_(models.Query.name.ilike("%{}%".format(term)), models.Query.description.ilike("%{}%".format(term)))
+        for term in _terms(question)
+    ]
+    found = (
         models.Query.query.filter(
             models.Query.org == org,
             models.Query.is_archived.is_(False),
             models.Query.is_draft.is_(False),
+            models.Query.data_source_id.in_(readable),
+            *matches,
         )
         .order_by(models.Query.updated_at.desc())
-        .limit(400)
-    ):
-        if query.data_source_id not in readable:
-            continue
-        if terms and not _existing_work_matches("{} {}".format(query.name, query.description or ""), terms):
-            continue
-        found.append(query)
-        if len(found) >= 10:
-            break
+        .limit(10)
+        .all()
+    )
 
     if not found:
         return _text("No saved query matches that. Nobody has written it down, or it is worded differently.")
@@ -373,42 +522,52 @@ def tool_find_dashboards(user, org, arguments):
     question = ((arguments or {}).get("question") or "").strip()
     if not question:
         raise McpError(INVALID_PARAMS, "`question` is required.")
-    terms = [word for word in question.lower().split() if len(word) > 2]
+    terms = _terms(question)
 
-    found = []
-    for dashboard in (
+    # The dashboards list's own rule for who sees what, so a dashboard is
+    # found here exactly when its owner's colleagues could find it there.
+    visible = models.Dashboard.all(org, user.group_ids, user.id).options(load_only("id"))
+    dashboards = (
         models.Dashboard.query.filter(
-            models.Dashboard.org == org,
-            models.Dashboard.is_archived.is_(False),
+            models.Dashboard.id.in_(visible),
             models.Dashboard.is_draft.is_(False),
         )
         .order_by(models.Dashboard.updated_at.desc())
         .limit(200)
-    ):
-        # The words on a dashboard are in its textboxes and its widgets'
-        # queries, which is where its subject is actually written down.
-        text = (
-            dashboard.name
-            + " "
-            + " ".join(
-                (widget.text or "") if widget.visualization is None else (widget.visualization.query_rel.name or "")
-                for widget in dashboard.widgets
-            )
-        )
-        if terms and not _existing_work_matches(text, terms):
-            continue
-        found.append((dashboard, len(list(dashboard.widgets))))
-        if len(found) >= 8:
-            break
+        .all()
+    )
+
+    # The words on a dashboard are in its textboxes and its widgets'
+    # queries, which is where its subject is actually written down. Read in
+    # one query for all of them, not three per widget.
+    words = {dashboard.id: [dashboard.name] for dashboard in dashboards}
+    widgets = {dashboard.id: 0 for dashboard in dashboards}
+    if dashboards:
+        for dashboard_id, text, query_name in (
+            models.db.session.query(models.Widget.dashboard_id, models.Widget.text, models.Query.name)
+            .outerjoin(models.Visualization, models.Widget.visualization_id == models.Visualization.id)
+            .outerjoin(models.Query, models.Visualization.query_id == models.Query.id)
+            .filter(models.Widget.dashboard_id.in_(list(words)))
+        ):
+            words[dashboard_id].append(query_name or text or "")
+            widgets[dashboard_id] += 1
+
+    found = [
+        dashboard
+        for dashboard in dashboards
+        if not terms or _existing_work_matches(" ".join(words[dashboard.id]), terms)
+    ][:8]
 
     if not found:
         return _text("No dashboard matches that.")
 
     lines = []
-    for dashboard, widgets in found:
+    for dashboard in found:
         lines.append("{} — /dashboards/{}".format(dashboard.name, dashboard.id))
         lines.append(
-            "  {} widgets · updated {}".format(widgets, dashboard.updated_at.date() if dashboard.updated_at else "?")
+            "  {} widgets · updated {}".format(
+                widgets[dashboard.id], dashboard.updated_at.date() if dashboard.updated_at else "?"
+            )
         )
         lines.append("")
     return _text("\n".join(lines).strip())
@@ -426,6 +585,16 @@ def _on_a_worker(user, source, sql, timeout):
     from sqldesk.tasks import Job
     from sqldesk.tasks.queries import enqueue_query
 
+    deadline = time.time() + timeout
+    budget = _deadline.get()
+    if budget is not None:
+        deadline = min(deadline, budget)
+    waiting = int(deadline - time.time())
+    if waiting < 2:
+        # Checked before the query is queued: one that nobody will wait for
+        # would run anyway, and cost the warehouse for nothing.
+        return None, ["This request has used its time. Call the tool again on its own."]
+
     job = enqueue_query(
         sql,
         source,
@@ -439,7 +608,6 @@ def _on_a_worker(user, source, sql, timeout):
         queue_name=settings.MCP_QUEUE or None,
     )
 
-    deadline = time.time() + timeout
     while time.time() < deadline:
         fetched = Job.fetch(job.id)
         if fetched.is_finished:
@@ -458,7 +626,7 @@ def _on_a_worker(user, source, sql, timeout):
         if fetched.is_failed:
             return None, (fetched.exc_info or "").strip().splitlines()[-1:] or ["the query failed"]
         time.sleep(0.4)
-    return None, ["Still running after {}s. It has not been cancelled -- look under Admin.".format(timeout)]
+    return None, ["Still running after {}s. It has not been cancelled -- look under Admin.".format(waiting)]
 
 
 def _rows_as_text(result, limit=50):
@@ -481,14 +649,17 @@ def _rows_as_text(result, limit=50):
 
 
 def tool_explain_query(user, org, arguments):
-    sql = ((arguments or {}).get("sql") or "").strip()
-    if not sql:
-        raise McpError(INVALID_PARAMS, "`sql` is required.")
-    source = _resolve_source(user, org, (arguments or {}).get("data_source"))
+    sql = _sql_argument(arguments)
+    source = _resolve_source(user, org, (arguments or {}).get("data_source"), need=not_view_only)
     if source is None:
         raise McpError(INVALID_PARAMS, "`data_source` is required: a plan is the engine's, not ours.")
+    # Checked before EXPLAIN goes in front of it. `ANALYZE DELETE FROM t`
+    # would otherwise become `EXPLAIN ANALYZE DELETE FROM t`, which deletes.
+    refused = _why_not_a_read(sql, source)
+    if refused:
+        return {"content": [{"type": "text", "text": refused}], "isError": True}
 
-    result, error = _on_a_worker(user, source, "EXPLAIN {}".format(sql), timeout=30)
+    result, error = _on_a_worker(user, source, "EXPLAIN {}".format(sql), timeout=EXPLAIN_TIMEOUT)
     if error:
         # A refused EXPLAIN is usually the engine saying the SQL is wrong,
         # which is worth reading rather than swallowing.
@@ -497,12 +668,13 @@ def tool_explain_query(user, org, arguments):
 
 
 def tool_run_query(user, org, arguments):
-    sql = ((arguments or {}).get("sql") or "").strip()
-    if not sql:
-        raise McpError(INVALID_PARAMS, "`sql` is required.")
-    source = _resolve_source(user, org, (arguments or {}).get("data_source"))
+    sql = _sql_argument(arguments)
+    source = _resolve_source(user, org, (arguments or {}).get("data_source"), need=not_view_only)
     if source is None:
         raise McpError(INVALID_PARAMS, "`data_source` is required.")
+    refused = _why_not_a_read(sql, source)
+    if refused:
+        return {"content": [{"type": "text", "text": refused}], "isError": True}
 
     # The editor's own ceiling, applied by the runner that knows the dialect
     # -- `LIMIT` is not spelled the same everywhere, and a query that already
@@ -556,11 +728,16 @@ def handle(message, user, org):
         return {"tools": TOOLS}
     if method == "tools/call":
         params = message.get("params") or {}
+        if not isinstance(params, dict):
+            raise McpError(INVALID_PARAMS, "`params` must be an object.")
         name = params.get("name")
         if name not in HANDLERS:
             raise McpError(INVALID_PARAMS, "No tool called {!r}.".format(name))
+        arguments = params.get("arguments")
+        if arguments is not None and not isinstance(arguments, dict):
+            raise McpError(INVALID_PARAMS, "`arguments` must be an object.")
         try:
-            return HANDLERS[name](user, org, params.get("arguments"))
+            return HANDLERS[name](user, org, arguments)
         except McpError:
             raise
         except Exception:

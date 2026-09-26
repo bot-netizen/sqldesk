@@ -179,7 +179,9 @@ Authorization: Bearer &lt;your SQLDesk API key&gt;</code></pre>
 <pre><code>claude mcp add --transport http sqldesk https://sqldesk.example.com/mcp \
   --header "Authorization: Bearer &lt;your API key&gt;"</code></pre>
 <p><strong>Every call runs as the user whose key it is.</strong> The client sees the data sources that user
-can see and nothing else. There is no service account and no way to configure one, which is deliberate:
+can see and nothing else &mdash; in the catalog and in the saved queries and dashboards it searches, not only
+when it runs SQL. Running SQL, <code>EXPLAIN</code> included, needs <em>full</em> access to the data source,
+the same as the query editor: a user in a view-only group can look things up but not ask new questions. There is no service account and no way to configure one, which is deliberate:
 a tool server with more access than its user is a way to launder permissions.</p>
 
 <h2 id="tools">The tools</h2>
@@ -217,9 +219,11 @@ somebody already answered this".</p>
     executed. This says whether the <em>shape</em> is wrong.</dd>
   <dt><code>explain_query(sql, data_source)</code></dt>
   <dd>The engine's own plan, with its own cost estimates. This says what it will <em>cost</em>,
-    which is the number that decides whether running it is reasonable.</dd>
+    which is the number that decides whether running it is reasonable. It is never
+    <code>EXPLAIN ANALYZE</code>, which runs the statement it describes.</dd>
   <dt><code>run_query(sql, data_source)</code></dt>
-  <dd>Executes, and returns up to 1000 rows &mdash; the same ceiling a person clicking Execute
+  <dd>Executes one read &mdash; <code>SELECT</code>, <code>WITH</code>, <code>SHOW</code>,
+    <code>DESCRIBE</code> &mdash; and returns up to 1000 rows &mdash; the same ceiling a person clicking Execute
     gets, applied by the runner that knows the dialect. It runs <strong>on a worker</strong>, as
     the user whose key it is, so it appears in Admin &rarr; Overview beside every other running
     query &mdash; labelled <em>via MCP</em>, because a model asking is not a person waiting &mdash;
@@ -232,6 +236,23 @@ somebody already answered this".</p>
   and no way to configure one &mdash; a tool server with more access than its user is a way to
   launder permissions.</p>
 </div>
+
+<h3 id="reads-only">Only reads</h3>
+<p><code>run_query</code> and <code>explain_query</code> refuse anything but a single read: a write,
+DDL, a second statement after a semicolon, a <code>SELECT</code> whose <code>WITH</code> deletes,
+<code>SELECT ... INTO</code>. Writes stay possible in the editor, where a person reads them first.</p>
+<p>This stops a model doing damage <em>by accident</em>. It is not what stops it on purpose: the
+statement is checked by parsing it, and a function with side effects called from a
+<code>SELECT</code> looks like any other function. What stops that is the account SQLDesk connects
+with &mdash; give each data source a read-only database user, which is good practice for a BI tool
+in any case.</p>
+
+<h3 id="limits">Limits</h3>
+<p>One request waits at most ten seconds less than the web server's own timeout
+(<code>SQLDESK_GUNICORN_TIMEOUT</code>, 60 by default), across every call in it; a query still
+running at that point carries on, and the tool says so and where to find it. A batch holds at most
+ten messages, SQL at most 100,000 characters, and <code>expand_table</code> takes twenty names at
+a time.</p>
 
 <h2 id="example">A question, end to end</h2>
 <p>What the sequence looks like in practice, against a real warehouse. Each step is one tool call.</p>

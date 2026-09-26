@@ -18,7 +18,7 @@ def _terms(question):
     return [word.strip().lower() for word in (question or "").split() if len(word.strip()) > 2]
 
 
-def find_tables(org, question, data_source=None, limit=DEFAULT_LIMIT):
+def find_tables(org, question, data_source=None, limit=DEFAULT_LIMIT, data_source_ids=None):
     """
     Candidate tables for a question, most likely first.
 
@@ -31,10 +31,18 @@ def find_tables(org, question, data_source=None, limit=DEFAULT_LIMIT):
     Ranked by usage, which is the part that is ours. Two tables whose names
     both contain "order" are separated by which one anyone actually queries,
     and no amount of string matching can tell you that.
+
+    `data_source_ids`, when given, is every source the caller may read. The
+    catalog is the organization's, but a table's name and columns are
+    themselves something a group may not be allowed to see.
     """
+    if data_source_ids is not None and not data_source_ids:
+        return []
     base = CatalogTable.query.filter(CatalogTable.org == org)
     if data_source is not None:
         base = base.filter(CatalogTable.data_source_id == data_source.id)
+    if data_source_ids is not None:
+        base = base.filter(CatalogTable.data_source_id.in_(list(data_source_ids)))
 
     terms = _terms(question)
     if not terms:
@@ -54,6 +62,8 @@ def find_tables(org, question, data_source=None, limit=DEFAULT_LIMIT):
     )
     if data_source is not None:
         named_column = named_column.filter(CatalogTable.data_source_id == data_source.id)
+    if data_source_ids is not None:
+        named_column = named_column.filter(CatalogTable.data_source_id.in_(list(data_source_ids)))
 
     matched = base.filter(or_(*by_name, CatalogTable.id.in_(named_column.subquery().select())))
 
@@ -88,7 +98,7 @@ def neighbours_of(table, limit=5):
     ]
 
 
-def context_for(org, question, data_source=None, limit=DEFAULT_LIMIT):
+def context_for(org, question, data_source=None, limit=DEFAULT_LIMIT, data_source_ids=None):
     """
     Everything a model should be told about a question, and nothing else.
 
@@ -100,7 +110,9 @@ def context_for(org, question, data_source=None, limit=DEFAULT_LIMIT):
     Cards rather than schemas: the card was built at harvest time and is
     already the compact form, so assembling this is concatenation.
     """
-    tables = find_tables(org, question, data_source=data_source, limit=limit)
+    # A neighbour is looked up in its own table's data source, so it is
+    # never from a source the match itself was not.
+    tables = find_tables(org, question, data_source=data_source, limit=limit, data_source_ids=data_source_ids)
     chosen = {table.name: table for table in tables}
 
     # Looked up once and kept: the first version asked for a table's

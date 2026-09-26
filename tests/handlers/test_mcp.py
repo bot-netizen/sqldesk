@@ -510,3 +510,198 @@ class TestQueueIsolation(McpTestCase):
                 self._run()
 
         self.assertEqual("mcp", enqueue.call_args[1]["queue_name"])
+
+
+class TestNoMoreThanTheApplicationGives(McpTestCase):
+    """
+    An MCP client is its user, and gets exactly what that user gets in the
+    browser -- not more because the question came in over JSON-RPC.
+    """
+
+    def call(self, name, arguments, user=None):
+        return json.loads(self.post(rpc("tools/call", {"name": name, "arguments": arguments}), user=user).data)
+
+    def text(self, body):
+        return body["result"]["content"][0]["text"]
+
+    def _viewer(self):
+        # A group that may look at `viewonly` and nothing else, the way an
+        # admin sets up people who read dashboards but do not write SQL.
+        group = self.factory.create_group(name="Viewers")
+        source = self.factory.create_data_source(name="viewonly", group=group, view_only=True)
+        user = self.factory.create_user(group_ids=[group.id], email="viewer@example.com")
+        models.db.session.commit()
+        return user, source
+
+    def _hidden(self):
+        # The user can read a source of their own, so a refusal below is the
+        # filter at work rather than a user who can read nothing at all.
+        self.factory.data_source
+        # In no group at all: nobody but an admin can read it.
+        source = self.factory.create_data_source(name="hidden")
+        table = models.CatalogTable(
+            org=self.factory.org, data_source=source, name="salaries", usage_count=99, card="salaries(amount)"
+        )
+        models.db.session.add(table)
+        models.db.session.flush()
+        models.db.session.add(models.CatalogColumn(catalog_table=table, name="amount", type="decimal", usage_count=9))
+        models.db.session.commit()
+        return source
+
+    def test_a_view_only_user_cannot_run_sql(self):
+        user, source = self._viewer()
+        with mock.patch("sqldesk.mcp._on_a_worker") as worker:
+            body = self.call("run_query", {"sql": "SELECT 1", "data_source": source.name}, user=user)
+        self.assertEqual(-32602, body["error"]["code"])
+        self.assertIn("full access", body["error"]["message"])
+        worker.assert_not_called()
+
+    def test_a_view_only_user_cannot_explain_either(self):
+        # EXPLAIN is SQL of the caller's own, run on the warehouse.
+        user, source = self._viewer()
+        with mock.patch("sqldesk.mcp._on_a_worker") as worker:
+            body = self.call("explain_query", {"sql": "SELECT 1", "data_source": source.name}, user=user)
+        self.assertEqual(-32602, body["error"]["code"])
+        worker.assert_not_called()
+
+    def test_a_view_only_user_can_still_look(self):
+        user, source = self._viewer()
+        self.assertIn("viewonly", self.text(self.call("list_data_sources", {}, user=user)))
+
+    def test_the_catalog_of_a_source_you_cannot_read_is_not_searched(self):
+        self._hidden()
+        text = self.text(self.call("find_context", {"question": "salaries amount"}))
+        self.assertNotIn("salaries", text)
+
+    def test_nor_can_its_tables_be_expanded_by_name(self):
+        self._hidden()
+        body = self.call("expand_table", {"names": ["salaries"]})
+        self.assertEqual(-32602, body["error"]["code"])
+
+    def test_a_dashboard_on_a_source_you_cannot_read_is_not_found(self):
+        hidden = self._hidden()
+        owner = self.factory.create_user(email="owner@example.com")
+        query = self.factory.create_query(name="Salaries", data_source=hidden, user=owner)
+        dashboard = self.factory.create_dashboard(name="Salaries board", user=owner, is_draft=False)
+        self.factory.create_widget(
+            dashboard=dashboard, visualization=self.factory.create_visualization(query_rel=query)
+        )
+        models.db.session.commit()
+        self.assertIn("No dashboard", self.text(self.call("find_dashboards", {"question": "salaries"})))
+
+    def test_a_colleagues_dashboard_on_a_shared_source_is_found(self):
+        owner = self.factory.create_user(email="colleague@example.com")
+        query = self.factory.create_query(name="Revenue", data_source=self.factory.data_source, user=owner)
+        dashboard = self.factory.create_dashboard(name="Money", user=owner, is_draft=False)
+        self.factory.create_widget(
+            dashboard=dashboard, visualization=self.factory.create_visualization(query_rel=query)
+        )
+        models.db.session.commit()
+        text = self.text(self.call("find_dashboards", {"question": "revenue"}))
+        self.assertIn("Money", text)
+        self.assertIn("1 widgets", text)
+
+
+class TestOnlyReadsRunFromHere(McpTestCase):
+    """
+    Not the security boundary -- the database account's grants are -- but a
+    model should not delete anything by accident, and EXPLAIN should never
+    run what it was asked only to plan.
+    """
+
+    def call(self, name, sql):
+        body = self.post(rpc("tools/call", {"name": name, "arguments": {"sql": sql, "data_source": "pg"}}))
+        return json.loads(body.data)
+
+    def setUp(self):
+        super().setUp()
+        self.factory.data_source.name = "pg"
+        models.db.session.commit()
+        self.worker = mock.patch("sqldesk.mcp._on_a_worker", return_value=({"columns": [], "rows": []}, None))
+        self.ran = self.worker.start()
+        self.addCleanup(self.worker.stop)
+
+    def assertRefused(self, name, sql):
+        body = self.call(name, sql)
+        self.assertTrue(body["result"]["isError"], sql)
+        self.ran.assert_not_called()
+        return body["result"]["content"][0]["text"]
+
+    def test_a_write_is_refused(self):
+        self.assertIn("DELETE", self.assertRefused("run_query", "DELETE FROM orders"))
+
+    def test_a_second_statement_is_refused(self):
+        self.assertIn("One statement", self.assertRefused("run_query", "SELECT 1; DROP TABLE orders"))
+
+    def test_a_select_that_deletes_is_refused(self):
+        self.assertRefused("run_query", "WITH gone AS (DELETE FROM orders RETURNING *) SELECT * FROM gone")
+
+    def test_select_into_is_refused(self):
+        self.assertRefused("run_query", "SELECT * INTO copy_of_orders FROM orders")
+
+    def test_explain_analyze_is_refused(self):
+        # EXPLAIN ANALYZE DELETE deletes.
+        self.assertRefused("explain_query", "ANALYZE DELETE FROM orders")
+
+    def test_a_read_runs(self):
+        self.assertFalse(self.call("run_query", "SELECT id FROM orders")["result"]["isError"])
+        self.assertFalse(self.call("run_query", "SHOW search_path")["result"]["isError"])
+        self.assertEqual(2, self.ran.call_count)
+
+    def test_sql_the_parser_cannot_read_is_judged_by_its_first_word(self):
+        with mock.patch("sqldesk.mcp.sqlglot.parse", side_effect=ValueError("no")):
+            self.assertFalse(self.call("run_query", "select strange syntax")["result"]["isError"])
+            self.ran.reset_mock()
+            self.assertRefused("run_query", "VACUUM strange syntax")
+            self.assertRefused("run_query", "SELECT 1; VACUUM")
+
+    def test_a_python_data_source_is_not_a_models_to_run(self):
+        self.factory.data_source.type = "python"
+        models.db.session.commit()
+        self.assertIn("Python", self.assertRefused("run_query", "print(1)"))
+
+
+class TestLimits(McpTestCase):
+    def test_a_batch_has_a_ceiling(self):
+        batch = [rpc("ping", message_id=i) for i in range(11)]
+        response = self.post(batch)
+        self.assertEqual(400, response.status_code)
+        self.assertEqual(-32600, json.loads(response.data)["error"]["code"])
+
+    def test_an_empty_batch_is_not_a_request(self):
+        self.assertEqual(400, self.post([]).status_code)
+
+    def test_a_small_batch_is_answered(self):
+        body = json.loads(self.post([rpc("ping", message_id=1), rpc("ping", message_id=2)]).data)
+        self.assertEqual([1, 2], [reply["id"] for reply in body])
+
+    def test_arguments_must_be_an_object(self):
+        body = json.loads(self.post(rpc("tools/call", {"name": "find_context", "arguments": ["x"]})).data)
+        self.assertEqual(-32602, body["error"]["code"])
+
+    def test_enormous_sql_is_refused_before_it_is_parsed(self):
+        sql = "SELECT 1 -- " + "x" * 200000
+        with mock.patch("sqldesk.mcp.analyze") as analyze:
+            body = json.loads(self.post(rpc("tools/call", {"name": "check_sql", "arguments": {"sql": sql}})).data)
+        self.assertEqual(-32602, body["error"]["code"])
+        analyze.assert_not_called()
+
+    def test_expand_table_takes_a_bounded_list(self):
+        names = ["t{}".format(i) for i in range(21)]
+        body = json.loads(self.post(rpc("tools/call", {"name": "expand_table", "arguments": {"names": names}})).data)
+        self.assertEqual(-32602, body["error"]["code"])
+
+    def test_a_request_that_has_used_its_time_queues_nothing(self):
+        # A query nobody will wait for would still run, and cost the
+        # warehouse for nothing.
+        from sqldesk.mcp import _on_a_worker, time_budget
+
+        with mock.patch("sqldesk.tasks.queries.enqueue_query") as enqueue:
+            with time_budget(1):
+                result, error = _on_a_worker(self.factory.user, self.factory.data_source, "SELECT 1", timeout=45)
+        self.assertIsNone(result)
+        self.assertIn("used its time", error[0])
+        enqueue.assert_not_called()
+
+    def test_the_budget_stays_under_the_web_servers_timeout(self):
+        self.assertLess(settings.MCP_TIME_BUDGET, 60)

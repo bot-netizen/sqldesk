@@ -480,6 +480,11 @@ CATALOG_USAGE_WINDOW_HOURS = int(os.environ.get("SQLDESK_CATALOG_USAGE_WINDOW_HO
 # people waiting for a dashboard to load. Name a queue here and give it
 # workers of its own and it cannot.
 MCP_QUEUE = os.environ.get("SQLDESK_MCP_QUEUE", "")
+# How long one MCP request may spend waiting on workers, all its tool calls
+# together. Derived from gunicorn's own timeout, with room to answer: a wait
+# that outlives it kills the web worker mid-reply, and the client sees a
+# dropped connection rather than "still running".
+MCP_TIME_BUDGET = max(10, int(os.environ.get("SQLDESK_GUNICORN_TIMEOUT", "60")) - 10)
 
 # The provider, from the environment rather than the database.
 #
