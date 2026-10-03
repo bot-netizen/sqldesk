@@ -19,6 +19,7 @@ was restarted and a topic that was deleted without any of that being written
 out. What it costs is one line of hand-over and a lock.
 """
 
+import datetime
 import logging
 import os
 
@@ -252,17 +253,33 @@ def _roll_up_one(stream):
             models.db.session.commit()
             return 0
 
-        # The minute that has just finished, not the one in progress: a bucket
-        # written while its minute is still filling is a bucket that is wrong
-        # until it is rewritten, and nothing rewrites it.
-        sql = rollup.minute_sql(
-            group_by,
-            measures,
-            RECEIVED,
-            "date_trunc('minute', now()) - INTERVAL '1 minute'",
-        )
-        described = [row[0] for row in store.connection.execute("DESCRIBE {}".format(sql)).fetchall()]
-        rows = store.connection.execute(sql).fetchall()
+        # Every finished minute the window still holds that has no buckets
+        # yet -- not simply "the last minute".
+        #
+        # This used to roll up `now() - 1 minute` and nothing else, which meant
+        # a run that arrived late lost that minute for good: by the time it
+        # ran, the minute it would have read was two minutes back and nothing
+        # ever went looking for it again. The task is scheduled once a minute,
+        # so one busy worker was enough to leave a hole in the history. It was
+        # also why the test for this was intermittent -- the clock crossing a
+        # boundary mid-test is the same event as a late run.
+        #
+        # The minute in progress is still skipped: a bucket written while its
+        # minute is filling is wrong until it is rewritten, and nothing
+        # rewrites it.
+        wanted = _minutes_to_roll(store, stream)
+        rows = []
+        described = []
+        for minute in wanted:
+            sql = rollup.minute_sql(
+                group_by,
+                measures,
+                RECEIVED,
+                _literal(minute),
+                _literal(minute + MINUTE),
+            )
+            described = [row[0] for row in store.connection.execute("DESCRIBE {}".format(sql)).fetchall()]
+            rows.extend(store.connection.execute(sql).fetchall())
     finally:
         store.close()
 
@@ -291,6 +308,54 @@ def _roll_up_one(stream):
     return written
 
 
+#: How far back a late run will catch up. The window can hold a long stretch of
+#: a quiet topic, and re-reading all of it every minute would be work nobody
+#: asked for; a quarter of an hour covers a worker that was busy without
+#: turning this into a sweep.
+CATCHUP_MINUTES = 15
+
+MINUTE = datetime.timedelta(minutes=1)
+
+
+def _literal(moment):
+    """
+    A moment as DuckDB will read it back.
+
+    Rendered from a value DuckDB itself returned, so the round trip is
+    self-consistent -- `_received_at` is created from `now()` and is therefore
+    timestamptz, and the bounds have to be the same.
+    """
+    return "TIMESTAMPTZ '{}'".format(moment.isoformat())
+
+
+def _minutes_to_roll(store, stream):
+    """
+    The finished minutes this stream has events for and no buckets for.
+
+    Asked of the store rather than worked out from the clock: what is missing
+    is a fact about the two stores, not about what time it is now.
+    """
+    found = store.connection.execute(
+        "SELECT DISTINCT date_trunc('minute', {received}) AS minute FROM events "
+        "WHERE {received} < date_trunc('minute', now()) "
+        "ORDER BY 1 DESC LIMIT {limit}".format(received=RECEIVED, limit=CATCHUP_MINUTES)
+    ).fetchall()
+    minutes = sorted(row[0] for row in found)
+    if not minutes:
+        return []
+
+    already = {
+        row[0]
+        for row in models.db.session.query(models.StreamRollup.minute)
+        .filter(
+            models.StreamRollup.stream_id == stream.id,
+            models.StreamRollup.minute >= minutes[0],
+        )
+        .distinct()
+    }
+    return [minute for minute in minutes if minute not in already]
+
+
 def _this_minute():
     now = utcnow()
     return now.replace(second=0, microsecond=0)
@@ -309,8 +374,6 @@ def _plain(value):
 def _drop_old_rollups():
     if settings.STREAM_ROLLUP_HOURS <= 0:
         return 0
-    import datetime
-
     cutoff = utcnow() - datetime.timedelta(hours=settings.STREAM_ROLLUP_HOURS)
     removed = models.StreamRollup.query.filter(models.StreamRollup.minute < cutoff).delete()
     if removed:

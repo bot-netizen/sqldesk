@@ -248,7 +248,7 @@ class TestOneConsumerJob(StreamTaskTestCase):
 
 
 class TestTheRollup(StreamTaskTestCase):
-    def filled(self, **fields):
+    def filled(self, minutes_ago=1, **fields):
         stream = self.stream(group_by=["region"], measures=[{"name": "n", "kind": "count"}], **fields)
         store = Store(stream.store_path())
         self.addCleanup(store.close)
@@ -262,7 +262,8 @@ class TestTheRollup(StreamTaskTestCase):
         # flake that passed alone and failed in the full suite roughly half the
         # time, depending on nothing but when it happened to run.
         store.connection.execute(
-            "UPDATE events SET _received_at = date_trunc('minute', now()) - INTERVAL '30 seconds'"
+            "UPDATE events SET _received_at = date_trunc('minute', now()) "
+            "- INTERVAL '{} minutes' + INTERVAL '30 seconds'".format(minutes_ago)
         )
         store.close()
         return stream
@@ -346,6 +347,76 @@ class TestTheRollup(StreamTaskTestCase):
         ).scalar()
         self.assertEqual(0, aged)
         self.assertGreater(models.StreamRollup.query.filter_by(stream_id=stream.id).count(), 0)
+
+    def test_a_minute_a_late_run_missed_is_still_rolled_up(self):
+        """
+        The rollup used to read `now() - 1 minute` and nothing else.
+
+        A run that arrived late therefore read the wrong minute, and nothing
+        ever went back for the one it skipped: by the time anybody noticed,
+        the raw events had aged out of the window and that minute had no
+        buckets and never would. The task is scheduled once a minute, so a
+        worker busy for ninety seconds was enough to leave a hole in the
+        history.
+
+        It was also why `test_one_streams_failure_does_not_lose_the_others`
+        was intermittent in CI. The clock crossing a minute boundary
+        mid-test is the same event as a late run, and that test does twice
+        the setup, so it crossed roughly one run in three.
+        """
+        stream = self.filled(minutes_ago=3)
+
+        tasks.roll_up_streams()
+
+        self.assertGreater(models.StreamRollup.query.filter_by(stream_id=stream.id).count(), 0)
+
+    def test_but_never_the_minute_still_filling(self):
+        # A bucket written while its minute is still going is wrong until it
+        # is rewritten, and nothing rewrites it.
+        #
+        # Asserted on the minute list as well as on the result: the loop over
+        # rows refuses the current minute too, so a test that only counted
+        # buckets would pass with the window left wide open and would never
+        # notice the query being run for a minute that cannot produce one.
+        stream = self.filled(minutes_ago=0)
+
+        self.assertEqual([], tasks._minutes_to_roll(Store(stream.store_path(), read_only=True), stream))
+        tasks.roll_up_streams()
+
+        self.assertEqual(0, models.StreamRollup.query.filter_by(stream_id=stream.id).count())
+
+    def test_the_catch_up_reaches_back_only_so_far(self):
+        # A quiet topic's window can hold a long stretch of history, and
+        # re-reading all of it once a minute would be a sweep nobody asked
+        # for. The bound is on how far back a *late* run catches up, not on
+        # what is kept.
+        stream = self.filled(minutes_ago=1)
+        store = Store(stream.store_path())
+        self.addCleanup(store.close)
+        store.append(events(*[{"region": "eu"} for _ in range(30)]))
+        # One row per minute, going back thirty.
+        store.connection.execute(
+            "UPDATE events SET _received_at = date_trunc('minute', now()) "
+            "- INTERVAL '1 minute' * (rowid % 30 + 1) + INTERVAL '30 seconds'"
+        )
+        store.close()
+
+        minutes = tasks._minutes_to_roll(Store(stream.store_path(), read_only=True), stream)
+
+        self.assertEqual(tasks.CATCHUP_MINUTES, len(minutes))
+
+    def test_a_minute_already_rolled_up_is_not_read_again(self):
+        # The catch-up reads every finished minute the window holds, which on
+        # a quiet topic is a long stretch. Doing that every minute would be
+        # work nobody asked for.
+        stream = self.filled(minutes_ago=3)
+        tasks.roll_up_streams()
+        before = models.StreamRollup.query.filter_by(stream_id=stream.id).count()
+
+        self.assertEqual([], tasks._minutes_to_roll(Store(stream.store_path(), read_only=True), stream))
+        tasks.roll_up_streams()
+
+        self.assertEqual(before, models.StreamRollup.query.filter_by(stream_id=stream.id).count())
 
     def test_one_streams_failure_does_not_lose_the_others(self):
         broken = self.filled()

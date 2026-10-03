@@ -91,7 +91,7 @@ def _aggregate(measure):
     return template.format(column='"{}"'.format(measure["column"])) if "{column}" in template else template
 
 
-def minute_sql(group_by, measures, received_column, since_expression):
+def minute_sql(group_by, measures, received_column, since_expression, until_expression=None):
     """
     The query that produces one minute's buckets.
 
@@ -115,13 +115,22 @@ def minute_sql(group_by, measures, received_column, since_expression):
     aggregates = ", ".join('{} AS "{}"'.format(_aggregate(measure), measure["name"]) for measure in measures)
     minute = "date_trunc('minute', {})".format(received_column)
 
+    # An upper bound, when the caller wants exactly one minute. The cap on
+    # groups is computed over whatever this window holds, so a query spanning
+    # ten minutes would pick the busiest groups *of those ten* and sweep a
+    # group that was busy in only one of them into `other`. Bounding the query
+    # keeps the cap meaning what it says: the busiest groups of that minute.
+    window = "{received} >= {since}".format(received=received_column, since=since_expression)
+    if until_expression is not None:
+        window += " AND {received} < {until}".format(received=received_column, until=until_expression)
+
     if not group_by:
         # No grouping: one row a minute, and no tail to cap.
         return (
             "SELECT {minute} AS minute, {aggregates}, false AS is_other "
-            "FROM events WHERE {received} >= {since} "
+            "FROM events WHERE {window} "
             "GROUP BY 1 ORDER BY 1"
-        ).format(minute=minute, aggregates=aggregates, received=received_column, since=since_expression)
+        ).format(minute=minute, aggregates=aggregates, window=window)
 
     quoted = ['"{}"'.format(column) for column in group_by]
     keys = ", ".join(quoted)
@@ -145,7 +154,7 @@ def minute_sql(group_by, measures, received_column, since_expression):
 
     return (
         "WITH windowed AS ("
-        " SELECT {minute} AS minute, * EXCLUDE ({received}) FROM events WHERE {received} >= {since}"
+        " SELECT {minute} AS minute, * EXCLUDE ({received}) FROM events WHERE {window}"
         "), top AS ("
         " SELECT {keys}, true AS matched FROM windowed GROUP BY {keys}"
         " ORDER BY count(*) DESC LIMIT {cap}"
@@ -159,7 +168,7 @@ def minute_sql(group_by, measures, received_column, since_expression):
     ).format(
         minute=minute,
         received=received_column,
-        since=since_expression,
+        window=window,
         keys=keys,
         cap=MAX_GROUPS,
         labels=labels,

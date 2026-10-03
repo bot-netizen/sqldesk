@@ -29,8 +29,8 @@ class RollupTestCase(TestCase):
         self.store.close()
         shutil.rmtree(self.folder, ignore_errors=True)
 
-    def run_rollup(self, group_by, measures, since="now() - INTERVAL '1 hour'"):
-        sql = rollup.minute_sql(group_by, measures, RECEIVED, since)
+    def run_rollup(self, group_by, measures, since="now() - INTERVAL '1 hour'", until=None):
+        sql = rollup.minute_sql(group_by, measures, RECEIVED, since, until)
         described = [row[0] for row in self.store.connection.execute("DESCRIBE {}".format(sql)).fetchall()]
         rows = self.store.connection.execute(sql).fetchall()
         return [dict(zip(described, row)) for row in rows]
@@ -298,3 +298,48 @@ class TestTheCardinalityCap(RollupTestCase):
 
         kept = {row["user"] for row in rows if not row["is_other"]}
         self.assertEqual({"busy", "medium"}, kept)
+
+
+class TestOneMinuteAtATime(RollupTestCase):
+    """
+    The query can be bounded above, and the rollup bounds it.
+
+    The cap on groups is computed over whatever the query reads: the busiest
+    `MAX_GROUPS` of that window, with the rest swept into `other`. A query
+    spanning ten minutes would therefore pick the busiest groups *of those ten*
+    and could sweep a group that was busy in only one of them into the tail --
+    so a chart of that minute would show the group missing and the tail larger,
+    with nothing to say why.
+
+    The rollup reads the finished minutes it is missing one at a time for this
+    reason, which is only worth the extra queries if the bound actually bounds.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.append(events({"region": "eu"}, {"region": "eu"}, {"region": "us"}))
+        # Half the rows into the minute before last, half into the last one.
+        self.store.connection.execute(
+            "UPDATE events SET {} = date_trunc('minute', now()) - INTERVAL '2 minutes' + INTERVAL '30 seconds' "
+            "WHERE region = 'us'".format(RECEIVED)
+        )
+        self.store.connection.execute(
+            "UPDATE events SET {} = date_trunc('minute', now()) - INTERVAL '1 minute' + INTERVAL '30 seconds' "
+            "WHERE region = 'eu'".format(RECEIVED)
+        )
+
+    def test_without_an_upper_bound_both_minutes_come_back(self):
+        rows = self.run_rollup(["region"], [{"name": "n", "kind": "count"}])
+
+        self.assertEqual(2, len({row["minute"] for row in rows}))
+
+    def test_and_with_one_only_the_minute_asked_for_does(self):
+        rows = self.run_rollup(
+            ["region"],
+            [{"name": "n", "kind": "count"}],
+            since="date_trunc('minute', now()) - INTERVAL '2 minutes'",
+            until="date_trunc('minute', now()) - INTERVAL '1 minute'",
+        )
+
+        self.assertEqual(1, len({row["minute"] for row in rows}))
+        self.assertEqual(["us"], [row["region"] for row in rows])
