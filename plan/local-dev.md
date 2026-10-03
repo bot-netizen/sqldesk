@@ -56,6 +56,44 @@ then `docker build --build-arg skip_frontend_build=true` for a base image and
 a two-line Dockerfile that copies `client/dist` onto it. `client/dist` is in
 `.dockerignore`, so the copy needs its own scratch build context.
 
+## A built image can run code that is not in the repository
+
+**Fixed on 2026-10-03, and worth knowing about because the symptom is
+unfalsifiable from the outside.** `.dockerignore` listed `*.pyc` and
+`__pycache__/`; Docker matches those against the **context root only**, unlike
+.gitignore, so every nested `sqldesk/**/__pycache__` was being copied in.
+
+The reason that mattered here and not elsewhere: `compose.yaml` mounts the
+repository at `/app`, which is also where the image puts it. A `.pyc` written
+by a local test run therefore records `/app/...` as its source path and is
+accepted as valid *inside the image*, where Python loads it in preference to
+the `.py` beside it.
+
+It cost most of an afternoon. A mutation-testing run had changed
+`Dashboard.is_streaming` to `self.kind != "streaming"`, compiled it, and
+restored the source seconds later; the image built afterwards had source
+saying `==` and bytecode saying `!=`. Reading the file, the pod, the database
+and the API all agreed the code was right. Only disassembling the live
+function showed it:
+
+```python
+import dis, sqldesk.models as m
+dis.dis(m.Dashboard.is_streaming.fget)   # COMPARE_OP (!=)
+```
+
+**If a locally built image behaves in a way the source cannot explain, check
+the bytecode before anything else.** Whether an image carries any at all:
+
+```bash
+docker run --rm --entrypoint sh sqldesk:TAG -c \
+  "find /app \( -name '__pycache__' -o -name '*.pyc' \) | wc -l"
+```
+
+It should be `0`. The Dockerfile deletes them after `COPY` now, and
+`tests/test_build_hygiene.py` holds both that and the `.dockerignore`
+patterns. Published images were never affected: CI builds from a fresh
+checkout, which has no `__pycache__`.
+
 ## The Kafka demo stack
 
 `redpanda`, `orders-producer` and `payments-producer` deployments, with topics
