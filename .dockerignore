@@ -51,12 +51,35 @@ client/cypress/screenshots
 client/cypress/videos
 /test_orders.parquet
 
+# --- compiled bytecode, at any depth ---
+#
+# `*.pyc` and `__pycache__/` on their own match only the context root. Docker
+# does not read a bare name as "anywhere" the way .gitignore does, so every
+# nested __pycache__ was shipping -- and a .pyc wins over its .py whenever the
+# recorded source mtime still matches, which it does after a file is restored
+# in the same second it was changed.
+#
+# On 2026-10-03 that put a *mutant* into a built image: a mutation-testing run
+# had briefly changed `Dashboard.is_streaming` to `self.kind != "streaming"`,
+# the run compiled it, the source was restored, and the image shipped source
+# that said `==` with bytecode that said `!=`. A streaming dashboard reported
+# itself as ordinary, and the Add Widget picker then offered the wrong half of
+# the queries. Nothing in the repository was wrong.
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+
+# --- agent scratch space ---
+#
+# `.claude/` held a full git worktree -- a second copy of the project, 17 MB,
+# inside every published image.
+.claude/
+.wolf/
+
 # --- editor and OS noise ---
 .idea
 .vscode
 .DS_Store
-*.pyc
-__pycache__/
 npm-debug.log
 .tool-versions
 .#*

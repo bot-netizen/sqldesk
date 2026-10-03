@@ -134,6 +134,12 @@ RUN --mount=type=cache,target=/root/.cache/uv,id=uv-${TARGETPLATFORM} <<EOF
 EOF
 
 COPY --chown=sqldesk . /app
+# Belt and braces over .dockerignore, which excludes these too. A stale .pyc
+# is loaded in preference to its own source whenever the mtime it recorded
+# still matches, so one that slips in does not announce itself: the code that
+# runs is not the code in the image, and nothing says so. One line here means
+# the image cannot carry bytecode it did not compile itself.
+RUN find /app -name '__pycache__' -type d -prune -exec rm -rf {} + && find /app -name '*.py[co]' -delete
 COPY --from=frontend-builder --chown=sqldesk /frontend/client/dist /app/client/dist
 RUN chown sqldesk /app
 
