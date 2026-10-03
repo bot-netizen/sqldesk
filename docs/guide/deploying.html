@@ -249,12 +249,62 @@ to the release it was written for.</p>
 which address the login throttle and the audit log see.</p>
 
 <h2 id="upgrading">Upgrading</h2>
-<pre><code># .env: SQLDESK_IMAGE=ghcr.io/bot-netizen/sqldesk:0.6.0
+<pre><code># .env: SQLDESK_IMAGE=ghcr.io/bot-netizen/sqldesk:0.7.0-rc.1
 docker compose -f compose.prod.yaml pull
 docker compose -f compose.prod.yaml run --rm server manage db upgrade
 docker compose -f compose.prod.yaml up -d</code></pre>
 <p>Migrations before the new server takes traffic. Release notes call out any migration that rewrites data
 rather than adding to it. The chart does this itself, as a hook that runs before anything else changes.</p>
+
+<h3 id="upgrading-to-0-7">0.6 &rarr; 0.7</h3>
+<p>One migration, one default that changed, and one thing you have to ask for.</p>
+
+<p><strong>Docker Compose.</strong> Pin the image, migrate, then start:</p>
+<pre><code># .env
+SQLDESK_IMAGE=ghcr.io/bot-netizen/sqldesk:0.7.0-rc.1
+
+docker compose -f compose.prod.yaml pull
+docker compose -f compose.prod.yaml run --rm server manage db upgrade
+docker compose -f compose.prod.yaml up -d</code></pre>
+
+<p><strong>Helm.</strong> The chart migrates itself, in a hook that runs before anything else changes:</p>
+<pre><code>helm upgrade sqldesk ./charts/sqldesk --reuse-values \
+  --set image.tag=0.7.0-rc.1</code></pre>
+
+<div class="note">
+  <div class="note-h">If people upload files, say so on the command line</div>
+  <p><code>uploads.enabled</code> defaulted to <strong>true</strong> in 0.6 and defaults to
+  <strong>false</strong> in 0.7, so that an install which never uploads anything carries no volume and
+  its workers are free to schedule anywhere. An install that was using the default therefore has nothing
+  for <code>--reuse-values</code> to carry forward, and the upgrade turns uploads off: the volume stops
+  being mounted, and an upload fails.</p>
+  <p><strong>The files themselves are safe</strong> &mdash; the claim is annotated
+  <code>helm.sh/resource-policy: keep</code>, so Helm leaves it alone &mdash; and adding
+  <code>--set uploads.enabled=true</code> brings it back exactly as it was. Add it to the upgrade if
+  anyone uses uploads:</p>
+  <pre><code>helm upgrade sqldesk ./charts/sqldesk --reuse-values \
+  --set image.tag=0.7.0-rc.1 \
+  --set uploads.enabled=true</code></pre>
+</div>
+
+<p><strong>The migration</strong> adds <code>kind</code> to dashboards and fills it in with the rule 0.6
+applied when reading: a dashboard with a streaming panel becomes a streaming dashboard, everything else an
+ordinary one. <strong>No dashboard changes which list it appears in.</strong> It is reversible; the
+downgrade drops the column.</p>
+
+<p><strong>Streams are off until you ask for them</strong> &mdash; <code>streams.enabled=true</code> in the
+chart, or <code>SQLDESK_STREAMS_ENABLED=true</code> with a stream worker on Compose. Left off, the Streams
+permissions are offered to nobody, the streaming halves of the Queries and Dashboards menus are not drawn,
+and the Settings tab for topics is not there. See <a href="streams.html">Streams</a>.</p>
+
+<p><strong>Nothing else changes an existing dashboard, query or data source.</strong> The navigation moved
+&mdash; streaming is a half of Queries and a half of Dashboards rather than a section of its own &mdash;
+and the four <code>/streams/&hellip;</code> URLs from the old menu redirect to where those pages live now,
+so links people have already sent each other still work.</p>
+
+<p><strong>Rolling back to 0.6</strong> means putting the old image back and running
+<code>manage db downgrade</code> once. Dashboards lose the <code>kind</code> column and 0.6 works out the
+kind from the widgets again, as it did before.</p>
 
 <h2 id="kubernetes">Kubernetes</h2>
 <p>A Helm chart is in <code>charts/sqldesk</code>. It generates the two secrets on first install and keeps

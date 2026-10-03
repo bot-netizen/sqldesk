@@ -75,9 +75,10 @@ streams:
   # below, which is where a topic's window is written.
   #
   # Off also tells the application: the Streams permissions stop being
-  # offered, the Kafka Streams menu is not drawn, and the endpoints behind it
-  # refuse. The alternative is a menu that leads to pages which quietly never
-  # fill, because nothing is taking from the `streams` queue.
+  # offered, the streaming halves of the Queries and Dashboards menus are not
+  # drawn, and the endpoints behind them refuse. The alternative is a menu
+  # that leads to pages which quietly never fill, because nothing is taking
+  # from the `streams` queue.
   enabled: false
   # Kafka consumers get workers of their own, and they have to.
   #
