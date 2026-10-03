@@ -300,7 +300,11 @@ class TestADashboardIsOneKindOrTheOther(BaseTestCase):
     def test_a_dashboard_with_no_widgets_is_not_streaming(self):
         self.assertFalse(self.factory.create_dashboard().is_streaming)
 
-    def test_the_first_widget_decides_what_it_is(self):
+    def test_an_ordinary_dashboard_takes_an_ordinary_panel(self):
+        # Named for the rule as it now is. The first widget used to *decide*
+        # the kind, because the kind was worked out from the widgets; it is
+        # declared when the dashboard is made, and the widget is merely
+        # allowed or refused against it.
         dashboard = self.factory.create_dashboard()
 
         self.assertEqual(200, self.widget_on(dashboard, self.factory.data_source).status_code)

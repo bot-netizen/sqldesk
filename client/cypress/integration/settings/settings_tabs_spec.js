@@ -14,6 +14,18 @@ describe("Settings Tabs", () => {
       expect(listedPages).to.have.members(expectedTabs);
     });
 
+  /*
+    Settings is a named menu in the top row, not a gear on the right.
+
+    It moved there because what it holds depends entirely on who you are: an
+    administrator sees data sources, groups and the organisation's settings,
+    and everybody else sees their own account and their snippets. An icon
+    cannot say that. These specs used to click `SettingsLink`, the gear, which
+    went straight to the first page the person was allowed to open.
+  */
+  const openSettingsMenu = () => cy.getByTestId("SettingsMenuButton").click();
+  const settingsMenuItems = () => cy.get(".desktop-navbar-dropdown-menu a");
+
   before(() => {
     cy.login().then(() => cy.createUser(regularUser));
   });
@@ -25,12 +37,19 @@ describe("Settings Tabs", () => {
       cy.visit("/");
     });
 
-    it("settings link should lead to Data Sources settings", () => {
-      cy.getByTestId("SettingsLink").should("exist").should("have.attr", "href", "data_sources");
+    it("the menu opens on the pages an administrator may see", () => {
+      openSettingsMenu();
+      settingsMenuItems().should("contain.text", "Data Sources");
+    });
+
+    it("and goes to the one it is clicked on", () => {
+      openSettingsMenu();
+      settingsMenuItems().contains("Data Sources").click();
+      cy.url().should("include", "/data_sources");
     });
 
     it("all tabs should be available", () => {
-      cy.getByTestId("SettingsLink").click();
+      cy.visit("/data_sources");
       expectSettingsTabsToBe([...userTabs, ...adminTabs]);
     });
   });
@@ -42,12 +61,14 @@ describe("Settings Tabs", () => {
       cy.visit("/");
     });
 
-    it("settings link should lead to Users settings", () => {
-      cy.getByTestId("SettingsLink").should("exist").should("have.attr", "href", "users");
+    it("the menu offers only what they may open", () => {
+      openSettingsMenu();
+      settingsMenuItems().should("contain.text", "Account");
+      settingsMenuItems().should("not.contain.text", "Data Sources");
     });
 
     it("limited set of settings tabs should be available", () => {
-      cy.getByTestId("SettingsLink").click();
+      cy.visit("/users/me");
       expectSettingsTabsToBe(userTabs);
     });
   });
