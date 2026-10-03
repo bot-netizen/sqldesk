@@ -1,0 +1,137 @@
+# A Kafka broker and two producers, for trying streams out.
+#
+#   kubectl apply -f examples/kafka-demo.yaml
+#
+# Gives you a `redpanda` broker at redpanda:9092 and two topics with something
+# always arriving on them: `orders` (order_id, region, item, amount) and
+# `payments` (payment_id, method, amount), one message a second each.
+#
+# Add it in SQLDesk as a data source of type **Kafka stream** with the broker
+# `redpanda:9092`, then turn the topics on under
+# Settings -> Streaming Data Sources.
+#
+# This is a toy. Redpanda is run with one core, half a gigabyte and
+# `--check=false` so it starts on a laptop; nothing here is a way to run Kafka.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redpanda-data
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda
+spec:
+  selector:
+    app: redpanda
+  ports:
+    - name: kafka
+      port: 9092
+      targetPort: 9092
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redpanda
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redpanda
+  template:
+    metadata:
+      labels:
+        app: redpanda
+    spec:
+      containers:
+        - name: redpanda
+          image: redpandadata/redpanda:v24.2.7
+          args:
+            - redpanda
+            - start
+            - --smp=1
+            - --memory=512M
+            - --overprovisioned
+            - --node-id=0
+            - --check=false
+            - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+            - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+          ports:
+            - containerPort: 9092
+          volumeMounts:
+            # Without this, every node restart loses the topics -- and the
+            # symptom is the nasty one: consumers run with no error and no
+            # rows, which looks exactly like a bug in SQLDesk.
+            - name: data
+              mountPath: /var/lib/redpanda/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: redpanda-data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orders-producer
+  template:
+    metadata:
+      labels:
+        app: orders-producer
+    spec:
+      containers:
+        - name: producer
+          image: redpandadata/redpanda:v24.2.7
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              i=0
+              while true; do
+                i=$((i+1))
+                region=$(awk -v n=$i 'BEGIN{split("east,west,north,south",r,",");print r[(n%4)+1]}')
+                item=$(awk -v n=$i 'BEGIN{split("widget,gasket,flange,bolt",r,",");print r[(n%4)+1]}')
+                amount=$(awk -v n=$i 'BEGIN{printf "%.2f", 10 + (n*7)%240}')
+                echo "{\"order_id\":$i,\"region\":\"$region\",\"item\":\"$item\",\"amount\":$amount}" \
+                  | rpk topic produce orders --brokers redpanda:9092 >/dev/null 2>&1
+                sleep 1
+              done
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payments-producer
+  template:
+    metadata:
+      labels:
+        app: payments-producer
+    spec:
+      containers:
+        - name: producer
+          image: redpandadata/redpanda:v24.2.7
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              i=0
+              while true; do
+                i=$((i+1))
+                method=$(awk -v n=$i 'BEGIN{split("card,bank,wallet,cash",r,",");print r[(n%4)+1]}')
+                amount=$(awk -v n=$i 'BEGIN{printf "%.2f", 5 + (n*11)%300}')
+                echo "{\"payment_id\":$i,\"method\":\"$method\",\"amount\":$amount}" \
+                  | rpk topic produce payments --brokers redpanda:9092 >/dev/null 2>&1
+                sleep 1
+              done

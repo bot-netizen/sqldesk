@@ -306,6 +306,46 @@ so links people have already sent each other still work.</p>
 <code>manage db downgrade</code> once. Dashboards lose the <code>kind</code> column and 0.6 works out the
 kind from the widgets again, as it did before.</p>
 
+<h2 id="everything-on">Everything on, for trying it out</h2>
+<p>Each add-on is off so that an install pays for nothing it does not use. To see all of them at once
+&mdash; on a laptop, with nothing real attached &mdash; turn them all on together:</p>
+<pre><code>helm upgrade --install sqldesk ./charts/sqldesk \
+  --set image.tag=0.7.0-rc.1 \
+  --set streams.enabled=true \
+  --set mcp.enabled=true \
+  --set uploads.enabled=true \
+  --set rendering.enabled=true</code></pre>
+<p>That adds a stream worker, an MCP worker, the shared volume, and the headless browser that draws
+pictures for alert emails. On a four-core laptop it is comfortable; see
+<a href="#sizing">How much machine you need</a> for what each part asks for.</p>
+
+<p><strong>Streams need something to consume.</strong> There is a toy broker in the repository &mdash;
+one Redpanda node and two producers, a message a second each on <code>orders</code> and
+<code>payments</code>:</p>
+<pre><code>kubectl apply -f examples/kafka-demo.yaml</code></pre>
+<p>Then add a data source of type <strong>Kafka stream</strong> with the broker
+<code>redpanda:9092</code>, and turn the topics on under
+<strong>Settings &rarr; Streaming Data Sources</strong>. An administrator may use every feature the
+install offers without granting anything; for everybody else the permissions are handed out per group
+under <strong>Settings &rarr; Groups</strong>.</p>
+
+<div class="note">
+  <div class="note-h">Streams are Kubernetes-only in 0.7</div>
+  <p><code>compose.prod.yaml</code> has no stream worker and its worker does not take from the
+  <code>streams</code> queue, so a Compose install cannot consume a topic however the environment is set.
+  Everything else &mdash; MCP, uploads, the renderer &mdash; runs there: uploads need no switch at all,
+  and the other two are profiles.</p>
+<pre><code># .env
+SQLDESK_FEATURE_AI=true
+SQLDESK_MCP_QUEUE=mcp
+SQLDESK_FEATURE_ALERT_SCREENSHOTS=true
+SQLDESK_SCREENSHOT_URL=http://screenshots:3000
+SQLDESK_INTERNAL_BASE_URL=http://server:5000
+SQLDESK_SCREENSHOT_TOKEN=a-random-string
+
+docker compose -f compose.prod.yaml --profile mcp --profile rendering up -d</code></pre>
+</div>
+
 <h2 id="kubernetes">Kubernetes</h2>
 <p>A Helm chart is in <code>charts/sqldesk</code>. It generates the two secrets on first install and keeps
 them on every upgrade after, so do not pass them on the command line: a second
