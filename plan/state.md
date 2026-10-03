@@ -16,7 +16,11 @@ alerts and the permission model came with it and were built on, not rewritten.
 
 ## In flight: 0.7 — Kafka Streams
 
-On `release/0.7`, pushed, CI green. Not tagged.
+**`v0.7.0-rc.1` released 3 Oct 2026**, as a pre-release. Tag, images for both
+platforms, GitHub release. CI green on all five jobs including the end-to-end
+suite, and the published image smoke-tested through `compose.prod.yaml`.
+
+On `release/0.7`. Not merged to `main`, which is still at 0.5.0.
 
 Built and verified:
 
@@ -45,13 +49,20 @@ Built and verified:
   each off until asked for.
 - **Half the initial load**: 931 → 525 KB gzipped, held by a CI budget.
 
-Left before 0.7 can be tagged:
+Left before 0.7.0 final:
 
+- Iqbal's testing pass on the rc.
 - A read-through of `docs/guide/streams.html` and `docs/guide/dashboards.html`
   to confirm the prose matches what shipped. Both have the right sections.
-- Version bump in the seven places, changelog entry, tag
-  `SQLDesk 0.7.0 — Kafka Streams`. See [conventions.md](conventions.md).
 - Two things need Iqbal — see [open-questions.md](open-questions.md).
+- Merge to `main` once the final is cut.
+
+Known limits of 0.7, recorded so they are not rediscovered:
+
+- **Streams are Kubernetes-only.** `compose.prod.yaml` has no stream worker
+  and its worker does not take from the `streams` queue.
+- **No archived-dashboards list.** Archiving hides a dashboard everywhere and
+  there is nothing that shows what was hidden. In [0.8-plan.md](0.8-plan.md).
 
 ## Next: 0.8 — Notebooks
 
