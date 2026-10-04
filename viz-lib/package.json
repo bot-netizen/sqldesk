@@ -1,6 +1,6 @@
 {
   "name": "@sqldesk/viz",
-  "version": "0.7.0-rc.1",
+  "version": "0.7.0",
   "description": "SQLDesk visualizations",
   "main": "lib/index.js",
   "module": "esm/index.js",

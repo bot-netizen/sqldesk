@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.7.0
+
+Two faults in alert attachments, both of which made a picture fail silently --
+a failed render is meant to cost the picture and not the alert, which is right,
+and is also what let these survive.
+
+**Chromium could not resolve the address the renderer was given.** The chart
+pointed it at the Service's short name, `http://sqldesk:5000`, which every
+other client in the cluster resolves and the browser does not: Python in the
+renderer's own container gets a 200 from that URL and Chromium fails it with
+`ERR_NAME_NOT_RESOLVED`. **Every screenshot on Kubernetes timed out.** Both
+ends take the fully qualified name from one helper now -- the worker that
+builds the URL, and the renderer that refuses anything which is not the SQLDesk
+it serves.
+
+**A render pass could fetch a query but not the query's result.** The result
+endpoint checks access to the *data source*, and a pass knew only about the
+object it names and the queries drawn on a named dashboard. So a query
+attachment fetched the query, was refused its stored result, and the page sat
+loading until the renderer gave up: **every query attachment ever added to an
+alert was blank.** Dashboards were unaffected, because the public dashboard
+handler serves each widget's data itself.
+
+Verified end to end on a cluster this time: an alert fired with a dashboard and
+a query attached arrives with both pictures inline.
+
+Nothing else changed since 0.7.0-rc.1.
+
 ## 0.7.0-rc.1
 
 Kafka topics you can query, with the same editor, the same visualizations and
