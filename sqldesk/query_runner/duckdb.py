@@ -335,9 +335,7 @@ class DuckDB(BaseSQLQueryRunner):
         try:
             cursor = self.con.cursor()
             cursor.execute(query)
-            columns = self.fetch_columns(
-                [(d[0], _duckdb_type(d[1])) for d in cursor.description]
-            )
+            columns = self.fetch_columns([(d[0], _duckdb_type(d[1])) for d in cursor.description])
             rows = [dict(zip((col["name"] for col in columns), row)) for row in cursor.fetchall()]
             data = {"columns": columns, "rows": rows}
             return data, None
