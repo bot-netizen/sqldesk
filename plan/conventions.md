@@ -67,6 +67,13 @@ workflows.
   ```
 
   2312 passed / 10 skipped that way, against 2305 / 17 without it.
+- **Never run the suite as root.** `docker compose run --user root` is tempting
+  when you need a `pip install` first, and it fails two tests for reasons that
+  have nothing to do with your change: `test_connection_bad_test` expects
+  sqlite to be unable to open `/notexist.db`, and root creates it, and
+  `test_an_unwritable_directory_is_said_plainly` expects a chmod to mean
+  something. Both pass as the `sqldesk` user. Install into a `--target`
+  directory and set `PYTHONPATH` instead, or rebuild.
 - **Never run two backend suites at once** — both `create_all`/`drop_all` the
   same database and the second fails 152 tests in a way that looks like a code
   fault.
