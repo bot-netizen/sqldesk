@@ -92,10 +92,52 @@ class Prometheus(BaseQueryRunner):
         else:
             cert = ()
 
-        return {
+        kwargs = {
             "verify": verify,
             "cert": cert,
         }
+
+        auth = self._get_auth()
+        if auth is not None:
+            kwargs["auth"] = auth
+
+        headers = self._get_extra_headers()
+        if headers:
+            kwargs["headers"] = headers
+
+        return kwargs
+
+    def _get_auth(self):
+        username = self.configuration.get("username")
+        password = self.configuration.get("password")
+        if username and password:
+            return (username, password)
+        return None
+
+    def _get_extra_headers(self):
+        """Headers for every request: a bearer token, then whatever else was typed.
+
+        Prometheus itself needs none of this. Everything that speaks its API and is
+        not Prometheus does: Mimir wants a tenant, Thanos and Cortex sit behind
+        gateways, and a Prometheus behind an auth proxy wants a token. Without it the
+        only credential this runner could carry was a TLS client certificate.
+        """
+        headers = {}
+
+        token = self.configuration.get("bearer_token")
+        if token:
+            headers["Authorization"] = "Bearer {}".format(token.strip())
+
+        for line in (self.configuration.get("extra_headers") or "").splitlines():
+            line = line.strip()
+            if not line or ":" not in line:
+                continue
+            name, _, value = line.partition(":")
+            name = name.strip()
+            if name:
+                headers[name] = value.strip()
+
+        return headers
 
     def _create_cert_file(self, key):
         cert_file_name = None
@@ -118,6 +160,12 @@ class Prometheus(BaseQueryRunner):
             if os.path.exists(cert_file):
                 os.remove(cert_file)
 
+    @property
+    def api_base_url(self):
+        """Where the Prometheus HTTP API lives. Subclasses that serve it under a
+        prefix -- Mimir does -- override this rather than every caller."""
+        return (self.configuration.get("url") or "").rstrip("/")
+
     @classmethod
     def configuration_schema(cls):
         # files has to end with "File" in name
@@ -133,10 +181,26 @@ class Prometheus(BaseQueryRunner):
                 "cert_File": {"type": "string", "title": "SSL Client Certificate", "default": None},
                 "cert_key_File": {"type": "string", "title": "SSL Client Key", "default": None},
                 "ca_cert_File": {"type": "string", "title": "SSL Root Certificate", "default": None},
+                "username": {"type": "string", "title": "HTTP Basic Auth Username"},
+                "password": {"type": "string", "title": "HTTP Basic Auth Password"},
+                "bearer_token": {"type": "string", "title": "Bearer Token"},
+                "extra_headers": {
+                    "type": "string",
+                    "title": "Extra Headers (one Name: value per line)",
+                },
             },
             "required": ["url"],
-            "secret": ["cert_File", "cert_key_File", "ca_cert_File"],
-            "extra_options": ["verify_ssl", "cert_File", "cert_key_File", "ca_cert_File"],
+            "secret": ["cert_File", "cert_key_File", "ca_cert_File", "password", "bearer_token"],
+            "extra_options": [
+                "verify_ssl",
+                "cert_File",
+                "cert_key_File",
+                "ca_cert_File",
+                "username",
+                "password",
+                "bearer_token",
+                "extra_headers",
+            ],
         }
 
     def test_connection(self):
@@ -157,7 +221,7 @@ class Prometheus(BaseQueryRunner):
         schema = []
         promehteus_kwargs = {}
         try:
-            base_url = self.configuration["url"]
+            base_url = self.api_base_url
             metrics_path = "/api/v1/label/__name__/values"
             promehteus_kwargs = self._get_prometheus_kwargs()
 
@@ -195,7 +259,7 @@ class Prometheus(BaseQueryRunner):
             query=http_requests_total&start=2018-01-20T00:00:00.000Z&end=now&step=60s
         """
 
-        base_url = self.configuration["url"]
+        base_url = self.api_base_url
         columns = [
             {"friendly_name": "timestamp", "type": TYPE_DATETIME, "name": "timestamp"},
             {"friendly_name": "value", "type": TYPE_STRING, "name": "value"},
@@ -259,3 +323,77 @@ class Prometheus(BaseQueryRunner):
 
 
 register(Prometheus)
+
+
+class Mimir(Prometheus):
+    """Grafana Mimir, which answers PromQL at a Prometheus-compatible API.
+
+    Two things stop the Prometheus runner from reaching a real Mimir, and both are
+    handled here rather than left as instructions nobody reads:
+
+    * Mimir serves the Prometheus API under a prefix, `/prometheus` by default, so
+      a URL without one produces 404s from every query.
+    * With `-auth.enabled` -- which is the default, and every multi-tenant install --
+      a request without `X-Scope-OrgID` is refused. The tenant is not an optional
+      extra; it is the thing that decides which data you are asking about.
+    """
+
+    @classmethod
+    def type(cls):
+        return "mimir"
+
+    @classmethod
+    def name(cls):
+        return "Grafana Mimir"
+
+    @classmethod
+    def configuration_schema(cls):
+        schema = super().configuration_schema()
+        schema["properties"]["url"]["title"] = "Mimir URL (the /prometheus prefix is added for you)"
+        schema["properties"]["org_id"] = {
+            "type": "string",
+            "title": "Tenant ID (sent as X-Scope-OrgID)",
+        }
+        schema["order"] = ["url", "org_id"]
+        schema["required"] = ["url", "org_id"]
+        return schema
+
+    @property
+    def api_base_url(self):
+        """Mimir's Prometheus API lives under a prefix; accept a URL with or without it."""
+        url = (self.configuration.get("url") or "").rstrip("/")
+        prefix = (self.configuration.get("prometheus_prefix") or "/prometheus").strip("/")
+        if url.endswith("/" + prefix):
+            return url
+        return "{}/{}".format(url, prefix)
+
+    def test_connection(self):
+        """Ask the query API, not the root URL.
+
+        `GET /prometheus` on Mimir is not dependably a 200, and a bare `requests.get`
+        against a gateway happily succeeds on a welcome page -- which is how you get a
+        data source that tests fine and cannot answer a query.
+        """
+        prometheus_kwargs = {}
+        try:
+            prometheus_kwargs = self._get_prometheus_kwargs()
+            response = requests.get(
+                self.api_base_url + "/api/v1/query",
+                params={"query": "1"},
+                **prometheus_kwargs,
+            )
+            response.raise_for_status()
+            return response.json().get("status") == "success"
+        finally:
+            self._cleanup_cert_files(prometheus_kwargs)
+
+    def _get_extra_headers(self):
+        headers = super()._get_extra_headers()
+        org_id = self.configuration.get("org_id")
+        if org_id:
+            # Only set it if the operator has not already said otherwise by hand.
+            headers.setdefault("X-Scope-OrgID", str(org_id).strip())
+        return headers
+
+
+register(Mimir)

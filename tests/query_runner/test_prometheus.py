@@ -5,6 +5,7 @@ from unittest import TestCase
 import mock
 
 from sqldesk.query_runner.prometheus import (
+    Mimir,
     Prometheus,
     get_instant_rows,
     get_range_rows,
@@ -208,10 +209,26 @@ class TestPrometheus(TestCase):
                 "cert_File": {"type": "string", "title": "SSL Client Certificate", "default": None},
                 "cert_key_File": {"type": "string", "title": "SSL Client Key", "default": None},
                 "ca_cert_File": {"type": "string", "title": "SSL Root Certificate", "default": None},
+                "username": {"type": "string", "title": "HTTP Basic Auth Username"},
+                "password": {"type": "string", "title": "HTTP Basic Auth Password"},
+                "bearer_token": {"type": "string", "title": "Bearer Token"},
+                "extra_headers": {
+                    "type": "string",
+                    "title": "Extra Headers (one Name: value per line)",
+                },
             },
             "required": ["url"],
-            "secret": ["cert_File", "cert_key_File", "ca_cert_File"],
-            "extra_options": ["verify_ssl", "cert_File", "cert_key_File", "ca_cert_File"],
+            "secret": ["cert_File", "cert_key_File", "ca_cert_File", "password", "bearer_token"],
+            "extra_options": [
+                "verify_ssl",
+                "cert_File",
+                "cert_key_File",
+                "ca_cert_File",
+                "username",
+                "password",
+                "bearer_token",
+                "extra_headers",
+            ],
         }
 
     def test_enabled(self):
@@ -541,3 +558,93 @@ class TestPrometheus(TestCase):
             "url/api/v1/query", params={"query": ["http_requests_total"]}, **prometheus_kwargs
         )
         cleanup_cert_files_mock.assert_called_once_with(prometheus_kwargs)
+
+
+class TestPrometheusCredentials(TestCase):
+    """Before this, the only credential a Prometheus data source could carry was a
+    TLS client certificate -- so nothing behind a token, a gateway or basic auth
+    could be added at all."""
+
+    def test_no_headers_when_nothing_is_configured(self):
+        runner = Prometheus({"url": "http://prometheus:9090"})
+        self.assertEqual(runner._get_extra_headers(), {})
+        self.assertNotIn("headers", runner._get_prometheus_kwargs())
+
+    def test_bearer_token_becomes_an_authorization_header(self):
+        runner = Prometheus({"url": "http://prometheus:9090", "bearer_token": "  s3cret  "})
+        self.assertEqual(runner._get_extra_headers(), {"Authorization": "Bearer s3cret"})
+
+    def test_extra_headers_are_parsed_one_per_line(self):
+        runner = Prometheus(
+            {
+                "url": "http://prometheus:9090",
+                "extra_headers": "X-Scope-OrgID: tenant-a\n  X-Other : v \n\nnot a header\n",
+            }
+        )
+        self.assertEqual(
+            runner._get_extra_headers(),
+            {"X-Scope-OrgID": "tenant-a", "X-Other": "v"},
+        )
+
+    def test_basic_auth_needs_both_halves(self):
+        self.assertIsNone(Prometheus({"url": "http://p:9090", "username": "u"})._get_auth())
+        self.assertEqual(
+            Prometheus({"url": "http://p:9090", "username": "u", "password": "p"})._get_auth(),
+            ("u", "p"),
+        )
+
+    def test_the_password_and_token_are_secret(self):
+        secret = Prometheus.configuration_schema()["secret"]
+        self.assertIn("password", secret)
+        self.assertIn("bearer_token", secret)
+
+    def test_api_base_url_drops_a_trailing_slash(self):
+        self.assertEqual(
+            Prometheus({"url": "http://prometheus:9090/"}).api_base_url,
+            "http://prometheus:9090",
+        )
+
+
+class TestMimir(TestCase):
+    def test_the_prometheus_prefix_is_added(self):
+        self.assertEqual(
+            Mimir({"url": "http://mimir:8080", "org_id": "t1"}).api_base_url,
+            "http://mimir:8080/prometheus",
+        )
+
+    def test_a_url_that_already_has_the_prefix_is_left_alone(self):
+        self.assertEqual(
+            Mimir({"url": "http://mimir:8080/prometheus/", "org_id": "t1"}).api_base_url,
+            "http://mimir:8080/prometheus",
+        )
+
+    def test_the_tenant_is_sent_as_x_scope_orgid(self):
+        headers = Mimir({"url": "http://mimir:8080", "org_id": " t1 "})._get_extra_headers()
+        self.assertEqual(headers["X-Scope-OrgID"], "t1")
+
+    def test_a_hand_written_tenant_header_wins(self):
+        headers = Mimir(
+            {
+                "url": "http://mimir:8080",
+                "org_id": "from-the-field",
+                "extra_headers": "X-Scope-OrgID: typed-by-hand",
+            }
+        )._get_extra_headers()
+        self.assertEqual(headers["X-Scope-OrgID"], "typed-by-hand")
+
+    def test_the_tenant_is_required(self):
+        # Mimir refuses a request without one whenever auth is enabled, which is the
+        # default, so a data source saved without it could never answer a query.
+        self.assertIn("org_id", Mimir.configuration_schema()["required"])
+
+    def test_it_inherits_prometheus_credentials(self):
+        headers = Mimir({"url": "http://mimir:8080", "org_id": "t1", "bearer_token": "tok"})._get_extra_headers()
+        self.assertEqual(headers["Authorization"], "Bearer tok")
+
+    @mock.patch("sqldesk.query_runner.prometheus.requests.get")
+    def test_test_connection_asks_the_query_api(self, get):
+        get.return_value = mock.Mock(ok=True, **{"json.return_value": {"status": "success"}})
+        self.assertTrue(Mimir({"url": "http://mimir:8080", "org_id": "t1"}).test_connection())
+        url, kwargs = get.call_args[0][0], get.call_args[1]
+        self.assertEqual(url, "http://mimir:8080/prometheus/api/v1/query")
+        self.assertEqual(kwargs["headers"]["X-Scope-OrgID"], "t1")
