@@ -7,6 +7,7 @@ changed it.
 
 | Version | Name | When | Notes |
 |---|---|---|---|
+| 0.7.0 | **Kafka Streams** | 4 Oct 2026 | Tagged `v0.7.0`, images published, smoke-tested through `compose.prod.yaml`, merged to `main` |
 | 0.6.0 | **MCP** | 3 Oct 2026 | Tagged `v0.6.0`, images published, smoke-tested through `compose.prod.yaml` |
 | 0.5.0 | Interface | Sep 2026 | |
 | 0.4.0 | Live | 20 Sep 2026 | |
@@ -14,48 +15,21 @@ changed it.
 SQLDesk is a fork of **Redash 25**. The query editor, 35+ data sources,
 alerts and the permission model came with it and were built on, not rewritten.
 
-## In flight: 0.7 — Kafka Streams
+## Released: 0.7 — Kafka Streams
 
-**`v0.7.0-rc.1` released 3 Oct 2026**, as a pre-release. Tag, images for both
-platforms, GitHub release. CI green on all five jobs including the end-to-end
-suite, and the published image smoke-tested through `compose.prod.yaml`.
+**`v0.7.0` released 4 Oct 2026** and `main` fast-forwarded to it, so `main` now
+describes the current release for the first time since 0.5.
 
-On `release/0.7`. Not merged to `main`, which is still at 0.5.0.
+Two faults in alert attachments were found by turning the renderer on and
+watching an alert arrive, which is the only way either could have been seen --
+both cost the picture and not the alert, by design:
 
-Built and verified:
+- Chromium could not resolve the Service's short name, so every screenshot on
+  Kubernetes timed out.
+- A render pass could fetch a query but not the query's stored result, so every
+  query attachment was blank.
 
-- **Kafka topics as a data source.** A cluster is the data source and its
-  enabled topics are its tables. A stream query is a *query* — same editor,
-  visualizations, parameters, dashboards — with Execute replaced by Start
-  streaming. No result is ever stored.
-- **Dashboard folders** with a stated meaning; a locked folder is an
-  administrator's to change and read-only for everyone else including the
-  dashboard's author.
-- **Scheduled subscriptions** by email, PNG inline and a one-page PDF.
-- **OAuth 2.1 for MCP** — discovery, PKCE, refresh with rotation, revocation,
-  dynamic client registration. *Not done: Client ID Metadata Documents.*
-- **Feature permissions** granted per group: streams, catalog, live
-  dashboards, keeping uploads, MCP, sending dashboards.
-- **Storage lifecycle** — uploads expire on a clock people can see and stop.
-- **The admin section**: Overview, System Status, RQ Status, Storage Status,
-  Running Queries, Streaming Queries, Outdated Queries, MCP.
-- **Nav rebuilt**: Dashboards ▾ · Queries ▾ · Catalog · Alerts · Settings ▾ ·
-  Admin ▾, every dropdown wearing the same chevron. No broker's name in the
-  bar: streaming is a half of Queries and a half of Dashboards, the two halves
-  never overlap, and `Streaming` is the kind while `Live` stays the refresh
-  state. See [0.7-nav.md](0.7-nav.md).
-- **One spinner**, drawn in CSS rather than typed from an icon font.
-- **Nothing heavy on by default** — streams, MCP, uploads and the renderer are
-  each off until asked for.
-- **Half the initial load**: 931 → 525 KB gzipped, held by a CI budget.
-
-Left before 0.7.0 final:
-
-- Iqbal's testing pass on the rc.
-- A read-through of `docs/guide/streams.html` and `docs/guide/dashboards.html`
-  to confirm the prose matches what shipped. Both have the right sections.
-- Two things need Iqbal — see [open-questions.md](open-questions.md).
-- Merge to `main` once the final is cut.
+Both fixed and verified on a cluster before tagging.
 
 Known limits of 0.7, recorded so they are not rediscovered:
 
@@ -63,6 +37,8 @@ Known limits of 0.7, recorded so they are not rediscovered:
   and its worker does not take from the `streams` queue.
 - **No archived-dashboards list.** Archiving hides a dashboard everywhere and
   there is nothing that shows what was hidden. In [0.8-plan.md](0.8-plan.md).
+
+Still waiting on Iqbal: see [open-questions.md](open-questions.md).
 
 ## Next: 0.8 — Notebooks
 
