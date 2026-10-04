@@ -3,7 +3,15 @@ import tempfile
 from unittest import TestCase
 from unittest.mock import patch
 
-from sqldesk.query_runner.duckdb import DuckDB
+from sqldesk.query_runner import (
+    TYPE_BOOLEAN,
+    TYPE_DATE,
+    TYPE_DATETIME,
+    TYPE_FLOAT,
+    TYPE_INTEGER,
+    TYPE_STRING,
+)
+from sqldesk.query_runner.duckdb import DuckDB, _duckdb_type
 
 
 class TestDuckDBSchema(TestCase):
@@ -344,3 +352,79 @@ class TestTheSchemaShowsEveryUploadedFile(TestCase):
         plain.run_query("CREATE TABLE t (a INTEGER)", None)
 
         self.assertEqual(["t"], [table["name"].split(".")[-1] for table in plain.get_schema()])
+
+
+class TestColumnTypes(TestCase):
+    """DuckDB's own names for its types, asked of DuckDB rather than assumed.
+
+    This is the test that would have caught the upgrade. `cursor.description`
+    changed twice at once in 1.5: the type code stopped being a `str`, and the
+    names stopped being DB-API ones. The first raised; the second was silent,
+    and had been silently wrong the whole time -- on 1.3 only 5 of these 12
+    mapped, so every number and timestamp from a DuckDB source was a string.
+    """
+
+    SAMPLE = """
+        select true                   as a_bool,
+               42::tinyint            as a_tinyint,
+               42::integer            as a_int,
+               42::bigint             as a_bigint,
+               42::ubigint            as a_ubigint,
+               1.5::real              as a_real,
+               1.5::double            as a_double,
+               1.5::decimal(10,2)     as a_decimal,
+               'x'                    as a_varchar,
+               date '2026-01-01'      as a_date,
+               timestamp '2026-01-01' as a_timestamp,
+               now()                  as a_timestamptz,
+               time '12:00:00'        as a_time,
+               gen_random_uuid()      as a_uuid,
+               [1, 2]                 as a_list,
+               {'a': 1}               as a_struct,
+               interval 1 day         as a_interval
+    """
+
+    EXPECTED = {
+        "a_bool": TYPE_BOOLEAN,
+        "a_tinyint": TYPE_INTEGER,
+        "a_int": TYPE_INTEGER,
+        "a_bigint": TYPE_INTEGER,
+        "a_ubigint": TYPE_INTEGER,
+        "a_real": TYPE_FLOAT,
+        "a_double": TYPE_FLOAT,
+        # A decimal is reported as DECIMAL(10,2); a bare-name lookup misses it.
+        "a_decimal": TYPE_FLOAT,
+        "a_varchar": TYPE_STRING,
+        "a_date": TYPE_DATE,
+        "a_timestamp": TYPE_DATETIME,
+        "a_timestamptz": TYPE_DATETIME,
+        "a_time": TYPE_DATETIME,
+        "a_uuid": TYPE_STRING,
+        # A list holds a list. The type inside it is not what the column is.
+        "a_list": TYPE_STRING,
+        "a_struct": TYPE_STRING,
+        "a_interval": TYPE_STRING,
+    }
+
+    def test_every_ordinary_column_type_is_mapped(self):
+        runner = DuckDB({"dbpath": ":memory:"})
+        data, error = runner.run_query(self.SAMPLE, None)
+        self.assertIsNone(error)
+
+        got = {column["name"]: column["type"] for column in data["columns"]}
+        self.assertEqual(self.EXPECTED, got)
+
+    def test_a_type_code_is_not_a_string_any_more(self):
+        # The reason the upgrade broke: .upper() on a DuckDBPyType forwards to
+        # its child-type lookup instead of raising a plain AttributeError.
+        import duckdb
+
+        code = duckdb.connect().execute("select 1::integer").description[0][1]
+        self.assertNotIsInstance(code, str)
+        with self.assertRaises(Exception):
+            code.upper()
+        self.assertEqual(_duckdb_type(code), TYPE_INTEGER)
+
+    def test_an_unknown_type_is_a_string_rather_than_nothing(self):
+        self.assertEqual(_duckdb_type("SOME_FUTURE_TYPE"), TYPE_STRING)
+        self.assertIsNone(_duckdb_type(None))

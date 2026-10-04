@@ -23,7 +23,8 @@ duckdb = deferred("duckdb")
 
 enabled = installed("duckdb")
 
-# Map DuckDB types to SQLDesk column types
+# Map DuckDB types to SQLDesk column types. The keys are DuckDB's own names,
+# which is what `cursor.description` reports from 1.5 onwards.
 TYPES_MAP = {
     "BOOLEAN": TYPE_BOOLEAN,
     "TINYINT": TYPE_INTEGER,
@@ -31,22 +32,75 @@ TYPES_MAP = {
     "INTEGER": TYPE_INTEGER,
     "BIGINT": TYPE_INTEGER,
     "HUGEINT": TYPE_INTEGER,
+    "UTINYINT": TYPE_INTEGER,
+    "USMALLINT": TYPE_INTEGER,
+    "UINTEGER": TYPE_INTEGER,
+    "UBIGINT": TYPE_INTEGER,
+    "UHUGEINT": TYPE_INTEGER,
     "REAL": TYPE_FLOAT,
+    "FLOAT": TYPE_FLOAT,
     "DOUBLE": TYPE_FLOAT,
     "DECIMAL": TYPE_FLOAT,
     "VARCHAR": TYPE_STRING,
     "BLOB": TYPE_STRING,
+    "BIT": TYPE_STRING,
+    "VARINT": TYPE_STRING,
     "DATE": TYPE_DATE,
     "TIMESTAMP": TYPE_DATETIME,
+    "TIMESTAMP_S": TYPE_DATETIME,
+    "TIMESTAMP_MS": TYPE_DATETIME,
+    "TIMESTAMP_NS": TYPE_DATETIME,
     "TIMESTAMP WITH TIME ZONE": TYPE_DATETIME,
     "TIME": TYPE_DATETIME,
+    "TIME WITH TIME ZONE": TYPE_DATETIME,
     "INTERVAL": TYPE_STRING,
     "UUID": TYPE_STRING,
     "JSON": TYPE_STRING,
     "STRUCT": TYPE_STRING,
     "MAP": TYPE_STRING,
     "UNION": TYPE_STRING,
+    "ENUM": TYPE_STRING,
 }
+
+
+def _duckdb_type(declared):
+    """A column's SQLDesk type, from whatever DuckDB called it.
+
+    Two things had to change here, and the first had been wrong for a long time.
+
+    **`cursor.description` stopped being strings.** Up to 1.3 the type code was
+    a `str`; from 1.5 it is a `DuckDBPyType`, and `.upper()` on one of those
+    does not fail the way an attribute error normally does -- the object
+    forwards unknown attributes to its own child-type lookup, so asking for
+    `upper` raised *"Tried to get child type by the name of 'upper'"* and every
+    query against a DuckDB source died inside the schema browser.
+
+    **And the names it reports changed, which fixes a silent fault.** 1.3
+    returned DB-API names -- `NUMBER`, `STRING`, `DATETIME`, `bool` -- while
+    this table has always been keyed by DuckDB's own. Only 5 of 12 ordinary
+    column types matched, so **every number and every timestamp from a DuckDB
+    source, including every uploaded CSV and Parquet file, was declared a
+    string.** It was invisible because the browser sniffs the type of a column
+    declared `string` and mostly recovers it. 1.5 reports `INTEGER`,
+    `TIMESTAMP`, `BOOLEAN` and the rest, which this table already knew.
+
+    Parameters are dropped before the lookup, because DuckDB reports
+    `DECIMAL(10,2)` rather than `DECIMAL` -- the same way Trino reports
+    `varchar(255)`. A list stays a string: `INTEGER[]` holds a list, and the
+    number inside it is not what the column contains.
+    """
+    if declared is None:
+        return None
+
+    name = str(declared).strip().upper()
+    if name.endswith("]"):
+        # INTEGER[], VARCHAR[3] -- a list, whatever it is a list of.
+        return TYPE_STRING
+    if "(" in name:
+        # DECIMAL(10,2), STRUCT(a INTEGER), MAP(VARCHAR, INTEGER)
+        name = name.split("(", 1)[0].strip()
+
+    return TYPES_MAP.get(name, TYPE_STRING)
 
 
 class DuckDB(BaseSQLQueryRunner):
@@ -282,7 +336,7 @@ class DuckDB(BaseSQLQueryRunner):
             cursor = self.con.cursor()
             cursor.execute(query)
             columns = self.fetch_columns(
-                [(d[0], TYPES_MAP.get(d[1].upper(), TYPE_STRING)) for d in cursor.description]
+                [(d[0], _duckdb_type(d[1])) for d in cursor.description]
             )
             rows = [dict(zip((col["name"] for col in columns), row)) for row in cursor.fetchall()]
             data = {"columns": columns, "rows": rows}
