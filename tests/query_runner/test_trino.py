@@ -5,9 +5,23 @@ Some test cases for Trino.
 from unittest import TestCase
 from unittest.mock import patch
 
+from trino.exceptions import DatabaseError
 from trino.types import NamedRowTuple
 
-from sqldesk.query_runner.trino import Trino, _convert_row_types
+from sqldesk.query_runner import (
+    TYPE_BOOLEAN,
+    TYPE_DATE,
+    TYPE_DATETIME,
+    TYPE_FLOAT,
+    TYPE_INTEGER,
+    TYPE_STRING,
+)
+from sqldesk.query_runner.trino import (
+    Trino,
+    _convert_row_types,
+    _database_error_message,
+    _trino_type,
+)
 
 
 class TestTrino(TestCase):
@@ -115,3 +129,61 @@ class TestConvertRowTypes(TestCase):
         row = NamedRowTuple([1, 2], [None, None], ["integer", "integer"])
         result = _convert_row_types(row)
         self.assertEqual(result, {"_field0": 1, "_field1": 2})
+
+
+class TestTrinoTypes(TestCase):
+    """Trino reports a column's declared type, which almost never looks like the bare
+    name a lookup table holds."""
+
+    def test_bare_names_still_work(self):
+        self.assertEqual(_trino_type("bigint"), TYPE_INTEGER)
+        self.assertEqual(_trino_type("boolean"), TYPE_BOOLEAN)
+        self.assertEqual(_trino_type("date"), TYPE_DATE)
+
+    def test_a_decimal_is_not_an_integer(self):
+        self.assertEqual(_trino_type("decimal"), TYPE_FLOAT)
+        self.assertEqual(_trino_type("decimal(10,2)"), TYPE_FLOAT)
+
+    def test_parameterised_types_are_mapped(self):
+        self.assertEqual(_trino_type("varchar(255)"), TYPE_STRING)
+        self.assertEqual(_trino_type("char(3)"), TYPE_STRING)
+
+    def test_a_precise_timestamp_is_still_a_timestamp(self):
+        # Trino's default is timestamp(3); before this it came back with no type.
+        self.assertEqual(_trino_type("timestamp(3)"), TYPE_DATETIME)
+        self.assertEqual(_trino_type("timestamp(6) with time zone"), TYPE_DATETIME)
+        self.assertEqual(_trino_type("timestamp with time zone"), TYPE_DATETIME)
+
+    def test_case_and_space_do_not_matter(self):
+        self.assertEqual(_trino_type("  VARCHAR(10) "), TYPE_STRING)
+
+    def test_structures_stay_untyped_on_purpose(self):
+        # These values are dicts and lists after _convert_row_types; calling them
+        # strings would be a worse answer than calling them nothing.
+        self.assertIsNone(_trino_type("row(a varchar, b bigint)"))
+        self.assertIsNone(_trino_type("array(varchar)"))
+        self.assertIsNone(_trino_type("map(varchar, bigint)"))
+
+    def test_nothing_is_not_a_type(self):
+        self.assertIsNone(_trino_type(None))
+        self.assertIsNone(_trino_type(""))
+
+
+class TestTrinoDatabaseErrorMessage(TestCase):
+    def test_trinos_own_message_is_preferred(self):
+        err = DatabaseError({"failureInfo": {"message": "Table does not exist"}})
+        self.assertEqual(_database_error_message(err), "Table does not exist")
+
+    def test_a_missing_failure_info_does_not_lose_the_error(self):
+        # This is the regression: the fallback was a set literal, `.get` on it raised
+        # AttributeError, and the handler reporting the failure became the failure.
+        err = DatabaseError({"message": "Query exceeded per-node memory limit"})
+        self.assertEqual(_database_error_message(err), "Query exceeded per-node memory limit")
+
+    def test_an_error_with_nothing_useful_still_reports_something(self):
+        for arg in [{}, "a string", None]:
+            message = _database_error_message(DatabaseError(arg))
+            self.assertIn("Unspecified DatabaseError", message)
+
+    def test_an_error_with_no_args_at_all(self):
+        self.assertIn("Unspecified DatabaseError", _database_error_message(DatabaseError()))

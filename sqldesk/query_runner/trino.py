@@ -52,14 +52,71 @@ TRINO_TYPES_MAPPING = {
     "float": TYPE_FLOAT,
     "real": TYPE_FLOAT,
     "double": TYPE_FLOAT,
-    "decimal": TYPE_INTEGER,
+    # A decimal is not an integer. Typed as one, every price and rate in a Trino
+    # table arrived with its fractional part treated as noise.
+    "decimal": TYPE_FLOAT,
     "varchar": TYPE_STRING,
     "char": TYPE_STRING,
     "string": TYPE_STRING,
     "json": TYPE_STRING,
+    "varbinary": TYPE_STRING,
+    "uuid": TYPE_STRING,
+    "ipaddress": TYPE_STRING,
+    "time": TYPE_STRING,
+    "time with time zone": TYPE_STRING,
     "date": TYPE_DATE,
     "timestamp": TYPE_DATETIME,
+    "timestamp with time zone": TYPE_DATETIME,
 }
+
+
+def _trino_type(declared_type):
+    """Map a type as Trino reports it, which is rarely the bare name.
+
+    `cursor.description` carries the declared type: `varchar(255)`, `decimal(10,2)`,
+    and since Trino made precision explicit, `timestamp(3)` and
+    `timestamp(6) with time zone`. A bare-name lookup misses every one of those, so
+    the common case -- a table of varchars, decimals and timestamps -- came back with
+    no column types at all, and nothing downstream could format or chart it.
+
+    The parameters are dropped and the rest is kept, which also leaves `row(...)`,
+    `array(...)` and `map(...)` unmapped on purpose: those values are structures, and
+    calling them strings would be a worse answer than calling them nothing.
+    """
+    if not declared_type:
+        return None
+
+    name = str(declared_type).strip().lower()
+    if "(" in name:
+        head, _, tail = name.partition("(")
+        # `timestamp(6) with time zone` -> `timestamp` + ` with time zone`
+        _, _, after = tail.partition(")")
+        name = (head + after).strip()
+
+    return TRINO_TYPES_MAPPING.get(name, None)
+
+
+def _database_error_message(db):
+    """Trino's own message for a failed query, or a description of why there isn't one.
+
+    What this replaced read `db.args[0].get("failureInfo", {"message", None})` -- a set
+    literal, not a dict, a comma where a colon was meant. Whenever `failureInfo` was
+    absent the default was a `set`, `.get` on it raised AttributeError, and the handler
+    whose job was to report the error became the error. Which is the worst possible
+    moment to lose the message.
+    """
+    default_message = "Unspecified DatabaseError: {0}".format(str(db))
+
+    args = getattr(db, "args", None) or ()
+    if not args or not isinstance(args[0], dict):
+        return default_message
+
+    failure_info = args[0].get("failureInfo")
+    message = failure_info.get("message") if isinstance(failure_info, dict) else None
+    if message is None:
+        message = args[0].get("message")
+
+    return message or default_message
 
 
 class Trino(BaseSQLQueryRunner):
@@ -215,22 +272,24 @@ class Trino(BaseSQLQueryRunner):
             cursor.execute(query)
             results = cursor.fetchall()
             description = cursor.description
-            columns = self.fetch_columns([(c[0], TRINO_TYPES_MAPPING.get(c[1], None)) for c in description])
+            columns = self.fetch_columns([(c[0], _trino_type(c[1])) for c in description])
             column_names = [c["name"] for c in columns]
             rows = [dict(zip(column_names, [_convert_row_types(v) for v in r])) for r in results]
             data = {"columns": columns, "rows": rows}
             error = None
         except DatabaseError as db:
             data = None
-            default_message = "Unspecified DatabaseError: {0}".format(str(db))
-            if isinstance(db.args[0], dict):
-                message = db.args[0].get("failureInfo", {"message", None}).get("message")
-            else:
-                message = None
-            error = default_message if message is None else message
+            error = _database_error_message(db)
         except (KeyboardInterrupt, InterruptException, JobTimeoutException):
             cursor.cancel()
             raise
+        finally:
+            # A dbapi connection holds an HTTP session to the coordinator. Left open,
+            # the worker accumulates one per query it has ever run.
+            try:
+                connection.close()
+            except Exception:
+                logger.warning("Trino connection did not close cleanly", exc_info=True)
 
         return data, error
 
