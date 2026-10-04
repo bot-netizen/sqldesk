@@ -51,8 +51,12 @@ spec:
           image: {{ printf "%s:%s" .Values.rendering.image.repository (.Values.rendering.image.tag | default .Chart.AppVersion) }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
+            # The same address the worker builds its URLs from, from one
+            # helper: the renderer refuses anything that is not the SQLDesk it
+            # serves, so these two drifting apart turns every screenshot into
+            # a 400 nobody sees.
             - name: SCREENSHOT_ALLOWED_ORIGIN
-              value: {{ printf "http://%s:%v" (include "sqldesk.fullname" .) .Values.service.port | quote }}
+              value: {{ include "sqldesk.internalBaseUrl" . | quote }}
             - name: SCREENSHOT_TOKEN
               valueFrom:
                 secretKeyRef:

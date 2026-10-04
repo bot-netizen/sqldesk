@@ -28,6 +28,24 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{/*
+The address the renderer fetches pages from.
+
+**Fully qualified, and it has to be.** Chromium does not resolve a
+single-label hostname the way everything else in a pod does: `http://sqldesk:5000`
+resolves fine from Python in the same container and fails inside the browser
+with `ERR_NAME_NOT_RESOLVED`, so every screenshot timed out and every alert
+went out without its picture -- which is the designed behaviour when a render
+fails, so nothing complained.
+
+`.Release.Namespace` rather than a hard-coded `default`, and the cluster
+domain is the Kubernetes default; an install that changed it sets
+`extraEnv.SQLDESK_INTERNAL_BASE_URL` and `rendering.allowedOrigin` together.
+*/}}
+{{- define "sqldesk.internalBaseUrl" -}}
+{{- printf "http://%s.%s.svc.cluster.local:%v" (include "sqldesk.fullname" .) .Release.Namespace .Values.service.port -}}
+{{- end -}}
+
+{{/*
 A secret that is generated once and then kept.
 
 `lookup` reads what is already in the cluster, so `helm upgrade` reuses the
@@ -183,7 +201,7 @@ reached only one of them is the kind of difference nobody finds quickly.
 # How the renderer reaches the application: the Service, not the public
 # address, which may be behind SSO the renderer cannot get through.
 - name: SQLDESK_INTERNAL_BASE_URL
-  value: {{ printf "http://%s:%v" (include "sqldesk.fullname" .) .Values.service.port | quote }}
+  value: {{ include "sqldesk.internalBaseUrl" . | quote }}
 # Shown to the renderer with every request, so only the worker can ask it
 # to fetch a page.
 - name: SQLDESK_SCREENSHOT_TOKEN
