@@ -25,7 +25,7 @@
 # matching SQLDESK_HOST) in .env, or turn AirPlay Receiver off.
 
 x-sqldesk-service: &sqldesk-service
-  image: ${SQLDESK_IMAGE:-ghcr.io/bot-netizen/sqldesk:0.7.0}
+  image: ${SQLDESK_IMAGE:-ghcr.io/bot-netizen/sqldesk:0.7.1}
   depends_on:
     postgres:
       condition: service_healthy
@@ -170,7 +170,7 @@ services:
   # Start it with --profile rendering, and put the three lines from the
   # "Pictures in alert emails" part of .env.example into .env.
   screenshots:
-    image: ${SQLDESK_SCREENSHOTS_IMAGE:-ghcr.io/bot-netizen/sqldesk-screenshots:0.7.0}
+    image: ${SQLDESK_SCREENSHOTS_IMAGE:-ghcr.io/bot-netizen/sqldesk-screenshots:0.7.1}
     profiles: ["rendering"]
     restart: unless-stopped
     # Chromium wants more than Docker's default 64MB of shared memory, and

@@ -1,5 +1,85 @@
 # Changelog
 
+## 0.7.1
+
+Five faults in the data source layer, four of them found by reading the
+runners rather than from a report -- which is the point, because not one of
+them raises anything an operator would ever see.
+
+**Vertica has not been offered since we moved to Python 3.13.**
+vertica-python 1.1.1 imports the standard library's `crypt`, removed by
+PEP 594. `import vertica_python` raised, `enabled()` caught it as an
+ImportError and returned False, and the type disappeared from the data source
+list -- no log line, no failed request, nothing. `manage ds list_types` on a
+0.7.0 install does not mention Vertica at all. Anybody who went looking for it
+concluded we do not support it. The driver is now 1.4.0, which vendors its own
+crypt; every numeric type code was checked against the new driver and there is
+a test that fails if an upgrade renumbers them. While it was open: Vertica had
+**no TLS option of any kind**, so every connection and every password crossed
+the network in the clear with no way to say otherwise, and `read_timeout` was
+being passed to a driver that no longer has the option.
+
+**The MySQL SSL Mode dropdown decided nothing.** The value was filed into the
+`ssl` mapping under the key `"preferred"` -- the value of a lookup table used
+as its key -- and mysqlclient reads only `ca`, `capath`, `cert`, `key` and
+`cipher` out of that mapping, ignoring the rest without complaint. So an
+install that set Verify Identity verified nothing and the form reported that
+it had. A security control that reports success is worse than one that is
+missing, because nobody goes looking. The mode is now passed as its own
+connect argument and translated into MySQL's spelling. **On RDS**, where we
+ship Amazon's CA bundle and hand it to the driver, we were then asking for no
+verification against it -- so the default applied and an unencrypted
+connection was accepted if the server offered one. Use SSL now means
+VERIFY_CA.
+
+**Trino returned columns with no type.** The type map held bare names and
+`cursor.description` carries the declared type: `varchar(255)`,
+`decimal(10,2)`, and since precision became explicit, `timestamp(3)`, which
+is the default. Every parameterised type missed the lookup, so an ordinary
+table of varchars, decimals and timestamps produced columns typed `None` and
+nothing downstream could format a date or align a number. A `decimal` was
+also mapped to *integer*, so every price and rate arrived with its fractional
+part treated as noise.
+
+**Trino's error handler was the error.** It read
+`db.args[0].get("failureInfo", {"message", None}).get("message")` -- a set
+literal where a dict was meant, a comma where a colon belonged. With
+`failureInfo` absent the default was a `set`, `.get` on a set raises
+AttributeError, and the code whose only job was to report the failure threw
+instead. It also never closed its connection, so a worker accumulated one HTTP
+session to the coordinator per query it had run.
+
+**A data source without a logo file drew a broken image.** A logo is a file
+named after the type, and all ten places that draw one were a bare `<img>`;
+a type without its file rendered the browser's broken-image glyph, silently,
+because a 404 on an image is reported to nobody. Kafka shipped that way once.
+They go through one component now, and a missing file degrades to a tile with
+the type's initials.
+
+### Added
+
+**Grafana Mimir**, and a Prometheus runner that can carry a credential. The
+Prometheus runner could authenticate exactly one way -- a TLS client
+certificate -- because it extends `BaseQueryRunner` rather than
+`BaseHTTPQueryRunner`, so anything behind a gateway, a token or basic auth
+could not be added at all. It now takes a username and password, a bearer
+token and free-form headers, which also unblocks Thanos, Cortex and
+VictoriaMetrics. Mimir adds the `/prometheus` prefix for you either way you
+spell the URL, requires a **Tenant ID** because Mimir refuses a request
+without `X-Scope-OrgID` whenever auth is enabled, and tests its connection
+against the query API rather than the root URL -- the inherited check passed
+on any 200, so a gateway's welcome page counted as success.
+
+**MariaDB** is in the list under its own name. The MySQL runner could always
+talk to it, but only for somebody who already knew MariaDB speaks the MySQL
+protocol. Existing connections keep the `mysql` type; nothing is migrated.
+
+### Upgrading
+
+Nothing to do beyond the image. **No migration**, no configuration change, no
+default moved. Vertica, Mimir and MariaDB appear on their own once the new
+image is running.
+
 ## 0.7.0
 
 Two faults in alert attachments, both of which made a picture fail silently --
