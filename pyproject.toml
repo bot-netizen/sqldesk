@@ -29,6 +29,10 @@ dependencies = [
     "flask-restful==0.3.10",
     "flask-sqlalchemy==2.5.1",
     "flask-talisman==0.7.0",
+    "flask-compress==1.25",
+    # Brotli, which every current browser accepts and which beats gzip on both
+    # size and CPU. Without it flask-compress falls back to gzip alone.
+    "brotli==1.2.0",
     "flask-wtf==1.1.1",
     "funcy==1.13",
     "gevent==25.9.1",
@@ -41,7 +45,7 @@ dependencies = [
     "maxminddb-geolite2==2018.703",
     "parsedatetime==2.6",
     "passlib==1.7.3",
-    "psycopg2-binary==2.9.11",
+    "psycopg2-binary==2.9.13",
     "pyjwt==2.12.0",
     "pyopenssl==26.2.0",
     "pypd==1.1.0",
@@ -79,6 +83,8 @@ dependencies = [
     "xlsxwriter==3.2.9",
     "pyodbc==5.3.0",
     "paramiko==3.4.1",
+    # 2.5.1 against 26.0.1 upstream. An eight-major-version jump is not a
+    # patch-release bump; it wants its own change with something to test against.
     "oracledb==2.5.1",
     "ibm-db>=3.2.7,<4.0.0; platform_machine == 'x86_64' or platform_machine == 'AMD64'",
 ]
@@ -109,7 +115,7 @@ all_ds = [
     "cmem-cmempy==21.2.3",
     "databend-py==0.4.6",
     "databend-sqlalchemy==0.2.4",
-    "duckdb==1.3.2",
+    "duckdb==1.5.6",
     "google-api-python-client==2.190.0",
     # Needed by google-api-python-client, and by nothing in the base install.
     "httplib2==0.19.0",
@@ -117,28 +123,37 @@ all_ds = [
     "gspread==5.11.2",
     "h11>=0.16.0",
     "httpcore>=1.0.9",
-    "impyla==0.22.0",
+    "impyla==0.24.0",
     "influxdb==5.2.3",
     "influxdb-client==1.38.0",
     "marshmallow>=3.26.2",
     "memsql==3.2.0",
-    "mysqlclient==2.1.1",
+    "mysqlclient==2.3.0",
     "numpy==2.4.2",
     "nzalchemy>=11.0.2,<12.0.0",
     "nzpy>=1.15",
     "oauth2client==4.1.3",
     "openpyxl==3.1.5",
+    # Held at 2.x deliberately: 3.0 changes copy-on-write and the default
+    # string dtype, and both utils/pandas.py and the Python query runner
+    # depend on the current behaviour. Not a patch-release bump.
     "pandas==2.3.3",
     "phoenixdb==1.2.2",
     "pinotdb>=0.4.5",
     "protobuf==6.33.5",
+    # 3.x renamed the cursor classes and added ArrowCursor, which is wanted --
+    # but it is a breaking API change, so it belongs with the columnar work.
     "pyathena==2.25.2",
     "pydgraph==25.1.0",
     "pydruid==0.5.7",
     "pyexasol==0.12.0",
-    "pyhive==0.6.1",
+    "pyhive==0.7.0",
     "pyignite==0.6.1",
-    "pymongo[srv,tls]==4.6.3",
+    # Plain, not `[srv,tls]`: neither extra has existed since pymongo 3.x, so the
+    # old pin was asking for nothing and uv now says so. SRV connection strings
+    # still work -- dnspython is a hard dependency. OCSP stapling is a separate
+    # `[ocsp]` extra we have never asked for and still do not.
+    "pymongo==4.18.2",
     "pymssql>=2.3.1,<3.0.0",
     "pyodbc==5.3.0",
     "python-arango==6.1.0",
@@ -146,7 +161,7 @@ all_ds = [
     "requests-aws-sign==0.1.5",
     "sasl>=0.4a1",
     "simple-salesforce==0.74.3",
-    "snowflake-connector-python==4.5.0",
+    "snowflake-connector-python==4.8.0",
     "td-client==1.5.0",
     "thrift>=0.8.0",
     "thrift-sasl>=0.1.0",
