@@ -2,6 +2,7 @@
 Some test cases for Trino.
 """
 
+import inspect
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -187,3 +188,48 @@ class TestTrinoDatabaseErrorMessage(TestCase):
 
     def test_an_error_with_no_args_at_all(self):
         self.assertIn("Unspecified DatabaseError", _database_error_message(DatabaseError()))
+
+
+class TestTrinoSpooledProtocol(TestCase):
+    """Under the standard protocol every row is paged through the coordinator's
+    heap. Spooling has the workers write segments to object storage instead."""
+
+    def _connect_kwargs(self, configuration):
+        with patch("trino.dbapi.connect") as connect:
+            connect.return_value.cursor.return_value.execute.side_effect = RuntimeError("stop here")
+            try:
+                Trino(configuration).run_query("select 1", None)
+            except RuntimeError:
+                pass
+            return connect.call_args[1] if connect.call_args else {}
+
+    def test_the_encoding_is_not_passed_unless_it_was_chosen(self):
+        # The client's default is a sentinel object, not None, so passing None
+        # would not mean "leave it alone".
+        kwargs = self._connect_kwargs({"host": "h", "username": "u"})
+        self.assertNotIn("encoding", kwargs)
+
+    def test_a_blank_encoding_is_the_same_as_not_choosing_one(self):
+        kwargs = self._connect_kwargs({"host": "h", "username": "u", "encoding": "  "})
+        self.assertNotIn("encoding", kwargs)
+
+    def test_a_chosen_encoding_reaches_the_client(self):
+        kwargs = self._connect_kwargs({"host": "h", "username": "u", "encoding": "json+zstd"})
+        self.assertEqual(kwargs["encoding"], "json+zstd")
+
+    def test_every_encoding_offered_is_one_the_client_understands(self):
+        import trino.dbapi
+
+        offered = [
+            option["value"]
+            for option in Trino.configuration_schema()["properties"]["encoding"]["extendedEnum"]
+            if option["value"]
+        ]
+        self.assertEqual(offered, ["json", "json+lz4", "json+zstd"])
+        # And the client has to actually take the argument, or the dropdown is
+        # a decoration -- which is the fault 0.7.1 fixed in the MySQL runner.
+        self.assertIn("encoding", inspect.signature(trino.dbapi.Connection.__init__).parameters)
+
+    def test_the_codecs_those_encodings_need_are_installed(self):
+        import lz4.block  # noqa: F401
+        import zstandard  # noqa: F401

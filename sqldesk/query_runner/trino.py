@@ -120,6 +120,18 @@ def _database_error_message(db):
 
 
 class Trino(BaseSQLQueryRunner):
+    """Trino, optionally over the spooled protocol.
+
+    Under the standard protocol every row of every result is paged through the
+    **coordinator's heap** as JSON, which is Trino's own ceiling on large
+    results. The spooled protocol has the workers write segments to object
+    storage and the client fetch them directly, compressed with lz4 or zstd.
+
+    It is off unless a data source asks for it, because it needs a server that
+    offers it (Trino 466 and later, with spooling configured) and there is no
+    way to tell from here whether one does.
+    """
+
     noop_query = "SELECT 1"
     should_annotate_query = ANNOTATE_QUERY
 
@@ -137,6 +149,16 @@ class Trino(BaseSQLQueryRunner):
                 "client_tags": {"type": "string", "title": "Client tags (comma separated)"},
                 "catalog": {"type": "string"},
                 "schema": {"type": "string"},
+                "encoding": {
+                    "type": "string",
+                    "title": "Spooled protocol encoding (Trino 466+)",
+                    "extendedEnum": [
+                        {"value": "", "name": "Standard protocol (default)"},
+                        {"value": "json", "name": "Spooled, uncompressed"},
+                        {"value": "json+lz4", "name": "Spooled, lz4"},
+                        {"value": "json+zstd", "name": "Spooled, zstd"},
+                    ],
+                },
                 "impersonation": {"type": "boolean", "default": False},
                 "impersonationField": {
                     "type": "string",
@@ -155,12 +177,14 @@ class Trino(BaseSQLQueryRunner):
                 "client_tags",
                 "catalog",
                 "schema",
+                "encoding",
                 "impersonation",
             ],
             "required": ["host", "username"],
             "secret": ["password"],
             "extra_options": [
                 "client_tags",
+                "encoding",
                 "impersonation",
                 "impersonationField",
             ],
@@ -254,6 +278,14 @@ class Trino(BaseSQLQueryRunner):
         else:
             auth = trino.constants.DEFAULT_AUTH
 
+        extra = {}
+        # Only when it has been chosen. The client's default is a sentinel
+        # object, not None, so passing None would not mean "leave it alone" --
+        # it would mean something else entirely.
+        encoding = (self.configuration.get("encoding") or "").strip()
+        if encoding:
+            extra["encoding"] = encoding
+
         connection = trino.dbapi.connect(
             http_scheme=self.configuration.get("protocol", "http"),
             host=self.configuration.get("host", ""),
@@ -264,6 +296,7 @@ class Trino(BaseSQLQueryRunner):
             user=self._get_trino_user(user),
             client_tags=self._get_client_tags(),
             auth=auth,
+            **extra,
         )
 
         cursor = connection.cursor()
