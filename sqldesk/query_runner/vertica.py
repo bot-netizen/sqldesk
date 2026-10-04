@@ -23,11 +23,13 @@ types_map = {
     11: TYPE_DATETIME,
     12: TYPE_DATETIME,
     13: TYPE_DATETIME,
-    14: TYPE_DATETIME,
+    # 14 INTERVAL and 114 INTERVALYM are durations, not points in time. Typed as
+    # datetimes they rendered as dates somewhere near 1970.
+    14: TYPE_STRING,
     15: TYPE_DATETIME,
     16: TYPE_FLOAT,
     17: TYPE_STRING,
-    114: TYPE_DATETIME,
+    114: TYPE_STRING,
     115: TYPE_STRING,
     116: TYPE_STRING,
     117: TYPE_STRING,
@@ -47,7 +49,18 @@ class Vertica(BaseSQLQueryRunner):
                 "password": {"type": "string", "title": "Password"},
                 "database": {"type": "string", "title": "Database name"},
                 "port": {"type": "number"},
-                "read_timeout": {"type": "number", "title": "Read Timeout"},
+                "tlsmode": {
+                    "type": "string",
+                    "title": "TLS Mode",
+                    "default": "prefer",
+                    "extendedEnum": [
+                        {"value": "disable", "name": "Disable"},
+                        {"value": "prefer", "name": "Prefer"},
+                        {"value": "require", "name": "Require"},
+                        {"value": "verify-ca", "name": "Verify CA"},
+                        {"value": "verify-full", "name": "Verify Full"},
+                    ],
+                },
                 "connection_timeout": {"type": "number", "title": "Connection Timeout"},
             },
             "required": ["database"],
@@ -57,10 +70,11 @@ class Vertica(BaseSQLQueryRunner):
                 "user",
                 "password",
                 "database",
-                "read_timeout",
+                "tlsmode",
                 "connection_timeout",
             ],
             "secret": ["password"],
+            "extra_options": ["tlsmode", "connection_timeout"],
         }
 
     @classmethod
@@ -110,7 +124,10 @@ class Vertica(BaseSQLQueryRunner):
                 "user": self.configuration.get("user", ""),
                 "password": self.configuration.get("password", ""),
                 "database": self.configuration.get("database", ""),
-                "read_timeout": self.configuration.get("read_timeout", 600),
+                # `read_timeout` used to be here. vertica-python dropped the option, and
+                # an argument the driver ignores is worse than no argument at all: the
+                # form promises a limit that nothing enforces.
+                "tlsmode": self.configuration.get("tlsmode", "prefer"),
             }
 
             if self.configuration.get("connection_timeout"):

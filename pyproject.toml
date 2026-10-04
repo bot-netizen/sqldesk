@@ -153,7 +153,10 @@ all_ds = [
     "trino>=0.305,<1.0",
     # Needed by trino and atsd-client, and by nothing in the base install.
     "tzlocal==4.3.1",
-    "vertica-python==1.1.1",
+    # 1.1.1 imports the stdlib `crypt`, which PEP 594 removed in Python 3.13 -- so
+    # `import vertica_python` raised, `enabled()` caught it, and Vertica quietly
+    # stopped being offered at all. 1.4.0 vendors its own.
+    "vertica-python==1.4.0",
     "xlrd==2.0.1",
     "e6data-python-connector==2.2.0",
 ]
