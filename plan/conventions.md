@@ -67,6 +67,10 @@ workflows.
   ```
 
   2312 passed / 10 skipped that way, against 2305 / 17 without it.
+- **Lint after the last commit, not before it.** 0.7.2 met a red CI because I
+  ran black and ruff, then committed one more fix whose expression got shorter
+  and whose line then fitted on one. The linters are cheap; run them again
+  immediately before the push.
 - **Never run the suite as root.** `docker compose run --user root` is tempting
   when you need a `pip install` first, and it fails two tests for reasons that
   have nothing to do with your change: `test_connection_bad_test` expects

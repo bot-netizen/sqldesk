@@ -35,8 +35,9 @@ nothing refreshes, and the only signal is Outdated Queries growing.
 
 **7. Results travel through the web tier and are rebuilt per viewer.**
 Measured on 20k×8 (3.3 MB): `JSON.parse` 14 ms, `QueryResult.update()`
-**960 ms** on the browser's main thread. One dashboard pays once since 0.5;
-100 viewers of it pay 100 times.
+**76 ms** on the browser's main thread -- it was 960 ms when this was written,
+and the `parseTimestamp` fix had already taken it; re-measured 2026-10-04. One
+dashboard pays once since 0.5; 100 viewers of it pay 100 times.
 
 ## Result formats, measured 2026-10-04
 
@@ -58,11 +59,12 @@ column lists 4,425,318, **Arrow table 1,318,194**.
 
 Three things follow, and the first was a surprise:
 
-**Nothing compresses the response.** No flask-compress, nothing in the chart,
-nothing in the ingress templates; `/ping` with `Accept-Encoding: gzip` comes
-back with no `Content-Encoding`. So the full **3.7 MB** crosses the wire for
-that result, and gzip alone on today's format is **8.8x** for one dependency.
-Measure the other options against 420 KB, not against 3.7 MB.
+**Nothing compressed the response -- fixed in 0.7.2.** There was no
+flask-compress, nothing in the chart and nothing in the ingress templates, so
+the full **3.7 MB** crossed the wire for that result and 6.7 MB of JS and CSS
+went out byte for byte on a cold load. Responses now negotiate brotli q4 or
+gzip 6. **Measure every option below against ~420 KB, not against 3.7 MB** --
+that is what changed about the rest of this table's conclusions.
 
 **Arrow does not win on bandwidth.** Gzipped it is *worse* than columnar JSON
 (390 KB against 300 KB) because a binary layout does not compress like
@@ -146,7 +148,7 @@ performance, and three are not casual bumps.
 | `pyhive` | 0.6.1 | 0.7.0 | |
 | `psycopg2-binary` | 2.9.11 | 2.9.13 | |
 
-## The 960 ms is a per-cell type sniff
+## The per-cell type sniff is 76 ms, and it is load-bearing
 
 `client/app/services/query-result.js:156-186` walks **every cell** -- 160,000
 of them at 20k x 8 -- asking `isNumber`, then `isString`, then running
@@ -154,14 +156,24 @@ of them at 20k x 8 -- asking `isNumber`, then `isString`, then running
 stop manipulating incoming data, and switch to relaying on the column type set
 by the backend."*
 
-It cannot simply go: some runners emit `type: null` (Trino did until 0.7.1),
-and timestamps must become moments for the visualizations. The fix is to
-decide per **column** instead of per cell -- parse only in columns declared
-datetime, sniff only columns whose type is unknown. A result with one
-timestamp column in eight then does 20k parses instead of 160k checks.
+**Do not act on that TODO.** Two things came out of trying, on 2026-10-04:
 
-Note what this means: **the Trino typing bug fixed in 0.7.1 was also a
-performance bug.** Untyped columns forced every cell down the slow path.
+**It is 76 ms, not 960.** The figure in 7 above predated the `parseTimestamp`
+fix, whose own notes record 253 ms down to 20 ms for 20,000 ISO strings --
+times roughly four string-ish columns, which is where 960 came from. A
+rewrite of code upstream calls "prone to errors" to save perhaps 50 ms is a
+bad trade. Re-measure before anybody proposes it again.
+
+**And it has been quietly carrying DuckDB.** Until 0.7.2 every number and
+every timestamp from a DuckDB source was declared a string, because the type
+map was keyed by DuckDB's names and the driver reported DB-API ones. Nobody
+noticed for one reason: this loop sniffs any column declared `string` and
+recovers it. Deleting the loop would have exposed the fault rather than
+removed the cost.
+
+Declared types also do not currently make the loop cheaper -- all-types-null
+measures 75 ms against 76 -- so the Trino typing bug fixed in 0.7.1 was a
+correctness fault only, not a performance one.
 
 ## Already fine
 
