@@ -38,6 +38,61 @@ Measured on 20k×8 (3.3 MB): `JSON.parse` 14 ms, `QueryResult.update()`
 **960 ms** on the browser's main thread. One dashboard pays once since 0.5;
 100 viewers of it pay 100 times.
 
+## Result formats, measured 2026-10-04
+
+20,000 rows x 8 columns -- the shape in 7 above. Encode and decode are Python
+in the container; "gzipped" is what *would* cross the wire if anything
+compressed it.
+
+| representation | encode ms | decode ms | bytes | gzipped |
+|---|---|---|---|---|
+| row dicts (today) | 112 | 35 | 3,715,944 | 420,514 |
+| row arrays | 106 | 16 | 1,675,944 | 371,130 |
+| columnar JSON | 86 | 9 | 1,636,062 | 299,780 |
+| Arrow IPC | 2 | 0 | 1,319,256 | 390,371 |
+| Arrow IPC + lz4 | 3 | 2 | 806,224 | 409,154 |
+| Parquet + zstd | 9 | 2 | 457,814 | 421,832 |
+
+Held in memory, same data: row dicts **8,653,934**, row tuples 5,293,536,
+column lists 4,425,318, **Arrow table 1,318,194**.
+
+Three things follow, and the first was a surprise:
+
+**Nothing compresses the response.** No flask-compress, nothing in the chart,
+nothing in the ingress templates; `/ping` with `Accept-Encoding: gzip` comes
+back with no `Content-Encoding`. So the full **3.7 MB** crosses the wire for
+that result, and gzip alone on today's format is **8.8x** for one dependency.
+Measure the other options against 420 KB, not against 3.7 MB.
+
+**Arrow does not win on bandwidth.** Gzipped it is *worse* than columnar JSON
+(390 KB against 300 KB) because a binary layout does not compress like
+repetitive text, and Parquet is already compressed so gzip adds nothing. Arrow
+wins on **CPU, 112 ms to 2 ms**, and on **memory, 6.6x** -- which is what
+matters given ceiling 1 and the worker holding each result in full.
+
+**ADBC is a per-runner opt-in, not a platform change.** Drivers exist for
+PostgreSQL, Snowflake, BigQuery, SQLite and Flight SQL -- four or five of 75
+types, and none of MySQL, MariaDB, Vertica or Trino. The cheapest real Arrow
+win here is DuckDB, which is used three ways and already returns Arrow
+natively; `query_runner/duckdb.py:287` throws it away to build row dicts.
+
+## The 960 ms is a per-cell type sniff
+
+`client/app/services/query-result.js:156-186` walks **every cell** -- 160,000
+of them at 20k x 8 -- asking `isNumber`, then `isString`, then running
+`parseTimestamp` on every string cell. Upstream left a TODO on it: *"we should
+stop manipulating incoming data, and switch to relaying on the column type set
+by the backend."*
+
+It cannot simply go: some runners emit `type: null` (Trino did until 0.7.1),
+and timestamps must become moments for the visualizations. The fix is to
+decide per **column** instead of per cell -- parse only in columns declared
+datetime, sniff only columns whose type is unknown. A result with one
+timestamp column in eight then does 20k parses instead of 160k checks.
+
+Note what this means: **the Trino typing bug fixed in 0.7.1 was also a
+performance bug.** Untyped columns forced every cell down the slow path.
+
 ## Already fine
 
 Checked, do not re-investigate: the dashboard N+1 (9 statements for 15
