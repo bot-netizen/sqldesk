@@ -76,6 +76,76 @@ types, and none of MySQL, MariaDB, Vertica or Trino. The cheapest real Arrow
 win here is DuckDB, which is used three ways and already returns Arrow
 natively; `query_runner/duckdb.py:287` throws it away to build row dicts.
 
+## Arrow is all or nothing
+
+DuckDB, 200,000 rows x 8, measured 2026-10-04:
+
+| path | ms |
+|---|---|
+| `fetchall()` -> row dicts (today) | 349 |
+| `fetch_arrow_table()` -> row dicts | **467** |
+| `fetch_arrow_table()` -> column lists | 258 |
+| `fetch_arrow_table()`, kept as Arrow | **12** |
+
+**Fetching Arrow and then building row dicts is 34% slower than today**, because
+it adds a conversion. Kept as Arrow it is 29x faster. The whole gain is in not
+materialising Python objects, so swapping a runner's fetch without changing the
+result representation makes things worse. Do not do these in that order.
+
+## ADBC, checked rather than assumed
+
+On PyPI: `adbc-driver-manager`, `-postgresql`, `-snowflake`, `-bigquery`,
+`-sqlite`, `-flightsql`. **There is no `adbc-driver-trino`**, no
+`-duckdb`, no `-dremio` (Dremio goes through flightsql; Trino does not speak
+Flight SQL natively, so that driver does not reach it either).
+
+Arrow is reachable **without** ADBC in more places than with it:
+
+| runner | how | note |
+|---|---|---|
+| Snowflake | `fetch_arrow_all()` | the wire format is already Arrow; we call `fetchall()` and discard it |
+| DuckDB | `fetch_arrow_table()` | 29x, above; used three ways in this codebase |
+| BigQuery | `to_arrow()` | needs the Storage Read API |
+| Athena | `ArrowCursor` | PyAthena 3.x only; we are on 2.25.2 |
+| Postgres | `adbc-driver-postgresql` | COPY binary, a new dependency |
+
+Five of 75 types either way. It is a per-runner opt-in, not a platform change.
+
+## Trino: the upgrade helps, and it is not Arrow
+
+`trino` 0.330.0 -> **0.340.0** adds the **spooling protocol**:
+`X-Trino-Query-Data-Encoding`, SPOOLED segments fetched by URI and
+acknowledged, `json+lz4` and `json+zstd`. The string "arrow" appears in no
+file of the package.
+
+This is a better fit for Trino than ADBC would have been. Today every row of
+every result is paged through the **coordinator's heap** as JSON; spooling has
+the workers write segments to object storage for the client to fetch directly,
+which is Trino's own documented ceiling on large results.
+
+Safe to adopt: `encoding` defaults to `None`, so the upgrade alone changes
+nothing and a data source opts in. Needs a Trino server with spooling
+configured.
+
+## Every driver is behind
+
+Checked against PyPI on 2026-10-04. Several are maintenance debt rather than
+performance, and three are not casual bumps.
+
+| package | installed | latest | |
+|---|---|---|---|
+| `oracledb` | 2.5.1 | 26.0.1 | an enormous jump |
+| `pyathena` | 2.25.2 | 3.37.0 | major; 3.x has `ArrowCursor`, breaking cursor API |
+| `pandas` | 2.3.3 | 3.0.6 | major; copy-on-write and the string dtype. `utils/pandas.py` and the Python runner both depend on it |
+| `pymongo` | 4.6.3 | 4.18.2 | |
+| `trino` | 0.330.0 | 0.340.0 | spooling, above |
+| `duckdb` | 1.3.2 | 1.5.6 | |
+| `snowflake-connector-python` | 4.5.0 | 4.8.0 | |
+| `mysqlclient` | 2.1.1 | 2.3.0 | 2.1.1 is from 2022; **re-check the SSL behaviour 0.7.1 relies on** |
+| `impyla` | 0.22.0 | 0.24.0 | |
+| `pyhive` | 0.6.1 | 0.7.0 | |
+| `psycopg2-binary` | 2.9.11 | 2.9.13 | |
+
 ## The 960 ms is a per-cell type sniff
 
 `client/app/services/query-result.js:156-186` walks **every cell** -- 160,000
