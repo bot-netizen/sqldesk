@@ -1,5 +1,104 @@
 # Changelog
 
+## 0.7.2
+
+Nothing compressed a response, every driver was behind, and a DuckDB upgrade
+uncovered a fault older than the upgrade.
+
+**Nothing in SQLDesk compressed a response.** Not the app, not the chart, not
+the ingress templates. A `/ping` asked with `Accept-Encoding: gzip` came back
+with no `Content-Encoding` at all, which is how it survived: there was nothing
+to notice. So a 20,000-row result sent its full **3,715,944 bytes**, and the
+**6,747,167 bytes** of JavaScript and CSS behind a cold page load -- which
+gzip to 1,630,082, a factor of 4.1 -- went out byte for byte.
+
+Responses are compressed now, with codecs chosen from measurement: brotli q4
+and gzip 6, both 8.8x. Level 9 is deliberately absent, costing five times the
+CPU for ten percent more. Only text is compressed; a PNG from the renderer, an
+.xlsx and a Parquet upload would each get bigger for the trouble.
+`SQLDESK_COMPRESS_RESPONSES=false` turns it off.
+
+**Every number and timestamp from DuckDB was declared a string.** `TYPES_MAP`
+has always been keyed by DuckDB's own type names, and up to 1.3 the driver
+reported DB-API ones instead -- `NUMBER`, `STRING`, `DATETIME`, `bool`. Of
+twelve ordinary column types only five matched, and the seven that did not
+included every numeric type and every timestamp. So every number and every
+timestamp from a DuckDB source, and therefore from every uploaded CSV and
+Parquet file, arrived typed as text. It was invisible because the browser
+sniffs the type of any column declared `string` and recovers most of it.
+
+1.5 reports `INTEGER`, `TIMESTAMP`, `BOOLEAN` and the rest, which the table
+already knew, so the upgrade fixes it: eleven of twelve now map with nothing
+but a `str()`, and the twelfth, `DECIMAL(10,2)`, is parameterised exactly like
+Trino's and handled the same way. A test now asks DuckDB for a column of each
+of seventeen types, so a rename fails loudly rather than quietly typing
+everything as text.
+
+The upgrade also broke the runner outright before that was fixed:
+`cursor.description`'s type code became a `DuckDBPyType`, and `.upper()` on
+one forwards to its child-type lookup rather than raising an ordinary
+attribute error -- so the failure read *"Tried to get child type by the name
+of 'upper'"*, which says nothing about the cause.
+
+### Drivers
+
+Eight upgrades, each checked rather than bumped:
+
+| | from | to |
+|---|---|---|
+| `trino` | 0.330.0 | 0.340.0 |
+| `duckdb` | 1.3.2 | 1.5.6 |
+| `mysqlclient` | 2.1.1 | 2.3.0 |
+| `pymongo` | 4.6.3 | 4.18.2 |
+| `snowflake-connector-python` | 4.5.0 | 4.8.0 |
+| `pyhive` | 0.6.1 | 0.7.0 |
+| `impyla` | 0.22.0 | 0.24.0 |
+| `psycopg2-binary` | 2.9.11 | 2.9.13 |
+
+**DuckDB persists real database files** -- a stream window is one, and a
+DuckDB data source points at one -- so the storage format was checked in both
+directions: 1.5.6 reads and writes a file written by 1.3.2, and 1.3.2 reads
+one written by 1.5.6. The upgrade and the rollback are both safe.
+
+**MySQL's `ssl_mode` is what 0.7.1 fixed**, so 2.3.0 had to still take it as
+its own connect argument: it does, and it still ignores an unknown key in the
+`ssl` mapping without complaint, which is the behaviour that made the original
+fault invisible.
+
+**`pymongo` loses `[srv,tls]`**, which turns out never to have been real --
+neither extra has existed since pymongo 3.x, so the pin has been asking for
+nothing since the Redash days. SRV connection strings are unaffected;
+dnspython is a hard dependency.
+
+**`pandas`, `oracledb` and `pyathena` are deliberately held**, with the reason
+written beside each pin. pandas 3 changes copy-on-write and the default string
+dtype; oracledb is an eight-major-version jump; pyathena 3 renames its cursor
+classes, and its `ArrowCursor` belongs with the columnar work rather than a
+patch release.
+
+### Added
+
+**Trino can use the spooled protocol.** Under the standard protocol every row
+of every result is paged through the coordinator's heap as JSON, which is
+Trino's own ceiling on large results; spooling has the workers write segments
+to object storage for the client to fetch directly, compressed with lz4 or
+zstd. It is a field on the data source and off unless chosen, because it needs
+a server that offers it -- Trino 466 and later, with spooling configured --
+and there is no way to tell from here whether one does.
+
+There is no ADBC driver for Trino, which is what prompted looking: it is not
+on PyPI, and Trino does not speak Flight SQL natively either.
+
+### Upgrading
+
+Nothing to do beyond the image. **No migration**, no configuration change.
+
+One thing to expect: a DuckDB column that was text may now be a number, a
+boolean or a date, because it always was one and is finally declared as such.
+Charts that were already working will keep working -- the browser had been
+guessing the same answer -- but a column could change its alignment or its
+formatting.
+
 ## 0.7.1
 
 Five faults in the data source layer, four of them found by reading the
