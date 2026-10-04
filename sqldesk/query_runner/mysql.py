@@ -142,6 +142,10 @@ class Mysql(BaseSQLQueryRunner):
         if ssl_options:
             params["ssl"] = ssl_options
 
+        ssl_mode = self._get_ssl_mode()
+        if ssl_mode:
+            params["ssl_mode"] = ssl_mode
+
         connection = MySQLdb.connect(**params)
 
         return connection
@@ -263,20 +267,51 @@ class Mysql(BaseSQLQueryRunner):
             if connection:
                 connection.close()
 
+    # MySQL's own spelling of the SSL modes, which is not the spelling the form uses.
+    SSL_MODES = {
+        "disabled": "DISABLED",
+        "preferred": "PREFERRED",
+        "required": "REQUIRED",
+        "verify-ca": "VERIFY_CA",
+        "verify-identity": "VERIFY_IDENTITY",
+    }
+
     def _get_ssl_parameters(self):
+        """The certificate files for `mysql_ssl_set()`.
+
+        Note what is *not* here: the SSL mode. mysqlclient takes `ssl_mode` as its own
+        connect argument (MYSQL_OPT_SSL_MODE) and reads only `ca`, `capath`, `cert`,
+        `key` and `cipher` out of the `ssl` mapping. It ignores anything else in there
+        without complaining -- verified against the pinned 2.1.1 -- so the mode has to
+        be passed separately. See `_get_ssl_mode`.
+        """
         if not self.configuration.get("use_ssl"):
             return None
 
         ssl_params = {}
-
-        if self.configuration.get("use_ssl"):
-            config_map = {"ssl_mode": "preferred", "ssl_cacert": "ca", "ssl_cert": "cert", "ssl_key": "key"}
-            for key, cfg in config_map.items():
-                val = self.configuration.get(key)
-                if val:
-                    ssl_params[cfg] = val
+        config_map = {"ssl_cacert": "ca", "ssl_cert": "cert", "ssl_key": "key"}
+        for key, cfg in config_map.items():
+            val = self.configuration.get(key)
+            if val:
+                ssl_params[cfg] = val
 
         return ssl_params
+
+    def _get_ssl_mode(self):
+        """VERIFY_IDENTITY has to reach the driver to mean anything.
+
+        It did not. The mode was being put into the `ssl` mapping under the key
+        "preferred" -- the value of a lookup table used as its key -- where mysqlclient
+        silently drops it. So the SSL Mode dropdown decided nothing: an install that
+        chose Verify Identity got whatever the server happened to offer, and the form
+        said otherwise. The worst kind of security control is the one that reports
+        success.
+        """
+        if not self.configuration.get("use_ssl"):
+            return None
+
+        mode = (self.configuration.get("ssl_mode") or "").strip().lower()
+        return self.SSL_MODES.get(mode)
 
     def _cancel(self, thread_id):
         connection = None
@@ -334,6 +369,43 @@ class RDSMySQL(Mysql):
 
         return None
 
+    def _get_ssl_mode(self):
+        """Use SSL on RDS now verifies the chain.
+
+        We ship Amazon's CA bundle and hand it to the driver, and then asked for no
+        verification against it -- so the default mode applied, which accepts an
+        unencrypted connection if the server offers one. Shipping a CA and not
+        checking it is doing the work and discarding the result.
+
+        VERIFY_CA rather than VERIFY_IDENTITY on purpose: it proves the certificate
+        came from Amazon without also requiring the hostname to match, which it does
+        not when an instance is reached through a CNAME or a proxy.
+        """
+        if self.configuration.get("use_ssl"):
+            return "VERIFY_CA"
+
+        return None
+
+
+class MariaDB(Mysql):
+    """MariaDB, under its own name.
+
+    It speaks the MySQL protocol, so this runner has always been able to talk to it --
+    but only to somebody who already knew that. Anybody scanning the list for MariaDB
+    found nothing and concluded it was unsupported.
+
+    Existing connections keep the `mysql` type; nothing is migrated.
+    """
+
+    @classmethod
+    def type(cls):
+        return "mariadb"
+
+    @classmethod
+    def name(cls):
+        return "MariaDB"
+
 
 register(Mysql)
 register(RDSMySQL)
+register(MariaDB)
