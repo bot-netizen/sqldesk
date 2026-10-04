@@ -446,6 +446,14 @@ DESTINATIONS = distinct(enabled_destinations + additional_destinations)
 
 EVENT_REPORTING_WEBHOOKS = array_from_string(os.environ.get("SQLDESK_EVENT_REPORTING_WEBHOOKS", ""))
 
+# Nothing compressed a response before 0.7.2 -- not the app, not the chart, not
+# the ingress. A 20k-row result sent 3.7 MB and the 6.7 MB of JS and CSS behind
+# a cold page load went out byte for byte. The levels are the measured ones; see
+# sqldesk/compression.py for the figures and why level 9 is not among them.
+COMPRESS_RESPONSES = parse_boolean(os.environ.get("SQLDESK_COMPRESS_RESPONSES", "true"))
+COMPRESS_GZIP_LEVEL = int(os.environ.get("SQLDESK_COMPRESS_GZIP_LEVEL", 6))
+COMPRESS_BROTLI_LEVEL = int(os.environ.get("SQLDESK_COMPRESS_BROTLI_LEVEL", 4))
+
 # Support for Sentry (https://getsentry.com/). Just set your Sentry DSN to enable it:
 SENTRY_DSN = os.environ.get("SQLDESK_SENTRY_DSN", "")
 SENTRY_ENVIRONMENT = os.environ.get("SQLDESK_SENTRY_ENVIRONMENT")

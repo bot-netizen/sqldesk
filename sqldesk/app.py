@@ -42,6 +42,7 @@ class SQLDesk(Flask):
 def create_app():
     from . import (
         authentication,
+        compression,
         handlers,
         limiter,
         mail,
@@ -63,6 +64,9 @@ def create_app():
     reset_new_version_status()
 
     security.init_app(app)
+    # Before the handlers, so the after_request hook it installs runs outermost
+    # and sees the finished body of every response the app produces.
+    compression.init_app(app)
     request_metrics.init_app(app)
     db.init_app(app)
     migrate.init_app(app, db)
