@@ -227,3 +227,66 @@ class TestWhatAPassMaySee(BaseTestCase):
         rv = self._results(self.elsewhere, token)
 
         self.assertEqual(403, rv.status_code)
+
+
+class TestWhatAPassMayRead(BaseTestCase):
+    """
+    A pass has to be able to read the thing it was issued for.
+
+    It was built with no groups at all, which is nearly right: it names one
+    object and should open nothing else. But the embed page a query renders in
+    fetches that query's *stored result*, and
+    `/api/queries/<id>/results/<id>.json` checks access to the data source --
+    which a user in no group never has. So the page fetched the query, was
+    refused its result, and sat at "Loading..." until the renderer gave up.
+
+    The alert still went out, because a failed render is meant to cost the
+    picture and not the alert, so nothing anywhere said a word. Dashboards were
+    unaffected: the public dashboard handler serves its widgets' data itself
+    and never asks that endpoint.
+
+    The fix is in `allows`, not in the pass's groups: `has_access` sends a
+    render pass straight there and never reaches the group logic at all, so a
+    pass carrying every group in the organisation would still have been
+    refused.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.query = self.factory.create_query()
+        db.session.commit()
+
+    def test_a_pass_may_read_the_data_source_behind_its_object(self):
+        token = render_pass.issue(self.factory.user, self.query)
+
+        user = render_pass.load(token, self.factory.org)
+
+        self.assertTrue(has_access(self.query.data_source, user, view_only))
+
+    def test_and_still_may_not_write(self):
+        token = render_pass.issue(self.factory.user, self.query)
+
+        user = render_pass.load(token, self.factory.org)
+
+        self.assertFalse(has_access(self.query.data_source, user, not_view_only))
+
+    def test_and_reaches_no_further_than_its_own_object(self):
+        # A second data source nobody granted it. The pass carries the groups
+        # of the object it names and no others.
+        elsewhere = self.factory.create_data_source(name="Somewhere else", group=self.factory.create_group())
+        token = render_pass.issue(self.factory.user, self.query)
+
+        user = render_pass.load(token, self.factory.org)
+
+        self.assertFalse(has_access(elsewhere, user, view_only))
+
+    def test_a_dashboard_pass_carries_what_a_dashboard_carries(self):
+        # A dashboard has no data source of its own, so it has no groups; the
+        # pass must still load rather than fail on the lookup.
+        dashboard = self.factory.create_dashboard()
+        db.session.commit()
+
+        user = render_pass.load(render_pass.issue(self.factory.user, dashboard), self.factory.org)
+
+        self.assertIsNotNone(user)
+        self.assertEqual(dashboard.id, user.object.id)

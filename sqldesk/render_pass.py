@@ -195,4 +195,30 @@ def allows(obj, user, need_view_only):
     if isinstance(target, models.Dashboard) and isinstance(obj, models.Query):
         return target.id in obj.dashboard_ids
 
+    # The data source behind what it may see.
+    #
+    # `/api/queries/<id>/results/<id>.json` checks access to the *data source*,
+    # not to the query, so a pass for a query could fetch the query and was
+    # then refused its stored result: the embed page sat at "Loading..." until
+    # the renderer timed out, and the alert went out without its picture --
+    # silently, because a failed render is meant to cost the picture and not
+    # the alert. Every query attachment ever added to an alert was blank.
+    #
+    # A dashboard never showed it. Its public handler serves each widget's
+    # data itself and never asks that endpoint.
+    #
+    # This grants reading one data source's *results for pages this pass may
+    # already see*, which is what a public link granted and what the rule
+    # above already allows for the queries themselves.
+    if isinstance(obj, models.DataSource):
+        if isinstance(target, models.Query):
+            return obj.id == target.data_source_id
+        if isinstance(target, models.Dashboard):
+            return any(
+                widget.visualization is not None
+                and widget.visualization.query_rel is not None
+                and widget.visualization.query_rel.data_source_id == obj.id
+                for widget in target.loaded_widgets()
+            )
+
     return False
