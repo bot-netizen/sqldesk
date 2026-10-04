@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Input from "antd/lib/input";
 import Link from "@/components/Link";
 import PlainButton from "@/components/PlainButton";
+import TypeLogo from "@/components/TypeLogo";
 import EmptyState from "@/components/items-list/components/EmptyState";
 
 import "./CardsList.less";
@@ -11,6 +12,9 @@ import "./CardsList.less";
 export interface CardsListItem {
   title: string;
   imgSrc: string;
+  // What the logo stands for, when there is no logo file. The title is the instance's
+  // own name ("prod metrics"), which makes poor initials for a type.
+  imgLabel?: string;
   href?: string;
   onClick?: React.MouseEventHandler<HTMLElement>;
 }
@@ -32,7 +36,7 @@ function ListItem({ item, keySuffix }: ListItemProps) {
     onClick: item.onClick,
     children: (
       <>
-        <img alt={item.title} src={item.imgSrc} />
+        <TypeLogo alt={item.title} src={item.imgSrc} label={item.imgLabel || item.title} />
         <h3>{item.title}</h3>
       </>
     ),
@@ -81,6 +85,7 @@ CardsList.propTypes = {
     PropTypes.shape({
       title: PropTypes.string.isRequired,
       imgSrc: PropTypes.string.isRequired,
+      imgLabel: PropTypes.string,
       onClick: PropTypes.func,
       href: PropTypes.string,
     })

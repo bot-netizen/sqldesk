@@ -11,6 +11,7 @@ import HelpTrigger, { TYPES as HELP_TRIGGER_TYPES } from "@/components/HelpTrigg
 import wrapSettingsTab from "@/components/SettingsWrapper";
 
 import DataSource, { IMG_ROOT } from "@/services/data-source";
+import TypeLogo from "@/components/TypeLogo";
 import notification from "@/services/notification";
 import UploadedFilesPanel from "./UploadedFilesPanel";
 
@@ -190,7 +191,7 @@ class EditDataSource extends React.Component {
           )}
         </div>
         <div className="text-center m-b-10">
-          <img className="p-5" src={`${IMG_ROOT}/${type.type}.png`} alt={type.name} width="64" />
+          <TypeLogo className="p-5" src={`${IMG_ROOT}/${type.type}.png`} label={type.type} alt={type.name} width={64} />
           <h3 className="m-0">{type.name}</h3>
         </div>
         <div className="col-md-4 col-md-offset-4 m-b-10">

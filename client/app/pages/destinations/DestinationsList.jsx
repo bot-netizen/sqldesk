@@ -88,6 +88,7 @@ class DestinationsList extends React.Component {
     const items = destinations.map((destination) => ({
       title: destination.name,
       imgSrc: `${IMG_ROOT}/${destination.type}.png`,
+      imgLabel: destination.type,
       href: `destinations/${destination.id}`,
     }));
 

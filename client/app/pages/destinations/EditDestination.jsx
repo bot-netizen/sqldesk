@@ -10,6 +10,7 @@ import helper from "@/components/dynamic-form/dynamicFormHelper";
 import wrapSettingsTab from "@/components/SettingsWrapper";
 
 import Destination, { IMG_ROOT } from "@/services/destination";
+import TypeLogo from "@/components/TypeLogo";
 import notification from "@/services/notification";
 
 class EditDestination extends React.Component {
@@ -90,7 +91,7 @@ class EditDestination extends React.Component {
     return (
       <div className="row" data-test="Destination">
         <div className="text-center m-b-10">
-          <img className="p-5" src={`${IMG_ROOT}/${type.type}.png`} alt={type.name} width="64" />
+          <TypeLogo className="p-5" src={`${IMG_ROOT}/${type.type}.png`} label={type.type} alt={type.name} width={64} />
           <h3 className="m-0">{type.name}</h3>
         </div>
         <div className="col-md-4 col-md-offset-4 m-b-10">

@@ -20,6 +20,7 @@ export function DataSourcesListComponent({ dataSources, onClickCreate }) {
   const items = dataSources.map((dataSource) => ({
     title: dataSource.name,
     imgSrc: `${IMG_ROOT}/${dataSource.type}.png`,
+    imgLabel: dataSource.type,
     href: `data_sources/${dataSource.id}`,
   }));
 

@@ -2,19 +2,23 @@ import React from "react";
 import PropTypes from "prop-types";
 import classNames from "classnames";
 import Link from "@/components/Link";
+import TypeLogo from "@/components/TypeLogo";
+import { IMG_ROOT } from "@/services/data-source";
 
 // PreviewCard
 
-export function PreviewCard({ imageUrl, roundedImage, title, body, children, className, ...props }) {
+export function PreviewCard({ image, imageUrl, roundedImage, title, body, children, className, ...props }) {
   return (
     <div {...props} className={className + " w-100 d-flex align-items-center"}>
-      <img
-        src={imageUrl}
-        width="32"
-        height="32"
-        className={classNames({ "profile__image--settings": roundedImage }, "m-r-5")}
-        alt="Logo/Avatar"
-      />
+      {image || (
+        <img
+          src={imageUrl}
+          width="32"
+          height="32"
+          className={classNames({ "profile__image--settings": roundedImage }, "m-r-5")}
+          alt="Logo/Avatar"
+        />
+      )}
       <div className="flex-fill">
         <div>{title}</div>
         {body && <div className="text-muted">{body}</div>}
@@ -25,7 +29,9 @@ export function PreviewCard({ imageUrl, roundedImage, title, body, children, cla
 }
 
 PreviewCard.propTypes = {
-  imageUrl: PropTypes.string.isRequired,
+  // Either a URL, which is drawn as a plain image, or an already-rendered one.
+  image: PropTypes.node,
+  imageUrl: PropTypes.string,
   title: PropTypes.node.isRequired,
   body: PropTypes.node,
   roundedImage: PropTypes.bool,
@@ -34,6 +40,8 @@ PreviewCard.propTypes = {
 };
 
 PreviewCard.defaultProps = {
+  image: null,
+  imageUrl: null,
   body: null,
   roundedImage: true,
   className: "",
@@ -69,10 +77,18 @@ UserPreviewCard.defaultProps = {
 // DataSourcePreviewCard
 
 export function DataSourcePreviewCard({ dataSource, withLink, children, ...props }) {
-  const imageUrl = `/static/images/db-logos/${dataSource.type}.png`;
   const title = withLink ? <Link href={"data_sources/" + dataSource.id}>{dataSource.name}</Link> : dataSource.name;
+  const image = (
+    <TypeLogo
+      src={`${IMG_ROOT}/${dataSource.type}.png`}
+      label={dataSource.type}
+      width={32}
+      className="m-r-5"
+      alt={dataSource.type}
+    />
+  );
   return (
-    <PreviewCard {...props} imageUrl={imageUrl} title={title}>
+    <PreviewCard {...props} image={image} title={title}>
       {children}
     </PreviewCard>
   );

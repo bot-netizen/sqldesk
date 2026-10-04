@@ -8,6 +8,7 @@ import SelectItemsDialog from "@/components/SelectItemsDialog";
 import { Destination as DestinationType, UserProfile as UserType } from "@/components/proptypes";
 
 import DestinationService, { IMG_ROOT } from "@/services/destination";
+import TypeLogo from "@/components/TypeLogo";
 import AlertSubscription from "@/services/alert-subscription";
 import { clientConfig, currentUser } from "@/services/auth";
 import notification from "@/services/notification";
@@ -40,7 +41,7 @@ function ListItem({ destination: { name, type }, user, unsubscribe }) {
 
   return (
     <li className="destination-wrapper">
-      <img src={`${IMG_ROOT}/${type}.png`} className="destination-icon" alt={name} />
+      <TypeLogo src={`${IMG_ROOT}/${type}.png`} label={name} className="destination-icon" alt={name} width={24} />
       <span className="flex-fill">{name}</span>
       {type === "email" && (
         <EmailSettingsWarning className="destination-warning" featureName="alert emails" mode="icon" />
@@ -112,7 +113,13 @@ export default class AlertDestinations extends React.Component {
         return {
           content: (
             <div className="destination-wrapper">
-              <img src={`${IMG_ROOT}/${item.type}.png`} className="destination-icon" alt={item.name} />
+              <TypeLogo
+                src={`${IMG_ROOT}/${item.type}.png`}
+                label={item.name}
+                className="destination-icon"
+                alt={item.name}
+                width={24}
+              />
               <span className="flex-fill">{item.name}</span>
               <ListItemAddon isSelected={isSelected} alreadyInGroup={alreadyInGroup} deselectedIcon="fa-plus" />
             </div>

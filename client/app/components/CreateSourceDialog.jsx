@@ -9,6 +9,7 @@ import Steps from "antd/lib/steps";
 import { wrap as wrapDialog, DialogPropType } from "@/components/DialogWrapper";
 import Link from "@/components/Link";
 import { PreviewCard } from "@/components/PreviewCard";
+import TypeLogo from "@/components/TypeLogo";
 import EmptyState from "@/components/items-list/components/EmptyState";
 import DynamicForm from "@/components/dynamic-form/DynamicForm";
 import helper from "@/components/dynamic-form/dynamicFormHelper";
@@ -164,7 +165,13 @@ class CreateSourceDialog extends React.Component {
     return (
       <div>
         <div className="d-flex justify-content-center align-items-center">
-          <img className="p-5" src={`${imageFolder}/${selectedType.type}.png`} alt={selectedType.name} width="48" />
+          <TypeLogo
+            className="p-5"
+            src={`${imageFolder}/${selectedType.type}.png`}
+            label={selectedType.type}
+            alt={selectedType.name}
+            width={48}
+          />
           <h4 className="m-0">{selectedType.name}</h4>
         </div>
         <div className="text-right">
@@ -195,7 +202,13 @@ class CreateSourceDialog extends React.Component {
     return (
       <div>
         <div className="d-flex justify-content-center align-items-center">
-          <img className="p-5" src={`${imageFolder}/${selectedType.type}.png`} alt={selectedType.name} width="48" />
+          <TypeLogo
+            className="p-5"
+            src={`${imageFolder}/${selectedType.type}.png`}
+            label={selectedType.name}
+            alt={selectedType.name}
+            width={48}
+          />
           <h4 className="m-0">{selectedType.name}</h4>
         </div>
         <div className="m-t-15 m-b-5">
@@ -235,7 +248,15 @@ class CreateSourceDialog extends React.Component {
       <List.Item className="p-l-10 p-r-10 clickable" onClick={() => this.selectType(item)}>
         <PreviewCard
           title={item.name}
-          imageUrl={`${imageFolder}/${item.type}.png`}
+          image={
+            <TypeLogo
+              src={`${imageFolder}/${item.type}.png`}
+              label={item.type}
+              alt={item.name}
+              width={32}
+              className="m-r-5"
+            />
+          }
           roundedImage={false}
           data-test="PreviewItem"
           data-test-type={item.type}
