@@ -1,5 +1,69 @@
 # Changelog
 
+## 0.7.3
+
+Four gaps closed in features 0.7 shipped, three of them asked for by somebody
+using it, and three faults found on the way.
+
+**SQLDesk stops appearing in lag monitoring.** Every stream joined a consumer
+group, `sqldesk-stream-<id>`, as a live member that never committed -- which to
+a lag monitor is a group with no position at all, and exactly what it exists to
+alarm on. The default is now no group the broker can see. It cannot literally
+be none, because librdkafka will not build a consumer without a `group.id`, so
+one is set and never used: the consumer assigns itself every partition and
+commits nothing. One consumer per topic was already guaranteed by a lock, so
+the group never balanced anything. Existing streams take the default on
+upgrade, so the alarms stop without anybody changing a setting.
+
+Per topic, where it is analysed and enabled: an optional **consumer group
+name**, for monitoring that ignores consumers by prefix; **save position**, off
+by default and saying so in words, which commits after each flush and only
+then; and **start from** latest, earliest, or where it left off -- a setting
+rather than a prompt, because a stream starts when somebody opens a dashboard.
+
+Found designing it: every consuming job, hand-overs included, sought to the end
+when it started, so each hand-over dropped whatever arrived between two jobs.
+Positions are now carried across a hand-over, so the start setting applies only
+to a cold start -- which is also what stops "earliest" replaying the topic
+every few minutes. Checked against a real broker: an unnamed consumer is never
+in the broker's group list and never gets a member id; a named one does.
+
+**The catalog can be searched, and told what to ignore.** The page is sent the
+200 most used tables and the limit was on the server, so a table past it was
+unreachable from the page rather than merely off it. A search now runs on the
+server over every table, by name and description, and the page says "Showing
+the 200 most used of 1,432" when that is what it is doing. A table can be
+**hidden** -- off the page and out of what MCP offers a model, since hundreds
+of Mimir metrics are noise to both; still queryable, and still kept hidden by
+a re-harvest. Filters for tables with a description and without one. An empty
+description shows the shape of a good one: what it is for, the grain, how it
+is partitioned, what the key looks like.
+
+Found on the way: the edit set the description from whatever request arrived,
+so hiding a table would have wiped what somebody had written about it. It now
+changes only what was sent.
+
+**An administrator can curate the catalog over MCP.** `update_table` describes
+or hides a table from whatever MCP client they already use -- the first MCP
+tool that writes. It needs a personal API key from somebody with the catalog
+permission; an OAuth token never reaches it, because those carry `mcp:read`,
+and it is listed only to a caller who may use it. It will not replace a
+description a person wrote unless told to, and what it writes is tagged "via
+MCP" on the page and left alone by harvests.
+
+**A dashboard can be verified.** With a required note on what was checked,
+shown on a tap beside the title. Editing the SQL behind a chart, or adding or
+removing a widget, turns the badge to "verified, then changed" -- a
+verification that silently outlived what it vouched for would be worse than
+none. Moving a widget does not count.
+
+### Upgrading
+
+Three migrations, each adding columns with defaults; all reversible. Nothing to
+configure. **Streams change how they look to the broker on upgrade**: the
+`sqldesk-stream-<id>` groups stop appearing, which is the point. A topic that
+should be visible under a name needs one set on its page.
+
 ## 0.7.2
 
 Nothing compressed a response, every driver was behind, and a DuckDB upgrade
