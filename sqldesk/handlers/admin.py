@@ -243,6 +243,11 @@ def storage_overview():
     )
 
 
+#: How many tables the catalog page is sent at once. A search runs over all of
+#: them; this only bounds how many come back.
+LIMIT = 200
+
+
 @routes.route("/api/catalog", methods=["GET"])
 @login_required
 @require_feature(features.MANAGE_CATALOG)
@@ -260,10 +265,38 @@ def catalog_tables():
     tables = models.CatalogTable.query.filter(models.CatalogTable.org == current_org)
     if source_id:
         tables = tables.filter(models.CatalogTable.data_source_id == source_id)
+
+    # Counted before the hidden filter, so the page can say how many are
+    # hidden while they are not being shown.
+    hidden_count = tables.filter(models.CatalogTable.hidden.is_(True)).count()
+    if not request.args.get("hidden"):
+        tables = tables.filter(models.CatalogTable.hidden.is_(False))
+
     if request.args.get("undescribed"):
         tables = tables.filter(models.CatalogTable.description.is_(None))
+    elif request.args.get("described"):
+        tables = tables.filter(models.CatalogTable.description.isnot(None))
 
-    tables = tables.order_by(models.CatalogTable.usage_count.desc().nullslast()).limit(200).all()
+    # On the server, over every table. The page shows the first 200 by usage,
+    # and a search that only looked at those 200 would never find the 201st
+    # -- which is the table somebody is searching for, because it is the one
+    # they could not see.
+    search = (request.args.get("q") or "").strip()
+    if search:
+        pattern = "%{}%".format(search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_"))
+        tables = tables.filter(
+            models.db.or_(
+                models.CatalogTable.name.ilike(pattern, escape="\\"),
+                models.CatalogTable.description.ilike(pattern, escape="\\"),
+            )
+        )
+
+    total = tables.count()
+    tables = (
+        tables.order_by(models.CatalogTable.usage_count.desc().nullslast(), models.CatalogTable.name)
+        .limit(LIMIT)
+        .all()
+    )
 
     # One query for every table's column count rather than one per table.
     counts = dict(
@@ -286,9 +319,14 @@ def catalog_tables():
                     "column_count": counts.get(table.id, 0),
                     "card": table.card,
                     "harvested_at": table.harvested_at,
+                    "hidden": table.hidden,
                 }
                 for table in tables
-            ]
+            ],
+            # So the page can say "200 of 1,432" rather than look complete.
+            "total": total,
+            "limit": LIMIT,
+            "hidden_count": hidden_count,
         }
     )
 
@@ -413,22 +451,38 @@ def describe_catalog_table(table_id):
     body = request.get_json(force=True, silent=True)
     if not isinstance(body, dict):
         abort(400, message="A JSON object is expected.")
-    description = body.get("description")
-    description = (description or "").strip() or None
-    table.description = description
-    # Cleared by a person is still a decision by a person -- but with nothing
-    # to protect, the source goes back to unset so the engine may fill it.
-    table.description_source = "human" if description else None
+
+    # Only what was sent. This used to set the description from whatever body
+    # arrived, so a request carrying anything else -- hiding a table, say --
+    # would have wiped a description somebody had written.
+    if "description" in body:
+        description = (body.get("description") or "").strip() or None
+        table.description = description
+        # Cleared by a person is still a decision by a person -- but with
+        # nothing to protect, the source goes back to unset so the engine may
+        # fill it.
+        table.description_source = "human" if description else None
+    if "hidden" in body:
+        table.hidden = bool(body["hidden"])
     models.db.session.commit()
 
     record_event(
         current_org,
         current_user._get_current_object(),
-        {"action": "describe", "object_id": table_id, "object_type": "catalog_table"},
+        {
+            "action": "hide" if body.get("hidden") else "describe",
+            "object_id": table_id,
+            "object_type": "catalog_table",
+        },
     )
 
     return json_response(
-        {"id": table.id, "description": table.description, "description_source": table.description_source}
+        {
+            "id": table.id,
+            "description": table.description,
+            "description_source": table.description_source,
+            "hidden": table.hidden,
+        }
     )
 
 

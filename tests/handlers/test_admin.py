@@ -544,6 +544,165 @@ class TestCatalogReview(CatalogTestCase):
         self.assertEqual(404, rv.status_code)
 
 
+class TestFindingAndHidingTables(CatalogTestCase):
+    """
+    Search, hide, and the two filters that make a long catalog workable.
+
+    The page is sent the first 200 tables by usage. Until 0.7.3 that was all it
+    could ever show: the limit was on the server, so a table past it was not
+    merely off the page but unreachable from it.
+    """
+
+    def _table(self, name, usage=0, description=None, hidden=False):
+        table = models.CatalogTable(
+            org=self.factory.org,
+            data_source_id=self.factory.data_source.id,
+            name=name,
+            usage_count=usage,
+            description=description,
+            description_source="human" if description else None,
+            hidden=hidden,
+        )
+        db.session.add(table)
+        return table
+
+    def _get(self, query=""):
+        admin = self.factory.create_admin()
+        db.session.commit()
+        return self.make_request("get", "/api/catalog{}".format(query), user=admin, org=False)
+
+    def test_a_search_finds_a_table_past_the_first_two_hundred(self):
+        for n in range(205):
+            self._table("metric_{:03d}".format(n), usage=1000 - n)
+        self._table("the_one_nobody_could_see", usage=0)
+
+        everything = self._get()
+        searched = self._get("?q=nobody_could")
+
+        self.assertEqual(200, len(everything.json["tables"]))
+        self.assertNotIn("the_one_nobody_could_see", [t["name"] for t in everything.json["tables"]])
+        self.assertEqual(["the_one_nobody_could_see"], [t["name"] for t in searched.json["tables"]])
+
+    def test_and_the_page_is_told_how_many_there_are_beyond_what_it_got(self):
+        for n in range(205):
+            self._table("metric_{:03d}".format(n))
+
+        rv = self._get()
+
+        self.assertEqual(205, rv.json["total"])
+        self.assertEqual(200, rv.json["limit"])
+
+    def test_a_search_reads_descriptions_too(self):
+        self._table("t_0193", description="Every refund, one row per refund line.")
+        self._table("orders")
+
+        rv = self._get("?q=refund")
+
+        self.assertEqual(["t_0193"], [t["name"] for t in rv.json["tables"]])
+
+    def test_a_search_is_literal_not_a_pattern(self):
+        # An underscore is a wildcard to LIKE; to somebody typing order_id it
+        # is an underscore.
+        self._table("order_id_map")
+        self._table("orderXidXmap")
+
+        rv = self._get("?q=order_id")
+
+        self.assertEqual(["order_id_map"], [t["name"] for t in rv.json["tables"]])
+
+    def test_hidden_tables_are_left_out(self):
+        self._table("kept")
+        self._table("noise", hidden=True)
+
+        rv = self._get()
+
+        self.assertEqual(["kept"], [t["name"] for t in rv.json["tables"]])
+        self.assertEqual(1, rv.json["hidden_count"])
+
+    def test_unless_asked_for(self):
+        self._table("kept")
+        self._table("noise", hidden=True)
+
+        rv = self._get("?hidden=1")
+
+        self.assertEqual({"kept", "noise"}, {t["name"] for t in rv.json["tables"]})
+        self.assertTrue({t["name"]: t["hidden"] for t in rv.json["tables"]}["noise"])
+
+    def test_a_search_does_not_reach_hidden_ones_either_unless_asked(self):
+        self._table("noise_metric", hidden=True)
+
+        self.assertEqual([], self._get("?q=noise").json["tables"])
+        self.assertEqual(["noise_metric"], [t["name"] for t in self._get("?q=noise&hidden=1").json["tables"]])
+
+    def test_only_the_described_ones(self):
+        self._table("described", description="Known.")
+        self._table("bare")
+
+        rv = self._get("?described=1")
+
+        self.assertEqual(["described"], [t["name"] for t in rv.json["tables"]])
+
+    def test_hiding_one_keeps_its_description(self):
+        # The edit used to set the description from whatever body arrived, so
+        # hiding a table would have wiped what somebody had written about it.
+        table = self._table("orders", description="One row per order.")
+        admin = self.factory.create_admin()
+        db.session.commit()
+
+        rv = self.make_request(
+            "post", "/api/catalog/tables/{}".format(table.id), data={"hidden": True}, user=admin, org=False
+        )
+
+        self.assertEqual(200, rv.status_code)
+        db.session.refresh(table)
+        self.assertTrue(table.hidden)
+        self.assertEqual("One row per order.", table.description)
+        self.assertEqual("human", table.description_source)
+
+    def test_and_unhiding_it_brings_it_back(self):
+        table = self._table("orders", hidden=True)
+        admin = self.factory.create_admin()
+        db.session.commit()
+
+        self.make_request(
+            "post", "/api/catalog/tables/{}".format(table.id), data={"hidden": False}, user=admin, org=False
+        )
+
+        self.assertEqual(["orders"], [t["name"] for t in self._get().json["tables"]])
+
+
+class TestHiddenTablesAreNotOfferedToAModel(CatalogTestCase):
+    """Hidden means nobody needs it -- which is true of an agent as much as a person."""
+
+    def setUp(self):
+        super().setUp()
+        for name, hidden in [("orders", False), ("orders_noise_metric", True)]:
+            db.session.add(
+                models.CatalogTable(
+                    org=self.factory.org,
+                    data_source_id=self.factory.data_source.id,
+                    name=name,
+                    usage_count=10,
+                    hidden=hidden,
+                )
+            )
+        db.session.commit()
+
+    def test_retrieval_leaves_them_out(self):
+        from sqldesk.ai.catalog.retrieve import find_tables
+
+        found = find_tables(self.factory.org, "orders")
+
+        self.assertEqual(["orders"], [table.name for table in found])
+
+    def test_even_with_no_question_at_all(self):
+        from sqldesk.ai.catalog.retrieve import find_tables
+
+        found = find_tables(self.factory.org, "")
+
+        self.assertNotIn("orders_noise_metric", [table.name for table in found])
+
+
 class TestMeasureReview(CatalogTestCase):
     """
     Approval is the whole point: until somebody sets it, a definition is

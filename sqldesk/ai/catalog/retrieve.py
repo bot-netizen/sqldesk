@@ -53,7 +53,10 @@ def find_tables(org, question, data_source=None, limit=DEFAULT_LIMIT, data_sourc
     """
     if data_source_ids is not None and not data_source_ids:
         return []
-    base = CatalogTable.query.filter(CatalogTable.org == org)
+    # Hidden tables are left out of what is offered, because the reason to hide
+    # one is that nobody needs it. Asking for one by name still works -- see
+    # `tool_expand_table` -- since hiding is not access control.
+    base = CatalogTable.query.filter(CatalogTable.org == org, CatalogTable.hidden.is_(False))
     if data_source is not None:
         base = base.filter(CatalogTable.data_source_id == data_source.id)
     if data_source_ids is not None:
@@ -148,6 +151,7 @@ def context_for(org, question, data_source=None, limit=DEFAULT_LIMIT, data_sourc
         for neighbour in CatalogTable.query.filter(
             CatalogTable.data_source_id.in_({source_id for source_id, _ in wanted}),
             CatalogTable.name.in_(names),
+            CatalogTable.hidden.is_(False),
         ):
             chosen.setdefault(neighbour.name, neighbour)
             edges.setdefault(neighbour.name, neighbours_of(neighbour))

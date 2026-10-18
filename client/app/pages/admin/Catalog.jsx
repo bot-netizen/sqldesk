@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Alert from "antd/lib/alert";
 import Button from "antd/lib/button";
+import Checkbox from "antd/lib/checkbox";
 import Input from "antd/lib/input";
+import Radio from "antd/lib/radio";
 import Select from "antd/lib/select";
 import Switch from "antd/lib/switch";
 import Table from "antd/lib/table";
@@ -25,6 +27,18 @@ import "./catalog.less";
   the page is to make the work finite.
 */
 
+/*
+  What a useful description says, as greyed text in an empty box -- a shape to
+  fill in rather than a blank to stare at. The grain, how it is partitioned and
+  what the key looks like are what somebody writing a query against a table
+  they have never seen gets wrong first.
+*/
+export const DESCRIPTION_SHAPE = [
+  "What it is for, and what nobody should trust about it.",
+  "Grain: one row per …   Partitioned by: …",
+  "Key: … (format, e.g. string / epoch ms / UUID)",
+].join("\n");
+
 function DescriptionCell({ table, onSaved }) {
   const [value, setValue] = useState(table.description || "");
   const [saving, setSaving] = useState(false);
@@ -45,10 +59,11 @@ function DescriptionCell({ table, onSaved }) {
   return (
     <div className="catalog-describe">
       <Input.TextArea
-        rows={2}
+        autoSize={{ minRows: 3, maxRows: 8 }}
         value={value}
-        placeholder="What is this table for? What is a row? What should nobody trust?"
+        placeholder={DESCRIPTION_SHAPE}
         onChange={(event) => setValue(event.target.value)}
+        data-test="TableDescription"
       />
       <div className="catalog-describe-actions">
         {/* Where the sentence came from, because it decides what happens to
@@ -614,12 +629,32 @@ function Sources({ harvesting }) {
   );
 }
 
+//: Which tables, by whether anybody has written what they are for.
+const DESCRIBED = [
+  { value: "all", label: "All" },
+  { value: "described", label: "With a description" },
+  { value: "undescribed", label: "Missing one" },
+];
+
 export default function Catalog() {
   const [tables, setTables] = useState([]);
   const [sources, setSources] = useState([]);
   const [sourceId, setSourceId] = useState(null);
-  const [undescribed, setUndescribed] = useState(false);
+  const [described, setDescribed] = useState("all");
+  const [showHidden, setShowHidden] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [search, setSearch] = useState("");
+  const [counts, setCounts] = useState({ total: 0, limit: 0, hidden: 0 });
   const [loading, setLoading] = useState(true);
+
+  // Asked of the server, which searches every table rather than the 200 this
+  // page holds -- so a keystroke is not a request; a pause is.
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(typed.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [typed]);
+
+  const undescribed = described === "undescribed";
 
   const load = useCallback(() => {
     setLoading(true);
@@ -627,15 +662,26 @@ export default function Catalog() {
     if (sourceId) {
       params.push(`data_source_id=${sourceId}`);
     }
-    if (undescribed) {
+    if (described === "undescribed") {
       params.push("undescribed=1");
+    } else if (described === "described") {
+      params.push("described=1");
+    }
+    if (showHidden) {
+      params.push("hidden=1");
+    }
+    if (search) {
+      params.push(`q=${encodeURIComponent(search)}`);
     }
     axios
       .get(`/api/catalog${params.length ? `?${params.join("&")}` : ""}`)
-      .then((data) => setTables(data.tables))
+      .then((data) => {
+        setTables(data.tables);
+        setCounts({ total: data.total || 0, limit: data.limit || 0, hidden: data.hidden_count || 0 });
+      })
       .catch(() => notification.error("Could not load the catalog."))
       .finally(() => setLoading(false));
-  }, [sourceId, undescribed]);
+  }, [sourceId, described, showHidden, search]);
 
   useEffect(() => {
     load();
@@ -658,6 +704,28 @@ export default function Catalog() {
     );
   }, []);
 
+  const setHidden = useCallback(
+    (table, hidden) => {
+      axios
+        .post(`/api/catalog/tables/${table.id}`, { hidden })
+        .then(() => {
+          setCounts((current) => ({ ...current, hidden: current.hidden + (hidden ? 1 : -1) }));
+          setTables((current) =>
+            showHidden
+              ? current.map((t) => (t.id === table.id ? { ...t, hidden } : t))
+              : current.filter((t) => t.id !== table.id)
+          );
+          notification.success(
+            hidden
+              ? `Hid ${table.name}. It is no longer listed here or offered to MCP, and can still be queried.`
+              : `${table.name} is back.`
+          );
+        })
+        .catch(() => notification.error("Could not save that."));
+    },
+    [showHidden]
+  );
+
   const missing = useMemo(() => tables.filter((table) => !table.description).length, [tables]);
   const harvesting = useHarvest(load);
 
@@ -668,7 +736,9 @@ export default function Catalog() {
       width: 260,
       render: (name, row) => (
         <div>
-          <div className="catalog-name">{name}</div>
+          <div className="catalog-name">
+            {name} {row.hidden && <Tag>hidden</Tag>}
+          </div>
           <div className="catalog-muted">{row.column_count} columns</div>
         </div>
       ),
@@ -686,6 +756,22 @@ export default function Catalog() {
       title: "What it is for",
       dataIndex: "description",
       render: (_, row) => <DescriptionCell table={row} onSaved={onSaved} />,
+    },
+    {
+      title: "Hide",
+      dataIndex: "hidden",
+      width: 70,
+      align: "center",
+      render: (hidden, row) => (
+        <Tooltip title="Hidden tables are left off this page and out of what MCP offers. They can still be queried.">
+          <Checkbox
+            checked={!!hidden}
+            onChange={(event) => setHidden(row, event.target.checked)}
+            aria-label={`Hide ${row.name}`}
+            data-test="HideTable"
+          />
+        </Tooltip>
+      ),
     },
   ];
 
@@ -716,14 +802,32 @@ export default function Catalog() {
             onChange={setSourceId}
             options={sources.map((source) => ({ value: source.id, label: source.name }))}
           />
+          <Input.Search
+            allowClear
+            className="catalog-search"
+            placeholder="Search every table, by name or description"
+            value={typed}
+            onChange={(event) => setTyped(event.target.value)}
+            data-test="CatalogSearch"
+          />
+          <Radio.Group
+            size="small"
+            value={described}
+            onChange={(event) => setDescribed(event.target.value)}
+            optionType="button"
+            buttonStyle="solid"
+            options={DESCRIBED}
+            data-test="DescribedFilter"
+          />
           <span className="catalog-toggle">
             <Switch
               size="small"
-              checked={undescribed}
-              onChange={setUndescribed}
-              aria-label="Show only tables with no description"
+              checked={showHidden}
+              onChange={setShowHidden}
+              aria-label="Show hidden tables"
+              data-test="ShowHidden"
             />{" "}
-            Only ones still missing a description
+            Show hidden{counts.hidden ? ` (${counts.hidden})` : ""}
           </span>
           <Button size="small" onClick={load} loading={loading}>
             Refresh
@@ -780,6 +884,13 @@ export default function Catalog() {
                   )
                 }
               />
+            )}
+
+            {counts.total > tables.length && (
+              <p className="catalog-muted catalog-count" data-test="CatalogTruncated">
+                Showing the {tables.length} most used of {counts.total.toLocaleString()}.{" "}
+                {search ? "Narrow the search to see the rest." : "Search to find any of them."}
+              </p>
             )}
 
             {tables.length > 0 && missing > 0 && !undescribed && (

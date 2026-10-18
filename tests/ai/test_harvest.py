@@ -387,6 +387,22 @@ class TestDescriptions(HarvestHelpers):
         self.assertIn("One row per placed order", card)
         self.assertIn("/* True once finance has signed the order off. */", card)
 
+    def test_harvesting_again_does_not_unhide_a_table(self):
+        # A harvest runs on a schedule. If it recreated rows rather than
+        # updating them, every hidden Mimir metric would quietly come back
+        # overnight and somebody would hide them all again, forever.
+        source = self._harvest(DESCRIBED)
+        table = self._table(source)
+        table.hidden = True
+        db.session.commit()
+        hidden_id = table.id
+
+        self._harvest(DESCRIBED, source=source)
+
+        table = self._table(source)
+        self.assertEqual(hidden_id, table.id)
+        self.assertTrue(table.hidden)
+
     def test_harvesting_again_does_not_erase_what_a_person_wrote(self):
         # The whole point. A harvest runs on a schedule and a person writes a
         # sentence once; if the schedule wins, the sentence disappears and

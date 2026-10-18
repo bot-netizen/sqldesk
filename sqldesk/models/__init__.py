@@ -2306,6 +2306,12 @@ class CatalogTable(TimestampMixin, BelongsToOrgMixin, db.Model):
     #: request so assembling a prompt is concatenation.
     card = Column(db.Text, nullable=True)
     harvested_at = Column(db.DateTime(True), nullable=True)
+    #: Kept out of the catalog page and out of what MCP offers a model, because
+    #: nobody needs it -- a Mimir cluster has hundreds of metrics, and a list of
+    #: them is noise to a person and to an agent alike. Not access control: the
+    #: table can still be queried, and still be asked for by name. Survives a
+    #: harvest, which updates rows in place.
+    hidden = Column(db.Boolean, nullable=False, default=False)
 
     __tablename__ = "catalog_tables"
     __table_args__ = (db.Index("ix_catalog_tables_source_name", "data_source_id", "name", unique=True),)
