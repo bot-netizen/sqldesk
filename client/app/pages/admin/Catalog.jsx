@@ -70,6 +70,10 @@ function DescriptionCell({ table, onSaved }) {
             it next: a harvest may replace the engine's, never a person's. */}
         {table.description_source === "human" && <Tag>yours</Tag>}
         {table.description_source === "engine" && <Tag color="blue">from the warehouse</Tag>}
+        {/* Written by an agent somebody pointed at the catalog with their own
+            API key. Kept apart from "yours" so a reviewer can tell a sentence a
+            person typed from one a model proposed. */}
+        {table.description_source === "mcp" && <Tag color="purple">via MCP</Tag>}
         <Button size="small" type="primary" disabled={!dirty} loading={saving} onClick={save}>
           Save
         </Button>

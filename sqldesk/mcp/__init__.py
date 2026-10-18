@@ -32,7 +32,7 @@ from sqlalchemy.orm import load_only
 from sqlglot import exp
 from sqlglot.tokens import TokenType
 
-from sqldesk import __version__, models, settings
+from sqldesk import __version__, features, models, settings
 from sqldesk.ai.catalog.retrieve import context_for
 from sqldesk.ai.optimizer import analyze, dialect_for
 from sqldesk.permissions import has_access, not_view_only, view_only
@@ -1196,6 +1196,154 @@ def tool_run_query(user, org, arguments):
     return _text(_rows_as_text(result))
 
 
+#: The one tool that writes, and the only one not offered to everybody.
+#:
+#: Offered only to a caller who authenticated with a personal API key *and* may
+#: curate the catalog. An OAuth token never reaches it: those carry `mcp:read`,
+#: and `sqldesk.oauth` promised from the start that a writing tool would get a
+#: scope of its own rather than those tokens quietly growing the power to write.
+UPDATE_TABLE = {
+    "name": "update_table",
+    "title": "Describe or hide a catalog table",
+    "description": (
+        "Curate the catalog: write what a table is for, or hide it from what is offered. "
+        "Not for answering questions. Will not replace a description a person wrote unless "
+        "`overwrite` is true."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "The table's name, as the catalog has it."},
+            "data_source": {
+                "type": "string",
+                "description": "Needed only when more than one data source has a table of that name.",
+            },
+            "description": {
+                "type": "string",
+                "description": (
+                    "What it is for: what a row is, how it is partitioned, what the key looks like, "
+                    "what nobody should trust. An empty string clears it."
+                ),
+            },
+            "hidden": {
+                "type": "boolean",
+                "description": "Leave it off the catalog page and out of what MCP offers. It can still be queried.",
+            },
+            "overwrite": {
+                "type": "boolean",
+                "description": "Replace a description a person wrote. Off unless set.",
+            },
+        },
+        "required": ["name"],
+    },
+    "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True},
+}
+
+#: What a description written through this tool is marked as. Not "human" and
+#: not "engine": a harvest leaves it alone -- it protects anything the engine
+#: did not write -- and the catalog page can say where it came from.
+WRITTEN_BY_MCP = "mcp"
+
+
+def may_curate(user, by_api_key):
+    """Whether this caller is offered, and may call, `update_table`."""
+    return bool(by_api_key) and features.can(user, features.MANAGE_CATALOG)
+
+
+def tool_update_table(user, org, arguments):
+    arguments = arguments or {}
+    name = arguments.get("name")
+    if not isinstance(name, str) or not name.strip():
+        raise McpError(INVALID_PARAMS, "`name` is required: the table's name as the catalog has it.")
+    name = name.strip()
+
+    changes_description = "description" in arguments
+    changes_hidden = "hidden" in arguments
+    if not changes_description and not changes_hidden:
+        raise McpError(INVALID_PARAMS, "Nothing to change: give a `description`, `hidden`, or both.")
+    if changes_description and arguments["description"] is not None and not isinstance(arguments["description"], str):
+        raise McpError(INVALID_PARAMS, "`description` is text, or an empty string to clear it.")
+    if changes_hidden and not isinstance(arguments["hidden"], bool):
+        raise McpError(INVALID_PARAMS, "`hidden` is true or false.")
+
+    # Curating is not a way into a data source one cannot read: the same rule
+    # every read tool uses.
+    readable = [source.id for source in _readable_sources(user, org)]
+    source = _resolve_source(user, org, arguments.get("data_source"))
+    matches = models.CatalogTable.query.filter(
+        models.CatalogTable.org == org,
+        models.CatalogTable.name == name,
+        models.CatalogTable.data_source_id.in_(readable or [0]),
+    )
+    if source is not None:
+        matches = matches.filter(models.CatalogTable.data_source_id == source.id)
+    matches = matches.all()
+
+    if not matches:
+        raise McpError(INVALID_PARAMS, "No table called {!r} in the catalog that you can read.".format(name))
+    if len(matches) > 1:
+        names = sorted(table.data_source.name for table in matches)
+        raise McpError(
+            INVALID_PARAMS,
+            "{!r} is in {} data sources ({}). Say which with `data_source`.".format(
+                name, len(matches), ", ".join(names)
+            ),
+        )
+    table = matches[0]
+
+    said = []
+    if changes_description:
+        description = (arguments.get("description") or "").strip() or None
+        written_by_a_person = table.description_source not in (None, "engine", WRITTEN_BY_MCP)
+        if written_by_a_person and description != table.description and not arguments.get("overwrite"):
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "{} already has a description a person wrote, so it was left alone:\n\n{}\n\n"
+                            "Call again with `overwrite: true` to replace it.".format(table.name, table.description)
+                        ),
+                    }
+                ],
+                "isError": True,
+            }
+        table.description = description
+        table.description_source = WRITTEN_BY_MCP if description else None
+        said.append(
+            "Described {}.".format(table.name) if description else "Cleared the description of {}.".format(table.name)
+        )
+    if changes_hidden:
+        table.hidden = arguments["hidden"]
+        said.append(
+            "Hid {}: it is off the catalog page and out of what MCP offers, and can still be queried.".format(
+                table.name
+            )
+            if table.hidden
+            else "{} is shown again.".format(table.name)
+        )
+    models.db.session.commit()
+
+    from flask import has_request_context
+
+    from sqldesk.handlers.base import record_event
+
+    # The MCP call itself is already in the MCP audit; this is the catalog's
+    # own record, the same one an edit on the page writes.
+    if has_request_context():
+        record_event(
+            org,
+            user,
+            {
+                "action": "hide" if arguments.get("hidden") else "describe",
+                "object_id": table.id,
+                "object_type": "catalog_table",
+                "via": "mcp",
+            },
+        )
+    return _text(" ".join(said))
+
+
 HANDLERS = {
     "find_context": tool_find_context,
     "find_measures": tool_find_measures,
@@ -1206,10 +1354,11 @@ HANDLERS = {
     "expand_table": tool_expand_table,
     "list_data_sources": tool_list_data_sources,
     "check_sql": tool_check_sql,
+    "update_table": tool_update_table,
 }
 
 
-def handle(message, user, org):
+def handle(message, user, org, by_api_key=False):
     """
     One JSON-RPC message in, one result out.
 
@@ -1235,7 +1384,9 @@ def handle(message, user, org):
     if method == "ping":
         return {}
     if method == "tools/list":
-        return {"tools": TOOLS}
+        # A tool is listed only to somebody who may call it, so an agent working
+        # for a reader never sees a way to write and never tries one.
+        return {"tools": TOOLS + [UPDATE_TABLE] if may_curate(user, by_api_key) else TOOLS}
     if method == "tools/call":
         params = message.get("params") or {}
         if not isinstance(params, dict):
@@ -1243,6 +1394,12 @@ def handle(message, user, org):
         name = params.get("name")
         if name not in HANDLERS:
             raise McpError(INVALID_PARAMS, "No tool called {!r}.".format(name))
+        if name == UPDATE_TABLE["name"] and not may_curate(user, by_api_key):
+            raise McpError(
+                INVALID_PARAMS,
+                "update_table writes to the catalog, so it needs a personal API key from somebody who may curate "
+                "it. OAuth sessions are read-only (mcp:read).",
+            )
         arguments = params.get("arguments")
         if arguments is not None and not isinstance(arguments, dict):
             raise McpError(INVALID_PARAMS, "`arguments` must be an object.")

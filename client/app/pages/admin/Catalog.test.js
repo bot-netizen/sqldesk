@@ -120,6 +120,18 @@ describe("the catalog page", () => {
     expect(catalogCalls(get).some((url) => url.includes("described=1") && !url.includes("undescribed"))).toBe(true);
   });
 
+  test("a description written through MCP says so", async () => {
+    server({
+      tables: [
+        { id: 3, name: "events", column_count: 2, description: "One row per event.", description_source: "mcp" },
+      ],
+    });
+    const wrapper = mount(<Catalog />);
+    await settle(wrapper);
+
+    expect(wrapper.text()).toContain("via MCP");
+  });
+
   test("an empty description shows the shape a good one takes", async () => {
     server();
     const wrapper = mount(<Catalog />);

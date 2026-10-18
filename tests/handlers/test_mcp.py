@@ -1724,3 +1724,142 @@ class TestMyOwnMcpActivity(McpTestCase):
 
         self.assertEqual("refused", call["outcome"])
         self.assertEqual("authenticate", call["method"])
+
+
+class TestCuratingTheCatalogOverMcp(McpTestCase):
+    """
+    `update_table`: the first MCP tool that writes.
+
+    Offered only to a personal API key belonging to somebody who may curate the
+    catalog. OAuth tokens carry `mcp:read`, and `sqldesk.oauth` said from the
+    start that a writing tool would not be reachable with one -- so an agent
+    working through an OAuth session never sees it listed, and is refused if
+    it calls it anyway.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.admin = self.factory.create_admin()
+        self.table = models.CatalogTable(
+            org=self.factory.org, data_source_id=self.factory.data_source.id, name="orders", usage_count=5
+        )
+        models.db.session.add(self.table)
+        models.db.session.commit()
+
+    def call(self, arguments, user=None, api_key=None):
+        return self.post(
+            rpc("tools/call", {"name": "update_table", "arguments": arguments}), user=user, api_key=api_key
+        )
+
+    def listed(self, user=None, api_key=None):
+        rv = self.post(rpc("tools/list"), user=user, api_key=api_key)
+        return [tool["name"] for tool in rv.json["result"]["tools"]]
+
+    def oauth_token(self, user):
+        import secrets
+
+        from sqldesk.oauth import ACCESS_PREFIX
+
+        value = ACCESS_PREFIX + secrets.token_urlsafe(32)
+        models.db.session.add(
+            models.OAuthToken(
+                client_id="test-client",
+                org_id=user.org_id,
+                user_id=user.id,
+                access_token_digest=models._token_digest(value),
+                scope=models.OAUTH_SCOPE,
+                access_expires_at=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1),
+            )
+        )
+        models.db.session.commit()
+        return value
+
+    def test_an_administrators_api_key_is_offered_it(self):
+        self.assertIn("update_table", self.listed(user=self.admin))
+
+    def test_somebody_who_may_not_curate_is_not(self):
+        self.assertNotIn("update_table", self.listed(user=self.factory.user))
+
+    def test_nor_is_an_oauth_session_even_an_administrators(self):
+        with mock.patch("sqldesk.settings.MCP_OAUTH_ENABLED", True):
+            token = self.oauth_token(self.admin)
+            self.assertNotIn("update_table", self.listed(api_key=token))
+
+    def test_and_calling_it_anyway_through_oauth_is_refused(self):
+        with mock.patch("sqldesk.settings.MCP_OAUTH_ENABLED", True):
+            token = self.oauth_token(self.admin)
+            rv = self.call({"name": "orders", "description": "x"}, api_key=token)
+
+        self.assertIn("error", rv.json)
+        self.assertIn("mcp:read", rv.json["error"]["message"])
+        models.db.session.refresh(self.table)
+        self.assertIsNone(self.table.description)
+
+    def test_it_describes_a_table_and_marks_it_as_written_through_mcp(self):
+        rv = self.call({"name": "orders", "description": "One row per order. Key: order_id (UUID)."}, user=self.admin)
+
+        self.assertFalse(rv.json["result"]["isError"])
+        models.db.session.refresh(self.table)
+        self.assertEqual("One row per order. Key: order_id (UUID).", self.table.description)
+        self.assertEqual("mcp", self.table.description_source)
+
+    def test_it_hides_one(self):
+        rv = self.call({"name": "orders", "hidden": True}, user=self.admin)
+
+        self.assertIn("can still be queried", rv.json["result"]["content"][0]["text"])
+        models.db.session.refresh(self.table)
+        self.assertTrue(self.table.hidden)
+
+    def test_it_will_not_replace_what_a_person_wrote(self):
+        self.table.description = "Orders, excluding the test tenant."
+        self.table.description_source = "human"
+        models.db.session.commit()
+
+        rv = self.call({"name": "orders", "description": "Orders."}, user=self.admin)
+
+        self.assertTrue(rv.json["result"]["isError"])
+        self.assertIn("overwrite", rv.json["result"]["content"][0]["text"])
+        models.db.session.refresh(self.table)
+        self.assertEqual("Orders, excluding the test tenant.", self.table.description)
+
+    def test_unless_told_to(self):
+        self.table.description = "Orders, excluding the test tenant."
+        self.table.description_source = "human"
+        models.db.session.commit()
+
+        self.call({"name": "orders", "description": "Orders.", "overwrite": True}, user=self.admin)
+
+        models.db.session.refresh(self.table)
+        self.assertEqual("Orders.", self.table.description)
+        self.assertEqual("mcp", self.table.description_source)
+
+    def test_hiding_does_not_need_overwrite_and_leaves_a_persons_words_alone(self):
+        self.table.description = "Orders, excluding the test tenant."
+        self.table.description_source = "human"
+        models.db.session.commit()
+
+        self.call({"name": "orders", "hidden": True}, user=self.admin)
+
+        models.db.session.refresh(self.table)
+        self.assertTrue(self.table.hidden)
+        self.assertEqual("Orders, excluding the test tenant.", self.table.description)
+
+    def test_a_name_in_two_data_sources_asks_which(self):
+        other = self.factory.create_data_source(name="Second", group=self.factory.default_group)
+        models.db.session.add(models.CatalogTable(org=self.factory.org, data_source_id=other.id, name="orders"))
+        models.db.session.commit()
+
+        rv = self.call({"name": "orders", "description": "x"}, user=self.admin)
+
+        self.assertIn("error", rv.json)
+        self.assertIn("data_source", rv.json["error"]["message"])
+
+    def test_nothing_to_change_is_refused_rather_than_a_silent_success(self):
+        rv = self.call({"name": "orders"}, user=self.admin)
+
+        self.assertIn("Nothing to change", rv.json["error"]["message"])
+
+    def test_an_unknown_table_says_so(self):
+        rv = self.call({"name": "nope", "description": "x"}, user=self.admin)
+
+        self.assertIn("No table called", rv.json["error"]["message"])

@@ -324,7 +324,7 @@ def _answer(messages, org, user, session_id, token=None):
             session_id = issued_session = uuid.uuid4().hex
 
         try:
-            result = handle(message, user, org)
+            result = handle(message, user, org, by_api_key=token is None)
         except McpError as error:
             _record(
                 org,

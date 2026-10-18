@@ -387,6 +387,19 @@ class TestDescriptions(HarvestHelpers):
         self.assertIn("One row per placed order", card)
         self.assertIn("/* True once finance has signed the order off. */", card)
 
+    def test_harvesting_again_keeps_what_was_written_through_mcp(self):
+        # Marked "mcp" rather than "human", and still protected: the rule is
+        # anything the engine did not write, not a list of sources that count.
+        source = self._harvest(DESCRIBED)
+        table = self._table(source)
+        table.description = "Written by an agent an administrator pointed at it."
+        table.description_source = "mcp"
+        db.session.commit()
+
+        self._harvest(DESCRIBED, source=source)
+
+        self.assertEqual("Written by an agent an administrator pointed at it.", self._table(source).description)
+
     def test_harvesting_again_does_not_unhide_a_table(self):
         # A harvest runs on a schedule. If it recreated rows rather than
         # updating them, every hidden Mimir metric would quietly come back
