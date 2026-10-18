@@ -24,7 +24,7 @@ import logging
 import os
 
 from sqldesk import models, redis_connection, settings
-from sqldesk.streams import activity, rollup, slots, watching
+from sqldesk.streams import activity, handover, rollup, slots, watching
 from sqldesk.streams.consumer import Broker, consume
 from sqldesk.streams.consumer import _security as security
 from sqldesk.streams.store import RECEIVED, Store
@@ -172,8 +172,14 @@ def consume_stream(stream_id):
     broker = Broker(
         brokers=stream.data_source.options.get("brokers"),
         topic=stream.topic,
-        group="sqldesk-stream-{}".format(stream.id),
+        # The client will not run without a group id. Unnamed, this one is
+        # never joined and never committed under, so the broker never sees it.
+        group=stream.consumer_group or "sqldesk-stream-{}".format(stream.id),
         options=security(stream.data_source.options),
+        join=bool(stream.consumer_group),
+        commit=bool(stream.consumer_group) and stream.save_position,
+        start_from=stream.start_from,
+        resume=handover.take(stream.id),
     )
     try:
         stream.last_error = None
@@ -195,6 +201,10 @@ def consume_stream(stream_id):
     finally:
         _release(stream_id)
         if carry_on:
+            # Before the successor is enqueued, so it cannot start first and
+            # find nothing -- which would make it a cold start at the end and
+            # drop whatever arrived in between.
+            handover.give(stream_id, broker.last_positions)
             consume_stream.delay(stream_id)
         else:
             # Nothing is going to renew it, and leaving it to expire would hold

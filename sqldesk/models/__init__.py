@@ -1816,6 +1816,13 @@ SCHEMA_INFERRED = "inferred"
 SCHEMA_FROZEN = "frozen"
 
 
+#: Where a stream starts from cold. See `Stream.start_from`.
+START_LATEST = "latest"
+START_EARLIEST = "earliest"
+START_SAVED = "saved"
+START_POINTS = (START_LATEST, START_EARLIEST, START_SAVED)
+
+
 class Stream(TimestampMixin, BelongsToOrgMixin, db.Model):
     """
     A Kafka topic, as a data source.
@@ -1855,6 +1862,27 @@ class Stream(TimestampMixin, BelongsToOrgMixin, db.Model):
     #: Overrides for this stream alone, where 0 means "use the install's".
     row_budget = Column(db.Integer, nullable=False, default=0)
     events_per_second = Column(db.Integer, nullable=False, default=0)
+
+    #: How the consumer reads, which is mostly about how it looks to the broker.
+    #:
+    #: **No name, the default, means the broker never sees a group at all.** The
+    #: client insists on a `group.id`, so one is set -- but the consumer assigns
+    #: itself every partition rather than joining, and commits nothing, so no
+    #: group is ever registered. Until 0.7.3 it joined `sqldesk-stream-<id>` as
+    #: a live member that never committed, which is precisely what lag
+    #: monitoring alarms on.
+    #:
+    #: **A name joins that group**, for an install whose monitoring ignores
+    #: consumers by prefix and wants to see ours under one.
+    consumer_group = Column(db.String(249), nullable=True)
+    #: Commit offsets as they are consumed, so a stream resumes where it
+    #: stopped. Off by default, because a window is meant to be *now*; needs a
+    #: consumer group to commit under.
+    save_position = Column(db.Boolean, nullable=False, default=False)
+    #: Where a stream begins when it starts from cold: `latest`, `earliest`, or
+    #: `saved`. A hand-over from one job to the next carries its position
+    #: across instead, so this does not replay a topic every few minutes.
+    start_from = Column(db.String(16), nullable=False, default="latest")
 
     #: What the consumer last measured and decided. Read by the page and by the
     #: chart's "last 6 minutes · 4.9M events" line; written once a flush.

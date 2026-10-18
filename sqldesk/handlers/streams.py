@@ -15,6 +15,7 @@ none of those are a reader's to set.
 
 import logging
 import os
+import re
 
 from flask import request
 from flask_restful import abort
@@ -38,6 +39,53 @@ def _stream(data_source_id, org, user):
     if stream is None:
         abort(404, message="That data source is not a stream.")
     return stream
+
+
+#: What Kafka itself accepts in a group id, with the length it allows.
+GROUP_NAME = re.compile(r"^[A-Za-z0-9._-]{1,249}$")
+
+
+def _consumer_settings(stream):
+    """How a topic's consumer reads, for the page that sets it."""
+    return {
+        "consumer_group": stream.consumer_group,
+        "save_position": bool(stream.save_position),
+        "start_from": stream.start_from or models.START_LATEST,
+    }
+
+
+def apply_consumer_settings(stream, body):
+    """
+    The consumer group, saving the position and where to start, from a request.
+
+    One function for both places a topic is changed, so the rules cannot drift
+    apart. Checked against the *result* rather than field by field, because
+    the combinations are what can be wrong: a saved position with no group to
+    save it under, or starting from a saved position that is never saved.
+    """
+    group = stream.consumer_group
+    if "consumer_group" in body:
+        group = (body.get("consumer_group") or "").strip() or None
+        if group and not GROUP_NAME.match(group):
+            abort(
+                400,
+                message="A consumer group name is letters, digits, dots, dashes and underscores, at most 249.",
+            )
+    save = bool(body["save_position"]) if "save_position" in body else bool(stream.save_position)
+    start = body["start_from"] if "start_from" in body else (stream.start_from or models.START_LATEST)
+    if start not in models.START_POINTS:
+        abort(400, message="Start from is one of: {}.".format(", ".join(models.START_POINTS)))
+
+    # Decided on the whole result before anything is touched, so a refused
+    # request leaves the stream exactly as it was rather than half-changed.
+    if save and not group:
+        abort(400, message="Saving the position needs a consumer group name to save it under.")
+    if start == models.START_SAVED and not save:
+        abort(400, message="Starting where it left off needs the position to be saved.")
+
+    stream.consumer_group = group
+    stream.save_position = save
+    stream.start_from = start
 
 
 class StreamListResource(BaseResource):
@@ -121,6 +169,7 @@ class StreamResource(BaseResource):
             "describes": window.describe(stream.window_seconds, stream.rows),
             "row_budget": stream.budget,
             "events_per_second": stream.ceiling,
+            **_consumer_settings(stream),
             "columns": list(stream.columns or []),
             "schema_state": stream.schema_state,
             "group_by": list(stream.group_by or []),
@@ -147,6 +196,7 @@ class StreamResource(BaseResource):
             stream.row_budget = max(0, int(body["row_budget"] or 0))
         if "events_per_second" in body:
             stream.events_per_second = max(0, int(body["events_per_second"] or 0))
+        apply_consumer_settings(stream, body)
 
         if "columns" in body:
             columns = body["columns"]
@@ -268,6 +318,7 @@ class ClusterTopicsResource(BaseResource):
             topic["enabled"] = stream is not None
             topic["stream_id"] = stream.id if stream else None
             topic["columns"] = len(stream.columns or []) if stream else 0
+            topic.update(_consumer_settings(stream) if stream else _consumer_settings(models.Stream()))
         return {"topics": topics}
 
 
@@ -328,6 +379,7 @@ class EnabledTopicResource(BaseResource):
                 if not isinstance(value, int) or value < 0:
                     abort(400, message="{} has to be a whole number, or 0 for the install's.".format(field))
                 setattr(stream, field, value)
+        apply_consumer_settings(stream, body)
         if "pinned" in body:
             # A pin keeps a worker and a disk busy with nobody watching, which
             # is an administrator's decision rather than a curator's.
@@ -406,6 +458,9 @@ def _stream_dict(stream, source_name=None):
         "last_flush_at": stream.last_flush_at,
         "last_error": stream.last_error,
         "columns": stream.columns or [],
+        # Shown on Running streams, where an administrator wants to know which
+        # name -- if any -- the broker will see this under.
+        **_consumer_settings(stream),
     }
 
 

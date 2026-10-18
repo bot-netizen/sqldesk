@@ -385,3 +385,118 @@ class TestRunningSqlAgainstTheWindows(TopicTestCase):
 
         self.assertEqual(before, models.QueryResult.query.count())
         self.assertEqual(0, models.Query.query.count())
+
+
+class TestHowATopicIsRead(TopicTestCase):
+    """
+    The consumer group, saving the position and where a cold start begins.
+
+    Lag monitoring alarmed on SQLDesk because every stream joined a group it
+    never committed under. The default is now no group the broker can see; a
+    name, saving and the start point are each somebody's choice.
+    """
+
+    def enable(self, topic="orders", **body):
+        return self.make_request("post", "/api/data_sources/{}/topics/{}".format(self.source.id, topic), data=body)
+
+    def stream(self):
+        return models.Stream.query.filter(models.Stream.topic == "orders").one()
+
+    def test_by_default_there_is_no_group_nothing_is_saved_and_it_starts_at_the_end(self):
+        with self.allowed():
+            rv = self.enable()
+
+        self.assertEqual(200, rv.status_code)
+        stream = self.stream()
+        self.assertIsNone(stream.consumer_group)
+        self.assertFalse(stream.save_position)
+        self.assertEqual("latest", stream.start_from)
+
+    def test_a_name_is_kept_and_reported_back(self):
+        with self.allowed():
+            rv = self.enable(consumer_group="analytics-sqldesk.orders")
+
+        self.assertEqual(200, rv.status_code)
+        self.assertEqual("analytics-sqldesk.orders", self.stream().consumer_group)
+        self.assertEqual("analytics-sqldesk.orders", rv.json["consumer_group"])
+
+    def test_a_blank_name_means_no_group(self):
+        with self.allowed():
+            self.enable(consumer_group="analytics-sqldesk")
+            self.enable(consumer_group="   ")
+
+        self.assertIsNone(self.stream().consumer_group)
+
+    def test_a_name_kafka_would_refuse_is_refused_here_first(self):
+        with self.allowed():
+            rv = self.enable(consumer_group="has spaces/and slashes")
+
+        self.assertEqual(400, rv.status_code)
+        self.assertIn("letters, digits", rv.json["message"])
+
+    def test_saving_the_position_needs_a_group_to_save_it_under(self):
+        with self.allowed():
+            rv = self.enable(save_position=True)
+
+        self.assertEqual(400, rv.status_code)
+        self.assertIn("consumer group name", rv.json["message"])
+
+    def test_with_a_group_it_may_be_saved(self):
+        with self.allowed():
+            rv = self.enable(consumer_group="analytics-sqldesk", save_position=True)
+
+        self.assertEqual(200, rv.status_code)
+        self.assertTrue(self.stream().save_position)
+
+    def test_starting_where_it_left_off_needs_a_saved_position(self):
+        with self.allowed():
+            rv = self.enable(consumer_group="analytics-sqldesk", start_from="saved")
+
+        self.assertEqual(400, rv.status_code)
+        self.assertIn("saved", rv.json["message"])
+
+    def test_and_with_one_it_may(self):
+        with self.allowed():
+            rv = self.enable(consumer_group="analytics-sqldesk", save_position=True, start_from="saved")
+
+        self.assertEqual(200, rv.status_code)
+        self.assertEqual("saved", self.stream().start_from)
+
+    def test_earliest_needs_nothing_else(self):
+        with self.allowed():
+            rv = self.enable(start_from="earliest")
+
+        self.assertEqual(200, rv.status_code)
+        self.assertEqual("earliest", self.stream().start_from)
+
+    def test_an_unknown_start_point_is_refused(self):
+        with self.allowed():
+            rv = self.enable(start_from="yesterday")
+
+        self.assertEqual(400, rv.status_code)
+
+    def test_clearing_the_name_while_saving_is_refused_rather_than_guessed_at(self):
+        # Silently turning saving off would lose the setting; keeping it would
+        # leave a saved position with nowhere to save to.
+        with self.allowed():
+            self.enable(consumer_group="analytics-sqldesk", save_position=True)
+            rv = self.enable(consumer_group="")
+
+        self.assertEqual(400, rv.status_code)
+        self.assertEqual("analytics-sqldesk", self.stream().consumer_group)
+
+    def test_the_topic_list_says_how_each_enabled_topic_is_read(self):
+        with self.allowed():
+            self.enable(consumer_group="analytics-sqldesk", save_position=True)
+        listed = [{"name": "orders", "partitions": 3}, {"name": "payments", "partitions": 1}]
+
+        with self.allowed(), self.topics(listed):
+            rv = self.make_request("get", "/api/data_sources/{}/topics".format(self.source.id))
+
+        by_name = {topic["name"]: topic for topic in rv.json["topics"]}
+        self.assertEqual("analytics-sqldesk", by_name["orders"]["consumer_group"])
+        self.assertTrue(by_name["orders"]["save_position"])
+        # And one not yet enabled shows the defaults it would get.
+        self.assertIsNone(by_name["payments"]["consumer_group"])
+        self.assertFalse(by_name["payments"]["save_position"])
+        self.assertEqual("latest", by_name["payments"]["start_from"])

@@ -11,11 +11,16 @@ else, for reasons nobody can trace back. The one-second flush is the bound:
 whatever arrives in a second is either written or sampled away within that
 second, and nothing accumulates between flushes.
 
-**Seek to the end on every start.** The window is "now". Replaying an hour of
-backlog to fill five minutes is waste, and worse than waste -- it would stamp
-hour-old events with an arrival time of now and draw a chart that is a lie. A
-consumer group per stream so the broker tracks our position, and a deliberate
-seek to latest so we never use what it tracked.
+**Start at the end, unless told otherwise.** The window is "now". Replaying an
+hour of backlog to fill five minutes is waste, and worse than waste -- it would
+stamp hour-old events with an arrival time of now and draw a chart that is a
+lie. So a cold start begins at the end by default; a topic can be set to start
+from the beginning or from a saved position, and a hand-over between jobs
+carries on from where the last one stopped.
+
+**Invisible to the broker by default.** No consumer group is joined and nothing
+is committed unless somebody names a group for the topic, because a group that
+joins and never commits is exactly what lag monitoring alarms on.
 
 Kafka itself is behind `Broker`, which is the only part that needs a broker to
 exercise. Everything above it -- the sampling decision, the flush, the window,
@@ -61,29 +66,111 @@ class Broker:
     something else in a test and nothing has to pretend to be librdkafka.
     """
 
-    def __init__(self, brokers, topic, group, options=None):
+    def __init__(
+        self,
+        brokers,
+        topic,
+        group,
+        options=None,
+        join=False,
+        commit=False,
+        start_from="latest",
+        resume=None,
+    ):
         self.brokers = brokers
         self.topic = topic
+        #: Always set, because librdkafka refuses to build a consumer without
+        #: one. Whether the broker ever *sees* it is `join`'s decision.
         self.group = group
         self.options = options or {}
+        #: Join the group, rather than assigning every partition to ourselves.
+        #: Only when somebody named one: joining is what makes a group appear
+        #: on the broker, and an unnamed one appearing is what lag monitoring
+        #: alarms on.
+        self.join = bool(join)
+        #: Commit offsets after each flush. Needs `join`.
+        self.commit = bool(commit) and self.join
+        self.start_from = start_from
+        #: `{partition: offset}` the previous job reached. Present on a
+        #: hand-over and absent on a cold start, which is how the two are told
+        #: apart -- see `streams/handover.py`.
+        self.resume = {int(p): int(o) for p, o in (resume or {}).items()}
+        #: Where this consumer had got to when it closed, for the next job.
+        self.last_positions = {}
         self._consumer = None
 
     def open(self):
+        """
+        Connect, and be at the right offset before the first poll.
+
+        Positioned at assignment rather than by polling once and then seeking:
+        the old way threw the first poll away, which was right only while every
+        start meant "the end". Starting from a saved position or from the
+        beginning, the first message *is* the one that was wanted.
+        """
         config = {
             "bootstrap.servers": self.brokers,
             "group.id": self.group,
-            # We seek to the end ourselves on every start, so a stored offset
-            # would only ever be a backlog waiting to be replayed. `latest`
-            # here is the same decision stated to the broker.
-            "auto.offset.reset": "latest",
-            # Nothing commits, because nothing resumes. The group exists so the
-            # broker can balance partitions, not so it can remember a position.
+            # What librdkafka does when it is asked for a committed offset and
+            # the group has none -- which is only ever the `saved` start.
+            "auto.offset.reset": "earliest" if self.start_from == "earliest" else "latest",
+            # Committed by hand after a flush, so a committed offset only ever
+            # covers events that are in the window.
             "enable.auto.commit": False,
         }
         config.update(self.options)
         self._consumer = confluent.Consumer(config)
-        self._consumer.subscribe([self.topic])
+
+        if self.join:
+            self._consumer.subscribe([self.topic], on_assign=self._place)
+        else:
+            metadata = self._consumer.list_topics(self.topic, timeout=10)
+            described = (metadata.topics or {}).get(self.topic)
+            partitions = sorted((described.partitions or {}).keys()) if described is not None else []
+            self._consumer.assign([self._at(partition) for partition in partitions])
         return self
+
+    def _offset_for(self, partition):
+        """Where one partition starts: a hand-over first, then the setting."""
+        if partition in self.resume:
+            return self.resume[partition]
+        if self.start_from == "saved" and self.commit:
+            return confluent.OFFSET_STORED
+        if self.start_from == "earliest":
+            return confluent.OFFSET_BEGINNING
+        return confluent.OFFSET_END
+
+    def _at(self, partition):
+        return confluent.TopicPartition(self.topic, partition, self._offset_for(partition))
+
+    def _place(self, consumer, assigned):
+        """`on_assign`: put each partition the group hands us where it belongs."""
+        consumer.assign([self._at(partition.partition) for partition in assigned])
+
+    def commit_position(self):
+        """After a flush: record how far the window now reaches. Only when asked."""
+        if not self.commit or self._consumer is None:
+            return False
+        try:
+            self._consumer.commit(asynchronous=False)
+            return True
+        except Exception:
+            # Nothing consumed since the last commit raises "no offset to
+            # commit", which is not a problem; anything else is worth a line.
+            logger.debug("stream %s: nothing committed", self.topic, exc_info=True)
+            return False
+
+    def positions(self):
+        """`{partition: next offset}` for every partition that has one."""
+        if self._consumer is None:
+            return {}
+        try:
+            reached = self._consumer.position(self._consumer.assignment())
+        except Exception:
+            return {}
+        # A negative offset is a logical one -- "the end", "nothing yet" -- and
+        # handing it to the next job would be handing it a promise, not a place.
+        return {tp.partition: tp.offset for tp in reached if tp.offset is not None and tp.offset >= 0}
 
     def poll(self, limit=BATCH, timeout=POLL_SECONDS):
         """
@@ -126,6 +213,7 @@ class Broker:
 
     def close(self):
         if self._consumer is not None:
+            self.last_positions = self.positions()
             self._consumer.close()
             self._consumer = None
 
@@ -287,14 +375,12 @@ def consume(stream, broker, should_continue, now=None):
     """
     store = Store(stream.store_path())
     try:
+        # Positioned by `open` itself: at the end, the beginning, a saved
+        # offset, or wherever the previous job got to on a hand-over. It used
+        # to poll once and throw that poll away before seeking to the end --
+        # right while every start meant "the end", and a lost message as soon
+        # as one did not.
         broker.open()
-        # One poll to get a partition assignment, then seek past whatever
-        # position the group held. Whatever that poll returned is **thrown
-        # away**: it is from before the seek, so storing it would put one stale
-        # event into the window on every start -- stamped with an arrival time
-        # of now, which is exactly the lie the seek exists to prevent.
-        broker.poll(limit=1, timeout=POLL_SECONDS)
-        broker.seek_to_end()
 
         while should_continue():
             started = time.monotonic()
@@ -310,6 +396,9 @@ def consume(stream, broker, should_continue, now=None):
                 if time.monotonic() - started >= settings.STREAM_FLUSH_SECONDS:
                     break
             flush_once(stream, store, collected, now=now)
+            # After the flush and never before it, so a committed offset only
+            # ever covers events that are already in the window.
+            broker.commit_position()
             # The window is a file and DuckDB gives it to one process at a
             # time. Held open for the whole run -- minutes -- this consumer
             # locked out every reader: the Streams page quietly fell back to

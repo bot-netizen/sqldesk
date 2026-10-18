@@ -211,6 +211,139 @@ class TestTheSeekThatMattersMost(BrokerTestCase):
         self.assertEqual([], [value for _key, value in after_seek if b"backlog" in value])
 
 
+class TestHowTheBrokerSeesUs(BrokerTestCase):
+    """
+    The reason for 0.7.3's consumer change, checked against a real broker.
+
+    Lag monitoring alarmed on SQLDesk because every stream joined a group it
+    never committed under. These are the claims the fix rests on, and a fake
+    can only pretend to make them.
+    """
+
+    def groups(self):
+        from confluent_kafka.admin import AdminClient
+
+        listed = (
+            AdminClient({"bootstrap.servers": BROKERS}).list_consumer_groups(request_timeout=15).result(timeout=20)
+        )
+        return {group.group_id for group in listed.valid}
+
+    def consume_through(self, broker, until=2):
+        """Consume through the real loop until `until` flushes have happened."""
+        stream = self.stream(pinned=True)
+        flushes = []
+        with mock.patch("sqldesk.settings.STREAM_FLUSH_SECONDS", 0.3):
+            with mock.patch.object(
+                consumer, "flush_once", side_effect=lambda *a, **k: flushes.append(a[2]) or consumer.Flush()
+            ):
+                consumer.consume(stream, broker, lambda: len(flushes) < until)
+        return [value for batch in flushes for _key, value in batch]
+
+    def test_an_unnamed_consumer_never_appears_on_the_broker(self):
+        group = "sqldesk-test-unseen-{}".format(uuid.uuid4().hex[:8])
+        broker = consumer.Broker(brokers=BROKERS, topic=self.topic, group=group)
+        self.produce({"x": 1})
+
+        self.consume_through(broker)
+
+        self.assertNotIn(group, self.groups())
+
+    def test_a_named_one_does_while_it_reads(self):
+        """
+        Proved by the member id, which only the broker's group coordinator ever
+        issues -- a consumer that has one has joined, by the broker's own
+        account. Asking the admin API instead was the first version of this
+        test, and on a single-core test broker that has just run three hundred
+        other tests it timed out while the group was perfectly healthy.
+        """
+        group = "sqldesk-test-named-{}".format(uuid.uuid4().hex[:8])
+        broker = consumer.Broker(brokers=BROKERS, topic=self.topic, group=group, join=True).open()
+        self.addCleanup(broker.close)
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline and not broker._consumer.assignment():
+            broker.poll(timeout=0.5)
+
+        self.assertTrue(broker._consumer.memberid(), "the broker never issued a member id")
+        self.assertTrue(broker._consumer.assignment(), "joined but was handed no partitions")
+
+    def test_and_an_unnamed_one_is_never_a_member_of_anything(self):
+        # The same question asked the other way round, so the two cannot both
+        # pass by the check being blind.
+        broker = consumer.Broker(brokers=BROKERS, topic=self.topic, group="unseen").open()
+        self.addCleanup(broker.close)
+        self.drain(broker, seconds=3)
+
+        self.assertFalse(broker._consumer.memberid())
+
+    def test_saving_commits_and_a_cold_start_resumes_from_there(self):
+        group = "sqldesk-test-saved-{}".format(uuid.uuid4().hex[:8])
+        first = consumer.Broker(brokers=BROKERS, topic=self.topic, group=group, join=True, commit=True)
+        self.produce({"before": 1})
+
+        def flush(stream_arg, store_arg, messages, **kwargs):
+            seen.extend(messages)
+            if not produced:
+                produced.append(1)
+                self.produce({"seen": 1})
+            return consumer.Flush()
+
+        seen, produced = [], []
+        stream = self.stream(pinned=True)
+        with mock.patch("sqldesk.settings.STREAM_FLUSH_SECONDS", 0.3):
+            with mock.patch.object(consumer, "flush_once", side_effect=flush):
+                consumer.consume(stream, first, lambda: not any(b"seen" in v for _k, v in seen))
+
+        # Nobody reading. These arrive while the stream is stopped.
+        self.produce({"while_stopped": 1}, {"while_stopped": 2})
+
+        second = consumer.Broker(
+            brokers=BROKERS, topic=self.topic, group=group, join=True, commit=True, start_from="saved"
+        ).open()
+        self.addCleanup(second.close)
+        resumed = []
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and len(resumed) < 2:
+            resumed.extend(second.poll(timeout=0.5))
+
+        values = [value for _key, value in resumed]
+        self.assertEqual(2, sum(b"while_stopped" in v for v in values))
+        self.assertFalse(any(b"seen" in v for v in values), "replayed what was already in the window")
+
+    def test_earliest_reads_what_was_there_before_it_started(self):
+        self.produce({"backlog": 1}, {"backlog": 2})
+        broker = consumer.Broker(brokers=BROKERS, topic=self.topic, group="g", start_from="earliest").open()
+        self.addCleanup(broker.close)
+
+        collected = []
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and len(collected) < 2:
+            collected.extend(broker.poll(timeout=0.5))
+
+        self.assertEqual(2, sum(b"backlog" in value for _key, value in collected))
+
+    def test_a_hand_over_carries_on_without_a_hole(self):
+        """
+        Each job used to start at the end, so whatever arrived between one job
+        closing and the next opening was never read: a hole in the chart at
+        every hand-over.
+        """
+        first = consumer.Broker(brokers=BROKERS, topic=self.topic, group="g").open()
+        self.drain(first, seconds=2)
+        self.produce({"in_the_first_job": 1})
+        self.drain(first)
+        first.close()
+
+        self.produce({"between_jobs": 1})
+
+        second = consumer.Broker(brokers=BROKERS, topic=self.topic, group="g", resume=first.last_positions).open()
+        self.addCleanup(second.close)
+        collected = self.drain(second)
+
+        self.assertTrue(first.last_positions)
+        self.assertTrue(any(b"between_jobs" in value for _key, value in collected))
+        self.assertFalse(any(b"in_the_first_job" in value for _key, value in collected))
+
+
 class TestEndToEndThroughTheStore(BrokerTestCase):
     def test_events_from_a_real_topic_land_in_the_store(self):
         stream = self.stream(pinned=True)

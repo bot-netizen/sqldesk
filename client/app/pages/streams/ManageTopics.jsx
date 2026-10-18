@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Alert from "antd/lib/alert";
 import Button from "antd/lib/button";
+import Checkbox from "antd/lib/checkbox";
 import Input from "antd/lib/input";
 import Select from "antd/lib/select";
 import Table from "antd/lib/table";
@@ -135,7 +136,123 @@ function Schema({ columns }) {
   );
 }
 
-function Analysis({ found, onEnable, onAgain, saving, analysing, enabled }) {
+/*
+  How the consumer reads, which is mostly about how it looks to the broker.
+
+  Lag monitoring alarmed on SQLDesk because every stream joined a consumer
+  group it never committed under. So the default is no group the broker can
+  see, and the page says so in words rather than leaving it to be inferred from
+  an empty box. A name, saving the position and where to start are each a
+  choice made here, per topic.
+*/
+const START_POINTS = [
+  { value: "latest", label: "Latest: only what arrives from now" },
+  { value: "earliest", label: "Earliest: everything still on the topic" },
+  { value: "saved", label: "Where it left off" },
+];
+
+export function readingSettings(group, save, start) {
+  const named = group.trim().length > 0;
+  const saving = named && save;
+  return {
+    consumer_group: group.trim(),
+    save_position: saving,
+    start_from: start === "saved" && !saving ? "latest" : start,
+  };
+}
+
+export function HowItReads({ topic, onChange }) {
+  const [group, setGroup] = useState((topic && topic.consumer_group) || "");
+  const [save, setSave] = useState(!!(topic && topic.save_position));
+  const [start, setStart] = useState((topic && topic.start_from) || "latest");
+
+  const settings = readingSettings(group, save, start);
+  const named = settings.consumer_group.length > 0;
+
+  useEffect(() => {
+    onChange(settings);
+    // `settings` is rebuilt every render; its three fields are what change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.consumer_group, settings.save_position, settings.start_from]);
+
+  return (
+    <div className="streams-reading m-t-15" data-test="HowItReads">
+      <strong>How it reads</strong>
+
+      <div className="m-t-5">
+        <label htmlFor="consumer-group">Consumer group</label>
+        <Input
+          id="consumer-group"
+          value={group}
+          onChange={(event) => setGroup(event.target.value)}
+          placeholder="None"
+          data-test="ConsumerGroup"
+        />
+        <p className="streams-muted m-b-5" data-test="ConsumerGroupMeaning">
+          {named
+            ? `Joins "${settings.consumer_group}" on the broker. Lag monitoring that ignores consumers by prefix will see it under this name.`
+            : "No consumer group is joined and nothing is committed, so the broker never sees one and lag monitoring has nothing to alarm on."}
+        </p>
+      </div>
+
+      <div className="m-t-5">
+        <Checkbox
+          checked={settings.save_position}
+          disabled={!named}
+          onChange={(event) => setSave(event.target.checked)}
+          data-test="SavePosition"
+        >
+          Save position
+        </Checkbox>
+        <p className="streams-muted m-b-5" data-test="SavePositionMeaning">
+          {settings.save_position
+            ? "Offsets are committed after each flush, so it resumes where it stopped."
+            : named
+              ? "Nothing is saved. Each time it starts, it reads from the point below."
+              : "Nothing is saved. Saving needs a consumer group name to save under."}
+        </p>
+      </div>
+
+      <div className="m-t-5">
+        <label htmlFor="start-from">Start from</label>
+        <Select
+          id="start-from"
+          value={settings.start_from}
+          onChange={setStart}
+          style={{ width: "100%" }}
+          data-test="StartFrom"
+        >
+          {START_POINTS.map((point) => (
+            <Select.Option
+              key={point.value}
+              value={point.value}
+              disabled={point.value === "saved" && !settings.save_position}
+            >
+              {point.value === "saved" && !settings.save_position
+                ? `${point.label} (needs Save position)`
+                : point.label}
+            </Select.Option>
+          ))}
+        </Select>
+        <p className="streams-muted m-b-5">
+          Applies when it starts from cold. Between one job and the next it carries on from where it stopped.
+        </p>
+        {settings.start_from === "earliest" && (
+          <Alert
+            type="warning"
+            showIcon
+            data-test="EarliestWarning"
+            message="Reads everything still on the topic each time it starts from cold."
+            description="The row budget keeps only the newest rows, but every message is still read to get there."
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Analysis({ found, topic, onEnable, onAgain, saving, analysing, enabled }) {
+  const [reading, setReading] = useState(readingSettings("", false, "latest"));
   return (
     <div className="streams-analysis" data-test="TopicAnalysis">
       <div className="streams-figures">
@@ -183,15 +300,22 @@ function Analysis({ found, onEnable, onAgain, saving, analysing, enabled }) {
         <Schema columns={found.columns} />
       </div>
 
+      <HowItReads topic={topic} onChange={setReading} />
+
       {/* Already on: offering to enable it again would do nothing, and the
-          control that matters is Turn off, which is in the row above. */}
-      {!enabled && (
-        <div className="streams-enable">
-          <Button type="primary" onClick={onEnable} loading={saving} data-test="EnableTopic">
+          control that matters is Turn off, which is in the row above. What it
+          can still do is change how it reads. */}
+      <div className="streams-enable">
+        {enabled ? (
+          <Button onClick={() => onEnable(reading)} loading={saving} data-test="SaveHowItReads">
+            Save how it reads
+          </Button>
+        ) : (
+          <Button type="primary" onClick={() => onEnable(reading)} loading={saving} data-test="EnableTopic">
             Enable this topic
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -253,12 +377,12 @@ function ManageTopics() {
   );
 
   const enable = useCallback(
-    (topic, body) => {
+    (topic, body, alreadyEnabled) => {
       setSaving(topic);
       axios
         .post(`api/data_sources/${chosen}/topics/${encodeURIComponent(topic)}`, body || {})
         .then(() => {
-          notification.success(`${topic} can now be queried.`);
+          notification.success(alreadyEnabled ? `How ${topic} is read was saved.` : `${topic} can now be queried.`);
           load(chosen);
         })
         .catch((error) => notification.error("Could not enable that topic", (error && error.message) || ""))
@@ -409,10 +533,11 @@ function ManageTopics() {
                 analysis[row.name] ? (
                   <Analysis
                     found={analysis[row.name]}
+                    topic={row}
                     enabled={row.enabled}
                     saving={saving === row.name}
                     analysing={analysing === row.name}
-                    onEnable={() => enable(row.name)}
+                    onEnable={(reading) => enable(row.name, reading, row.enabled)}
                     onAgain={() => analyse(row.name)}
                   />
                 ) : null,

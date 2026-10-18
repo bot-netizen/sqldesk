@@ -1,7 +1,7 @@
 import React from "react";
 import { mount } from "enzyme";
 
-import ManageTopics from "./ManageTopics";
+import ManageTopics, { readingSettings } from "./ManageTopics";
 import { axios } from "@/services/axios";
 
 /*
@@ -189,5 +189,102 @@ describe("the Manage topics page", () => {
     await settle(wrapper);
 
     expect(wrapper.text()).toContain("no route to host");
+  });
+});
+
+/*
+  How a topic is read.
+
+  Lag monitoring alarmed on SQLDesk because every stream joined a consumer group
+  it never committed under. The default is now no group the broker can see, and
+  the page has to say that in words -- an empty box alone reads as "not set yet",
+  not as "deliberately invisible".
+*/
+describe("how a topic is read", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  async function analysed(topic) {
+    const wrapper = await render([{ name: "orders", partitions: 3, enabled: false, columns: 0, ...topic }]);
+    jest
+      .spyOn(axios, "post")
+      .mockImplementation((url) => (url.endsWith("/analyse") ? Promise.resolve(analysis) : Promise.resolve({})));
+    wrapper.find('[data-test="AnalyseTopic"]').first().simulate("click");
+    await settle(wrapper);
+    return wrapper;
+  }
+
+  test("by default it says plainly that no group is joined and nothing is saved", async () => {
+    const wrapper = await analysed({});
+
+    expect(wrapper.find('[data-test="ConsumerGroupMeaning"]').text()).toContain("broker never sees one");
+    expect(wrapper.find('[data-test="SavePositionMeaning"]').text()).toContain("Nothing is saved");
+    expect(wrapper.find(".ant-checkbox-input").first().prop("disabled")).toBe(true);
+  });
+
+  test("a name says which group the broker will see, and makes saving possible", async () => {
+    const wrapper = await analysed({});
+
+    wrapper.find('input[data-test="ConsumerGroup"]').simulate("change", { target: { value: "analytics-sqldesk" } });
+    await settle(wrapper, 1);
+
+    expect(wrapper.find('[data-test="ConsumerGroupMeaning"]').text()).toContain('"analytics-sqldesk"');
+    expect(wrapper.find(".ant-checkbox-input").first().prop("disabled")).toBe(false);
+  });
+
+  test("enabling sends how it should read", async () => {
+    const wrapper = await analysed({});
+
+    wrapper.find('input[data-test="ConsumerGroup"]').simulate("change", { target: { value: "  analytics-sqldesk  " } });
+    await settle(wrapper, 1);
+    wrapper.find('button[data-test="EnableTopic"]').simulate("click");
+    await settle(wrapper, 1);
+
+    const enabling = axios.post.mock.calls.find(([url]) => url.endsWith("/topics/orders"));
+    expect(enabling[1]).toEqual({ consumer_group: "analytics-sqldesk", save_position: false, start_from: "latest" });
+  });
+
+  test("an enabled topic shows what it is set to and offers to save a change", async () => {
+    const wrapper = await analysed({
+      enabled: true,
+      consumer_group: "analytics-sqldesk",
+      save_position: true,
+      start_from: "saved",
+    });
+
+    expect(wrapper.find('input[data-test="ConsumerGroup"]').prop("value")).toBe("analytics-sqldesk");
+    expect(wrapper.find('[data-test="SavePositionMeaning"]').text()).toContain("resumes where it stopped");
+    expect(wrapper.find('button[data-test="SaveHowItReads"]').exists()).toBe(true);
+    expect(wrapper.find('button[data-test="EnableTopic"]').exists()).toBe(false);
+  });
+
+  test("starting from the beginning carries a warning about what it costs", async () => {
+    const wrapper = await analysed({ start_from: "earliest" });
+
+    expect(wrapper.find('[data-test="EarliestWarning"]').exists()).toBe(true);
+  });
+});
+
+describe("the rules for how a topic is read", () => {
+  test("no name means nothing can be saved", () => {
+    expect(readingSettings("", true, "latest").save_position).toBe(false);
+  });
+
+  test("and starting where it left off falls back to latest when nothing is saved", () => {
+    expect(readingSettings("", true, "saved").start_from).toBe("latest");
+    expect(readingSettings("g", false, "saved").start_from).toBe("latest");
+  });
+
+  test("with a name and saving, it may", () => {
+    expect(readingSettings("g", true, "saved")).toEqual({
+      consumer_group: "g",
+      save_position: true,
+      start_from: "saved",
+    });
+  });
+
+  test("the name is trimmed, so a stray space is not a group of its own", () => {
+    expect(readingSettings("  g  ", false, "latest").consumer_group).toBe("g");
   });
 });

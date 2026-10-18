@@ -38,6 +38,8 @@ class FakeBroker:
         self.closed = False
         self.sought = False
         self.polls = 0
+        self.commits = 0
+        self.last_positions = {}
 
     def open(self):
         self.opened = True
@@ -49,6 +51,10 @@ class FakeBroker:
 
     def seek_to_end(self):
         self.sought = True
+        return True
+
+    def commit_position(self):
+        self.commits += 1
         return True
 
     def close(self):
@@ -266,70 +272,60 @@ class TestSampling(ConsumerTestCase):
 
 
 class TestTheLoop(ConsumerTestCase):
-    def test_it_seeks_to_the_end_before_consuming(self):
+    def test_nothing_from_the_first_poll_is_thrown_away(self):
         """
-        The window is "now". Replaying an hour of backlog to fill five minutes
-        is waste, and worse -- it would stamp hour-old events with an arrival
-        time of now and draw a chart that is a lie.
+        `open` positions the consumer -- at the end, the beginning, a saved
+        offset or wherever the last job reached -- so the first poll is already
+        what was wanted. It used to be discarded before a seek to the end,
+        which was right only while every start meant the end.
         """
         stream = self.stream()
-        broker = FakeBroker([message({"x": 1})])
+        broker = FakeBroker([message({"first": 1})])
         calls = iter([True, False])
+        flushed = []
 
         with mock.patch("sqldesk.settings.STREAM_FLUSH_SECONDS", 0):
-            consumer.consume(stream, broker, lambda: next(calls, False))
-
-        self.assertTrue(broker.sought)
-
-    def test_it_opens_and_closes_the_broker(self):
-        stream = self.stream()
-        broker = FakeBroker()
-
-        with mock.patch("sqldesk.settings.STREAM_FLUSH_SECONDS", 0):
-            consumer.consume(stream, broker, lambda: False)
+            with mock.patch.object(
+                consumer, "flush_once", side_effect=lambda s, st, batch, **k: flushed.extend(batch) or consumer.Flush()
+            ):
+                consumer.consume(stream, broker, lambda: next(calls, False))
 
         self.assertTrue(broker.opened)
-        self.assertTrue(broker.closed)
+        self.assertFalse(broker.sought)
+        self.assertEqual(1, len(flushed))
+        self.assertIn(b"first", flushed[0][1])
 
-    def test_the_broker_is_closed_even_when_a_flush_raises(self):
-        # Otherwise a worker leaks a consumer group member per failure, and the
-        # broker spends the rest of the day rebalancing.
-        stream = self.stream()
-        broker = FakeBroker([message({"x": 1})])
-
-        with mock.patch("sqldesk.settings.STREAM_FLUSH_SECONDS", 0):
-            with mock.patch.object(consumer, "flush_once", side_effect=RuntimeError("no")):
-                with self.assertRaises(RuntimeError):
-                    consumer.consume(stream, broker, lambda: True)
-
-        self.assertTrue(broker.closed)
-
-    def test_it_stops_when_told_to(self):
+    def test_the_position_is_offered_for_committing_after_every_flush(self):
+        # Whether it is committed is the broker's decision, made from the
+        # topic's setting; the loop's job is to ask only once the window has it.
         stream = self.stream()
         broker = FakeBroker([message({"x": 1})], [message({"x": 2})], [message({"x": 3})])
         flushes = []
+        order = []
+
+        def flush(*args, **kwargs):
+            flushes.append(1)
+            order.append(("flush", broker.commits))
+            return consumer.Flush()
 
         with mock.patch("sqldesk.settings.STREAM_FLUSH_SECONDS", 0):
-            with mock.patch.object(consumer, "flush_once", side_effect=lambda *args, **kwargs: flushes.append(1)):
-                consumer.consume(stream, broker, lambda: len(flushes) < 2)
+            with mock.patch.object(consumer, "flush_once", side_effect=flush):
+                consumer.consume(stream, broker, until_drained(broker))
 
-        self.assertEqual(2, len(flushes))
+        self.assertTrue(flushes)
+        self.assertEqual(len(flushes), broker.commits)
+        # And each commit comes after its flush, never before: at every flush
+        # the count of commits is the count of flushes before it.
+        self.assertEqual([("flush", n) for n in range(len(flushes))], order)
 
-    def test_the_first_poll_is_only_for_the_assignment(self):
-        """
-        Whatever it returns is from before the seek, so it is thrown away.
-        Storing it would put one stale event into the window on every start --
-        stamped with an arrival time of now, which is the lie the seek exists
-        to prevent.
-        """
-        stream = self.stream()
-        broker = FakeBroker([message({"stale": 1})], [message({"fresh": 1})])
-
-        with mock.patch("sqldesk.settings.STREAM_FLUSH_SECONDS", 0):
-            consumer.consume(stream, broker, until_drained(broker))
-
-        store = self.store_for(stream)
-        self.assertEqual(["fresh"], [name for name, _kind in store.columns() if not name.startswith("_")])
+    # `test_the_first_poll_is_only_for_the_assignment` used to stand here,
+    # asserting the first poll was thrown away as stale. The protection it gave
+    # -- no backlog stamped with an arrival time of now -- moved into
+    # `Broker.open`, which now assigns at the end before any poll. It is held by
+    # `test_broker_positioning.py` (the default is the end) and by
+    # `test_broker.py::test_a_backlog_is_not_replayed_on_a_fresh_start`
+    # against a real broker; `test_nothing_from_the_first_poll_is_thrown_away`
+    # above is its replacement.
 
     def test_every_flush_polls_at_least_once(self):
         # A plain `while elapsed < interval` polls zero times when the interval
