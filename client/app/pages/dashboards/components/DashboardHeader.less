@@ -124,3 +124,28 @@
     }
   }
 }
+
+// Beside the streaming chip, in the same small shape, so a title carries at
+// most two quiet labels rather than a row of loud ones.
+.dashboard-verified-chip {
+  margin-left: 8px;
+  padding: 0 7px;
+  border: 1px solid #b7eb8f;
+  border-radius: 10px;
+  background: #f6ffed;
+  color: #389e0d;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &--changed {
+    border-color: #ffe58f;
+    background: #fffbe6;
+    color: #ad6800;
+  }
+}
+
+.dashboard-verified-note {
+  max-width: 320px;
+}

@@ -96,6 +96,32 @@ function useDashboard(dashboardData, { publicToken = null } = {}) {
     separate endpoint, so it gets a separate function, and the result is
     folded into local state rather than re-fetched.
   */
+  // Checked by somebody who curates what is trustworthy, with what they checked.
+  // Not `updateDashboard`: verifying is not editing, and needs no edit right.
+  const verify = useCallback(
+    (note) =>
+      axios
+        .post(`api/dashboards/${dashboard.id}/verification`, { note })
+        .then(({ verification }) => {
+          setDashboard((currentDashboard) => extend({}, currentDashboard, { verification }));
+          notification.success("Verified.");
+        })
+        .catch((error) => notification.error("Could not verify it", get(error, "response.data.message") || "")),
+    [dashboard.id]
+  );
+
+  const unverify = useCallback(
+    () =>
+      axios
+        .delete(`api/dashboards/${dashboard.id}/verification`)
+        .then(() => {
+          setDashboard((currentDashboard) => extend({}, currentDashboard, { verification: null }));
+          notification.success("No longer marked as verified.");
+        })
+        .catch(() => notification.error("Could not remove the verification")),
+    [dashboard.id]
+  );
+
   const moveToFolder = useCallback(
     (folderId) =>
       axios
@@ -348,6 +374,8 @@ function useDashboard(dashboardData, { publicToken = null } = {}) {
     canEditDashboard,
     isDashboardOwnerOrAdmin,
     moveToFolder,
+    verify,
+    unverify,
     refreshRate,
     setRefreshRate,
     disableRefreshRate,

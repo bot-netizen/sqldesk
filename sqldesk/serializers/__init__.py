@@ -10,7 +10,7 @@ from funcy import project
 from rq.job import JobStatus
 from rq.timeouts import JobTimeoutException
 
-from sqldesk import live, models
+from sqldesk import features, live, models
 from sqldesk.models.parameterized_query import ParameterizedQuery
 from sqldesk.permissions import has_access, view_only
 from sqldesk.serializers.query_result import (
@@ -278,6 +278,29 @@ def serialize_alert(alert, full=True):
     return d
 
 
+def serialize_dashboard_verification(dashboard, check_for_changes=True):
+    """
+    Who verified a dashboard, when, what they checked -- and whether it has
+    changed since, which is the part that keeps a badge honest. `None` when
+    nobody has.
+
+    `check_for_changes` reads every widget and its query, so a list of
+    dashboards skips it; the dashboard's own page always asks.
+    """
+    if dashboard.verified_at is None:
+        return None
+    changed = None
+    if check_for_changes:
+        changed = dashboard.content_fingerprint() != dashboard.verified_fingerprint
+    return {
+        "by": dashboard.verified_by.name if dashboard.verified_by else None,
+        "by_id": dashboard.verified_by_id,
+        "at": dashboard.verified_at,
+        "note": dashboard.verified_note,
+        "changed_since": changed,
+    }
+
+
 def serialize_dashboard(obj, with_widgets=False, user=None, with_favorite_state=True):
     layout = obj.layout
 
@@ -339,6 +362,10 @@ def serialize_dashboard(obj, with_widgets=False, user=None, with_favorite_state=
         # it for which refresh intervals to offer and what to say when nothing
         # is watching; a list reads it for the badge.
         "is_streaming": obj.is_streaming,
+        # Checked for changes only on the dashboard's own page, where the
+        # widgets are loaded anyway; a list would pay for every one of them.
+        "verification": serialize_dashboard_verification(obj, check_for_changes=with_widgets),
+        "can_verify": bool(user) and features.can(user, features.MANAGE_CATALOG),
     }
 
     return d

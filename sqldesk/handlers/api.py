@@ -25,6 +25,7 @@ from sqldesk.handlers.dashboards import (
     DashboardResource,
     DashboardShareResource,
     DashboardTagsResource,
+    DashboardVerificationResource,
     MyDashboardsResource,
     PublicDashboardLiveWatchResource,
     PublicDashboardResource,
@@ -293,6 +294,11 @@ api.add_org_resource(MyDashboardsResource, "/api/dashboards/my", endpoint="my_da
 
 api.add_org_resource(QueryTagsResource, "/api/queries/tags", endpoint="query_tags")
 api.add_org_resource(DashboardTagsResource, "/api/dashboards/tags", endpoint="dashboard_tags")
+api.add_org_resource(
+    DashboardVerificationResource,
+    "/api/dashboards/<dashboard_id>/verification",
+    endpoint="dashboard_verification",
+)
 api.add_org_resource(DashboardFolderListResource, "/api/dashboard_folders", endpoint="dashboard_folders")
 api.add_org_resource(DashboardFolderResource, "/api/dashboard_folders/<folder_id>", endpoint="dashboard_folder")
 api.add_org_resource(

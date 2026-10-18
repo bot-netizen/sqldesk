@@ -1516,7 +1516,9 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
     slug = Column(db.String(140), index=True, default=generate_slug)
     name = Column(db.String(100))
     user_id = Column(key_type("User"), db.ForeignKey("users.id"))
-    user = db.relationship(User)
+    # `foreign_keys` because there are two paths to `users` now -- the author
+    # and whoever verified it -- and SQLAlchemy will not guess between them.
+    user = db.relationship(User, foreign_keys=[user_id])
     # layout is no longer used, but kept so we know how to render old dashboards.
     layout = Column(MutableList.as_mutable(JSONB), default=[])
     dashboard_filters_enabled = Column(db.Boolean, default=False)
@@ -1555,6 +1557,34 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
         key_type("DashboardFolder"), db.ForeignKey("dashboard_folders.id", ondelete="SET NULL"), nullable=True
     )
     folder = db.relationship(DashboardFolder, backref="dashboards")
+
+    #: Somebody who curates what is trustworthy has checked this dashboard, and
+    #: said what they checked. The note is required: a badge with no reason is
+    #: a badge nobody can weigh.
+    verified_by_id = Column(key_type("User"), db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    verified_by = db.relationship(User, foreign_keys=[verified_by_id])
+    verified_at = Column(db.DateTime(True), nullable=True)
+    verified_note = Column(db.Text, nullable=True)
+    #: What the dashboard was made of when it was checked -- see
+    #: `content_fingerprint`. A verification that silently outlived the thing it
+    #: vouched for would be worse than none, so the page says when it has.
+    verified_fingerprint = Column(db.String(32), nullable=True)
+
+    def content_fingerprint(self):
+        """
+        What a verification vouches for: which widgets, showing which queries.
+
+        A query's text is in it through `query_hash`, so editing the SQL behind
+        a chart changes it, as does adding or removing a widget. Moving or
+        resizing one does not -- that is layout, and nobody verifies layout.
+        """
+        parts = []
+        for widget in sorted(self.widgets, key=lambda w: w.id or 0):
+            query_hash = None
+            if widget.visualization is not None and widget.visualization.query_rel is not None:
+                query_hash = widget.visualization.query_rel.query_hash
+            parts.append([widget.id, widget.visualization_id, query_hash, widget.text or ""])
+        return hashlib.md5(json_dumps(parts).encode("utf-8")).hexdigest()
 
     @property
     def is_locked(self):

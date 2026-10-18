@@ -20,7 +20,11 @@ from sqldesk.permissions import (
     view_only,
 )
 from sqldesk.security import csp_allows_embeding
-from sqldesk.serializers import DashboardSerializer, public_dashboard
+from sqldesk.serializers import (
+    DashboardSerializer,
+    public_dashboard,
+    serialize_dashboard_verification,
+)
 from sqldesk.utils import utcnow
 
 # Ordering map for relationships
@@ -618,6 +622,51 @@ class DashboardFavoriteListResource(BaseResource):
         )
 
         return response
+
+
+class DashboardVerificationResource(BaseResource):
+    """
+    Saying a dashboard has been checked, and what was checked -- or taking it back.
+
+    The same permission as confirming a query in the catalog: both are somebody
+    declaring a thing trustworthy for everybody else, which is a curator's act
+    rather than an author's. The note is required, because a badge with no
+    reason is a badge nobody can weigh.
+    """
+
+    def _dashboard(self, dashboard_id):
+        # A dashboard is visible across its organisation and restricted widget
+        # by widget, so the organisation is the boundary here, as it is for
+        # opening one.
+        dashboard = get_object_or_404(models.Dashboard.get_by_id_and_org, dashboard_id, self.current_org)
+        if not features.can(self.current_user, features.MANAGE_CATALOG):
+            abort(403, message="Verifying a dashboard needs the catalog curation permission.")
+        return dashboard
+
+    def post(self, dashboard_id):
+        dashboard = self._dashboard(dashboard_id)
+        body = request.get_json(force=True, silent=True) or {}
+        note = (body.get("note") or "").strip()
+        if not note:
+            abort(400, message="Say what was checked. A badge with no reason is one nobody can weigh.")
+
+        dashboard.verified_by = self.current_user
+        dashboard.verified_at = utcnow()
+        dashboard.verified_note = note
+        dashboard.verified_fingerprint = dashboard.content_fingerprint()
+        models.db.session.commit()
+        self.record_event({"action": "verify", "object_id": dashboard.id, "object_type": "dashboard"})
+        return {"verification": serialize_dashboard_verification(dashboard)}
+
+    def delete(self, dashboard_id):
+        dashboard = self._dashboard(dashboard_id)
+        dashboard.verified_by = None
+        dashboard.verified_at = None
+        dashboard.verified_note = None
+        dashboard.verified_fingerprint = None
+        models.db.session.commit()
+        self.record_event({"action": "unverify", "object_id": dashboard.id, "object_type": "dashboard"})
+        return {"verification": None}
 
 
 class DashboardForkResource(BaseResource):

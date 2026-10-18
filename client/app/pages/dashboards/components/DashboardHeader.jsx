@@ -11,12 +11,15 @@ import EllipsisOutlinedIcon from "@ant-design/icons/EllipsisOutlined";
 import PauseCircleOutlinedIcon from "@ant-design/icons/PauseCircleOutlined";
 import PlayCircleOutlinedIcon from "@ant-design/icons/PlayCircleOutlined";
 import Modal from "antd/lib/modal";
+import Popover from "antd/lib/popover";
 import Tooltip from "@/components/Tooltip";
+import TimeAgo from "@/components/TimeAgo";
 import FavoritesControl from "@/components/FavoritesControl";
 import EditInPlace from "@/components/EditInPlace";
 import ShareDashboardButton from "./ShareDashboardButton";
 import DashboardFilters from "./DashboardFilters";
 import LiveBadge, { LIVE_INTERVAL_LABELS, intervalsFor } from "./LiveBadge";
+import VerifyDashboardDialog from "./VerifyDashboardDialog";
 import PlainButton from "@/components/PlainButton";
 import { DashboardTagsControl } from "@/components/tags-control/TagsControl";
 import getTags from "@/services/getTags";
@@ -37,6 +40,59 @@ function buttonType(value) {
 }
 
 // Exported for its own test: what a dashboard says it is, beside its name.
+/*
+  Who checked this dashboard, and what they checked.
+
+  A popover on click rather than a tooltip on hover, because the note is the
+  point and has to be readable on a phone. When the charts or their queries
+  have changed since, the badge says so instead of vouching for something it
+  never saw.
+*/
+export function VerifiedBadge({ verification }) {
+  if (!verification) {
+    return null;
+  }
+  const changed = !!verification.changed_since;
+  const content = (
+    <div className="dashboard-verified-note" data-test="VerificationNote">
+      <div>
+        <strong>{verification.by || "Somebody"}</strong> verified this <TimeAgo date={verification.at} />.
+      </div>
+      <p className="m-t-5 m-b-0">{verification.note}</p>
+      {changed && (
+        <p className="m-t-5 m-b-0 text-warning" data-test="VerificationChanged">
+          The dashboard has changed since: a chart or the query behind one is not what was checked.
+        </p>
+      )}
+    </div>
+  );
+  return (
+    <Popover content={content} trigger="click" placement="bottom">
+      <button
+        type="button"
+        className={cx("dashboard-verified-chip", { "dashboard-verified-chip--changed": changed })}
+        data-test="VerifiedBadge"
+      >
+        <i className={cx("fa", changed ? "fa-exclamation-circle" : "fa-check-circle")} aria-hidden="true" />{" "}
+        {changed ? "verified, then changed" : "verified"}
+      </button>
+    </Popover>
+  );
+}
+
+VerifiedBadge.propTypes = {
+  verification: PropTypes.shape({
+    by: PropTypes.string,
+    at: PropTypes.string,
+    note: PropTypes.string,
+    changed_since: PropTypes.bool,
+  }),
+};
+
+VerifiedBadge.defaultProps = {
+  verification: null,
+};
+
 export function DashboardPageTitle({ dashboardConfiguration }) {
   const { dashboard, canEditDashboard, updateDashboard, editingLayout } = dashboardConfiguration;
   return (
@@ -68,6 +124,7 @@ export function DashboardPageTitle({ dashboardConfiguration }) {
             </span>
           </Tooltip>
         )}
+        <VerifiedBadge verification={dashboard.verification} />
         <Tooltip title={dashboard.user.name} placement="bottom">
           <img src={dashboard.user.profile_image_url} className="profile-image" alt={dashboard.user.name} />
         </Tooltip>
@@ -189,6 +246,8 @@ function DashboardMoreOptionsButton({ dashboardConfiguration }) {
     canManageLive,
     changeLive,
     moveToFolder,
+    verify,
+    unverify,
   } = dashboardConfiguration;
 
   const [folders, setFolders] = useState([]);
@@ -269,6 +328,25 @@ function DashboardMoreOptionsButton({ dashboardConfiguration }) {
                 </Menu.Item>
               )}
             </Menu.SubMenu>
+          )}
+          {dashboard.can_verify && (
+            <Menu.Item key="verify">
+              <PlainButton
+                onClick={() =>
+                  VerifyDashboardDialog.showModal({ current: dashboard.verification }).onClose((note) => verify(note))
+                }
+                data-test="VerifyDashboard"
+              >
+                {dashboard.verification ? "Update verification" : "Verify"}
+              </PlainButton>
+            </Menu.Item>
+          )}
+          {dashboard.can_verify && dashboard.verification && (
+            <Menu.Item key="unverify">
+              <PlainButton onClick={unverify} data-test="UnverifyDashboard">
+                Remove verification
+              </PlainButton>
+            </Menu.Item>
           )}
           {clientConfig.showPermissionsControl && isDashboardOwnerOrAdmin && (
             <Menu.Item>
