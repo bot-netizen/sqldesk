@@ -160,6 +160,21 @@ class KafkaStream(BaseSQLQueryRunner):
                 "sasl_mechanism": {"type": "string", "title": "SASL mechanism", "default": ""},
                 "sasl_username": {"type": "string", "title": "SASL username"},
                 "sasl_password": {"type": "string", "title": "SASL password"},
+                # For SSL and SASL_SSL against a broker whose certificate is not
+                # signed by a public CA -- an internal PKI, a self-signed
+                # cluster -- and for brokers that want a client certificate.
+                # Without them, TLS only worked when the system trust store
+                # already happened to trust the broker. Names ending in `File`
+                # are uploads in the form, arriving base64-encoded.
+                "ssl_ca_File": {"type": "string", "title": "CA certificate (PEM)"},
+                "ssl_certificate_File": {"type": "string", "title": "Client certificate (PEM, for mutual TLS)"},
+                "ssl_key_File": {"type": "string", "title": "Client key (PEM, for mutual TLS)"},
+                "ssl_key_password": {"type": "string", "title": "Client key password"},
+                "ssl_verify_hostname": {
+                    "type": "boolean",
+                    "title": "Check the broker's certificate matches its name",
+                    "default": True,
+                },
                 "row_budget": {
                     "type": "number",
                     "title": "Rows to keep, per topic",
@@ -175,13 +190,25 @@ class KafkaStream(BaseSQLQueryRunner):
                 },
             },
             "required": ["brokers"],
-            "secret": ["sasl_password"],
+            "secret": ["sasl_password", "ssl_ca_File", "ssl_certificate_File", "ssl_key_File", "ssl_key_password"],
+            "extra_options": [
+                "ssl_ca_File",
+                "ssl_certificate_File",
+                "ssl_key_File",
+                "ssl_key_password",
+                "ssl_verify_hostname",
+            ],
             "order": [
                 "brokers",
                 "security_protocol",
                 "sasl_mechanism",
                 "sasl_username",
                 "sasl_password",
+                "ssl_ca_File",
+                "ssl_certificate_File",
+                "ssl_key_File",
+                "ssl_key_password",
+                "ssl_verify_hostname",
                 "row_budget",
                 "events_per_second",
             ],

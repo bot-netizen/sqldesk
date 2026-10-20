@@ -27,6 +27,8 @@ exercise. Everything above it -- the sampling decision, the flush, the window,
 the rate, the ceilings -- is driven in tests by a fake that returns bytes.
 """
 
+import base64
+import binascii
 import logging
 import time
 
@@ -303,20 +305,63 @@ def list_topics(options, seconds=5):
     return sorted(topics, key=lambda topic: topic["name"])
 
 
+def _pem(value):
+    """
+    A certificate or key as librdkafka wants it: PEM text.
+
+    The form uploads files base64-encoded; something configured through the
+    API may already be PEM. Both are accepted, so a certificate pasted in as
+    text is not silently turned into nonsense by decoding it.
+    """
+    text = value.strip() if isinstance(value, str) else ""
+    if text.startswith("-----BEGIN"):
+        return text
+    try:
+        return base64.b64decode(text, validate=False).decode("utf-8").strip()
+    except (binascii.Error, UnicodeDecodeError, ValueError):
+        raise ValueError("A certificate or key here has to be a PEM file.")
+
+
 def _security(options):
-    """The librdkafka settings a broker needs to let us in."""
+    """
+    The librdkafka settings a broker needs to let us in.
+
+    Every connection SQLDesk makes to Kafka -- the stream consumer, analysing a
+    topic, listing a cluster's topics -- is built from this, so a broker that
+    needs a certificate gets it everywhere at once.
+
+    Certificates are handed over as PEM text rather than as files. librdkafka
+    accepts both, and text has no lifetime: a consumer runs for minutes and
+    hands over to another job, and a temporary file would have had to outlive
+    one and be cleaned up after the other.
+    """
+    options = options or {}
     chosen = {}
-    protocol = (options or {}).get("security_protocol")
+    protocol = options.get("security_protocol")
     if protocol and protocol != "PLAINTEXT":
         chosen["security.protocol"] = protocol
     for key, setting in (
         ("sasl_mechanism", "sasl.mechanism"),
         ("sasl_username", "sasl.username"),
         ("sasl_password", "sasl.password"),
+        ("ssl_key_password", "ssl.key.password"),
     ):
-        value = (options or {}).get(key)
+        value = options.get(key)
         if value:
             chosen[setting] = value
+    for key, setting in (
+        ("ssl_ca_File", "ssl.ca.pem"),
+        ("ssl_certificate_File", "ssl.certificate.pem"),
+        ("ssl_key_File", "ssl.key.pem"),
+    ):
+        value = options.get(key)
+        if value:
+            chosen[setting] = _pem(value)
+    # On by default, as librdkafka has it. Off for a broker reached by an
+    # address its certificate does not name -- an IP, an internal alias --
+    # which still checks the certificate is the CA's, just not whose it is.
+    if options.get("ssl_verify_hostname") is False:
+        chosen["ssl.endpoint.identification.algorithm"] = "none"
     return chosen
 
 
