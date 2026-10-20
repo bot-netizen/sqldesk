@@ -62,6 +62,30 @@ class TestDashboardSerializationCost(DashboardCostTestCase):
         self.assertEqual(len(rv.json["widgets"]), widget_count)
         return counter["n"]
 
+    def cost_of_showing_verified(self, widget_count):
+        dashboard = self.build_dashboard(widget_count)
+        admin = self.factory.create_admin()
+        dashboard.verified_by = admin
+        dashboard.verified_at = models.utcnow()
+        dashboard.verified_note = "Checked."
+        dashboard.verified_fingerprint = dashboard.content_fingerprint()
+        models.db.session.commit()
+        models.db.session.expire_all()
+        with count_statements() as counter:
+            rv = self.make_request("get", "/api/dashboards/{}".format(dashboard.id))
+        self.assertEqual(rv.status_code, 200)
+        self.assertFalse(rv.json["verification"]["changed_since"])
+        return counter["n"]
+
+    def test_a_verified_dashboard_costs_no_more_per_widget(self):
+        # Checking whether a verified dashboard has changed since reads every
+        # widget's query. It must read the ones already loaded to show the
+        # page, not walk the lazy relationship -- which is how a twelve-widget
+        # dashboard once cost 65 statements.
+        few = self.cost_of_showing_verified(3)
+        many = self.cost_of_showing_verified(15)
+        self.assertLessEqual(many - few, 2, "a verified dashboard costs {} then {} statements".format(few, many))
+
     def test_widgets_are_loaded_together(self):
         few = self.cost_of_showing(3)
         many = self.cost_of_showing(15)

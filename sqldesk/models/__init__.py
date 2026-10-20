@@ -1570,16 +1570,24 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
     #: vouched for would be worse than none, so the page says when it has.
     verified_fingerprint = Column(db.String(32), nullable=True)
 
-    def content_fingerprint(self):
+    def content_fingerprint(self, widgets=None):
         """
         What a verification vouches for: which widgets, showing which queries.
 
         A query's text is in it through `query_hash`, so editing the SQL behind
         a chart changes it, as does adding or removing a widget. Moving or
         resizing one does not -- that is layout, and nobody verifies layout.
+
+        `widgets`, when the caller already has them loaded -- the dashboard's
+        own page always does. Without it they are loaded with everything they
+        need in one statement. Never the lazy `widgets` relationship: walking
+        that costs a statement per widget and per query, which is how this
+        first shipped, at 39 statements for fifteen widgets where 18 would do.
         """
+        if widgets is None:
+            widgets = self.loaded_widgets()
         parts = []
-        for widget in sorted(self.widgets, key=lambda w: w.id or 0):
+        for widget in sorted(widgets, key=lambda w: w.id or 0):
             query_hash = None
             if widget.visualization is not None and widget.visualization.query_rel is not None:
                 query_hash = widget.visualization.query_rel.query_hash

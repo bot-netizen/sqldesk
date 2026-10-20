@@ -278,7 +278,7 @@ def serialize_alert(alert, full=True):
     return d
 
 
-def serialize_dashboard_verification(dashboard, check_for_changes=True):
+def serialize_dashboard_verification(dashboard, check_for_changes=True, widgets=None):
     """
     Who verified a dashboard, when, what they checked -- and whether it has
     changed since, which is the part that keeps a badge honest. `None` when
@@ -291,7 +291,7 @@ def serialize_dashboard_verification(dashboard, check_for_changes=True):
         return None
     changed = None
     if check_for_changes:
-        changed = dashboard.content_fingerprint() != dashboard.verified_fingerprint
+        changed = dashboard.content_fingerprint(widgets) != dashboard.verified_fingerprint
     return {
         "by": dashboard.verified_by.name if dashboard.verified_by else None,
         "by_id": dashboard.verified_by_id,
@@ -305,9 +305,13 @@ def serialize_dashboard(obj, with_widgets=False, user=None, with_favorite_state=
     layout = obj.layout
 
     widgets = []
+    # Loaded once, here, and handed to the verification check as well: it
+    # needs exactly these rows, and loading them twice is a statement per
+    # widget for nothing.
+    loaded = obj.loaded_widgets() if with_widgets else None
 
     if with_widgets:
-        for w in obj.loaded_widgets():
+        for w in loaded:
             if w.visualization_id is None:
                 widgets.append(serialize_widget(w))
             elif user and has_access(w.visualization.query_rel, user, view_only):
@@ -364,7 +368,7 @@ def serialize_dashboard(obj, with_widgets=False, user=None, with_favorite_state=
         "is_streaming": obj.is_streaming,
         # Checked for changes only on the dashboard's own page, where the
         # widgets are loaded anyway; a list would pay for every one of them.
-        "verification": serialize_dashboard_verification(obj, check_for_changes=with_widgets),
+        "verification": serialize_dashboard_verification(obj, check_for_changes=with_widgets, widgets=loaded),
         "can_verify": bool(user) and features.can(user, features.MANAGE_CATALOG),
     }
 
