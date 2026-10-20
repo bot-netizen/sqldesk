@@ -31,9 +31,19 @@ spec:
         {{- include "sqldesk.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: redis
     spec:
+      # The image's own `redis` user, which it already drops to; stated here so
+      # a namespace enforcing the "restricted" Pod Security Standard admits it.
+      # No volume, so no fsGroup to get wrong.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: redis
           image: {{ .Values.redis.image }}
+          {{- include "sqldesk.containerSecurity" . | nindent 10 }}
           {{- if include "sqldesk.redisManaged" . }}
           # A queue is a place to put work for the worker to run, so Redis
           # answers only with the password the chart generated.

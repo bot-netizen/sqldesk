@@ -26,6 +26,7 @@ spec:
         - name: worker
           image: {{ include "sqldesk.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "sqldesk.containerSecurity" . | nindent 10 }}
           args: ["worker"]
           env:
             {{- include "sqldesk.env" . | nindent 12 }}
@@ -111,6 +112,7 @@ spec:
         - name: worker
           image: {{ include "sqldesk.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "sqldesk.containerSecurity" . | nindent 10 }}
           args: ["worker"]
           env:
             {{- include "sqldesk.env" . | nindent 12 }}
@@ -186,6 +188,7 @@ spec:
         - name: worker
           image: {{ include "sqldesk.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "sqldesk.containerSecurity" . | nindent 10 }}
           args: ["worker"]
           env:
             {{- include "sqldesk.env" . | nindent 12 }}
@@ -249,6 +252,7 @@ spec:
         - name: scheduler
           image: {{ include "sqldesk.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "sqldesk.containerSecurity" . | nindent 10 }}
           args: ["scheduler"]
           env:
             {{- include "sqldesk.env" . | nindent 12 }}

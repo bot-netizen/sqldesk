@@ -38,6 +38,7 @@ spec:
         - name: wait-for-postgres
           image: {{ include "sqldesk.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "sqldesk.containerSecurity" . | nindent 10 }}
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -65,6 +66,7 @@ spec:
         - name: migrate
           image: {{ include "sqldesk.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "sqldesk.containerSecurity" . | nindent 10 }}
           # `create_tables` is idempotent and stamps the schema at head, so
           # the first install needs no migrations and every later one runs
           # only what is missing.

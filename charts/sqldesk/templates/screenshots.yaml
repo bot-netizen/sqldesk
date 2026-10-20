@@ -46,10 +46,13 @@ spec:
         runAsNonRoot: true
         runAsUser: 1000
         runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: screenshots
           image: {{ printf "%s:%s" .Values.rendering.image.repository (.Values.rendering.image.tag | default .Chart.AppVersion) }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "sqldesk.containerSecurity" . | nindent 10 }}
           env:
             # The same address the worker builds its URLs from, from one
             # helper: the renderer refuses anything that is not the SQLDesk it

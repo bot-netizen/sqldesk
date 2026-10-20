@@ -301,6 +301,24 @@ securityContext:
   runAsNonRoot: true
   runAsUser: 1000
   runAsGroup: 1000
+  # With `containerSecurity` below, what Kubernetes' "restricted" Pod Security
+  # Standard requires. A namespace labelled to enforce it rejects any pod that
+  # lacks these at admission -- before it is ever scheduled -- and minikube
+  # never enforces it unless asked, so nothing here would have noticed.
+  seccompProfile:
+    type: RuntimeDefault
+{{- end -}}
+
+{{/*
+Per container: no privilege escalation and no Linux capabilities. Nothing in
+SQLDesk needs either -- not the server, the workers, the migrations or the
+renderer, whose Chromium already runs with --no-sandbox.
+*/}}
+{{- define "sqldesk.containerSecurity" -}}
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
 {{- end -}}
 
 {{/*
