@@ -270,6 +270,10 @@ docker compose -f compose.prod.yaml up -d</code></pre>
 <p><strong>Helm.</strong> The chart migrates itself, in a hook that runs before anything else changes:</p>
 <pre><code>helm upgrade sqldesk ./charts/sqldesk --reuse-values \
   --set image.tag=0.7.0</code></pre>
+<p>The last migration stays as the Job <code>sqldesk-migrate</code>, with its log, until the next
+upgrade replaces it. Before 0.7.5 every upgrade left a Job of its own behind, named with the
+revision; remove those once:</p>
+<pre><code>kubectl get jobs -o name | grep -E '/sqldesk-migrate-[0-9]+$' | xargs kubectl delete</code></pre>
 
 <div class="note">
   <div class="note-h">If people upload files, say so on the command line</div>

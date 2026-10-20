@@ -2,9 +2,15 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "sqldesk.fullname" . }}-migrate-{{ .Release.Revision }}
+  # One name for every upgrade, not one per revision. The delete policy below
+  # removes the Job *of the same name* before making the next, so a name with
+  # the revision in it is never removed: 0.7.4 and earlier left a Job and a
+  # pod behind on every upgrade, for ever. With one name the last migration
+  # stays, logs and all, and nothing older does.
+  name: {{ include "sqldesk.fullname" . }}-migrate
   labels:
     {{- include "sqldesk.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
   annotations:
     # Before the new version takes traffic. `post-install` creates the
     # tables; `pre-upgrade` runs the migrations while the old pods are still
