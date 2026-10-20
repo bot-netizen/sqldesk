@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.7.5
+
+**One migration Job, not one per upgrade.** Helm removes the previous hook Job
+of the same name before making the next, and the chart put the release
+revision in the name -- so no two were the same and none was ever removed. A
+minikube upgraded 84 times had 79 Jobs and their pods left behind. The name is
+fixed now: the last migration stays, with its log, and nothing older does.
+Proved by two upgrades in a row and by a first install.
+
+The chart's restricted pod security from 0.7.4 is now tested: every container
+drops its privileges and every pod has a seccomp profile, and each check fails
+when its rule is broken.
+
+### Upgrading
+
+**No migration.** The Jobs earlier versions left behind are not removed by the
+upgrade; remove them once:
+
+    kubectl get jobs -o name | grep -E '/sqldesk-migrate-[0-9]+$' | xargs kubectl delete
+
 ## 0.7.4
 
 Hardening for a real cluster, found by putting the chart where minikube never
