@@ -1,0 +1,114 @@
+# SQLDesk on a real Kubernetes cluster.
+#
+#   helm upgrade --install sqldesk ./charts/sqldesk \
+#     --namespace sqldesk --create-namespace \
+#     -f examples/values-production.yaml \
+#     --set "postgres.external=postgresql://USER:PASSWORD@HOST:5432/sqldesk" \
+#     --timeout 15m --wait
+#
+# Every line below is something a laptop install gets away with and a cluster
+# does not. Change the four marked CHANGE; the rest are reasoned defaults.
+#
+# Checked on minikube in a namespace enforcing the "restricted" Pod Security
+# Standard, with an external Postgres: every pod admitted and Running, the
+# schema created on first install.
+
+# Behind an Ingress, not a NodePort.
+service:
+  type: ClusterIP
+
+ingress:
+  enabled: true
+  className: nginx                    # CHANGE: your cluster's IngressClass
+  host: sqldesk.example.com           # CHANGE
+  annotations:
+    # An upload is up to 200 MB (SQLDESK_UPLOAD_MAX_SIZE_MB). nginx's default
+    # is 1 MB, which turns every real upload into a 413 the app never sees.
+    nginx.ingress.kubernetes.io/proxy-body-size: "210m"
+    # Slower than the app's own 60-second request timeout, so a long request
+    # fails with the app's message rather than a bare 504 from the proxy.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "75"
+    # If cert-manager issues your certificates:
+    # cert-manager.io/cluster-issuer: letsencrypt
+  tls:
+    - hosts: [sqldesk.example.com]    # CHANGE
+      secretName: sqldesk-tls
+
+# The address people use, which links in emails and alerts are built from.
+# https:// here is also what makes the session cookie Secure -- including when
+# TLS ends at the Ingress, which is the usual case.
+host: https://sqldesk.example.com     # CHANGE
+
+# Generated on the first install and kept on every upgrade: the chart reads back
+# what is already in the cluster. Back the Secret up -- `secretKey` encrypts
+# every data source's credentials, and losing it makes them unreadable.
+#   kubectl -n sqldesk get secret sqldesk -o yaml > sqldesk-secret.backup.yaml
+# Or manage it yourself (Vault, External Secrets) and name it here:
+secrets:
+  existingSecret: ""
+
+# A managed Postgres, not the bundled one. The bundled one is for development:
+# one replica, no backups, and it cannot run in a namespace that enforces the
+# "restricted" Pod Security Standard -- it starts as root, and the usual
+# non-root workaround makes its data directory group-writable, which Postgres
+# refuses to start with. Pass the URL with --set, so the password stays out of
+# this file.
+postgres:
+  enabled: false
+  external: ""
+
+# The bundled Redis is fine to start with: it holds queues and caches, not
+# data you would restore. It complies with "restricted". Move to a managed one
+# (redis.external) when a restart losing in-flight queries starts to matter.
+redis:
+  enabled: true
+
+server:
+  replicas: 2
+  webWorkers: 4
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { memory: 2Gi }
+
+worker:
+  replicas: 2
+  workersCount: 2
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { memory: 2Gi }
+
+# Uploads, and streams' windows, live on a volume the server writes and the
+# workers read. ReadWriteOnce pins every pod that mounts it to one node; a
+# ReadWriteMany class (EFS, Filestore, Azure Files, NFS) lets them spread out.
+# Off if nobody will upload files and you are not using streams.
+uploads:
+  enabled: true
+  size: 20Gi
+  storageClass: ""                    # your RWX class, if you have one
+  accessMode: ReadWriteOnce           # ReadWriteMany with an RWX class
+
+# Add-ons. Each is off unless switched on here.
+mcp:
+  enabled: false
+  oauth:
+    enabled: true
+    allowHttp: false                  # never true on a real cluster
+
+rendering:
+  enabled: false                      # pictures in alert emails
+
+streams:
+  enabled: false                      # needs uploads.enabled: true
+
+# Kept: who may reach Postgres, Redis and the renderer is this release's pods.
+# It restricts nothing outbound, so workers still reach your warehouses.
+networkPolicy:
+  enabled: true
+
+# Mail, for alerts and invitations.
+# extraEnv:
+#   SQLDESK_MAIL_SERVER: smtp.example.com
+#   SQLDESK_MAIL_PORT: "587"
+#   SQLDESK_MAIL_USE_TLS: "true"
+#   SQLDESK_MAIL_USERNAME: sqldesk
+#   SQLDESK_MAIL_DEFAULT_SENDER: sqldesk@example.com

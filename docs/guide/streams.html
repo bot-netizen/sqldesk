@@ -88,6 +88,32 @@ what the columns are, <em>how many could not be parsed</em>, how fast they arriv
 that buys, and whether it will be sampled. None of those can be guessed from a topic&rsquo;s name, and
 finding out an hour later is the bad way.</p>
 
+<h3 id="tls">A cluster on TLS</h3>
+<p>Choose <code>SSL</code> or <code>SASL_SSL</code> as the security protocol. If the brokers&rsquo;
+certificates come from a public CA there is nothing else to do. If they come from your own &mdash; an
+internal PKI, a self-signed cluster &mdash; upload that <strong>CA certificate</strong>. If the brokers want
+a client certificate, upload the <strong>client certificate</strong> and its <strong>key</strong>, and the
+key&rsquo;s password if it has one. All of them are PEM files.</p>
+<p>Turn off <strong>check the broker&rsquo;s certificate matches its name</strong> only for brokers reached
+by an address their certificate does not name, such as an IP or an internal alias. The certificate is
+still checked against the CA; only whose it is, is not.</p>
+
+<h3 id="consumer-groups">How a topic looks to the broker</h3>
+<p>By default SQLDesk joins <strong>no consumer group</strong> and commits nothing, so lag monitoring never
+sees it. Kafka clients have to be given a group id, so one is set, but the consumer assigns itself every
+partition instead of joining, and the broker never registers it.</p>
+<p>Each topic can change that where it is analysed and enabled, under <strong>How it reads</strong>:</p>
+<ul>
+  <li><strong>Consumer group</strong> &mdash; a name to join, for monitoring that ignores consumers by
+  prefix and would rather see SQLDesk under one.</li>
+  <li><strong>Save position</strong> &mdash; commit offsets after each flush, so the stream resumes where
+  it stopped. Off by default, and it needs a group name.</li>
+  <li><strong>Start from</strong> &mdash; latest, earliest, or where it left off. It applies when a stream
+  starts from cold; between one consuming job and the next it carries on from where it stopped.</li>
+</ul>
+<p>A topic the broker does not have, or will not describe, stops the stream with that reason on its page
+rather than leaving it looking quiet.</p>
+
 <h2 id="querying">Querying one</h2>
 <p><strong>Create &rarr; New Streaming Query</strong> opens the query editor, with the schema browser
 listing the enabled topics and the same visualizations as anywhere else. Two differences: the button says

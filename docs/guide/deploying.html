@@ -370,6 +370,33 @@ the managed clouds' own); elsewhere it is accepted and does nothing, which is wh
 <p>Already running on Compose? <a href="#compose-to-minikube">Moving from Docker Compose to minikube</a>
 brings the existing instance across instead of starting an empty one.</p>
 
+<h3 id="real-cluster">On a real cluster</h3>
+<p><code>examples/values-production.yaml</code> is the starting point. It was installed as written into a
+minikube namespace enforcing the <em>restricted</em> Pod Security Standard, with an external Postgres, and
+every pod was admitted and running. Change the four lines marked <code>CHANGE</code> and install it with the
+database URL on the command line, so the password stays out of the file:</p>
+<pre><code>helm upgrade --install sqldesk ./charts/sqldesk \
+  --namespace sqldesk --create-namespace \
+  -f examples/values-production.yaml \
+  --set "postgres.external=postgresql://USER:PASSWORD@HOST:5432/sqldesk" \
+  --timeout 15m --wait</code></pre>
+<ul>
+  <li><strong>Use a managed Postgres.</strong> The bundled one is for development, and it cannot run where
+  <em>restricted</em> is enforced: it starts as root, and the usual non-root workaround makes its data
+  directory group-writable, which Postgres refuses to start with. Every other pod in the chart complies.</li>
+  <li><strong>Set <code>host</code> to the <code>https://</code> address people use.</strong> Links in emails
+  are built from it, and it is what makes the session cookie <code>Secure</code> when TLS ends at the Ingress.</li>
+  <li><strong>Raise the Ingress's body size.</strong> An upload is up to 200&nbsp;MB and nginx's default is
+  1&nbsp;MB, so every real upload becomes a 413 the application never sees. The example sets it.</li>
+  <li><strong>Back up the generated Secret.</strong> <code>secretKey</code> encrypts every data source's
+  credentials; lose it and they are unreadable.
+  <code>kubectl -n sqldesk get secret sqldesk -o yaml &gt; sqldesk-secret.backup.yaml</code></li>
+  <li><strong>The images are public.</strong> <code>ghcr.io/bot-netizen/sqldesk</code> pulls without
+  credentials, so no <code>imagePullSecrets</code> are needed.</li>
+</ul>
+<p>The first install creates the schema in a Job that Helm runs after the pods start, so the first page may
+answer with an error for the minute that takes. <code>--wait</code> returns once it has finished.</p>
+
 <h2 id="compose-to-minikube">Moving from Docker Compose to minikube</h2>
 <p>Everything comes across: people, queries, dashboards, alerts, uploaded files and the credentials saved on
 data sources. The Compose install's own data is never changed, so it stays your way back until you delete it.
