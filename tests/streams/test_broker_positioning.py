@@ -26,6 +26,10 @@ class TopicPartition:
         return "TP({}, {})".format(self.partition, self.offset)
 
 
+#: What the fake broker says about a topic. Tests change it.
+TOPICS = {"partitions": {0: object(), 1: object(), 2: object()}, "missing": False, "error": None}
+
+
 class FakeConsumer:
     def __init__(self, config):
         self.config = config
@@ -35,8 +39,9 @@ class FakeConsumer:
         self.commits = 0
 
     def list_topics(self, topic, timeout=None):
-        partitions = {0: object(), 1: object(), 2: object()}
-        return SimpleNamespace(topics={topic: SimpleNamespace(partitions=partitions)})
+        if TOPICS["missing"]:
+            return SimpleNamespace(topics={})
+        return SimpleNamespace(topics={topic: SimpleNamespace(partitions=TOPICS["partitions"], error=TOPICS["error"])})
 
     def subscribe(self, topics, on_assign=None):
         self.subscribed = topics
@@ -72,6 +77,8 @@ class BrokerTestCase(TestCase):
         patch = mock.patch.object(consumer, "confluent", fake_confluent)
         patch.start()
         self.addCleanup(patch.stop)
+        saved = dict(TOPICS)
+        self.addCleanup(lambda: TOPICS.update(saved))
 
     def opened(self, **kwargs):
         broker = consumer.Broker(brokers="b:9092", topic="orders", group="g", **kwargs)
@@ -192,3 +199,37 @@ class TestAHandOverCarriesOn(BrokerTestCase):
         broker._consumer.position = lambda parts: [TopicPartition("t", 0, OFFSET_END), TopicPartition("t", 1, 7)]
 
         self.assertEqual({1: 7}, broker.positions())
+
+
+class TestATopicThatIsNotThere(BrokerTestCase):
+    """
+    Assigned to zero partitions, a consumer reads nothing and says nothing --
+    which is exactly what a quiet topic looks like. So a typo, a deleted topic
+    or a missing ACL has to be an error the stream's page can show instead.
+    """
+
+    def test_a_missing_topic_is_an_error_not_a_quiet_stream(self):
+        TOPICS["missing"] = True
+
+        with self.assertRaises(RuntimeError) as raised:
+            self.opened()
+        self.assertIn("no topic called 'orders'", str(raised.exception))
+
+    def test_so_is_one_the_broker_will_not_describe(self):
+        TOPICS["error"] = "TOPIC_AUTHORIZATION_FAILED"
+
+        with self.assertRaises(RuntimeError) as raised:
+            self.opened()
+        self.assertIn("TOPIC_AUTHORIZATION_FAILED", str(raised.exception))
+
+    def test_and_one_with_no_partitions(self):
+        TOPICS["partitions"] = {}
+
+        with self.assertRaises(RuntimeError):
+            self.opened()
+
+    def test_a_named_group_is_checked_too(self):
+        TOPICS["missing"] = True
+
+        with self.assertRaises(RuntimeError):
+            self.opened(join=True)

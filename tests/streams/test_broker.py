@@ -344,6 +344,25 @@ class TestHowTheBrokerSeesUs(BrokerTestCase):
         self.assertFalse(any(b"in_the_first_job" in value for _key, value in collected))
 
 
+class TestATopicThatIsNotThere(BrokerTestCase):
+    def test_opening_one_is_an_error_a_page_can_show(self):
+        # And not a topic created on the spot by the metadata request -- which
+        # some brokers do -- or a consumer assigned to nothing, reading nothing
+        # forever, looking exactly like a quiet topic.
+        missing = "sqldesk-test-missing-{}".format(uuid.uuid4().hex[:8])
+        broker = consumer.Broker(brokers=BROKERS, topic=missing, group="g")
+        self.addCleanup(broker.close)
+
+        with self.assertRaises(RuntimeError) as raised:
+            broker.open()
+
+        self.assertIn(missing, str(raised.exception))
+        from confluent_kafka.admin import AdminClient
+
+        listed = AdminClient({"bootstrap.servers": BROKERS}).list_topics(timeout=10).topics
+        self.assertNotIn(missing, listed, "asking about the topic created it")
+
+
 class TestEndToEndThroughTheStore(BrokerTestCase):
     def test_events_from_a_real_topic_land_in_the_store(self):
         stream = self.stream(pinned=True)

@@ -121,14 +121,29 @@ class Broker:
         config.update(self.options)
         self._consumer = confluent.Consumer(config)
 
+        # Asked first, in both modes, so a topic that is not there is an error
+        # somebody can read. Assigned to zero partitions, a consumer reads
+        # nothing and reports nothing -- exactly what a quiet topic looks like,
+        # so a typo, a deleted topic or a missing ACL would have been
+        # indistinguishable from a slow afternoon.
+        partitions = self._partitions()
         if self.join:
             self._consumer.subscribe([self.topic], on_assign=self._place)
         else:
-            metadata = self._consumer.list_topics(self.topic, timeout=10)
-            described = (metadata.topics or {}).get(self.topic)
-            partitions = sorted((described.partitions or {}).keys()) if described is not None else []
             self._consumer.assign([self._at(partition) for partition in partitions])
         return self
+
+    def _partitions(self):
+        metadata = self._consumer.list_topics(self.topic, timeout=10)
+        described = (metadata.topics or {}).get(self.topic)
+        if described is None:
+            raise RuntimeError("The broker has no topic called {!r}.".format(self.topic))
+        if getattr(described, "error", None) is not None:
+            raise RuntimeError("The broker would not describe {!r}: {}".format(self.topic, described.error))
+        partitions = sorted((described.partitions or {}).keys())
+        if not partitions:
+            raise RuntimeError("{!r} has no partitions this consumer can read.".format(self.topic))
+        return partitions
 
     def _offset_for(self, partition):
         """Where one partition starts: a hand-over first, then the setting."""
