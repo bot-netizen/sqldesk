@@ -7,6 +7,7 @@ changed it.
 
 | Version | Name | When | Notes |
 |---|---|---|---|
+| 0.7.6 | **Schemas** | 20 Oct 2026 | Streams read Avro and Protobuf: through a schema registry, or from uploaded `.avsc` / `.proto` |
 | 0.7.5 | **Kept Secrets** | 20 Oct 2026 | One migration Job instead of one per upgrade; with Argo CD, make the Secret yourself |
 | 0.7.4 | **Real Cluster** | 20 Oct 2026 | Restricted Pod Security, `examples/values-production.yaml`, Kafka TLS with your own certificates |
 | 0.7.3 | Signal and Noise | 18 Oct 2026 | Kafka consumer groups and saved positions, catalog search/hide, dashboard verification |

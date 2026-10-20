@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.7.6
+
+**Streams read Avro and Protobuf, not only JSON.** A topic's message format is
+chosen under How it reads, where it is analysed and enabled:
+
+- **Automatic**, the default, needs nothing set per topic. JSON is read as it
+  is; anything written through a **schema registry** -- Confluent's wire
+  format, which Confluent, Redpanda, Karapace and Apicurio all speak -- is
+  decoded by what the registry says it is: Avro, Protobuf or JSON Schema.
+- **Avro** with an uploaded `.avsc`, and **Protobuf** with uploaded `.proto`
+  files that may import each other and the `google/protobuf` types, for
+  messages with no registry header.
+
+The registry is set once on the Kafka data source: its URL, and a username and
+password if it wants them (Confluent Cloud's API key and secret). Saving the
+data source checks it answers. Uploads are checked the moment they are chosen,
+so a `.proto` that does not compile says where, under the button.
+
+Fields become columns DuckDB types properly -- timestamps as TIMESTAMP, 64-bit
+integers as numbers, enums by name, nested messages as structs -- and every
+field is a column whether a message set it or not. JSON still costs what it
+did: it is never parsed on the way in. Avro and Protobuf are decoded after
+sampling, at about 45,000 messages a second on one core.
+
+Changing a topic's format starts its window again, including under a running
+consumer. When nothing on a topic can be read, the stream's page and the
+analysis say why.
+
+Checked on minikube against Redpanda's own registry, with topics encoded by
+`rpk` and plain Avro and Protobuf by their own libraries.
+`examples/kafka-demo.yaml` now carries Avro and Protobuf topics, and exposes
+the registry.
+
+### Upgrading
+
+**One migration**, adding three columns to `streams`. Every existing stream
+reads as it did: its format is Automatic.
+
 ## 0.7.5
 
 **One migration Job, not one per upgrade.** Helm removes the previous hook Job
