@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Alert from "antd/lib/alert";
 import Button from "antd/lib/button";
 import Checkbox from "antd/lib/checkbox";
@@ -161,23 +161,202 @@ export function readingSettings(group, save, start) {
   };
 }
 
-export function HowItReads({ topic, onChange }) {
+/*
+  What a message's bytes are.
+
+  Automatic covers what most topics need with nothing to set: JSON as it is,
+  and anything a producer wrote through a schema registry -- Avro, Protobuf or
+  JSON Schema -- decoded by what the registry on the data source says it is.
+  The other two are for producers that skip the registry and send the bare
+  encoding, which cannot be read without the schema it was written with.
+*/
+const FORMATS = [
+  { value: "auto", label: "Automatic: JSON, or anything with a schema registry header" },
+  { value: "avro", label: "Avro, read with an .avsc file" },
+  { value: "protobuf", label: "Protobuf, read with .proto files" },
+];
+
+const FORMAT_HELP = {
+  auto: "JSON is read as it is. Avro, Protobuf and JSON Schema messages written through a schema registry are decoded with the registry set on this Kafka data source.",
+  avro: "For Avro messages with no schema registry header. Upload the .avsc the producer writes with.",
+  protobuf:
+    "For Protobuf messages with no schema registry header. Upload the .proto file and any it imports; the google/protobuf types are built in.",
+};
+
+export function readingFormat(format, files, messageType) {
+  if (format === "auto") {
+    return { value_format: "auto" };
+  }
+  const body = { value_format: format };
+  // Sent only when somebody uploaded them here. Left out, the server keeps
+  // the files it already has, so choosing another message is not a re-upload.
+  if (files) {
+    body.schema_files = files;
+  }
+  if (messageType) {
+    body.message_type = messageType;
+  }
+  return body;
+}
+
+function readText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({ name: file.name, content: reader.result });
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+}
+
+function MessageFormat({ topic, dataSourceId, onChange }) {
+  const [format, setFormat] = useState((topic && topic.value_format) || "auto");
+  const [files, setFiles] = useState(null);
+  const [names, setNames] = useState((topic && topic.schema_files) || []);
+  const [types, setTypes] = useState((topic && topic.message_types) || []);
+  const [type, setType] = useState((topic && topic.message_type) || null);
+  const [problem, setProblem] = useState(null);
+  const [checking, setChecking] = useState(false);
+  const picker = useRef(null);
+
+  // Whether the topic already has a schema for this format, kept on the server.
+  const kept = topic && topic.value_format === format && (topic.schema_files || []).length > 0;
+  const ready = format === "auto" || (!problem && !checking && (files !== null || kept) && !!type);
+
+  useEffect(() => {
+    onChange({ ...readingFormat(format, files, type), ready });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [format, files, type, ready]);
+
+  const choose = (value) => {
+    setFormat(value);
+    setProblem(null);
+    if (topic && topic.value_format === value) {
+      setFiles(null);
+      setNames(topic.schema_files || []);
+      setTypes(topic.message_types || []);
+      setType(topic.message_type || null);
+    } else {
+      setFiles(null);
+      setNames([]);
+      setTypes([]);
+      setType(null);
+    }
+  };
+
+  const upload = (event) => {
+    const chosen = Array.from((event.target && event.target.files) || []);
+    if (!chosen.length) {
+      return;
+    }
+    setChecking(true);
+    setProblem(null);
+    Promise.all(chosen.map(readText))
+      .then((read) => {
+        setFiles(read);
+        setNames(read.map((item) => item.name));
+        return axios.post(`api/data_sources/${dataSourceId}/stream_schema`, {
+          value_format: format,
+          schema_files: read,
+        });
+      })
+      .then((checked) => {
+        setTypes(checked.message_types || []);
+        setType(checked.message_type || null);
+      })
+      .catch((error) => {
+        setTypes([]);
+        setType(null);
+        setProblem((error && error.message) || "Those files could not be read.");
+      })
+      .finally(() => {
+        setChecking(false);
+        // The same file again after fixing it is a change too.
+        if (picker.current) {
+          picker.current.value = "";
+        }
+      });
+  };
+
+  return (
+    <div className="m-t-5" data-test="MessageFormat">
+      <label htmlFor="value-format">Message format</label>
+      <Select id="value-format" value={format} onChange={choose} style={{ width: "100%" }} data-test="ValueFormat">
+        {FORMATS.map((item) => (
+          <Select.Option key={item.value} value={item.value}>
+            {item.label}
+          </Select.Option>
+        ))}
+      </Select>
+      <p className="streams-muted m-b-5" data-test="ValueFormatMeaning">
+        {FORMAT_HELP[format]}
+      </p>
+
+      {format !== "auto" && (
+        <div className="m-b-5">
+          <input
+            ref={picker}
+            type="file"
+            accept={format === "avro" ? ".avsc" : ".proto"}
+            multiple={format === "protobuf"}
+            onChange={upload}
+            style={{ display: "none" }}
+            data-test="SchemaFiles"
+          />
+          <Button size="small" loading={checking} onClick={() => picker.current && picker.current.click()}>
+            {names.length ? "Replace" : "Upload"} {format === "avro" ? ".avsc" : ".proto files"}
+          </Button>
+          {names.length > 0 && (
+            <span className="streams-muted m-l-10" data-test="SchemaFileNames">
+              {names.join(", ")}
+            </span>
+          )}
+          {problem && <Alert className="m-t-5" type="error" showIcon message={problem} data-test="SchemaProblem" />}
+          {types.length > 0 && (
+            <div className="m-t-5">
+              <label htmlFor="message-type">Message type</label>
+              <Select
+                id="message-type"
+                value={type}
+                onChange={setType}
+                style={{ width: "100%" }}
+                showSearch
+                data-test="MessageType"
+              >
+                {types.map((name) => (
+                  <Select.Option key={name} value={name}>
+                    {name}
+                  </Select.Option>
+                ))}
+              </Select>
+              <p className="streams-muted m-b-5">Which of the schema&apos;s messages each message on the topic is.</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function HowItReads({ topic, onChange, dataSourceId }) {
   const [group, setGroup] = useState((topic && topic.consumer_group) || "");
   const [save, setSave] = useState(!!(topic && topic.save_position));
   const [start, setStart] = useState((topic && topic.start_from) || "latest");
+  const [reading, setReading] = useState({ value_format: "auto", ready: true });
 
   const settings = readingSettings(group, save, start);
   const named = settings.consumer_group.length > 0;
 
   useEffect(() => {
-    onChange(settings);
+    onChange({ ...settings, ...reading });
     // `settings` is rebuilt every render; its three fields are what change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.consumer_group, settings.save_position, settings.start_from]);
+  }, [settings.consumer_group, settings.save_position, settings.start_from, reading]);
 
   return (
     <div className="streams-reading m-t-15" data-test="HowItReads">
       <strong>How it reads</strong>
+
+      <MessageFormat topic={topic} dataSourceId={dataSourceId} onChange={setReading} />
 
       <div className="m-t-5">
         <label htmlFor="consumer-group">Consumer group</label>
@@ -251,8 +430,24 @@ export function HowItReads({ topic, onChange }) {
   );
 }
 
-function Analysis({ found, topic, onEnable, onAgain, saving, analysing, enabled }) {
-  const [reading, setReading] = useState(readingSettings("", false, "latest"));
+function sendable(reading) {
+  // `ready` is the page's, not the server's.
+  const { ready, ...body } = reading; // eslint-disable-line no-unused-vars
+  return body;
+}
+
+function formatsFound(formats) {
+  return Object.entries(formats || {})
+    .map(([name, count]) => `${name} ${count}`)
+    .join(", ");
+}
+
+function Analysis({ found, topic, dataSourceId, onEnable, onAgain, saving, analysing, enabled }) {
+  const [reading, setReading] = useState({
+    ...readingSettings("", false, "latest"),
+    value_format: "auto",
+    ready: true,
+  });
   return (
     <div className="streams-analysis" data-test="TopicAnalysis">
       <div className="streams-figures">
@@ -270,20 +465,44 @@ function Analysis({ found, topic, onEnable, onAgain, saving, analysing, enabled 
         */}
         <span className="streams-measured">
           measured <TimeAgo date={found.measured_at} />
-          <Button size="small" className="m-l-10" loading={analysing} onClick={onAgain} data-test="AnalyseAgain">
+          <Button
+            size="small"
+            className="m-l-10"
+            loading={analysing}
+            disabled={!reading.ready}
+            onClick={() => onAgain(sendable(reading))}
+            data-test="AnalyseAgain"
+          >
             Analyse again
           </Button>
         </span>
       </div>
 
-      {found.malformed > 0 && (
+      {formatsFound(found.formats) && (
+        <p className="streams-muted m-t-5 m-b-0" data-test="FormatsFound">
+          Read as: {formatsFound(found.formats)}
+        </p>
+      )}
+
+      {found.problem ? (
         <Alert
           className="m-t-10"
-          type="warning"
+          type="error"
           showIcon
-          message={`${found.malformed} of ${found.read} messages could not be read as JSON objects.`}
-          description="Those are not stored and not counted. A schema inferred from the rest may be missing fields that only appear in them."
+          data-test="ReadingProblem"
+          message={found.problem}
+          description="Change the message format below and analyse again."
         />
+      ) : (
+        found.malformed > 0 && (
+          <Alert
+            className="m-t-10"
+            type="warning"
+            showIcon
+            message={`${found.malformed} of ${found.read} messages could not be read.`}
+            description="Those are not stored and not counted. A schema inferred from the rest may be missing fields that only appear in them."
+          />
+        )
       )}
 
       <div className="m-t-15">
@@ -300,18 +519,29 @@ function Analysis({ found, topic, onEnable, onAgain, saving, analysing, enabled 
         <Schema columns={found.columns} />
       </div>
 
-      <HowItReads topic={topic} onChange={setReading} />
+      <HowItReads topic={topic} dataSourceId={dataSourceId} onChange={setReading} />
 
       {/* Already on: offering to enable it again would do nothing, and the
           control that matters is Turn off, which is in the row above. What it
           can still do is change how it reads. */}
       <div className="streams-enable">
         {enabled ? (
-          <Button onClick={() => onEnable(reading)} loading={saving} data-test="SaveHowItReads">
+          <Button
+            onClick={() => onEnable(sendable(reading))}
+            loading={saving}
+            disabled={!reading.ready}
+            data-test="SaveHowItReads"
+          >
             Save how it reads
           </Button>
         ) : (
-          <Button type="primary" onClick={() => onEnable(reading)} loading={saving} data-test="EnableTopic">
+          <Button
+            type="primary"
+            onClick={() => onEnable(sendable(reading))}
+            loading={saving}
+            disabled={!reading.ready}
+            data-test="EnableTopic"
+          >
             Enable this topic
           </Button>
         )}
@@ -365,10 +595,16 @@ function ManageTopics() {
   }, [chosen, load]);
 
   const analyse = useCallback(
-    (topic) => {
+    (topic, reading) => {
       setAnalysing(topic);
+      // Only the format matters to a reading; the consumer group does not
+      // change what the messages are. With none, the server reads the topic
+      // the way it is already set to, or automatically.
+      const body = reading
+        ? { value_format: reading.value_format, schema_files: reading.schema_files, message_type: reading.message_type }
+        : {};
       axios
-        .post(`api/data_sources/${chosen}/topics/${encodeURIComponent(topic)}/analyse`)
+        .post(`api/data_sources/${chosen}/topics/${encodeURIComponent(topic)}/analyse`, body)
         .then((found) => setAnalysis((all) => ({ ...all, [topic]: { ...found, measured_at: new Date() } })))
         .catch((error) => notification.error("Could not read that topic", (error && error.message) || ""))
         .finally(() => setAnalysing(null));
@@ -537,8 +773,9 @@ function ManageTopics() {
                     enabled={row.enabled}
                     saving={saving === row.name}
                     analysing={analysing === row.name}
+                    dataSourceId={chosen}
                     onEnable={(reading) => enable(row.name, reading, row.enabled)}
-                    onAgain={() => analyse(row.name)}
+                    onAgain={(reading) => analyse(row.name, reading)}
                   />
                 ) : null,
               rowExpandable: (row) => !!analysis[row.name],

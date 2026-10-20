@@ -275,6 +275,23 @@ class TestTheSettings(BaseTestCase):
         self.assertEqual(200, rv.status_code, rv.json)
         self.assertEqual("avro", seen["decoder"].value_format)
 
+    def test_analysing_an_enabled_topic_again_uses_the_schema_it_already_has(self):
+        """The page holds file names, never contents, so it cannot send them back."""
+        self.enable(value_format="avro", schema_files=[avsc("order.avsc", ORDER)])
+        seen = {}
+
+        def analyse(options, topic, decoder=None):
+            seen["decoder"] = decoder
+            return {"topic": topic}
+
+        with mock.patch("sqldesk.streams.analysis.analyse", analyse):
+            for body in ({}, {"value_format": "avro"}):
+                rv = self.make_request(
+                    "post", "/api/data_sources/{}/topics/orders/analyse".format(self.source.id), data=body
+                )
+                self.assertEqual(200, rv.status_code, rv.json)
+                self.assertEqual("com.acme.Order", seen["decoder"].schema.message_type)
+
     def test_analysis_with_a_broken_schema_says_so_before_reading_anything(self):
         with mock.patch("sqldesk.streams.analysis.analyse", side_effect=AssertionError("read the topic")):
             rv = self.make_request(

@@ -1,7 +1,7 @@
 import React from "react";
 import { mount } from "enzyme";
 
-import ManageTopics, { readingSettings } from "./ManageTopics";
+import ManageTopics, { readingFormat, readingSettings } from "./ManageTopics";
 import { axios } from "@/services/axios";
 
 /*
@@ -242,7 +242,12 @@ describe("how a topic is read", () => {
     await settle(wrapper, 1);
 
     const enabling = axios.post.mock.calls.find(([url]) => url.endsWith("/topics/orders"));
-    expect(enabling[1]).toEqual({ consumer_group: "analytics-sqldesk", save_position: false, start_from: "latest" });
+    expect(enabling[1]).toEqual({
+      consumer_group: "analytics-sqldesk",
+      save_position: false,
+      start_from: "latest",
+      value_format: "auto",
+    });
   });
 
   test("an enabled topic shows what it is set to and offers to save a change", async () => {
@@ -263,6 +268,162 @@ describe("how a topic is read", () => {
     const wrapper = await analysed({ start_from: "earliest" });
 
     expect(wrapper.find('[data-test="EarliestWarning"]').exists()).toBe(true);
+  });
+});
+
+/*
+  Avro and Protobuf. Automatic needs nothing; the other two need a schema file,
+  checked by the server the moment it is uploaded, so a typo in a .proto is a
+  sentence under the upload rather than a consumer that stops later.
+*/
+describe("what a topic's messages are", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  const PROTO = 'syntax = "proto3";\nmessage Payment { int64 id = 1; }\n';
+
+  async function analysed(topic, checked) {
+    const wrapper = await render([{ name: "payments", partitions: 1, enabled: false, columns: 0, ...topic }]);
+    jest.spyOn(axios, "post").mockImplementation((url) => {
+      if (url.endsWith("/analyse")) {
+        return Promise.resolve({ ...analysis, topic: "payments" });
+      }
+      if (url.endsWith("/stream_schema")) {
+        return checked;
+      }
+      return Promise.resolve({});
+    });
+    wrapper.find('[data-test="AnalyseTopic"]').first().simulate("click");
+    await settle(wrapper);
+    return wrapper;
+  }
+
+  function chooseFormat(wrapper, value) {
+    wrapper.find('[data-test="MessageFormat"]').find("Select").first().prop("onChange")(value);
+  }
+
+  async function uploadFile(wrapper, name, content) {
+    const file = new File([content], name, { type: "text/plain" });
+    wrapper.find('input[data-test="SchemaFiles"]').simulate("change", { target: { files: [file] } });
+    await settle(wrapper, 6);
+  }
+
+  test("automatic is the default and says what it covers", async () => {
+    const wrapper = await analysed({});
+
+    expect(wrapper.find('[data-test="ValueFormatMeaning"]').text()).toContain("schema registry");
+    expect(wrapper.find('input[data-test="SchemaFiles"]').exists()).toBe(false);
+  });
+
+  test("protobuf asks for .proto files, checks them, and offers their messages", async () => {
+    const wrapper = await analysed(
+      {},
+      Promise.resolve({ message_types: ["acme.Payment", "acme.Refund"], message_type: "acme.Payment" })
+    );
+    chooseFormat(wrapper, "protobuf");
+    await settle(wrapper, 1);
+
+    expect(wrapper.find('input[data-test="SchemaFiles"]').prop("accept")).toBe(".proto");
+    expect(wrapper.find('button[data-test="EnableTopic"]').prop("disabled")).toBe(true);
+
+    await uploadFile(wrapper, "payment.proto", PROTO);
+
+    const checking = axios.post.mock.calls.find(([url]) => url.endsWith("/stream_schema"));
+    expect(checking[1]).toEqual({
+      value_format: "protobuf",
+      schema_files: [{ name: "payment.proto", content: PROTO }],
+    });
+    expect(wrapper.find('[data-test="SchemaFileNames"]').text()).toBe("payment.proto");
+    expect(wrapper.find('[data-test="MessageFormat"]').text()).toContain("Message type");
+    expect(wrapper.find('button[data-test="EnableTopic"]').prop("disabled")).toBe(false);
+
+    wrapper.find('button[data-test="EnableTopic"]').simulate("click");
+    await settle(wrapper, 1);
+    const enabling = axios.post.mock.calls.find(([url]) => url.endsWith("/topics/payments"));
+    expect(enabling[1]).toMatchObject({
+      value_format: "protobuf",
+      message_type: "acme.Payment",
+      schema_files: [{ name: "payment.proto", content: PROTO }],
+    });
+    expect(enabling[1].ready).toBeUndefined();
+  });
+
+  test("a schema that does not load is said under the upload, and nothing can be enabled with it", async () => {
+    const wrapper = await analysed({}, Promise.reject(new Error("The .proto files do not compile: x.proto:2:1")));
+    chooseFormat(wrapper, "protobuf");
+    await settle(wrapper, 1);
+
+    await uploadFile(wrapper, "x.proto", "nope");
+
+    expect(wrapper.find('[data-test="SchemaProblem"]').first().text()).toContain("x.proto:2:1");
+    expect(wrapper.find('button[data-test="EnableTopic"]').prop("disabled")).toBe(true);
+  });
+
+  test("an enabled avro topic shows its file and can be saved without uploading it again", async () => {
+    const wrapper = await analysed({
+      enabled: true,
+      value_format: "avro",
+      schema_files: ["order.avsc"],
+      message_types: ["com.acme.Order"],
+      message_type: "com.acme.Order",
+    });
+
+    expect(wrapper.find('[data-test="SchemaFileNames"]').text()).toBe("order.avsc");
+    wrapper.find('button[data-test="SaveHowItReads"]').simulate("click");
+    await settle(wrapper, 1);
+
+    const saving = axios.post.mock.calls.find(([url]) => url.endsWith("/topics/payments"));
+    expect(saving[1]).toMatchObject({ value_format: "avro", message_type: "com.acme.Order" });
+    expect(saving[1].schema_files).toBeUndefined();
+  });
+
+  test("analysing again reads the topic the chosen way", async () => {
+    const wrapper = await analysed({}, Promise.resolve({ message_types: ["Payment"], message_type: "Payment" }));
+    chooseFormat(wrapper, "protobuf");
+    await settle(wrapper, 1);
+    await uploadFile(wrapper, "payment.proto", PROTO);
+
+    wrapper.find('button[data-test="AnalyseAgain"]').simulate("click");
+    await settle(wrapper);
+
+    const again = axios.post.mock.calls.filter(([url]) => url.endsWith("/analyse")).pop();
+    expect(again[1]).toMatchObject({ value_format: "protobuf", message_type: "Payment" });
+  });
+
+  test("what was found on the topic, and why nothing could be read, are said in words", async () => {
+    const wrapper = await render([{ name: "payments", partitions: 1, enabled: false, columns: 0 }]);
+    jest.spyOn(axios, "post").mockResolvedValue({
+      ...analysis,
+      formats: { Avro: 480, JSON: 20 },
+      problem: null,
+    });
+    wrapper.find('[data-test="AnalyseTopic"]').first().simulate("click");
+    await settle(wrapper);
+    expect(wrapper.find('[data-test="FormatsFound"]').text()).toContain("Avro 480, JSON 20");
+
+    axios.post.mockResolvedValue({
+      ...analysis,
+      columns: [],
+      malformed: 500,
+      problem: "Messages could not be read: no registry",
+    });
+    wrapper.find('button[data-test="AnalyseAgain"]').simulate("click");
+    await settle(wrapper);
+    expect(wrapper.find('[data-test="ReadingProblem"]').first().text()).toContain("no registry");
+  });
+});
+
+describe("the rules for what a topic's messages are", () => {
+  test("automatic sends nothing else", () => {
+    expect(readingFormat("auto", [{ name: "x" }], "X")).toEqual({ value_format: "auto" });
+  });
+
+  test("files are sent only when they were uploaded here", () => {
+    expect(readingFormat("avro", null, "com.acme.Order")).toEqual({
+      value_format: "avro",
+      message_type: "com.acme.Order",
+    });
   });
 });
 

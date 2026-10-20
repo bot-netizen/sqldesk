@@ -406,7 +406,18 @@ class TopicAnalysisResource(BaseResource):
         from sqldesk.streams.analysis import analyse
 
         options = source.options.to_dict(mask_secrets=False)
-        body = request.get_json(force=True, silent=True) or {}
+        body = dict(request.get_json(force=True, silent=True) or {})
+        stream = models.Stream.query.filter(
+            models.Stream.data_source_id == source.id, models.Stream.topic == topic
+        ).first()
+        if stream is not None:
+            # Nothing said: read it the way it is already set to. A format with
+            # no files: the files it already has, which the page never holds.
+            if "value_format" not in body:
+                body["value_format"] = stream.value_format
+                body.setdefault("message_type", stream.message_type)
+            if body["value_format"] == stream.value_format and not body.get("schema_files"):
+                body["schema_files"] = (stream.value_schema or {}).get("files")
         decoder = _reading(body, options)
         try:
             found = analyse(options, topic, decoder=decoder)
