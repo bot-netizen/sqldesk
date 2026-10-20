@@ -399,7 +399,10 @@ database URL on the command line, so the password stays out of the file:</p>
   credentials, so no <code>imagePullSecrets</code> are needed.</li>
 </ul>
 <p>The first install creates the schema in a Job that Helm runs after the pods start, so the first page may
-answer with an error for the minute that takes. <code>--wait</code> returns once it has finished.</p>
+answer with an error for the minute that takes. <code>--wait</code> returns once it has finished. The worker
+logs tracebacks about missing tables for that same minute &mdash; its periodic jobs start before the tables
+exist &mdash; and they stop on their own once the Job is done. Making the pods wait for the schema instead
+would deadlock <code>--wait</code>, which waits for the pods before it runs the Job.</p>
 
 <h2 id="compose-to-minikube">Moving from Docker Compose to minikube</h2>
 <p>Everything comes across: people, queries, dashboards, alerts, uploaded files and the credentials saved on
