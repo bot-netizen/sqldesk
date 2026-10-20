@@ -394,7 +394,18 @@ database URL on the command line, so the password stays out of the file:</p>
   1&nbsp;MB, so every real upload becomes a 413 the application never sees. The example sets it.</li>
   <li><strong>Back up the generated Secret.</strong> <code>secretKey</code> encrypts every data source's
   credentials; lose it and they are unreadable.
-  <code>kubectl -n sqldesk get secret sqldesk -o yaml &gt; sqldesk-secret.backup.yaml</code></li>
+  <code>kubectl -n sqldesk get secret sqldesk-secrets -o yaml &gt; sqldesk-secret.backup.yaml</code></li>
+  <li><strong>With Argo CD, make the Secret yourself.</strong> The chart keeps its generated secrets by reading
+  them back from the cluster, which it can do under <code>helm install</code> and <code>helm upgrade</code> but
+  not under <code>helm template</code> &mdash; and <code>helm template</code> is how Argo CD renders a chart.
+  There it would make a new <code>secretKey</code> on every sync, and every data source's credentials would
+  become unreadable. Create the Secret once and name it in <code>secrets.existingSecret</code>:
+  <pre><code>kubectl -n sqldesk create secret generic sqldesk-secrets \
+  --from-literal=cookie-secret="$(openssl rand -hex 32)" \
+  --from-literal=secret-key="$(openssl rand -hex 32)" \
+  --from-literal=database-url='postgresql://USER:PASSWORD@HOST:5432/sqldesk'</code></pre>
+  The bundled Redis then runs without a password, since the chart has nowhere to keep one: keep
+  <code>networkPolicy</code> on, on a cluster that enforces it.</li>
   <li><strong>The images are public.</strong> <code>ghcr.io/bot-netizen/sqldesk</code> pulls without
   credentials, so no <code>imagePullSecrets</code> are needed.</li>
 </ul>

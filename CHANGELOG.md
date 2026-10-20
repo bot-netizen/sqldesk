@@ -13,6 +13,16 @@ The chart's restricted pod security from 0.7.4 is now tested: every container
 drops its privileges and every pod has a seccomp profile, and each check fails
 when its rule is broken.
 
+**With Argo CD, make the Secret yourself.** The chart keeps its generated
+secrets by reading them back from the cluster, which works under `helm
+install` and `helm upgrade` but not under `helm template` -- which is how Argo
+CD renders a chart. There every sync would make a new `secretKey` and leave
+every data source's credentials unreadable. The production values file and the
+deploying guide now give the command that makes the Secret once; proved by
+rendering with `helm template` and applying twice into a restricted namespace,
+the Secret unchanged after both. The guide's backup command also named the
+Secret wrongly: it is `sqldesk-secrets`.
+
 ### Upgrading
 
 **No migration.** The Jobs earlier versions left behind are not removed by the

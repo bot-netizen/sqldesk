@@ -42,8 +42,21 @@ host: https://sqldesk.example.com     # CHANGE
 # Generated on the first install and kept on every upgrade: the chart reads back
 # what is already in the cluster. Back the Secret up -- `secretKey` encrypts
 # every data source's credentials, and losing it makes them unreadable.
-#   kubectl -n sqldesk get secret sqldesk -o yaml > sqldesk-secret.backup.yaml
-# Or manage it yourself (Vault, External Secrets) and name it here:
+#   kubectl -n sqldesk get secret sqldesk-secrets -o yaml > sqldesk-secret.backup.yaml
+#
+# Deploying with Argo CD, or anything else that renders with `helm template`?
+# Then set this. The chart can only read the cluster under `helm install` and
+# `helm upgrade`; rendered any other way it makes new secrets every time, so
+# every sync would replace `secretKey` and leave every data source's
+# credentials unreadable. Make the Secret once, yourself:
+#   kubectl -n sqldesk create secret generic sqldesk-secrets \
+#     --from-literal=cookie-secret="$(openssl rand -hex 32)" \
+#     --from-literal=secret-key="$(openssl rand -hex 32)" \
+#     --from-literal=database-url='postgresql://USER:PASSWORD@HOST:5432/sqldesk'
+# With it the bundled Redis runs without a password -- the chart has nowhere to
+# keep one -- so keep `networkPolicy` on and make sure your cluster enforces it.
+#
+# Vault or External Secrets work the same way: the same three keys, named here.
 secrets:
   existingSecret: ""
 
