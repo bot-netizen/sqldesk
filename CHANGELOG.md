@@ -1,5 +1,52 @@
 # Changelog
 
+## 0.7.4
+
+Hardening for a real cluster, found by putting the chart where minikube never
+does and by reading 0.7.3 again with fresh eyes.
+
+**The chart installs where Kubernetes enforces "restricted" pod security.** A
+namespace labelled to enforce the restricted Pod Security Standard -- which
+locked-down clusters commonly do -- rejected every SQLDesk pod at admission.
+The pods already ran as a non-root user, but restricted also requires no
+privilege escalation, every capability dropped, and a seccomp profile, and
+none were set. All nine SQLDesk containers and the bundled Redis now comply;
+proved by a fresh install into such a namespace with every add-on on. The
+bundled Postgres deliberately does not: running it non-root from the start
+makes its data directory group-writable, which Postgres refuses to start with
+-- and it is the development database the chart already says to replace.
+
+**`examples/values-production.yaml`**, installed as written to prove it: an
+Ingress with TLS and an upload-sized body limit, a managed Postgres, two
+replicas, add-ons off. The deploying guide has a section around it.
+
+**Kafka over TLS with a certificate you give it.** A cluster on an internal
+PKI, a self-signed one, or one that wants client certificates could not be
+reached at all. A Kafka data source now takes a CA certificate, a client
+certificate and key, the key's password, and a switch for the hostname check
+-- handed to librdkafka as PEM text, so a long-lived consumer needs no
+temporary files. Proved with real TLS handshakes: a private CA is trusted and
+a wrong one refused, mutual TLS presents its certificate, and a name mismatch
+is refused unless the check is off.
+
+**A stream on a topic that is not there says so.** 0.7.3's consumer assigns
+itself partitions; on a missing topic it assigned none and sat silent,
+looking exactly like a quiet topic. It now stops with the reason on the
+stream's page. Checked against a real broker, including that asking does not
+create the topic.
+
+**A verified dashboard cost a statement per widget.** The "changed since"
+check walked the lazy widgets relationship -- 39 statements for fifteen
+widgets where 18 would do. It now reads the widgets the page already loaded.
+
+**`manage db current` works again.** Flask-Migrate 2.5.2 passed an argument
+alembic 1.14 no longer takes; it is 2.7.0 now. Broken since before 0.7.
+
+### Upgrading
+
+**No migration.** Nothing to configure. The chart's pods gain security
+settings that change nothing about how they run.
+
 ## 0.7.3
 
 Four gaps closed in features 0.7 shipped, three of them asked for by somebody
