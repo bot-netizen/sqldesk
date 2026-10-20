@@ -566,3 +566,36 @@ class UserCommandTests(BaseTestCase):
         self.assertEqual(result.exit_code, 0)
         db.session.add(u)
         self.assertEqual(u.group_ids, [u.org.default_group.id, u.org.admin_group.id])
+
+
+class MigrationCommandTests(BaseTestCase):
+    # `manage db` is Flask-Migrate's CLI, which calls alembic.command, and the two
+    # are pinned separately. Flask-Migrate 2.5.2 passed `head_only` to
+    # alembic.command.current, an argument alembic removed in 1.5, so `manage db
+    # current` crashed with a TypeError while everything else kept working. Each
+    # subcommand here runs against an autospec of the alembic function it calls,
+    # so a call alembic no longer accepts fails the same way, without migrating.
+    SUBCOMMANDS = [
+        ("current", ["current", "--verbose"]),
+        ("heads", ["heads", "--verbose", "--resolve-dependencies"]),
+        ("branches", ["branches", "--verbose"]),
+        ("history", ["history", "--verbose", "--indicate-current", "-r", "base:head"]),
+        ("show", ["show", "head"]),
+        ("upgrade", ["upgrade", "--sql", "--tag", "t", "-x", "k=v", "head"]),
+        ("downgrade", ["downgrade", "--sql", "--tag", "t", "-x", "k=v", "head:-1"]),
+        ("stamp", ["stamp", "--sql", "--tag", "t", "head"]),
+        ("revision", ["revision", "-m", "m", "--head", "head", "--rev-id", "r"]),
+        ("revision", ["migrate", "-m", "m", "--head", "head", "--rev-id", "r"]),
+        ("merge", ["merge", "-m", "m", "--rev-id", "r", "heads"]),
+        ("edit", ["edit", "head"]),
+        ("init", ["init"]),
+    ]
+
+    def test_subcommands_call_alembic_with_arguments_it_accepts(self):
+        runner = CliRunner()
+        for alembic_command, args in self.SUBCOMMANDS:
+            with self.subTest(args[0]), mock.patch(f"alembic.command.{alembic_command}", autospec=True) as command:
+                result = runner.invoke(manager, ["db"] + args)
+                self.assertIsNone(result.exception, result.output)
+                self.assertEqual(result.exit_code, 0)
+                command.assert_called_once()
