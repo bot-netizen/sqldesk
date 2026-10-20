@@ -283,6 +283,14 @@ class Store:
         unparseable = self.connection.execute("SELECT count(*) FROM {} WHERE {}".format(reader, empty)).fetchone()[0]
         return added, int(unparseable or 0)
 
+    def reset(self):
+        """
+        Empty the window and forget its columns, for a stream now read
+        differently. The next flush infers them again from what it decodes.
+        """
+        if self._has_table():
+            self.connection.execute("DROP TABLE events")
+
     def _has_table(self):
         found = self.connection.execute(
             "SELECT count(*) FROM information_schema.tables WHERE table_name = 'events'"

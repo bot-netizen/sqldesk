@@ -24,7 +24,7 @@ import logging
 import os
 
 from sqldesk import models, redis_connection, settings
-from sqldesk.streams import activity, handover, rollup, slots, watching
+from sqldesk.streams import activity, decode, handover, rollup, slots, watching
 from sqldesk.streams.consumer import Broker, consume
 from sqldesk.streams.consumer import _security as security
 from sqldesk.streams.store import RECEIVED, Store
@@ -184,7 +184,12 @@ def consume_stream(stream_id):
     try:
         stream.last_error = None
         models.db.session.commit()
-        consume(stream, broker, should_continue)
+        # Inside the try: an uploaded schema that no longer loads stops the
+        # consumer with the reason, rather than running and calling every
+        # message malformed.
+        decoder = decode.StreamDecoder(stream, stream.data_source.options)
+        decoder.refresh()
+        consume(stream, broker, should_continue, decoder=decoder)
     except Exception as error:
         # Kept where the stream's page can read it. A consumer that stopped with
         # an error and a consumer that stopped because nobody is watching look

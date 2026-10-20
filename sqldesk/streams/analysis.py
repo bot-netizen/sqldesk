@@ -41,10 +41,12 @@ SAMPLE = 500
 SECONDS = 5
 
 
-def analyse(options, topic, sample=SAMPLE, seconds=SECONDS):
+def analyse(options, topic, sample=SAMPLE, seconds=SECONDS, decoder=None):
     """
     Read the end of a topic and say what is there.
 
+    Read the way it would be stored: through `decoder`, so an Avro topic is
+    described by its fields rather than as five hundred malformed messages.
     Returns a dict, or raises with something a person can act on.
     """
     consumer = confluent.Consumer(
@@ -61,7 +63,7 @@ def analyse(options, topic, sample=SAMPLE, seconds=SECONDS):
         assignment = _last_messages(consumer, topic, sample, seconds)
     finally:
         consumer.close()
-    return _describe(assignment, topic, options)
+    return _describe(assignment, topic, options, decoder=decoder)
 
 
 def _last_messages(consumer, topic, sample, seconds):
@@ -102,14 +104,23 @@ def _last_messages(consumer, topic, sample, seconds):
     return collected
 
 
-def _describe(messages, topic, options):
+def _describe(messages, topic, options, decoder=None):
     """Columns, rate, and what a window of them would hold."""
     columns, malformed = {}, 0
     times = []
-    for raw, timestamp in messages:
+    for _raw, timestamp in messages:
         kind, when = timestamp or (0, 0)
         if when:
             times.append(when)
+
+    values = [raw for raw, _timestamp in messages if raw is not None]
+    found, problem = {}, None
+    if decoder is not None:
+        decoded = decoder.decode(values)
+        values, malformed = decoded.lines, decoded.failed
+        found, problem = decoded.kinds, decoded.problem
+
+    for raw in values:
         try:
             parsed = json.loads(raw)
         except Exception:
@@ -131,6 +142,10 @@ def _describe(messages, topic, options):
         "topic": topic,
         "read": len(messages),
         "malformed": malformed,
+        # What was on the topic, by kind -- {"Avro": 480, "JSON": 20} -- and,
+        # when nothing could be read, the sentence saying why.
+        "formats": found,
+        "problem": problem,
         "columns": [{"name": name, "type": kind} for name, kind in sorted(columns.items())],
         "events_per_second": round(rate, 2),
         # `window_for(row_budget, events_per_second)`, in that order. These were

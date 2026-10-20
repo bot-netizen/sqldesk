@@ -175,6 +175,14 @@ class KafkaStream(BaseSQLQueryRunner):
                     "title": "Check the broker's certificate matches its name",
                     "default": True,
                 },
+                # For Avro and Protobuf topics whose producers use a schema
+                # registry: every message names its schema, and this is where
+                # it is looked up. Confluent, Redpanda, Karapace and Apicurio's
+                # compatibility API all answer. Confluent Cloud takes its API
+                # key and secret as the username and password.
+                "schema_registry_url": {"type": "string", "title": "Schema registry URL"},
+                "schema_registry_username": {"type": "string", "title": "Schema registry username (or API key)"},
+                "schema_registry_password": {"type": "string", "title": "Schema registry password (or API secret)"},
                 "row_budget": {
                     "type": "number",
                     "title": "Rows to keep, per topic",
@@ -190,8 +198,17 @@ class KafkaStream(BaseSQLQueryRunner):
                 },
             },
             "required": ["brokers"],
-            "secret": ["sasl_password", "ssl_ca_File", "ssl_certificate_File", "ssl_key_File", "ssl_key_password"],
+            "secret": [
+                "sasl_password",
+                "ssl_ca_File",
+                "ssl_certificate_File",
+                "ssl_key_File",
+                "ssl_key_password",
+                "schema_registry_password",
+            ],
             "extra_options": [
+                "schema_registry_username",
+                "schema_registry_password",
                 "ssl_ca_File",
                 "ssl_certificate_File",
                 "ssl_key_File",
@@ -209,6 +226,9 @@ class KafkaStream(BaseSQLQueryRunner):
                 "ssl_key_File",
                 "ssl_key_password",
                 "ssl_verify_hostname",
+                "schema_registry_url",
+                "schema_registry_username",
+                "schema_registry_password",
                 "row_budget",
                 "events_per_second",
             ],
@@ -414,6 +434,16 @@ class KafkaStream(BaseSQLQueryRunner):
         error = describe_topic(self.configuration)
         if error:
             raise Exception(error)
+        # And the registry, when there is one: a wrong URL or key otherwise
+        # shows up only later, as every message on an Avro topic failing.
+        from sqldesk.streams.decode import registry_for
+
+        registry = registry_for(self.configuration)
+        if registry is not None:
+            try:
+                registry.check()
+            except Exception as problem:
+                raise Exception("The broker answered, but the schema registry did not: {}".format(problem))
         return True
 
 

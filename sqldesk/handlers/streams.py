@@ -24,7 +24,7 @@ from sqldesk import features, models, settings
 from sqldesk.handlers.base import BaseResource, get_object_or_404
 from sqldesk.permissions import require_access, require_admin, view_only
 from sqldesk.query_runner.kafka_stream import table_name
-from sqldesk.streams import activity, rollup, slots, watching, window
+from sqldesk.streams import activity, decode, rollup, slots, watching, window
 from sqldesk.streams.store import Store
 
 logger = logging.getLogger(__name__)
@@ -47,11 +47,33 @@ GROUP_NAME = re.compile(r"^[A-Za-z0-9._-]{1,249}$")
 
 def _consumer_settings(stream):
     """How a topic's consumer reads, for the page that sets it."""
+    stored = stream.value_schema or {}
     return {
         "consumer_group": stream.consumer_group,
         "save_position": bool(stream.save_position),
         "start_from": stream.start_from or models.START_LATEST,
+        "value_format": stream.value_format or decode.AUTO,
+        "message_type": stream.message_type,
+        # Names, not contents: the page shows what was uploaded and offers the
+        # choice of message, and neither needs the text back.
+        "schema_files": [item["name"] for item in stored.get("files") or []],
+        "message_types": stored.get("message_types") or [],
     }
+
+
+def _reading(body, options=None):
+    """
+    The decoder a request's reading settings describe, or a 400 saying why not.
+
+    Shared by analysis, which reads a sample the way it will be stored, and by
+    the upload check, which only wants to know the files load.
+    """
+    try:
+        return decode.for_reading(
+            body.get("value_format"), body.get("schema_files"), body.get("message_type"), options=options
+        )
+    except decode.SchemaError as error:
+        abort(400, message=str(error))
 
 
 def apply_consumer_settings(stream, body):
@@ -83,9 +105,55 @@ def apply_consumer_settings(stream, body):
     if start == models.START_SAVED and not save:
         abort(400, message="Starting where it left off needs the position to be saved.")
 
+    value_format = body.get("value_format", stream.value_format) or decode.AUTO
+    if value_format not in decode.FORMATS:
+        abort(400, message="The format is one of: {}.".format(", ".join(decode.FORMATS)))
+    schema = None
+    if value_format != decode.AUTO:
+        # New files if they were sent, the ones already kept if they were not:
+        # changing the message type should not mean uploading again.
+        files = body["schema_files"] if "schema_files" in body else (stream.value_schema or {}).get("files")
+        message_type = body.get("message_type", stream.message_type)
+        try:
+            schema = decode.load(value_format, files, message_type)
+        except decode.SchemaError as error:
+            abort(400, message=str(error))
+
+    before = decode.signature(stream)
     stream.consumer_group = group
     stream.save_position = save
     stream.start_from = start
+    stream.value_format = value_format
+    stream.value_schema = schema.stored() if schema else None
+    stream.message_type = schema.message_type if schema else None
+    return stream.id is not None and decode.signature(stream) != before
+
+
+def restart_window(stream):
+    """
+    Throw away a window read the old way, after the reading changed.
+
+    The columns came from the old reading, so they go too and the next flush
+    infers them again. A running consumer resets its own window when it sees
+    the change, which is the only safe way while it has the file; this covers
+    a stream nobody is consuming.
+    """
+    from sqldesk.tasks.streams import _being_consumed
+
+    stream.columns = None
+    stream.schema_state = models.SCHEMA_INFERRED
+    stream.rows = 0
+    stream.malformed = 0
+    stream.last_error = None
+    models.db.session.commit()
+    if _being_consumed(stream.id):
+        return
+    path = stream.store_path()
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except OSError:
+        logger.warning("could not remove stream %s's window", stream.id, exc_info=True)
 
 
 class StreamListResource(BaseResource):
@@ -196,7 +264,7 @@ class StreamResource(BaseResource):
             stream.row_budget = max(0, int(body["row_budget"] or 0))
         if "events_per_second" in body:
             stream.events_per_second = max(0, int(body["events_per_second"] or 0))
-        apply_consumer_settings(stream, body)
+        reread = apply_consumer_settings(stream, body)
 
         if "columns" in body:
             columns = body["columns"]
@@ -222,6 +290,8 @@ class StreamResource(BaseResource):
             stream.last_error = None
 
         models.db.session.commit()
+        if reread:
+            restart_window(stream)
         self.record_event({"action": "edit", "object_id": stream.id, "object_type": "stream"})
         return self.get(data_source_id)
 
@@ -335,8 +405,11 @@ class TopicAnalysisResource(BaseResource):
         source = _cluster(data_source_id, self.current_org, self.current_user, features.MANAGE_STREAMS)
         from sqldesk.streams.analysis import analyse
 
+        options = source.options.to_dict(mask_secrets=False)
+        body = request.get_json(force=True, silent=True) or {}
+        decoder = _reading(body, options)
         try:
-            found = analyse(source.options.to_dict(mask_secrets=False), topic)
+            found = analyse(options, topic, decoder=decoder)
         except Exception as error:
             logger.warning("could not analyse %s on %s", topic, source.name, exc_info=True)
             abort(502, message=str(error))
@@ -350,6 +423,30 @@ class TopicAnalysisResource(BaseResource):
             }
         )
         return found
+
+
+class StreamSchemaResource(BaseResource):
+    """
+    Whether uploaded schema files load, and which messages they define.
+
+    Asked when somebody uploads them, so a typo in a .proto is a sentence under
+    the upload rather than a consumer that stops later; and so the page can
+    offer the messages to choose between.
+    """
+
+    def post(self, data_source_id):
+        _cluster(data_source_id, self.current_org, self.current_user, features.MANAGE_STREAMS)
+        body = request.get_json(force=True, silent=True) or {}
+        value_format = body.get("value_format")
+        if value_format not in (decode.AVRO, decode.PROTOBUF):
+            abort(400, message="Only Avro and Protobuf take a schema file.")
+        try:
+            schema = decode.load(
+                value_format, body.get("schema_files"), body.get("message_type"), first_if_unchosen=True
+            )
+        except decode.SchemaError as error:
+            abort(400, message=str(error))
+        return {"message_types": schema.message_types, "message_type": schema.message_type}
 
 
 class EnabledTopicResource(BaseResource):
@@ -379,7 +476,7 @@ class EnabledTopicResource(BaseResource):
                 if not isinstance(value, int) or value < 0:
                     abort(400, message="{} has to be a whole number, or 0 for the install's.".format(field))
                 setattr(stream, field, value)
-        apply_consumer_settings(stream, body)
+        reread = apply_consumer_settings(stream, body)
         if "pinned" in body:
             # A pin keeps a worker and a disk busy with nobody watching, which
             # is an administrator's decision rather than a curator's.
@@ -397,6 +494,8 @@ class EnabledTopicResource(BaseResource):
             stream.measures = body.get("measures") or None
 
         models.db.session.commit()
+        if reread:
+            restart_window(stream)
         self.record_event(
             {
                 "action": "enable_topic",

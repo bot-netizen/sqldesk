@@ -1,8 +1,10 @@
 """
 The loop: collect raw bytes for a second, hand them to DuckDB, repeat.
 
-What it does **not** do is the design. It does not decode a message, it does not
-queue anything it cannot write, and it does not replay a backlog.
+What it does **not** do is the design. It does not decode JSON, it does not
+queue anything it cannot write, and it does not replay a backlog. Avro and
+Protobuf are the exception they have to be: `decode` turns them into JSON lines
+after sampling, and JSON itself passes through untouched.
 
 **Never buffer the overflow.** An unbounded queue in front of a slow writer is
 the crash, not the protection against it -- it turns a topic doing more than the
@@ -34,7 +36,7 @@ import time
 
 from sqldesk import models, settings
 from sqldesk.query_runner import deferred
-from sqldesk.streams import window
+from sqldesk.streams import decode, window
 from sqldesk.streams.store import Store
 from sqldesk.utils import utcnow
 
@@ -385,14 +387,14 @@ class Flush:
         )
 
 
-def flush_once(stream, store, messages, now=None):
+def flush_once(stream, store, messages, now=None, decoder=None):
     """
-    One flush: sample, write, trim, and update what the page reads.
+    One flush: sample, decode, write, trim, and update what the page reads.
 
     Takes the messages rather than fetching them, which is what makes the whole
     of this testable without a broker -- and makes the ordering explicit. The
     sampling decision comes first, because the point of sampling is to not do
-    the work.
+    the work -- and decoding Avro or Protobuf is the most work there is here.
     """
     now = now or utcnow()
     rate = stream.sample_rate or 1
@@ -403,7 +405,28 @@ def flush_once(stream, store, messages, now=None):
         if value is not None and window.keeps(key, rate, position=position)
     ]
 
+    undecodable = 0
+    if decoder is not None:
+        if getattr(decoder, "refresh", None) and decoder.refresh():
+            # Read differently from now on, so what is in the window is in the
+            # wrong shape: its columns came from the old reading, and every
+            # new row would be nulls under them.
+            store.reset()
+            stream.columns = None
+            stream.schema_state = models.SCHEMA_INFERRED
+            stream.malformed = 0
+        decoded = decoder.decode(kept)
+        kept, undecodable = decoded.lines, decoded.failed
+        if decoded.problem:
+            stream.last_error = decoded.problem
+        elif kept and decode.is_problem(stream.last_error):
+            # Something read this time, so the reason nothing did is over.
+            # Only our own sentence: a slot or a stopped consumer is somebody
+            # else's to clear.
+            stream.last_error = None
+
     stored, malformed = store.append(kept)
+    malformed += undecodable
 
     # Measured, then used. The window for the *next* flush follows from the rate
     # this one observed, which is the only honest order: a window chosen from a
@@ -425,7 +448,7 @@ def flush_once(stream, store, messages, now=None):
     return Flush(received=len(messages), kept=len(kept), stored=stored, malformed=malformed, sampled_at=rate)
 
 
-def consume(stream, broker, should_continue, now=None):
+def consume(stream, broker, should_continue, now=None, decoder=None):
     """
     Run until `should_continue()` says otherwise.
 
@@ -455,7 +478,7 @@ def consume(stream, broker, should_continue, now=None):
                     break
                 if time.monotonic() - started >= settings.STREAM_FLUSH_SECONDS:
                     break
-            flush_once(stream, store, collected, now=now)
+            flush_once(stream, store, collected, now=now, decoder=decoder)
             # After the flush and never before it, so a committed offset only
             # ever covers events that are already in the window.
             broker.commit_position()

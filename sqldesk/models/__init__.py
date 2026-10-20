@@ -1922,6 +1922,19 @@ class Stream(TimestampMixin, BelongsToOrgMixin, db.Model):
     #: across instead, so this does not replay a topic every few minutes.
     start_from = Column(db.String(16), nullable=False, default="latest")
 
+    #: How a message's bytes are read. `auto` -- JSON as it is, and anything
+    #: carrying a schema registry header decoded by what the registry says it
+    #: is -- needs nothing set per topic. `avro` and `protobuf` read messages
+    #: with no registry header, using the schema files kept beside them.
+    value_format = Column(db.String(16), nullable=False, default="auto", server_default="auto")
+    #: The uploaded schema: `{"files": [{"name", "content"}], "message_types":
+    #: [...]}`. The files are the record and are compiled again when a
+    #: consumer starts; the message types are kept so the page can offer them
+    #: without compiling anything.
+    value_schema = Column(MutableDict.as_mutable(JSONB), nullable=True)
+    #: Which message in the schema each message on the topic is.
+    message_type = Column(db.String(255), nullable=True)
+
     #: What the consumer last measured and decided. Read by the page and by the
     #: chart's "last 6 minutes · 4.9M events" line; written once a flush.
     observed_rate = Column(DOUBLE_PRECISION, nullable=False, default=0)
