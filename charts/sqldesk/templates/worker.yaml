@@ -218,6 +218,9 @@ spec:
       {{- with .Values.tolerations }}
       tolerations: {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- /* It mounts the uploads volume -- a topic's window is a file on it -- so
+             it has to share the server's node like every other pod that does. */}}
+      {{- include "sqldesk.uploadsAffinity" . | nindent 6 }}
 {{- end }}
 {{- if .Values.scheduler.enabled }}
 ---

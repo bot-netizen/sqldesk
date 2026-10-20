@@ -13,6 +13,7 @@ import datetime
 import io
 import os
 import tempfile
+import unittest
 from unittest import mock
 
 from sqldesk import models, settings, uploads
@@ -888,3 +889,45 @@ class TestAnUploadWhoseFileIsGone(BaseTestCase):
         self.addCleanup(os.remove, row.path)
 
         self.assertFalse(row.to_dict()["missing"])
+
+
+class TestEveryPodOnTheUploadsVolumeSharesANode(unittest.TestCase):
+    """
+    A ReadWriteOnce volume mounts on one node. Every pod that mounts the uploads
+    volume therefore has to land on that node, or it waits forever on a
+    Multi-Attach error -- which minikube, being one node, can never show.
+
+    0.7.3 pinned the workers to the server but not the server to itself, so a
+    second server replica could land elsewhere, and a rolling update with one
+    replica could deadlock: the new pod unable to mount until the old one let
+    go, the old one kept until the new was ready. The stream worker mounted the
+    volume with no affinity at all.
+
+    Read as text, like the other chart checks here, because helm is not in the
+    container this suite runs in.
+    """
+
+    def template(self, name):
+        return open("charts/sqldesk/templates/{}".format(name)).read()
+
+    def deployment(self, text, component):
+        start = text.index("app.kubernetes.io/component: {}".format(component))
+        following = text.find("kind: Deployment", start)
+        return text[start : following if following != -1 else len(text)]
+
+    def test_the_server_is_pinned_to_its_own_node(self):
+        self.assertIn('include "sqldesk.uploadsAffinity"', self.template("server.yaml"))
+
+    def test_so_is_every_worker_that_mounts_the_volume(self):
+        workers = self.template("worker.yaml")
+        for component in ("worker", "mcp-worker", "stream-worker"):
+            block = self.deployment(workers, component)
+            if "sqldesk.uploadsMount" in block:
+                self.assertIn('include "sqldesk.uploadsAffinity"', block, component)
+
+    def test_the_affinity_names_the_server(self):
+        helper = open("charts/sqldesk/templates/_helpers.tpl").read()
+        start = helper.index('define "sqldesk.uploadsAffinity"')
+        body = helper[start : helper.index("{{- end -}}", start)]
+        self.assertIn("app.kubernetes.io/component: server", body)
+        self.assertIn('eq .Values.uploads.accessMode "ReadWriteOnce"', body)

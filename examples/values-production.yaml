@@ -78,9 +78,11 @@ worker:
     limits: { memory: 2Gi }
 
 # Uploads, and streams' windows, live on a volume the server writes and the
-# workers read. ReadWriteOnce pins every pod that mounts it to one node; a
-# ReadWriteMany class (EFS, Filestore, Azure Files, NFS) lets them spread out.
-# Off if nobody will upload files and you are not using streams.
+# workers read. ReadWriteOnce mounts on one node, so the chart keeps every pod
+# that mounts it -- both server replicas included -- on that node: they run,
+# but a node failure takes them all. A ReadWriteMany class (EFS, Filestore,
+# Azure Files, NFS) lets them spread across nodes. Off if nobody will upload
+# files and you are not using streams; then nothing is pinned at all.
 uploads:
   enabled: true
   size: 20Gi

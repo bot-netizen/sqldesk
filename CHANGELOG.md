@@ -29,6 +29,15 @@ temporary files. Proved with real TLS handshakes: a private CA is trusted and
 a wrong one refused, mutual TLS presents its certificate, and a name mismatch
 is refused unless the check is off.
 
+**Every pod on the uploads volume shares its node.** A ReadWriteOnce volume
+mounts on one node. The workers were pinned to the server's node, but the
+server was not pinned to itself -- so a second server replica could land on
+another node and wait forever on a Multi-Attach error, and a rolling update
+with one replica could deadlock: the new pod unable to mount the volume until
+the old one let go, the old one kept until the new one was ready. The stream
+worker mounted the volume with no affinity at all. A single-node minikube can
+show none of this; a real cluster shows it on the first upgrade.
+
 **A stream on a topic that is not there says so.** 0.7.3's consumer assigns
 itself partitions; on a missing topic it assigned none and sat silent,
 looking exactly like a quiet topic. It now stops with the reason on the
