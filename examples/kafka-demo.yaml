@@ -2,13 +2,21 @@
 #
 #   kubectl apply -f examples/kafka-demo.yaml
 #
-# Gives you a `redpanda` broker at redpanda:9092 and two topics with something
-# always arriving on them: `orders` (order_id, region, item, amount) and
-# `payments` (payment_id, method, amount), one message a second each.
+# Gives you a `redpanda` broker at redpanda:9092, its schema registry at
+# http://redpanda:8081, and four topics with something always arriving on
+# them, one message a second each:
+#
+#   orders     JSON      order_id, region, item, amount
+#   payments   JSON      payment_id, method, amount
+#   shipments  Avro      through the registry: an enum, a timestamp, a nested
+#                        record and a nullable field
+#   refunds    Protobuf  through the registry: an enum, a map, a repeated
+#                        field and a nested message
 #
 # Add it in SQLDesk as a data source of type **Kafka stream** with the broker
-# `redpanda:9092`, then turn the topics on under
-# Settings -> Streaming Data Sources.
+# `redpanda:9092` and the schema registry URL `http://redpanda:8081`, then
+# turn the topics on under Settings -> Streaming Data Sources. All four read
+# with the message format left on Automatic.
 #
 # This is a toy. Redpanda is run with one core, half a gigabyte and
 # `--check=false` so it starts on a laptop; nothing here is a way to run Kafka.
@@ -34,6 +42,10 @@ spec:
     - name: kafka
       port: 9092
       targetPort: 9092
+    # Redpanda's built-in schema registry, which speaks Confluent's API.
+    - name: schema-registry
+      port: 8081
+      targetPort: 8081
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -64,6 +76,11 @@ spec:
             - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
           ports:
             - containerPort: 9092
+          # Bounded, on a minikube that shares a few gigabytes with SQLDesk
+          # itself. --memory above is Redpanda's own; this is the container's.
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 768Mi }
           volumeMounts:
             # Without this, every node restart loses the topics -- and the
             # symptom is the nasty one: consumers run with no error and no
@@ -92,6 +109,9 @@ spec:
       containers:
         - name: producer
           image: redpandadata/redpanda:v24.2.7
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 256Mi }
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -123,6 +143,9 @@ spec:
       containers:
         - name: producer
           image: redpandadata/redpanda:v24.2.7
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 256Mi }
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -133,5 +156,112 @@ spec:
                 amount=$(awk -v n=$i 'BEGIN{printf "%.2f", 5 + (n*11)%300}')
                 echo "{\"payment_id\":$i,\"method\":\"$method\",\"amount\":$amount}" \
                   | rpk topic produce payments --brokers redpanda:9092 >/dev/null 2>&1
+                sleep 1
+              done
+---
+# Avro through the schema registry. rpk registers the schema (again on every
+# restart, which the registry treats as the same version) and encodes each JSON
+# line into Avro with the registry's five-byte header in front.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shipments-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shipments-producer
+  template:
+    metadata:
+      labels:
+        app: shipments-producer
+    spec:
+      containers:
+        - name: producer
+          image: redpandadata/redpanda:v24.2.7
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 256Mi }
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              R="-X brokers=redpanda:9092 -X registry.hosts=redpanda:8081"
+              cat > /tmp/shipment.avsc <<'AVSC'
+              {"type": "record", "name": "Shipment", "namespace": "demo.logistics", "fields": [
+                {"name": "shipment_id", "type": "long"},
+                {"name": "carrier", "type": {"type": "enum", "name": "Carrier", "symbols": ["UPS", "FEDEX", "DHL", "CANADA_POST"]}},
+                {"name": "weight_kg", "type": "double"},
+                {"name": "shipped_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+                {"name": "destination", "type": {"type": "record", "name": "Address", "fields": [
+                  {"name": "city", "type": "string"}, {"name": "country", "type": "string"}]}},
+                {"name": "note", "type": ["null", "string"], "default": null}]}
+              AVSC
+              until rpk topic create shipments $R >/dev/null 2>&1 || rpk topic describe shipments $R >/dev/null 2>&1; do sleep 2; done
+              until rpk registry schema create shipments-value --schema /tmp/shipment.avsc $R >/dev/null 2>&1; do sleep 2; done
+              i=0
+              while true; do
+                i=$((i+1))
+                carrier=$(awk -v n=$i 'BEGIN{split("UPS,FEDEX,DHL,CANADA_POST",r,",");print r[(n%4)+1]}')
+                city=$(awk -v n=$i 'BEGIN{split("Toronto,Montreal,Vancouver,Calgary,Halifax",r,",");print r[(n%5)+1]}')
+                weight=$(awk -v n=$i 'BEGIN{printf "%.2f", 0.5 + (n*13)%40}')
+                if [ $((i % 5)) -eq 0 ]; then note='{"string":"fragile"}'; else note=null; fi
+                now=$(($(date +%s) * 1000))
+                echo "{\"shipment_id\":$i,\"carrier\":\"$carrier\",\"weight_kg\":$weight,\"shipped_at\":$now,\"destination\":{\"city\":\"$city\",\"country\":\"CA\"},\"note\":$note}" \
+                  | rpk topic produce shipments --schema-id=topic $R >/dev/null 2>&1
+                sleep 1
+              done
+---
+# Protobuf through the schema registry, the same way.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: refunds-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: refunds-producer
+  template:
+    metadata:
+      labels:
+        app: refunds-producer
+    spec:
+      containers:
+        - name: producer
+          image: redpandadata/redpanda:v24.2.7
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 256Mi }
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              R="-X brokers=redpanda:9092 -X registry.hosts=redpanda:8081"
+              cat > /tmp/refund.proto <<'PROTO'
+              syntax = "proto3";
+              package demo.billing;
+
+              message Refund {
+                enum Reason { REASON_UNSPECIFIED = 0; DAMAGED = 1; LATE = 2; WRONG_ITEM = 3; }
+                message Customer { string id = 1; string tier = 2; }
+                int64 refund_id = 1;
+                Reason reason = 2;
+                double amount = 3;
+                int64 refunded_at_ms = 4;
+                map<string, string> labels = 5;
+                repeated string items = 6;
+                Customer customer = 7;
+              }
+              PROTO
+              until rpk topic create refunds $R >/dev/null 2>&1 || rpk topic describe refunds $R >/dev/null 2>&1; do sleep 2; done
+              until rpk registry schema create refunds-value --schema /tmp/refund.proto $R >/dev/null 2>&1; do sleep 2; done
+              i=0
+              while true; do
+                i=$((i+1))
+                reason=$(awk -v n=$i 'BEGIN{split("DAMAGED,LATE,WRONG_ITEM",r,",");print r[(n%3)+1]}')
+                tier=$(awk -v n=$i 'BEGIN{split("gold,silver,bronze",r,",");print r[(n%3)+1]}')
+                amount=$(awk -v n=$i 'BEGIN{printf "%.2f", 3 + (n*17)%150}')
+                now=$(($(date +%s) * 1000))
+                echo "{\"refund_id\":\"$i\",\"reason\":\"$reason\",\"amount\":$amount,\"refunded_at_ms\":\"$now\",\"labels\":{\"channel\":\"web\"},\"items\":[\"bolt\",\"flange\"],\"customer\":{\"id\":\"c-$((i % 40))\",\"tier\":\"$tier\"}}" \
+                  | rpk topic produce refunds --schema-id=topic --schema-type demo.billing.Refund $R >/dev/null 2>&1
                 sleep 1
               done

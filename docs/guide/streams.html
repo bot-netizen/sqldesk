@@ -114,6 +114,47 @@ partition instead of joining, and the broker never registers it.</p>
 <p>A topic the broker does not have, or will not describe, stops the stream with that reason on its page
 rather than leaving it looking quiet.</p>
 
+<h3 id="formats">JSON, Avro and Protobuf</h3>
+<p>What a topic&rsquo;s messages are is chosen under <strong>How it reads</strong>, as its
+<strong>message format</strong>. Automatic covers most topics with nothing to set.</p>
+<table>
+  <thead><tr><th>Format</th><th>Reads</th><th>Needs</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Automatic</strong></td>
+      <td>JSON as it is. Avro, Protobuf and JSON Schema written through a <strong>schema registry</strong>
+      &mdash; each message carries a five-byte header naming its schema.</td>
+      <td>For registry topics, the registry&rsquo;s URL on the Kafka data source.</td></tr>
+    <tr><td><strong>Avro</strong></td>
+      <td>Avro with no registry header.</td>
+      <td>The <code>.avsc</code> the producer writes with. Several, if they refer to each other&rsquo;s
+      types.</td></tr>
+    <tr><td><strong>Protobuf</strong></td>
+      <td>Protobuf with no registry header.</td>
+      <td>The <code>.proto</code> file and any it imports, and which message the topic carries. The
+      <code>google/protobuf</code> types are built in.</td></tr>
+  </tbody>
+</table>
+<p><strong>A schema registry</strong> is set once, on the Kafka data source: its URL, and a username and
+password if it wants them &mdash; Confluent Cloud takes its API key and secret there. Confluent&rsquo;s,
+Redpanda&rsquo;s, Karapace and Apicurio&rsquo;s compatibility API all work. Over HTTPS it trusts the
+public authorities and the cluster&rsquo;s own CA certificate, since a registry usually sits on the same
+PKI as the brokers. Saving the data source checks the registry answers.</p>
+<p><strong>Uploaded files are checked the moment they are chosen</strong>: a <code>.proto</code> that does
+not compile says where, under the button, and the topic cannot be enabled until it does. An import is
+found by the path it names, so <code>import "common/money.proto"</code> finds an uploaded
+<code>money.proto</code>.</p>
+<p>Fields come out as columns DuckDB types properly: timestamps as <code>TIMESTAMP</code>, 64-bit integers
+as numbers, enums by name, bytes as base64, nested messages and records as structs you reach with a dot.
+Every field is a column whether or not a message set it; unset, it is null.</p>
+<p><strong>Changing the format starts the window again.</strong> Its columns came from the old reading, so
+they are inferred afresh from the next messages; a running consumer picks the change up at its next
+flush. When nothing on a topic can be read &mdash; a registry header with no registry set, bytes that
+are neither JSON nor anything the schema describes &mdash; the stream&rsquo;s page and the analysis say
+which, rather than counting every message as malformed in silence.</p>
+<p>JSON costs what it always did: it is never parsed on the way in. Avro and Protobuf are decoded after
+sampling, at around 45,000 messages a second on one core, so a stream at its ceiling spends about a tenth
+of a core on it.</p>
+
 <h2 id="querying">Querying one</h2>
 <p><strong>Create &rarr; New Streaming Query</strong> opens the query editor, with the schema browser
 listing the enabled topics and the same visualizations as anywhere else. Two differences: the button says
