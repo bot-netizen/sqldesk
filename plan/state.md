@@ -1,12 +1,17 @@
 # Where the project is
 
-Last true on **2026-10-03**. Update this in the same commit as whatever
+Last true on **2026-10-20**. Update this in the same commit as whatever
 changed it.
 
 ## Released
 
 | Version | Name | When | Notes |
 |---|---|---|---|
+| 0.7.5 | **Kept Secrets** | 20 Oct 2026 | One migration Job instead of one per upgrade; with Argo CD, make the Secret yourself |
+| 0.7.4 | **Real Cluster** | 20 Oct 2026 | Restricted Pod Security, `examples/values-production.yaml`, Kafka TLS with your own certificates |
+| 0.7.3 | Signal and Noise | 18 Oct 2026 | Kafka consumer groups and saved positions, catalog search/hide, dashboard verification |
+| 0.7.2 | Over the Wire | 4 Oct 2026 | Response compression, driver upgrades, Trino spooling |
+| 0.7.1 | Data Sources | 4 Oct 2026 | Mimir, MariaDB, Vertica driver, MySQL `ssl_mode`, Trino fixes |
 | 0.7.0 | **Kafka Streams** | 4 Oct 2026 | Tagged `v0.7.0`, images published, smoke-tested through `compose.prod.yaml`, merged to `main` |
 | 0.6.0 | **MCP** | 3 Oct 2026 | Tagged `v0.6.0`, images published, smoke-tested through `compose.prod.yaml` |
 | 0.5.0 | Interface | Sep 2026 | |
@@ -40,6 +45,20 @@ Known limits of 0.7, recorded so they are not rediscovered:
 
 Still waiting on Iqbal: see [open-questions.md](open-questions.md).
 
+## Deploying on a real cluster
+
+Start from `examples/values-production.yaml` and the guide's *On a real
+cluster* section. What a laptop never shows, and 0.7.4–0.7.5 dealt with:
+
+- **Restricted Pod Security.** Every SQLDesk pod and the bundled Redis comply;
+  the bundled Postgres cannot, so use a managed one. `tests/test_chart.py`
+  holds the line.
+- **Argo CD renders with `helm template`,** where the chart cannot read back
+  its generated secrets. Make the Secret yourself and set
+  `secrets.existingSecret`, or every sync replaces `secretKey`.
+- **ReadWriteOnce uploads pin every pod that mounts them to one node.** Use a
+  ReadWriteMany class to spread them.
+
 ## Next: 0.8 — Notebooks
 
 See [0.8-plan.md](0.8-plan.md). Scope agreed 2026-10-03.
@@ -49,7 +68,6 @@ See [0.8-plan.md](0.8-plan.md). Scope agreed 2026-10-03.
 - **An assistant inside SQLDesk.** Nothing here calls a model. MCP serves
   tools to a client the user brings, which is a smaller and more honest
   promise. Not a gap.
-- **`main` has not had 0.6 merged into it.** The tag and the GitHub release
-  are what people pull; the merge waits for 0.7 so `main` does not describe a
-  release that is already behind.
+- **`main` follows the latest 0.7 patch.** It is fast-forwarded to each
+  release once the tag is out; `release/0.7` is where patches are made.
 - **Cube export**, designed in the 0.7 plan and deferred to 0.8.
