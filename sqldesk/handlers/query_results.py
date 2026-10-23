@@ -437,11 +437,42 @@ class JobResource(BaseResource):
 
         return job
 
+    def _fetch_job_to_follow(self, job_id):
+        """
+        A running query job, if this user may watch it finish.
+
+        Wider than cancelling. Two people asking for the same query share one
+        job -- `enqueue_query` hands the second the job already running, which
+        is the point of it -- and the job carries the first one's user id. So
+        reading it by ownership refused everybody but the starter: the second
+        viewer of a dashboard, anyone joining a scheduled refresh, all got
+        "failed communicating with server" for a query that was running fine.
+        Anybody who may read the job's data source may follow it; the result it
+        points at is still checked when they fetch it.
+        """
+        try:
+            job = Job.fetch(job_id)
+        except NoSuchJobError:
+            abort(404, message="Unknown job id.")
+
+        meta = job.meta or {}
+        if meta.get("org_id") != self.current_org.id:
+            abort(404, message="Unknown job id.")
+        if self.current_user.has_permission("admin") or meta.get("user_id") == self.current_user.id:
+            return job
+
+        source = models.DataSource.query.filter(
+            models.DataSource.id == meta.get("data_source_id"), models.DataSource.org == self.current_org
+        ).first()
+        if source is None or not has_access(source, self.current_user, view_only):
+            abort(403, message="This job belongs to someone else.")
+        return job
+
     def get(self, job_id, query_id=None):
         """
         Retrieve info about a running query job.
         """
-        job = self._fetch_own_job(job_id)
+        job = self._fetch_job_to_follow(job_id)
         return serialize_job(job)
 
     def delete(self, job_id):
