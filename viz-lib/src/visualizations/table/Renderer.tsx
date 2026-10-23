@@ -84,6 +84,11 @@ function SearchInput({ searchColumns, ...props }: SearchInputProps) {
 
 SearchInput.defaultProps = searchInputDefaultProps;
 
+/** The names of a table's configured and returned columns, as one comparable string. */
+export function columnsSignature(configured: any[], returned: any[]) {
+  return JSON.stringify([map(configured, "name"), map(returned, "name")]);
+}
+
 export default function Renderer({ options, data }: any) {
   const [searchTerm, setSearchTerm] = useState("");
   const [orderBy, setOrderBy] = useState([]);
@@ -147,10 +152,14 @@ export default function Renderer({ options, data }: any) {
     [data.rows, searchTerm, searchColumns, orderBy]
   );
 
-  // If data or config columns change - reset sorting
+  // Reset sorting when the columns themselves change -- not on every new
+  // result, whose column list is a new array each time even when nothing in
+  // it moved. That reset the sort on every refresh of a live dashboard and
+  // every two seconds on a streaming query.
+  const columnsKey = columnsSignature(options.columns, data.columns);
   useEffect(() => {
     setOrderBy([]);
-  }, [options.columns, data.columns]);
+  }, [columnsKey]);
 
   if (data.rows.length === 0) {
     // Not null: a blank tile reads as a widget that failed, and a query

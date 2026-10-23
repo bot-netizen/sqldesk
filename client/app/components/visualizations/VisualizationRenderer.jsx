@@ -1,4 +1,4 @@
-import { isEqual, map, find, fromPairs } from "lodash";
+import { castArray, isEqual, map, find, fromPairs, some } from "lodash";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import useQueryResultData from "@/lib/useQueryResultData";
@@ -22,6 +22,27 @@ function combineFilters(localFilters, globalFilters) {
       };
     }
     return localFilter;
+  });
+}
+
+/*
+  Fresh filters from a new result, keeping what somebody chose where it still
+  exists. Every new result -- a live dashboard's refresh, a streaming query's
+  two-second tick -- used to reset each filter to its first value, so a
+  selection lasted until the next refresh.
+*/
+export function keepSelections(fresh, previous) {
+  return map(fresh, (current) => {
+    const before = find(previous, (f) => f.name === current.name);
+    if (!before) {
+      return current;
+    }
+    const exists = (value) => some(current.values, (candidate) => isEqual(candidate, value));
+    if (current.multiple) {
+      const kept = castArray(before.current || []).filter(exists);
+      return kept.length ? { ...current, current: kept } : current;
+    }
+    return exists(before.current) ? { ...current, current: before.current } : current;
   });
 }
 
@@ -49,9 +70,10 @@ export default function VisualizationRenderer(props) {
     }
   });
 
-  // Reset local filters when query results updated
+  // New query results bring new filter values; what somebody had chosen is
+  // kept where it is still among them.
   useEffect(() => {
-    handleFiltersChange(combineFilters(data.filters, props.filters));
+    handleFiltersChange(combineFilters(keepSelections(data.filters, filtersRef.current), props.filters));
   }, [data.filters, props.filters, handleFiltersChange]);
 
   // Update local filters when global filters changed.
