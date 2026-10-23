@@ -316,6 +316,21 @@ class TestWarningBeforeDeleting(UploadTestCase):
 
         self.assertIsNone(row.expiry_warning_sent_at)
 
+    def test_a_mail_server_that_refuses_it_is_not_a_warning_either(self):
+        """
+        Through the real send, not a mock of it. The shared mail job catches
+        every error, so a refused send returned normally, counted as a warning,
+        and the file was deleted the next day with nobody told.
+        """
+        import smtplib
+
+        row = self.expiring_tomorrow()
+
+        with mock.patch("sqldesk.tasks.uploads.mail.send", side_effect=smtplib.SMTPException("refused")):
+            self.assertEqual(0, warn_about_expiring_uploads())
+
+        self.assertIsNone(row.expiry_warning_sent_at)
+
 
 class TestDeleting(UploadTestCase):
     def expired_and_warned(self, **fields):
@@ -387,6 +402,28 @@ class TestDeleting(UploadTestCase):
         self.assertEqual(0, delete_expired_uploads())
 
         self.assertTrue(os.path.exists(row.path))
+
+    def test_a_file_warned_about_late_is_kept_a_day_after_the_warning(self):
+        """
+        Already past expiry when first warned -- after a mail outage, a
+        scheduler that was down, an install that turned the lifecycle on. It
+        used to be warned and deleted in the same run.
+        """
+        from sqldesk.tasks.uploads import manage_uploads
+
+        row = self.upload()
+        row.expires_at = models.utcnow() - datetime.timedelta(days=3)
+        db.session.commit()
+
+        with mock.patch("sqldesk.tasks.uploads.mail.send"):
+            result = manage_uploads()
+
+        self.assertEqual((1, 0), (result["warned"], result["deleted"]))
+        self.assertTrue(os.path.exists(row.path))
+
+        row.expiry_warning_sent_at = models.utcnow() - datetime.timedelta(days=1, minutes=1)
+        db.session.commit()
+        self.assertEqual(1, delete_expired_uploads())
 
     def test_with_the_clock_off_nothing_is_deleted(self):
         row = self.expired_and_warned()
