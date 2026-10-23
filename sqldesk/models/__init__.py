@@ -2778,6 +2778,13 @@ class DashboardSubscription(TimestampMixin, BelongsToOrgMixin, db.Model):
 
     active = Column(db.Boolean, default=True, nullable=False)
     last_sent_at = Column(db.DateTime(True), nullable=True)
+    #: When it was last tried, and how many tries in a row have failed. A
+    #: failed send used to leave `last_sent_at` alone, so the subscription was
+    #: due again a minute later: a refused address meant everybody before it
+    #: in the list got the dashboard every minute, and a broken renderer drew
+    #: it every minute, all day.
+    last_attempt_at = Column(db.DateTime(True), nullable=True)
+    failures = Column(db.Integer, nullable=False, default=0, server_default="0")
 
     #: Why the last send did not happen, shown to the owner. Cleared by a send
     #: that works, so it never describes a problem that has gone away.

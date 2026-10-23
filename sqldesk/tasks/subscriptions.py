@@ -43,6 +43,11 @@ def _is_due(subscription, now):
     The same question `refresh_queries` asks of a query, answered by the same
     function, because the schedule is the same shape.
     """
+    if subscription.failures and subscription.last_attempt_at:
+        # 2, 4, 8 ... minutes after a failed try, never more than an hour.
+        wait = datetime.timedelta(minutes=min(2**subscription.failures, MAX_BACKOFF_MINUTES))
+        if now < subscription.last_attempt_at + wait:
+            return False
     schedule = subscription.schedule or {}
     return models.should_schedule_next(
         subscription.last_sent_at,
@@ -53,8 +58,13 @@ def _is_due(subscription, now):
     )
 
 
+#: The longest a subscription that keeps failing waits between tries.
+MAX_BACKOFF_MINUTES = 60
+
+
 def _record_problem(subscription, message):
     subscription.last_error = message
+    subscription.failures = (subscription.failures or 0) + 1
     db.session.add(subscription)
     db.session.commit()
     logger.warning("Subscription %s: %s", subscription.id, message)
@@ -85,6 +95,16 @@ def send_subscription(subscription_id):
     subscription = models.DashboardSubscription.query.get(subscription_id)
     if subscription is None or not subscription.active:
         return
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    # Asked again here, because the job id does not stop a second copy being
+    # queued while the first waits behind other mail: the second then finds
+    # the first already sent it, and goes.
+    if not _is_due(subscription, now):
+        return
+    subscription.last_attempt_at = now
+    db.session.add(subscription)
+    db.session.commit()
 
     dashboard = subscription.dashboard
     owner = subscription.user
@@ -121,22 +141,31 @@ def send_subscription(subscription_id):
         _record_problem(subscription, "The renderer could not draw this dashboard.")
         return
 
-    try:
-        for recipient in recipients:
+    # One at a time, each on its own: the first refused address used to stop
+    # the loop, so the people before it were mailed again on every retry.
+    refused = []
+    for recipient in recipients:
+        try:
             _mail(subscription, dashboard, recipient, picture)
-    except Exception:
-        logger.exception("Could not mail subscription %s.", subscription_id)
+        except Exception:
+            logger.exception("Could not mail subscription %s to user %s.", subscription_id, recipient.id)
+            refused.append(recipient)
+    if len(refused) == len(recipients):
         _record_problem(subscription, "The mail server would not take it.")
         return
 
-    subscription.last_sent_at = datetime.datetime.now(datetime.timezone.utc)
-    subscription.last_error = (
-        "Not sent to {}: they cannot see every widget on this dashboard.".format(
-            ", ".join(user.name for user in left_out)
+    notes = []
+    if left_out:
+        notes.append(
+            "Not sent to {}: they cannot see every widget on this dashboard.".format(
+                ", ".join(user.name for user in left_out)
+            )
         )
-        if left_out
-        else None
-    )
+    if refused:
+        notes.append("The mail server would not take it for {}.".format(", ".join(user.name for user in refused)))
+    subscription.last_sent_at = datetime.datetime.now(datetime.timezone.utc)
+    subscription.failures = 0
+    subscription.last_error = " ".join(notes) or None
     db.session.add(subscription)
     db.session.commit()
 
