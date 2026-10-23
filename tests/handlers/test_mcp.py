@@ -774,6 +774,51 @@ class TestNoMoreThanTheApplicationGives(McpTestCase):
         self.assertIn("1 widgets", text)
 
 
+class TestARowCeiling(McpTestCase):
+    """
+    `run_query` returns at most 1,000 rows, whatever the SQL says. It relied on
+    the runners' `apply_auto_limit`, which only acts on a statement starting
+    with SELECT: a WITH query, an explicit large LIMIT, or anything on Athena
+    or Presto brought back every row, into a web worker.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.factory.data_source.name = "pg"
+        models.db.session.commit()
+        self.worker = mock.patch("sqldesk.mcp._on_a_worker", return_value=({"columns": [], "rows": []}, None))
+        self.ran = self.worker.start()
+        self.addCleanup(self.worker.stop)
+
+    def sent(self, sql, source_type="pg"):
+        self.factory.data_source.type = source_type
+        models.db.session.commit()
+        self.post(rpc("tools/call", {"name": "run_query", "arguments": {"sql": sql, "data_source": "pg"}}))
+        return self.ran.call_args[0][2]
+
+    def test_a_with_query_is_limited(self):
+        self.assertIn("LIMIT 1000", self.sent("WITH x AS (SELECT 1 AS a) SELECT * FROM x"))
+
+    def test_a_larger_limit_is_lowered(self):
+        sent = self.sent("SELECT * FROM t LIMIT 10000000")
+        self.assertIn("LIMIT 1000", sent)
+        self.assertNotIn("10000000", sent)
+
+    def test_a_smaller_one_is_left_as_written(self):
+        self.assertEqual("SELECT * FROM t LIMIT 5", self.sent("SELECT * FROM t LIMIT 5"))
+
+    def test_a_union_is_limited_as_a_whole(self):
+        self.assertTrue(self.sent("SELECT 1 UNION ALL SELECT 2").rstrip().endswith("LIMIT 1000"))
+
+    def test_sql_server_gets_top_and_keeps_its_order_by(self):
+        sent = self.sent("SELECT a FROM t ORDER BY a", source_type="mssql")
+        self.assertIn("TOP 1000", sent)
+        self.assertIn("ORDER BY a", sent)
+
+    def test_athena_is_limited_too(self):
+        self.assertIn("LIMIT 1000", self.sent("SELECT * FROM t", source_type="athena"))
+
+
 class TestOnlyReadsRunFromHere(McpTestCase):
     """
     Not the security boundary -- the database account's grants are -- but a
@@ -822,11 +867,32 @@ class TestOnlyReadsRunFromHere(McpTestCase):
         self._as("azure_kusto")
         self.assertIn("editor", self.assertRefused("run_query", ".drop table T"))
 
-    def test_a_read_only_api_goes_through_unparsed(self):
+    def test_a_mongodb_read_goes_through(self):
         self._as("mongodb")
         body = self.call("run_query", '{"collection": "orders", "query": {}}')
         self.assertFalse(body["result"].get("isError"), body)
         self.ran.assert_called_once()
+
+    def test_a_mongodb_pipeline_that_writes_is_refused(self):
+        # `$out` replaces a collection and `$merge` writes into one, from an
+        # ordinary aggregate. MongoDB was waved through as "read-only".
+        self._as("mongodb")
+        self.assertIn(
+            "$out", self.assertRefused("run_query", '{"collection": "x", "aggregate": [{"$out": "orders"}]}')
+        )
+        self.assertIn(
+            "$merge",
+            self.assertRefused(
+                "run_query",
+                '{"collection": "x", "aggregate": [{"$facet": {"a": [{"$merge": {"into": "orders"}}]}}]}',
+            ),
+        )
+
+    def test_a_json_source_may_get_but_not_post(self):
+        self._as("json")
+        self.assertIn("POST", self.assertRefused("run_query", "url: https://api.example.com/x\nmethod: post"))
+        body = self.call("run_query", "url: https://api.example.com/x")
+        self.assertFalse(body["result"].get("isError"), body)
 
     def test_a_second_statement_needs_no_semicolon_on_sql_server(self):
         # T-SQL runs a batch: sqlglot read `SELECT 1 DELETE FROM t` as one

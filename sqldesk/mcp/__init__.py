@@ -20,6 +20,7 @@ application uses: reading the catalog needs what viewing a dashboard needs,
 running SQL needs what the editor needs. There is no service account.
 """
 
+import json
 import logging
 import re
 import time
@@ -357,7 +358,6 @@ _LEADING_NOISE = re.compile(r"^(?:\s+|--[^\n]*(?:\n|$)|/\*.*?\*/|\()*", re.S)
 #: Sources whose query language cannot write, or that reach an API which only
 #: reads. Their queries go through unparsed.
 READ_ONLY_LANGUAGES = {
-    "mongodb",
     "elasticsearch",
     "elasticsearch2",
     "elasticsearch2_OpenDistroSQLElasticSearch",
@@ -365,7 +365,6 @@ READ_ONLY_LANGUAGES = {
     "aws_es",
     "kibana",
     "url",
-    "json",
     "prometheus",
     "graphite",
     "google_spreadsheets",
@@ -460,6 +459,112 @@ def _write_keyword(sql, dialect):
     return None
 
 
+def _mongodb_writes(query):
+    """
+    MongoDB's query language reads, except where a pipeline stage writes.
+
+    `$out` replaces a collection and `$merge` writes into one, both from an
+    ordinary `aggregate` -- so a model handed this source as "read-only" could
+    wipe `orders` with one stage.
+    """
+    try:
+        parsed = json.loads(query)
+    except ValueError:
+        return "That is not a MongoDB query this can check: it is not JSON."
+
+    def stages(value):
+        if isinstance(value, dict):
+            for key, item in value.items():
+                yield key
+                yield from stages(item)
+        elif isinstance(value, list):
+            for item in value:
+                yield from stages(item)
+
+    for key in stages(parsed):
+        if key in ("$out", "$merge"):
+            return "That pipeline writes ({}); only reads can be run from here.".format(key)
+    return None
+
+
+def _http_writes(query):
+    """The JSON source sends GET by default and POST when asked; a POST can change things."""
+    import yaml
+
+    try:
+        parsed = yaml.safe_load(query)
+    except yaml.YAMLError:
+        return "That is not a JSON-source query this can check."
+    method = str((parsed or {}).get("method") or "get").lower() if isinstance(parsed, dict) else "get"
+    if method != "get":
+        return "That request is a {}; only GET can be run from here.".format(method.upper())
+    return None
+
+
+#: Languages that read except in a form this can spot.
+LANGUAGE_CHECKS = {
+    "mongodb": _mongodb_writes,
+    "json": _http_writes,
+}
+
+
+#: What `run_query` returns at most, whatever the SQL asks for.
+ROW_CAP = 1000
+
+
+def _capped(sql, source):
+    """
+    The SQL with its outermost query limited to `ROW_CAP` rows, or None.
+
+    On the outermost query rather than by wrapping it: SQL Server refuses an
+    ORDER BY inside a derived table, and the runners' own `apply_auto_limit`
+    only acts on a statement that starts with SELECT -- a WITH query, an
+    explicit `LIMIT 10000000`, or any query on Athena or Presto went through
+    with every row. A limit already under the cap is left as written.
+
+    None when this cannot rewrite it safely -- an unknown dialect, or not a
+    query -- and the caller falls back to the runner's limit.
+    """
+    dialect = dialect_for(source.type)
+    if dialect is None:
+        return None
+    try:
+        tree = sqlglot.parse_one(sql, read=dialect)
+    except Exception:
+        return None
+    if not isinstance(tree, exp.Query):
+        return None
+    limit = tree.args.get("limit")
+    if limit is not None:
+        try:
+            if int(limit.expression.name) <= ROW_CAP:
+                return sql
+        except (AttributeError, TypeError, ValueError):
+            pass
+    try:
+        return tree.limit(ROW_CAP, copy=True).sql(dialect=dialect)
+    except Exception:
+        return None
+
+
+def _by_language(sql, source):
+    """
+    `(True, reason)` when the source's language decides, else `(False, None)`.
+
+    A reason of None with True means "reads, go ahead". Everything not decided
+    here is SQL, and the SQL checks follow.
+    """
+    if source.type in ("python", "insecure_script"):
+        return True, "This data source runs Python, which a model may not."
+    if source.type in UNCHECKABLE_LANGUAGES:
+        return True, "This data source's queries cannot be checked for writes here; run them from the editor."
+    if source.type in LANGUAGE_CHECKS:
+        return True, LANGUAGE_CHECKS[source.type](sql)
+    if source.type in READ_ONLY_LANGUAGES:
+        return True, None
+    return False, None
+
+
 def _why_not_a_read(sql, source):
     """
     None when `sql` is one statement that only reads; otherwise why not.
@@ -473,12 +578,9 @@ def _why_not_a_read(sql, source):
     # Decided by the language, not by which Python class the runner has:
     # Athena and Presto are SQL engines on the plain base class, and went
     # through unchecked.
-    if source.type in ("python", "insecure_script"):
-        return "This data source runs Python, which a model may not."
-    if source.type in UNCHECKABLE_LANGUAGES:
-        return "This data source's queries cannot be checked for writes here; run them from the editor."
-    if source.type in READ_ONLY_LANGUAGES:
-        return None
+    decided, reason = _by_language(sql, source)
+    if decided:
+        return reason
 
     dialect = dialect_for(source.type)
     try:
@@ -1185,10 +1287,10 @@ def tool_run_query(user, org, arguments):
     if too_dear:
         return {"content": [{"type": "text", "text": too_dear}], "isError": True}
 
-    # The editor's own ceiling, applied by the runner that knows the dialect
-    # -- `LIMIT` is not spelled the same everywhere, and a query that already
-    # has one keeps it.
-    limited = source.query_runner.apply_auto_limit(sql, True)
+    # A ceiling on the outermost query, in the source's own dialect, whatever
+    # LIMIT the SQL already has. Where that cannot be done, the editor's own
+    # limit from the runner that knows the dialect.
+    limited = _capped(sql, source) or source.query_runner.apply_auto_limit(sql, True)
 
     result, error = _on_a_worker(user, source, limited, timeout=RUN_TIMEOUT)
     if error:
