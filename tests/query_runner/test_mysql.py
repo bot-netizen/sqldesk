@@ -22,8 +22,13 @@ class TestMysqlSSLMode(TestCase):
             runner = Mysql({"db": "x", "use_ssl": True, "ssl_mode": value})
             self.assertIsNotNone(runner._get_ssl_mode(), "{} has no MySQL spelling".format(value))
 
-    def test_no_mode_without_use_ssl(self):
-        self.assertIsNone(Mysql({"db": "x", "ssl_mode": "required"})._get_ssl_mode())
+    def test_a_mode_that_insists_on_tls_needs_no_checkbox(self):
+        # Choosing Required without also ticking Use SSL used to decide
+        # nothing: the connection took whatever the server offered.
+        self.assertEqual("REQUIRED", Mysql({"db": "x", "ssl_mode": "required"})._get_ssl_mode())
+
+    def test_but_preferred_alone_changes_nothing(self):
+        self.assertIsNone(Mysql({"db": "x", "ssl_mode": "preferred"})._get_ssl_mode())
 
     def test_an_unknown_mode_is_not_invented(self):
         self.assertIsNone(Mysql({"db": "x", "use_ssl": True, "ssl_mode": "nonsense"})._get_ssl_mode())

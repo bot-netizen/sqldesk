@@ -78,7 +78,12 @@ class JSONEncoder(json.JSONEncoder):
     def default(self, o):
         for encoder in self.encoders:
             result = encoder(self, o)
-            if result:
+            # `is not None`, not truthiness: a runner's encoder can rightly
+            # answer 0 or "" -- Mongo's Decimal128("0") is Decimal("0"), an
+            # empty pg range is "" -- and treating those as "not mine" fell
+            # through to json's default, which raised, and the whole result
+            # failed to store.
+            if result is not None:
                 return result
         if isinstance(o, Query):
             result = list(o)

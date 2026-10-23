@@ -104,6 +104,10 @@ class BigQuery(BaseSQLQueryRunner):
     def __init__(self, configuration):
         super().__init__(configuration)
         self.should_annotate_query = configuration.get("useQueryAnnotation", False)
+        # Set before anything can be interrupted: it was first assigned once a
+        # job had been inserted, so a cancel or timeout during the dry run or
+        # the insert raised AttributeError in the handler and hid the reason.
+        self.current_job_id = None
 
     @classmethod
     def enabled(cls):
