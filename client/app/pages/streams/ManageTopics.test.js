@@ -350,13 +350,19 @@ describe("what a topic's messages are", () => {
   });
 
   test("a schema that does not load is said under the upload, and nothing can be enabled with it", async () => {
-    const wrapper = await analysed({}, Promise.reject(new Error("The .proto files do not compile: x.proto:2:1")));
+    // Shaped as axios rejects: its own message is generic, and the reason is
+    // in the response body.
+    const refused = Object.assign(new Error("Request failed with status code 400"), {
+      response: { status: 400, data: { message: "The .proto files do not compile: x.proto:2:1" } },
+    });
+    const wrapper = await analysed({}, Promise.reject(refused));
     chooseFormat(wrapper, "protobuf");
     await settle(wrapper, 1);
 
     await uploadFile(wrapper, "x.proto", "nope");
 
     expect(wrapper.find('[data-test="SchemaProblem"]').first().text()).toContain("x.proto:2:1");
+    expect(wrapper.find('[data-test="SchemaProblem"]').first().text()).not.toContain("status code");
     expect(wrapper.find('button[data-test="EnableTopic"]').prop("disabled")).toBe(true);
   });
 
