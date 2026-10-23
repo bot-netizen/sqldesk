@@ -30,14 +30,32 @@ from sqldesk.streams.store import Store
 logger = logging.getLogger(__name__)
 
 
-def _stream(data_source_id, org, user):
+def _stream(data_source_id, org, user, stream_id=None):
+    """
+    One topic on a cluster, by its id.
+
+    A Kafka data source is a cluster with many topics. This used to take the
+    cluster's first stream, in no particular order -- written when a data
+    source was one topic -- so on a cluster with two or more enabled topics the
+    admin page's Pin and budgets changed whichever row Postgres returned first
+    while saying "Saved" for the one somebody clicked, and the rollup chart
+    could show another topic's buckets. Without an id it still answers for a
+    cluster with exactly one topic, and refuses to guess otherwise.
+    """
     source = get_object_or_404(models.DataSource.get_by_id_and_org, data_source_id, org)
     # The data source's own permission, not a new one: a stream is a data
     # source, and who may read it is already decided.
     require_access(source, user, view_only)
-    stream = models.Stream.query.filter(models.Stream.data_source_id == source.id).first()
+    streams = models.Stream.query.filter(models.Stream.data_source_id == source.id)
+    if stream_id is not None:
+        stream = streams.filter(models.Stream.id == stream_id).first()
+    else:
+        found = streams.limit(2).all()
+        if len(found) > 1:
+            abort(400, message="This cluster has several topics; say which by its stream id.")
+        stream = found[0] if found else None
     if stream is None:
-        abort(404, message="That data source is not a stream.")
+        abort(404, message="No such stream on that data source.")
     return stream
 
 
@@ -209,7 +227,7 @@ class StreamListResource(BaseResource):
 
 
 class StreamResource(BaseResource):
-    def get(self, data_source_id):
+    def get(self, data_source_id, stream_id=None):
         """
         What the stream is doing, for its page.
 
@@ -218,7 +236,7 @@ class StreamResource(BaseResource):
         consumer stopped with an error, or the topic genuinely has nothing on it
         -- and only one of them is a problem.
         """
-        stream = _stream(data_source_id, self.current_org, self.current_user)
+        stream = _stream(data_source_id, self.current_org, self.current_user, stream_id)
         return {
             "id": stream.id,
             "data_source_id": stream.data_source_id,
@@ -247,7 +265,7 @@ class StreamResource(BaseResource):
         }
 
     @require_admin
-    def post(self, data_source_id):
+    def post(self, data_source_id, stream_id=None):
         """
         Change what only an administrator may change.
 
@@ -255,7 +273,7 @@ class StreamResource(BaseResource):
         it is saved, because the alternative is a definition that looks accepted
         and then fails in a worker once a minute with nobody reading the log.
         """
-        stream = _stream(data_source_id, self.current_org, self.current_user)
+        stream = _stream(data_source_id, self.current_org, self.current_user, stream_id)
         body = request.get_json(silent=True) or {}
 
         if "pinned" in body:
@@ -293,7 +311,7 @@ class StreamResource(BaseResource):
         if reread:
             restart_window(stream)
         self.record_event({"action": "edit", "object_id": stream.id, "object_type": "stream"})
-        return self.get(data_source_id)
+        return self.get(data_source_id, stream.id)
 
     def _columns(self, stream):
         """
@@ -317,7 +335,7 @@ class StreamResource(BaseResource):
 
 
 class StreamRollupResource(BaseResource):
-    def get(self, data_source_id):
+    def get(self, data_source_id, stream_id=None):
         """
         The per-minute buckets, for a chart asking about more than the window.
 
@@ -325,7 +343,7 @@ class StreamRollupResource(BaseResource):
         hid the capped tail or quietly multiplied a sampled count would be
         wrong while looking right.
         """
-        stream = _stream(data_source_id, self.current_org, self.current_user)
+        stream = _stream(data_source_id, self.current_org, self.current_user, stream_id)
         minutes = min(int(request.args.get("minutes", 180)), 60 * 48)
         rows = (
             stream.rollups.filter(

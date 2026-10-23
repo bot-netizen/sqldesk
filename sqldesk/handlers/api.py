@@ -219,7 +219,12 @@ api.add_org_resource(
 )
 
 api.add_org_resource(StreamListResource, "/api/streams", endpoint="streams")
-api.add_org_resource(StreamResource, "/api/data_sources/<data_source_id>/stream", endpoint="data_source_stream")
+api.add_org_resource(
+    StreamResource,
+    "/api/data_sources/<data_source_id>/stream",
+    "/api/data_sources/<data_source_id>/stream/<int:stream_id>",
+    endpoint="data_source_stream",
+)
 api.add_org_resource(ClusterTopicsResource, "/api/data_sources/<data_source_id>/topics", endpoint="cluster_topics")
 api.add_org_resource(
     TopicAnalysisResource,
@@ -238,6 +243,7 @@ api.add_org_resource(StreamWatchResource, "/api/streams/<stream_id>/watch", endp
 api.add_org_resource(
     StreamRollupResource,
     "/api/data_sources/<data_source_id>/stream/rollup",
+    "/api/data_sources/<data_source_id>/stream/<int:stream_id>/rollup",
     endpoint="data_source_stream_rollup",
 )
 
