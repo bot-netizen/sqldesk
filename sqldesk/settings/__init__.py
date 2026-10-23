@@ -623,6 +623,12 @@ STREAM_MAX_PER_USER = int(os.environ.get("SQLDESK_STREAM_MAX_PER_USER", "2"))
 #: A forgotten tab would otherwise hold a slot all day.
 STREAM_MAX_MINUTES = int(os.environ.get("SQLDESK_STREAM_MAX_MINUTES", "30"))
 
+# How long a running job is given to finish when its worker is told to stop --
+# a deploy, a scale-down, a node drain. Under the pod's 300 s grace period and
+# supervisord's 290 s, so the job finishes or fails on its own terms before
+# anything is killed.
+WORKER_SHUTDOWN_SECONDS = int(os.environ.get("SQLDESK_WORKER_SHUTDOWN_SECONDS", "280"))
+
 # A stream query runs in the web process, so it is held to a fraction of
 # gunicorn's 60-second timeout and of the pod's memory: past these it is
 # stopped with a sentence rather than taking a web worker down with it.

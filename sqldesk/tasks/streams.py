@@ -28,6 +28,7 @@ from sqldesk.streams import activity, decode, handover, rollup, slots, watching
 from sqldesk.streams.consumer import Broker, consume
 from sqldesk.streams.consumer import _security as security
 from sqldesk.streams.store import RECEIVED, Store
+from sqldesk.tasks.worker import shutting_down
 from sqldesk.utils import utcnow
 from sqldesk.worker import job
 
@@ -153,6 +154,10 @@ def consume_stream(stream_id):
     carry_on = False
 
     def should_continue():
+        # The worker has been told to stop: finish this flush and hand over,
+        # rather than run until the pod is killed with nothing handed on.
+        if shutting_down():
+            return False
         # Re-read rather than trusting the row we loaded: whether anybody is
         # watching changes while this runs, which is the entire point.
         models.db.session.refresh(stream)
