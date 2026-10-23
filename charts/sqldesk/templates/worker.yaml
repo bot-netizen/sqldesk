@@ -34,13 +34,19 @@ spec:
               {{- /*
                 MCP's queue goes last on the ordinary worker when nothing
                 else takes it. Named with no worker of its own, it would
-                otherwise hold every model query forever.
+                otherwise hold every model query forever. The same for
+                streams: switched on with their worker off, consumer jobs
+                waited for a worker that was not there and the Streams pages
+                never filled.
               */}}
+              {{- $queues := .Values.worker.queues }}
               {{- if and .Values.mcp.enabled .Values.mcp.queue (not .Values.mcp.worker.enabled) }}
-              value: {{ printf "%s,%s" .Values.worker.queues .Values.mcp.queue | quote }}
-              {{- else }}
-              value: {{ .Values.worker.queues | quote }}
+              {{- $queues = printf "%s,%s" $queues .Values.mcp.queue }}
               {{- end }}
+              {{- if and .Values.streams.enabled (not .Values.streams.worker.enabled) }}
+              {{- $queues = printf "%s,streams" $queues }}
+              {{- end }}
+              value: {{ $queues | quote }}
             - name: WORKERS_COUNT
               value: {{ .Values.worker.workersCount | quote }}
           livenessProbe:

@@ -16,6 +16,7 @@
 #
 #   --profile mcp         a worker of MCP's own (set SQLDESK_MCP_QUEUE=mcp)
 #   --profile rendering   the browser that draws pictures for alert emails
+#   --profile streams     Kafka stream consumers (set SQLDESK_STREAMS_ENABLED=true)
 #
 #   docker compose -f compose.prod.yaml --profile mcp --profile rendering up -d
 #
@@ -71,6 +72,10 @@ x-sqldesk-environment: &sqldesk-environment
   # the variable never reaches the container, and setting it in the shell
   # appears to do nothing.
   SQLDESK_FEATURE_AI: ${SQLDESK_FEATURE_AI:-false}
+  # Off unless the streams profile runs: on, with nothing taking from the
+  # `streams` queue, the Streams menu appeared, its pages never filled, and a
+  # consumer job per watched stream piled up in Redis every minute.
+  SQLDESK_STREAMS_ENABLED: ${SQLDESK_STREAMS_ENABLED:-false}
   # Upstream leaves CSRF checks off so as not to break old installs. There
   # are none to break here, and the application has sent the token all
   # along. API-key calls, MCP included, are not affected.
@@ -121,6 +126,20 @@ services:
       QUEUES: "mcp"
       WORKERS_COUNT: ${SQLDESK_MCP_WORKERS_COUNT:-1}
     stop_grace_period: 5m
+
+  # Kafka stream consumers. Each process consumes one topic at a time and
+  # holds it for minutes, so they are not the ordinary worker's to run: a
+  # stream would otherwise take a worker from the dashboards people are
+  # loading. Needs SQLDESK_STREAMS_ENABLED=true in .env.
+  stream-worker:
+    <<: *sqldesk-service
+    profiles: ["streams"]
+    command: worker
+    environment:
+      <<: *sqldesk-environment
+      QUEUES: "streams"
+      WORKERS_COUNT: ${SQLDESK_STREAM_WORKERS_COUNT:-2}
+    stop_grace_period: 2m
 
   scheduler:
     <<: *sqldesk-service
