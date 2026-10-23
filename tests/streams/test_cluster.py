@@ -9,7 +9,7 @@ the streams permission guards.
 """
 
 import unittest
-from unittest import TestCase
+from unittest import TestCase, mock
 
 from sqldesk.query_runner.kafka_stream import names_in, table_name
 from tests import BaseTestCase
@@ -167,7 +167,7 @@ class TestAttachingTheWindows(TestCase):
     def test_a_window_with_no_events_yet_is_not_counted_as_attached(self):
         streams = [self.window("orders"), self.empty_window("payments")]
 
-        connection, attached = self.runner._attached(streams, "SELECT * FROM payments")
+        connection, attached = self.runner._attached(streams, "SELECT * FROM orders, payments")
         try:
             self.assertEqual(["orders"], [stream.topic for stream in attached])
         finally:
@@ -176,7 +176,7 @@ class TestAttachingTheWindows(TestCase):
     def test_and_so_is_a_topic_with_no_file_at_all(self):
         streams = [self.window("orders"), self.missing("payments")]
 
-        connection, attached = self.runner._attached(streams, "SELECT * FROM payments")
+        connection, attached = self.runner._attached(streams, "SELECT * FROM orders, payments")
         try:
             self.assertEqual(["orders"], [stream.topic for stream in attached])
         finally:
@@ -222,6 +222,108 @@ class TestAttachingTheWindows(TestCase):
             self.assertEqual(2, connection.execute("SELECT count(*) FROM prod_orders_v2").fetchone()[0])
         finally:
             connection.close()
+
+
+class TestAStreamQueryIsLockedIn(TestAttachingTheWindows):
+    """
+    The SQL here is typed by anybody who can read the cluster, and it runs in
+    the web process. Until 0.7.7 the connection was DuckDB's default, which
+    could read any file the server can -- `/proc/self/environ` holds the secret
+    key and the database URL -- write files, and install extensions.
+    """
+
+    def locked(self, *topics):
+        streams = [self.window(topic, rows=3) for topic in topics]
+        connection, _ = self.runner._attached(streams, "SELECT * FROM " + ", ".join(topics))
+        self.addCleanup(connection.close)
+        return connection
+
+    def test_the_windows_it_names_are_still_readable(self):
+        connection = self.locked("orders")
+
+        self.assertEqual(3, connection.execute("SELECT count(*) FROM orders").fetchone()[0])
+
+    def test_everything_else_is_refused(self):
+        import os
+
+        connection = self.locked("orders")
+        other = self.window("payments", rows=1).store_path()
+        escapes = {
+            "read a file": "SELECT * FROM read_text('/etc/hosts')",
+            "list files": "SELECT * FROM glob('{}/*')".format(self.folder),
+            "write a file": "COPY (SELECT 1) TO '{}'".format(os.path.join(self.folder, "out.csv")),
+            "attach another window": "ATTACH '{}' AS other (READ_ONLY)".format(other),
+            "install an extension": "INSTALL httpfs",
+            "load an extension": "LOAD httpfs",
+            "switch access back on": "SET enable_external_access = true",
+            "unlock": "SET lock_configuration = false",
+        }
+        for what, sql in escapes.items():
+            with self.subTest(what):
+                with self.assertRaises(Exception):
+                    connection.execute(sql).fetchall()
+        self.assertFalse(os.path.exists(os.path.join(self.folder, "out.csv")))
+
+    def test_a_topic_the_query_does_not_name_is_not_attached(self):
+        streams = [self.window("orders"), self.window("payments")]
+
+        connection, attached = self.runner._attached(streams, "SELECT * FROM orders")
+        self.addCleanup(connection.close)
+
+        self.assertEqual(["orders"], [stream.topic for stream in attached])
+        self.assertEqual(
+            0,
+            connection.execute(
+                "SELECT count(*) FROM duckdb_databases() WHERE database_name = 'payments__window'"
+            ).fetchone()[0],
+        )
+
+    def test_a_lock_that_cannot_be_applied_refuses_the_query(self):
+        from sqldesk.query_runner import kafka_stream
+
+        streams = [self.window("orders")]
+        with mock.patch.object(kafka_stream, "LOCKED_DOWN", ("SET no_such_setting = 1",)):
+            with mock.patch.object(self.runner, "_streams", return_value=streams):
+                with mock.patch("sqldesk.streams.activity.note_viewed"):
+                    data, error = self.runner.run_query("SELECT * FROM orders", None)
+
+        self.assertIsNone(data)
+        self.assertIn("could not be run safely", error)
+
+
+class TestAStreamQueryIsBounded(TestAttachingTheWindows):
+    """It runs in the web process every couple of seconds, so it has a ceiling in rows and in time."""
+
+    def run_on(self, streams, sql):
+        from sqldesk.utils import json_loads
+
+        # Recording that the topic was viewed needs a real stream row; what is
+        # under test is the query.
+        with mock.patch.object(self.runner, "_streams", return_value=streams):
+            with mock.patch("sqldesk.streams.activity.note_viewed"):
+                data, error = self.runner.run_query(sql, None)
+        return (json_loads(data) if data else None), error
+
+    def test_it_stops_at_its_row_ceiling_and_says_so(self):
+        result, error = self.run_on([self.window("orders", rows=self.runner.MAX_ROWS + 50)], "SELECT * FROM orders")
+
+        self.assertIsNone(error)
+        self.assertEqual(self.runner.MAX_ROWS, len(result["rows"]))
+        self.assertTrue(result["truncated"])
+
+    def test_under_it_nothing_is_marked(self):
+        result, _ = self.run_on([self.window("orders", rows=5)], "SELECT * FROM orders")
+
+        self.assertEqual((5, False), (len(result["rows"]), result["truncated"]))
+
+    def test_a_query_that_runs_too_long_is_stopped_with_a_sentence(self):
+        with mock.patch("sqldesk.settings.STREAM_QUERY_SECONDS", 0.2):
+            _, error = self.run_on(
+                [self.window("orders", rows=3)],
+                "SELECT count(*) FROM orders, range(100000000000) a",
+            )
+
+        self.assertIn("longer than 0.2 seconds", error)
 
 
 def _kafka_runner_available():

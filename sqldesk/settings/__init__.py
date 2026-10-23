@@ -622,6 +622,13 @@ STREAM_MAX_PER_USER = int(os.environ.get("SQLDESK_STREAM_MAX_PER_USER", "2"))
 #: How long one stream may run before somebody has to say they still want it.
 #: A forgotten tab would otherwise hold a slot all day.
 STREAM_MAX_MINUTES = int(os.environ.get("SQLDESK_STREAM_MAX_MINUTES", "30"))
+
+# A stream query runs in the web process, so it is held to a fraction of
+# gunicorn's 60-second timeout and of the pod's memory: past these it is
+# stopped with a sentence rather than taking a web worker down with it.
+STREAM_QUERY_SECONDS = float(os.environ.get("SQLDESK_STREAM_QUERY_SECONDS", "20"))
+STREAM_QUERY_THREADS = int(os.environ.get("SQLDESK_STREAM_QUERY_THREADS", "2"))
+STREAM_QUERY_MEMORY_MB = int(os.environ.get("SQLDESK_STREAM_QUERY_MEMORY_MB", "512"))
 # Which queue an MCP-issued query goes on. Empty means the data source's own,
 # which is also where dashboards go -- so a model exploring competes with the
 # people waiting for a dashboard to load. Name a queue here and give it

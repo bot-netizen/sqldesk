@@ -787,10 +787,12 @@ class StreamQueryResource(BaseResource):
 
         import json
 
+        # The runner already stopped at its own ceiling and says whether it
+        # did; this slice only matters if the two are ever set differently.
         parsed = json.loads(data)
         rows = parsed.get("rows") or []
         return {
             "columns": parsed.get("columns") or [],
             "rows": rows[: self.MAX_ROWS],
-            "truncated": len(rows) > self.MAX_ROWS,
+            "truncated": bool(parsed.get("truncated")) or len(rows) > self.MAX_ROWS,
         }
