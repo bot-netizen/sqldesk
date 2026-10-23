@@ -222,14 +222,22 @@ function QuerySource(props) {
   const [selectedText, setSelectedText] = useState(null);
 
   const doExecuteQuery = useCallback(
-    (skipParametersDirtyFlag = false) => {
+    (skipParametersDirtyFlag = false, tick = false) => {
       if (!queryFlags.canExecute || (!skipParametersDirtyFlag && (areParametersDirty || isQueryExecuting))) {
         return;
       }
       if (isStream) {
+        // The two-second refresh skips a beat rather than piling requests up
+        // behind a slow one, and rests while the tab is hidden: a tab nobody
+        // is looking at should not keep a consumer slot. It also runs quietly
+        // -- no event row, no notification prompt, no "updated" -- where it
+        // used to record an execution every two seconds, 1,800 an hour a tab.
+        if (tick && (isQueryExecuting || document.hidden)) {
+          return;
+        }
         // Against the window, now, in the web process. Nothing is enqueued and
         // nothing is stored; see `services/stream-query`.
-        executeQuery(runNow(), () => runStreamQuery(dataSource.id, selectedText || query.query));
+        executeQuery(runNow(), () => runStreamQuery(dataSource.id, selectedText || query.query), { quiet: tick });
         return;
       }
       if (isDirty || !isEmpty(selectedText)) {
@@ -307,7 +315,7 @@ function QuerySource(props) {
       return undefined;
     }
     executeRef.current(true);
-    const timer = setInterval(() => executeRef.current(true), STREAM_REFRESH_MS);
+    const timer = setInterval(() => executeRef.current(true, true), STREAM_REFRESH_MS);
     return () => {
       clearInterval(timer);
       stopWatching();
