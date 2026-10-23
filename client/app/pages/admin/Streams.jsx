@@ -101,7 +101,7 @@ function Budgets({ stream, onSaved }) {
       })
       .catch(() => notification.error("Could not save that."))
       .finally(() => setSaving(false));
-  }, [budget, ceiling, stream.data_source_id, stream.topic, onSaved]);
+  }, [budget, ceiling, stream.data_source_id, stream.id, stream.topic, onSaved]);
 
   const budgetId = `stream-${stream.id}-budget`;
   const ceilingId = `stream-${stream.id}-ceiling`;
