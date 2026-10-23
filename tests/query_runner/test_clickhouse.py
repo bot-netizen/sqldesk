@@ -101,15 +101,10 @@ class TestClickHouse(TestCase):
         (url,), kwargs = post_request.call_args
         self.assertEqual(url, "http://clickhouse:8123")
         self.assertEqual(kwargs["data"], b"SELECT 1\nFORMAT JSON")
-        self.assertEqual(
-            kwargs["params"],
-            {
-                "user": "default",
-                "password": "",
-                "database": "system",
-                "default_format": "JSON",
-            },
-        )
+        self.assertEqual("system", kwargs["params"]["database"])
+        self.assertEqual("JSON", kwargs["params"]["default_format"])
+        self.assertTrue(kwargs["params"]["query_id"].startswith("sqldesk_"))
+        self.assertEqual(("default", ""), kwargs["auth"])
         self.assertEqual(kwargs["timeout"], 60)
 
     @patch("requests.post")
@@ -182,3 +177,45 @@ FORMAT JSON""",
 
         if expected_id:
             self.assertEqual(kwargs["params"]["session_id"], session_id)
+
+    @patch("requests.post")
+    def test_the_password_never_goes_in_the_url(self, post_request):
+        """In the query string it rode into exceptions, and from there into the log."""
+        runner = ClickHouse({"url": "http://clickhouse:8123", "dbname": "system", "user": "u", "password": "s3cret"})
+        response = Mock(status_code=200, ok=True, text=json.dumps(simple_query_response))
+        response.json.return_value = simple_query_response
+        post_request.return_value = response
+
+        runner.run_query("SELECT 1", None)
+
+        _, kwargs = post_request.call_args
+        self.assertNotIn("s3cret", json.dumps(kwargs["params"]))
+        self.assertEqual(("u", "s3cret"), kwargs["auth"])
+
+    @patch("requests.post")
+    def test_a_connection_error_does_not_carry_it_either(self, post_request):
+        import requests
+
+        runner = ClickHouse({"url": "http://clickhouse:8123", "dbname": "system", "password": "s3cret"})
+        post_request.side_effect = requests.ConnectionError("http://clickhouse:8123/?password=s3cret refused")
+
+        with self.assertLogs("sqldesk.query_runner.clickhouse", level="WARNING") as logged:
+            _, error = runner.run_query("SELECT 1", None)
+
+        self.assertNotIn("s3cret", error)
+        self.assertNotIn("s3cret", "\n".join(logged.output))
+
+    @patch("requests.post")
+    def test_a_query_past_the_timeout_is_asked_to_stop_on_the_server(self, post_request):
+        """ClickHouse answers only when the result is ready, so a client that gives up does not stop it."""
+        import requests
+
+        runner = ClickHouse({"url": "http://clickhouse:8123", "dbname": "system", "timeout": 30})
+        post_request.side_effect = [requests.ReadTimeout(), Mock(ok=True, text="")]
+
+        _, error = runner.run_query("SELECT sleep(60)", None)
+
+        self.assertIn("did not answer within 30 seconds", error)
+        query_id = post_request.call_args_list[0][1]["params"]["query_id"]
+        kill = post_request.call_args_list[1][1]["data"].decode()
+        self.assertEqual("KILL QUERY WHERE query_id = '{}' ASYNC".format(query_id), kill)
