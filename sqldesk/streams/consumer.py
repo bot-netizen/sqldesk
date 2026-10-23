@@ -387,6 +387,9 @@ class Flush:
         )
 
 
+#: Consecutive failed flushes before a consumer gives up and says why.
+MAX_FAILED_FLUSHES = 30
+
 #: How much one flush moves the measured rate. A second's count is noisy -- a
 #: producer batching, a poll that came back early -- and the sample rate it
 #: decides is shown on every chart, so it should not jump about with it.
@@ -497,6 +500,7 @@ def consume(stream, broker, should_continue, now=None, decoder=None):
         # as one did not.
         broker.open()
 
+        failures = 0
         while should_continue():
             started = time.monotonic()
             collected = []
@@ -510,9 +514,30 @@ def consume(stream, broker, should_continue, now=None, decoder=None):
                     break
                 if time.monotonic() - started >= settings.STREAM_FLUSH_SECONDS:
                     break
-            flush_once(stream, store, collected, now=now, decoder=decoder)
+            try:
+                flush_once(stream, store, collected, now=now, decoder=decoder)
+                failures = 0
+            except decode.SchemaError:
+                # The uploaded schema no longer loads: nothing will read until
+                # somebody fixes it, and the reason belongs on the page.
+                raise
+            except Exception:
+                # One bad second is dropped and counted, not the end of the
+                # consumer: a message DuckDB cannot insert, or a reader holding
+                # the window a moment too long, used to stop it -- with no
+                # hand-over, and again on every restart while the message was
+                # there. Thirty in a row is something actually wrong.
+                failures += 1
+                logger.warning("stream %s: a flush failed (%s in a row)", stream.id, failures, exc_info=True)
+                models.db.session.rollback()
+                if failures >= MAX_FAILED_FLUSHES:
+                    raise
+                stream.malformed = (stream.malformed or 0) + len(collected)
+                models.db.session.commit()
             # After the flush and never before it, so a committed offset only
-            # ever covers events that are already in the window.
+            # ever covers events that are already in the window -- or, after
+            # a failed flush, events that were counted and dropped, so a poison
+            # message is passed rather than read again for ever.
             broker.commit_position()
             # The window is a file and DuckDB gives it to one process at a
             # time. Held open for the whole run -- minutes -- this consumer

@@ -264,13 +264,25 @@ class Store:
             # reader could make columns out of.
             return 0, 0
 
-        empty = " AND ".join('"{}" IS NULL'.format(name) for name in arriving)
+        empty = " AND ".join("{} IS NULL".format(_quoted(name)) for name in arriving)
 
         # One expression per column the table has: the flush's value where it
         # sent one, NULL where it did not. Explicit rather than `*` so neither
         # a dropped field nor an added one is a binder error.
-        wanted = [name for name, _kind in self.columns() if name not in RESERVED]
-        chosen = ", ".join('"{}"'.format(name) if name in arriving else 'NULL AS "{}"'.format(name) for name in wanted)
+        #
+        # Cast to the table's type with TRY_CAST: the columns were fixed by
+        # the first flush, and one message sending `"id": "a-17"` where the
+        # first sent `"id": 1` made this flush's column VARCHAR, the INSERT a
+        # conversion error, and the consumer die -- again on every restart
+        # while that message was in the window. Now that value is NULL and the
+        # rest of the row is kept.
+        kinds = {name: kind for name, kind in self.columns() if name not in RESERVED}
+        chosen = ", ".join(
+            "TRY_CAST({0} AS {1}) AS {0}".format(_quoted(name), kinds[name])
+            if name in arriving
+            else "NULL AS {}".format(_quoted(name))
+            for name in kinds
+        )
 
         before = self.rows()
         self.connection.execute(
@@ -352,6 +364,11 @@ class Store:
             "SELECT count(*) FROM events WHERE {} >= now() - INTERVAL '{} seconds'".format(RECEIVED, int(over_seconds))
         ).fetchone()
         return (counted[0] or 0) / float(over_seconds)
+
+
+def _quoted(name):
+    """A column name as a DuckDB identifier, whatever characters the producer put in it."""
+    return '"{}"'.format(name.replace('"', '""'))
 
 
 def _objects_only(raw_messages):

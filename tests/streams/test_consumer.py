@@ -375,6 +375,44 @@ class TestTheLoop(ConsumerTestCase):
         self.assertEqual(2, models.Stream.query.get(stream.id).rows)
 
 
+class TestABadSecondIsNotTheEnd(ConsumerTestCase):
+    """
+    A flush that fails -- a message DuckDB cannot insert, a reader holding the
+    window a moment too long -- used to end the consumer, with no hand-over.
+    Now it is counted and dropped, and only a long run of them stops it.
+    """
+
+    def test_the_consumer_carries_on_past_a_failed_flush(self):
+        stream = self.stream()
+        broker = FakeBroker([message({"x": 1})], [message({"x": 2})], [message({"x": 3})])
+        real = consumer.flush_once
+        calls = {"n": 0}
+
+        def flaky(*args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 2:
+                raise RuntimeError("Conversion Error")
+            return real(*args, **kwargs)
+
+        with mock.patch("sqldesk.settings.STREAM_FLUSH_SECONDS", 0):
+            with mock.patch.object(consumer, "flush_once", side_effect=flaky):
+                consumer.consume(stream, broker, until_drained(broker))
+
+        self.assertEqual(3, calls["n"])
+        self.assertEqual(1, stream.malformed)
+        # The failed second's position is passed, so a poison message is not read for ever.
+        self.assertEqual(3, broker.commits)
+
+    def test_but_a_long_run_of_them_stops_it_with_the_reason(self):
+        stream = self.stream()
+        broker = FakeBroker(*[[message({"x": n})] for n in range(consumer.MAX_FAILED_FLUSHES + 5)])
+
+        with mock.patch("sqldesk.settings.STREAM_FLUSH_SECONDS", 0):
+            with mock.patch.object(consumer, "flush_once", side_effect=RuntimeError("disk full")):
+                with self.assertRaisesRegex(RuntimeError, "disk full"):
+                    consumer.consume(stream, broker, until_drained(broker, cap=100))
+
+
 class TestTheWindowIsNotHeldOpen(ConsumerTestCase):
     """
     A consumer must not hold the window's file for its whole run.
