@@ -401,6 +401,7 @@ function QuerySource(props) {
           query={query}
           dataSource={dataSource}
           sourceMode
+          isDirty={isDirty}
           selectedVisualization={selectedVisualization}
           headerExtra={
             <DynamicComponent name="QuerySource.HeaderExtra" query={query}>
