@@ -2,6 +2,20 @@ from sqldesk import models
 from tests import BaseTestCase
 
 
+class TestAnIdThatMatchesNothing(BaseTestCase):
+    """A mistyped or deleted id came back as a 500, which reads as the server broken."""
+
+    def test_is_a_404_not_a_500(self):
+        for method, path, body in (
+            ("delete", "/api/widgets/999999", None),
+            ("post", "/api/widgets/999999", {"options": {}, "text": ""}),
+            ("post", "/api/dashboards/999999", {"name": "x", "version": 1}),
+        ):
+            with self.subTest(path):
+                rv = self.make_request(method, path, data=body)
+                self.assertEqual(404, rv.status_code, rv.data[:200])
+
+
 class WidgetAPITest(BaseTestCase):
     def create_widget(self, dashboard, visualization, width=1):
         data = {

@@ -172,6 +172,16 @@ class TestDashboardForkResourcePost(BaseTestCase):
 
         self.assertEqual(rv.status_code, 200)
 
+    def test_a_copy_of_a_streaming_dashboard_is_a_streaming_dashboard(self):
+        # It defaulted to "saved": the copy landed in the saved list with
+        # stream widgets on it, and was offered warehouse intervals.
+        dashboard = self.factory.create_dashboard(kind="streaming")
+        db.session.commit()
+
+        rv = self.make_request("post", "/api/dashboards/{}/fork".format(dashboard.id))
+
+        self.assertEqual("streaming", Dashboard.query.get(rv.json["id"]).kind)
+
     def test_a_copy_carries_only_the_panels_the_copier_may_read(self):
         # The copy is the copier's to share, and a public link reads every
         # query on the dashboard it is for -- so a locked panel must not

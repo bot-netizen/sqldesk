@@ -1,5 +1,7 @@
 from flask import make_response
 from flask_restful import Api
+from sqlalchemy.orm.exc import NoResultFound
+from werkzeug.exceptions import NotFound
 from werkzeug.wrappers import Response
 
 from sqldesk.handlers.alerts import (
@@ -141,6 +143,16 @@ class ApiExt(Api):
     def add_org_resource(self, resource, *urls, **kwargs):
         urls = [org_scoped_rule(url) for url in urls]
         return self.add_resource(resource, *urls, **kwargs)
+
+    def handle_error(self, e):
+        # An id that matches nothing is a 404, wherever the lookup happens.
+        # About fifteen endpoints looked one up with `get_by_id_and_org`
+        # without `get_object_or_404` around it, and a mistyped or deleted id
+        # came back as a 500 -- which reads as the server broken, and pages
+        # somebody.
+        if isinstance(e, NoResultFound):
+            e = NotFound()
+        return super().handle_error(e)
 
 
 api = ApiExt()

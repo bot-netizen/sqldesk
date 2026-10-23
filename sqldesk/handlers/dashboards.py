@@ -62,6 +62,23 @@ def filter_by_kind(results):
     return results.filter(models.Dashboard.kind == kind)
 
 
+def _write_without_a_new_version(dashboard, **fields):
+    """
+    Set fields on a dashboard without bumping its version.
+
+    Through the ORM, `version_id_col` moves the version, and whoever has the
+    dashboard open in edit mode is told their next save conflicts with a change
+    they cannot see -- verifying a dashboard or filing it in a folder gave its
+    editor a 409. None of these fields are what an editor saves. The live
+    settings are written the same way, for the same reason.
+    """
+    models.db.session.execute(
+        models.Dashboard.__table__.update().where(models.Dashboard.id == dashboard.id).values(**fields)
+    )
+    models.db.session.commit()
+    models.db.session.refresh(dashboard)
+
+
 class DashboardListResource(BaseResource):
     @require_permission("list_dashboards")
     def get(self):
@@ -650,21 +667,21 @@ class DashboardVerificationResource(BaseResource):
         if not note:
             abort(400, message="Say what was checked. A badge with no reason is one nobody can weigh.")
 
-        dashboard.verified_by = self.current_user
-        dashboard.verified_at = utcnow()
-        dashboard.verified_note = note
-        dashboard.verified_fingerprint = dashboard.content_fingerprint()
-        models.db.session.commit()
+        _write_without_a_new_version(
+            dashboard,
+            verified_by_id=self.current_user.id,
+            verified_at=utcnow(),
+            verified_note=note,
+            verified_fingerprint=dashboard.content_fingerprint(),
+        )
         self.record_event({"action": "verify", "object_id": dashboard.id, "object_type": "dashboard"})
         return {"verification": serialize_dashboard_verification(dashboard)}
 
     def delete(self, dashboard_id):
         dashboard = self._dashboard(dashboard_id)
-        dashboard.verified_by = None
-        dashboard.verified_at = None
-        dashboard.verified_note = None
-        dashboard.verified_fingerprint = None
-        models.db.session.commit()
+        _write_without_a_new_version(
+            dashboard, verified_by_id=None, verified_at=None, verified_note=None, verified_fingerprint=None
+        )
         self.record_event({"action": "unverify", "object_id": dashboard.id, "object_type": "dashboard"})
         return {"verification": None}
 

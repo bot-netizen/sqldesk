@@ -1766,7 +1766,10 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
         return cls.query.filter(cls.slug == slug, cls.org == org).one()
 
     def fork(self, user, keep=lambda widget: True):
-        forked_list = ["org", "layout", "dashboard_filters_enabled", "tags"]
+        # `kind` too: a copy of a streaming dashboard is a streaming dashboard.
+        # Without it the copy defaulted to "saved", landed in the saved list
+        # with stream widgets on it, and was offered warehouse intervals.
+        forked_list = ["org", "layout", "dashboard_filters_enabled", "tags", "kind"]
 
         kwargs = {a: getattr(self, a) for a in forked_list}
         forked_dashboard = Dashboard(name="Copy of (#{}) {}".format(self.id, self.name), user=user, **kwargs)
