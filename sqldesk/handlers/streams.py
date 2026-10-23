@@ -22,7 +22,7 @@ from flask_restful import abort
 
 from sqldesk import features, models, settings
 from sqldesk.handlers.base import BaseResource, get_object_or_404
-from sqldesk.permissions import require_access, require_admin, view_only
+from sqldesk.permissions import has_access, require_access, require_admin, view_only
 from sqldesk.query_runner.kafka_stream import table_name
 from sqldesk.streams import activity, decode, rollup, slots, watching, window
 from sqldesk.streams.store import Store
@@ -594,23 +594,32 @@ class RunningStreamsResource(BaseResource):
     """
     What is consuming right now, and how much room is left.
 
-    Everybody may read it: "all the slots are in use" is only actionable if you
-    can see what is using them and who to ask. Stopping one is for its owner or
-    an administrator.
+    Everybody may read it for the clusters they can read: "all the slots are in
+    use" is only actionable if you can see what is using them and who to ask.
+    Not for clusters they cannot -- a topic's name, columns and errors are the
+    cluster's data, and the page that lists a cluster's topics is behind a
+    permission for exactly that reason. The slot count stays whole, since the
+    slots are shared. Stopping one is for its owner or an administrator.
     """
 
     def get(self):
-        streams = models.Stream.query.filter(models.Stream.org == self.current_org).order_by(models.Stream.topic).all()
-        names = dict(
-            models.db.session.query(models.DataSource.id, models.DataSource.name).filter(
-                models.DataSource.org == self.current_org
+        sources = models.DataSource.query.filter(models.DataSource.org == self.current_org).all()
+        readable = {source.id: source.name for source in sources if has_access(source, self.current_user, view_only)}
+        streams = (
+            models.Stream.query.filter(
+                models.Stream.org == self.current_org, models.Stream.data_source_id.in_(list(readable) or [0])
             )
+            .order_by(models.Stream.topic)
+            .all()
         )
-        running = [_stream_dict(stream, names.get(stream.data_source_id)) for stream in streams]
-        return {
-            "streams": [one for one in running if one["state"] != watching.COLD],
-            "slots": _slots(),
-        }
+        # The cold ones are left out before any is described: describing reads
+        # who started it and asks Redis twice, for every stream on every poll.
+        running = [
+            _stream_dict(stream, readable.get(stream.data_source_id))
+            for stream in streams
+            if watching.state(stream) != watching.COLD
+        ]
+        return {"streams": running, "slots": _slots()}
 
 
 class StreamWatchResource(BaseResource):

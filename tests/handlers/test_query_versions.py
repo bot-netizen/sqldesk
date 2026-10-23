@@ -303,6 +303,28 @@ class TestRestoring(VersionTestCase):
         self.assertEqual(200, self.restore(first).status_code)
         self.assertEqual("select 1", models.Query.query.get(self.query.id).query_text)
 
+    def test_a_version_naming_a_dropdown_query_they_cannot_read_is_not_restored(self):
+        """
+        Saving such a dropdown by hand is refused. Restoring a version that
+        once named one was not, and the dropdown endpoint then served that
+        query's values.
+        """
+        secret_group = self.factory.create_group(name="Finance")
+        secret_source = self.factory.create_data_source(name="Finance", group=secret_group)
+        secret = self.factory.create_query(data_source=secret_source, name="Salaries")
+        parameters = [{"name": "who", "title": "who", "type": "query", "queryId": secret.id}]
+        query = self.factory.create_query(name="Uses it", options={"parameters": parameters})
+        db.session.commit()
+        first = models.Change.query.filter(
+            models.Change.object_id == query.id, models.Change.object_type == "queries"
+        ).first()
+        self.make_request("post", "/api/queries/{}".format(query.id), data={"options": {"parameters": []}})
+
+        rv = self.make_request("post", "/api/queries/{}/versions/{}/restore".format(query.id, first.id))
+
+        self.assertEqual(403, rv.status_code)
+        self.assertEqual([], models.Query.query.get(query.id).options.get("parameters"))
+
     def test_view_only_access_to_the_source_is_not_enough(self):
         # A restore writes the SQL, which is deciding what runs on the data
         # source -- the same decision as typing it, and it asks for the same

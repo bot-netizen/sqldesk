@@ -270,6 +270,30 @@ class TestWhatIsRunning(TopicTestCase):
 
         self.assertEqual([], rv.json["streams"])
 
+    def test_but_only_for_the_clusters_they_can_read(self):
+        """A topic's name, columns and errors are the cluster's data."""
+        from sqldesk import redis_connection
+        from sqldesk.streams import slots, watching
+
+        redis_connection.delete(slots.SLOTS_KEY, slots.LOCK_KEY)
+        restricted = self.factory.create_group(name="Payments team")
+        theirs = self.factory.create_data_source(
+            name="Payments cluster", type="kafka_stream", options={"brokers": "b:9092"}, group=restricted
+        )
+        ours = models.Stream(org=self.source.org, data_source=self.source, topic="orders")
+        hidden = models.Stream(org=self.source.org, data_source=theirs, topic="card_numbers")
+        db.session.add_all([ours, hidden])
+        db.session.commit()
+        for stream in (ours, hidden):
+            watching.check_in(stream.id, "ada")
+            slots.acquire(stream.id, owner="ada")
+
+        rv = self.make_request("get", "/api/streams/running", user=self.factory.create_user())
+
+        self.assertEqual(["orders"], [one["topic"] for one in rv.json["streams"]])
+        # The slots are shared, so the count stays whole.
+        self.assertEqual(2, rv.json["slots"]["used"])
+
     def test_everybody_may_read_it(self):
         # "All the slots are in use" is only actionable if you can see what is
         # using them and who to ask.
