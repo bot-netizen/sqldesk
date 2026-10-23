@@ -89,3 +89,29 @@ class TestSqliteStopsWhenTold(TestCase):
                 sqlite.Sqlite({"dbpath": "/tmp/x.db"}).run_query("SELECT 1", None)
 
         connection.interrupt.assert_called_once()
+
+
+class TestAnOdbcRunnerNeedsItsDriver(TestCase):
+    """
+    pyodbc installs on every architecture; the image puts Microsoft's and
+    Databricks' ODBC drivers on amd64 only. Checking for pyodbc alone offered
+    both on arm64, where every connection test failed with "Can't open lib".
+    """
+
+    def test_without_the_driver_neither_is_offered(self):
+        from sqldesk.query_runner import databricks, mssql_odbc
+
+        with mock.patch("sqldesk.query_runner.has_odbc_driver", return_value=False):
+            with mock.patch.object(mssql_odbc, "has_odbc_driver", return_value=False):
+                with mock.patch.object(databricks, "has_odbc_driver", return_value=False):
+                    self.assertFalse(mssql_odbc.SQLServerODBC.enabled())
+                    self.assertFalse(databricks.Databricks.enabled())
+
+    def test_the_driver_is_asked_for_by_the_name_the_runner_connects_with(self):
+        from sqldesk.query_runner import has_odbc_driver
+
+        if not installed("pyodbc"):
+            self.skipTest("pyodbc is in the all_ds group")
+        with mock.patch("pyodbc.drivers", return_value=["ODBC Driver 18 for SQL Server"]):
+            self.assertTrue(has_odbc_driver("ODBC Driver 18 for SQL Server"))
+            self.assertFalse(has_odbc_driver("Simba"))

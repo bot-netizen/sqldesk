@@ -193,6 +193,23 @@ class NotSupported(Exception):
     pass
 
 
+def has_odbc_driver(name):
+    """
+    Whether unixODBC knows a driver by this name.
+
+    pyodbc installs on every architecture, the drivers it loads do not: the
+    image puts Microsoft's and Databricks' on amd64 only. A runner that only
+    checked for pyodbc was offered on arm64 and failed every connection test
+    with "Can't open lib".
+    """
+    try:
+        import pyodbc
+
+        return name in pyodbc.drivers()
+    except Exception:
+        return False
+
+
 class BaseQueryRunner:
     #: Whether this kind of data source belongs in the ordinary query editor.
     #: A stream does not: its tables exist only while somebody is watching, so
