@@ -23,6 +23,7 @@ from flask_mail import Message
 
 from sqldesk import mail, models, one_page, screenshots, unsubscribe
 from sqldesk.models import db
+from sqldesk.permissions import sees_all_of_dashboard
 from sqldesk.utils import base_url
 from sqldesk.worker import job
 
@@ -105,6 +106,12 @@ def send_subscription(subscription_id):
 
     recipients = [user for user in subscription.recipients() if not user.is_disabled]
     recipients = [user for user in recipients if screenshots.may_see_dashboard(dashboard, user)]
+    # The picture is drawn as the owner. Somebody who cannot read every data
+    # source on the dashboard would be shown widgets the app shows them as
+    # locked, so they are left out -- asked again at each send, because both
+    # the dashboard and people's access change after somebody subscribes.
+    left_out = [user for user in recipients if not sees_all_of_dashboard(dashboard, user)]
+    recipients = [user for user in recipients if user not in left_out]
     if not recipients:
         _record_problem(subscription, "Nobody on this subscription can see the dashboard any more.")
         return
@@ -123,7 +130,13 @@ def send_subscription(subscription_id):
         return
 
     subscription.last_sent_at = datetime.datetime.now(datetime.timezone.utc)
-    subscription.last_error = None
+    subscription.last_error = (
+        "Not sent to {}: they cannot see every widget on this dashboard.".format(
+            ", ".join(user.name for user in left_out)
+        )
+        if left_out
+        else None
+    )
     db.session.add(subscription)
     db.session.commit()
 

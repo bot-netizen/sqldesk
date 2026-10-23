@@ -15,6 +15,25 @@ def _rendering_on():
     )
 
 
+def _half_visible(factory, dashboard):
+    """
+    A dashboard with one widget everybody can read and one from an HR source,
+    and a colleague who can read only the first. `can_see_dashboard` says yes
+    for them: one widget's source is theirs.
+    """
+    hr_group = factory.create_group(name="HR")
+    db.session.add(hr_group)
+    db.session.commit()
+    hr = factory.create_data_source(name="HR", group=hr_group)
+    for source in (factory.data_source, hr):
+        query = factory.create_query(data_source=source)
+        visualization = factory.create_visualization(query_rel=query)
+        factory.create_widget(dashboard=dashboard, visualization=visualization)
+    colleague = factory.create_user(email="colleague@example.com")
+    db.session.commit()
+    return colleague
+
+
 class SendingTestCase(BaseTestCase):
     def setUp(self):
         super().setUp()
@@ -105,6 +124,35 @@ class TestSending(SendingTestCase):
         self.assertIn(self.dashboard.name, message.subject)
         self.assertIsNotNone(subscription.last_sent_at)
         self.assertIsNone(subscription.last_error)
+
+    def test_a_recipient_who_cannot_see_every_widget_is_not_sent_it(self):
+        """Asked at each send: their access, or the dashboard, may have changed since they were added."""
+        colleague = _half_visible(self.factory, self.dashboard)
+        subscription = self._subscription(recipient_ids=[self.owner.id, colleague.id])
+
+        _, send = self._send(subscription)
+
+        self.assertEqual([[self.owner.email]], [call[0][0].recipients for call in send.call_args_list])
+        self.assertIsNotNone(subscription.last_sent_at)
+        self.assertIn(colleague.name, subscription.last_error)
+
+    def test_a_dashboard_with_a_query_that_never_ran_is_still_sent(self):
+        """
+        It failed at "how old are the numbers" -- `Query.retrieved_at` assumed
+        a result -- and the subscription recorded that the mail server would
+        not take it, then tried again every minute.
+        """
+        never_ran = self.factory.create_query()
+        visualization = self.factory.create_visualization(query_rel=never_ran)
+        self.factory.create_widget(dashboard=self.dashboard, visualization=visualization)
+        db.session.commit()
+        subscription = self._subscription()
+
+        _, send = self._send(subscription)
+
+        self.assertEqual(1, send.call_count)
+        self.assertIsNone(subscription.last_error)
+        self.assertIn("have not been refreshed", send.call_args[0][0].html)
 
     def test_a_picture_goes_inline_so_it_is_seen(self):
         subscription = self._subscription(format=models.DashboardSubscription.PNG)

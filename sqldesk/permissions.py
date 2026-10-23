@@ -82,6 +82,28 @@ def can_see_dashboard(dashboard_id, org, user):
     )
 
 
+def sees_all_of_dashboard(dashboard, user):
+    """
+    Whether this person may see *everything* on this dashboard.
+
+    Stricter than `can_see_dashboard`, which is true when the data source
+    behind any one widget is theirs -- the dashboard is listed for them, and
+    the widgets they cannot read show as locked panels. A picture drawn as one
+    person and handed to another has no locked panels: whatever the drawer can
+    read is in it. So anybody receiving one has to be able to read every data
+    source on the dashboard, or the picture shows them what the app would not.
+    """
+    if user.has_permission("admin"):
+        return True
+    for widget in dashboard.loaded_widgets():
+        query = widget.visualization.query_rel if widget.visualization else None
+        if query is None or query.data_source is None:
+            continue
+        if not has_access(query.data_source, user, True):
+            return False
+    return True
+
+
 class require_permissions:
     def __init__(self, permissions, allow_one=False):
         self.permissions = permissions

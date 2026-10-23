@@ -21,7 +21,11 @@ from flask_restful import abort
 from sqldesk import features, models, one_page
 from sqldesk.handlers.base import BaseResource, get_object_or_404
 from sqldesk.models import db
-from sqldesk.permissions import can_see_dashboard, require_feature
+from sqldesk.permissions import (
+    can_see_dashboard,
+    require_feature,
+    sees_all_of_dashboard,
+)
 from sqldesk.serializers import serialize_dashboard_subscription
 
 #: The shapes a schedule may take, which are the ones a query's schedule
@@ -68,10 +72,16 @@ def _sort_recipients(ids, dashboard, org):
     for user in models.User.query.filter(models.User.id.in_(ids or []), models.User.org_id == org.id):
         if user.is_disabled:
             refused.append({"id": user.id, "name": user.name, "why": "That account is disabled."})
-        elif _visible(dashboard.id, org, user):
-            allowed.append(user.id)
-        else:
+        elif not _visible(dashboard.id, org, user):
             refused.append({"id": user.id, "name": user.name, "why": "They cannot see this dashboard."})
+        elif not sees_all_of_dashboard(dashboard, user):
+            # The picture is drawn as the owner, so it would show them widgets
+            # the app shows them as locked.
+            refused.append(
+                {"id": user.id, "name": user.name, "why": "They cannot see every widget on this dashboard."}
+            )
+        else:
+            allowed.append(user.id)
     return allowed, refused
 
 

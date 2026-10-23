@@ -1136,11 +1136,14 @@ class Query(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model):
 
     @property
     def runtime(self):
-        return self.latest_query_data.runtime
+        return self.latest_query_data.runtime if self.latest_query_data else None
 
     @property
     def retrieved_at(self):
-        return self.latest_query_data.retrieved_at
+        # None for a query that has never run, rather than an AttributeError:
+        # a subscription to any dashboard with one such widget failed at "how
+        # old are the numbers", and said the mail server would not take it.
+        return self.latest_query_data.retrieved_at if self.latest_query_data else None
 
     @property
     def groups(self):

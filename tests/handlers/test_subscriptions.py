@@ -14,6 +14,25 @@ def _rendering_on():
     )
 
 
+def _half_visible(factory, dashboard):
+    """
+    A dashboard with one widget everybody can read and one from an HR source,
+    and a colleague who can read only the first. `can_see_dashboard` says yes
+    for them: one widget's source is theirs.
+    """
+    hr_group = factory.create_group(name="HR")
+    db.session.add(hr_group)
+    db.session.commit()
+    hr = factory.create_data_source(name="HR", group=hr_group)
+    for source in (factory.data_source, hr):
+        query = factory.create_query(data_source=source)
+        visualization = factory.create_visualization(query_rel=query)
+        factory.create_widget(dashboard=dashboard, visualization=visualization)
+    colleague = factory.create_user(email="colleague@example.com")
+    db.session.commit()
+    return colleague
+
+
 class SubscriptionTestCase(BaseTestCase):
     def setUp(self):
         super().setUp()
@@ -105,6 +124,17 @@ class TestWhoMayBeSentIt(SubscriptionTestCase):
         self.assertEqual([self.owner.id], [r["id"] for r in rv.json["recipients"]])
         self.assertEqual([outsider.id], [r["id"] for r in rv.json["left_out"]])
         self.assertIn("cannot see this dashboard", rv.json["left_out"][0]["why"])
+
+    def test_somebody_who_cannot_see_every_widget_is_left_out_and_named(self):
+        """The picture is drawn as the owner, so it would show them the HR widget the app shows them locked."""
+        colleague = _half_visible(self.factory, self.dashboard)
+
+        with _rendering_on():
+            rv = self._subscribe(recipients=[self.owner.id, colleague.id])
+
+        self.assertEqual([self.owner.id], [r["id"] for r in rv.json["recipients"]])
+        self.assertEqual([colleague.id], [r["id"] for r in rv.json["left_out"]])
+        self.assertIn("every widget", rv.json["left_out"][0]["why"])
 
     def test_a_disabled_account_is_left_out_and_named(self):
         colleague = self.factory.create_admin(email="gone@example.com")
