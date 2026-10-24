@@ -17,6 +17,10 @@ class Change(GFKBase, db.Model):
     created_at = Column(db.DateTime(True), default=db.func.now())
 
     __tablename__ = "changes"
+    #: What the history endpoint asks for: this object's changes, newest
+    #: first. Nothing was indexed at all, so every version history scanned
+    #: every change ever recorded.
+    __table_args__ = (db.Index("ix_changes_object_id_desc", "object_type", "object_id", db.text("id DESC")),)
 
     def to_dict(self, full=True):
         d = {

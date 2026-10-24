@@ -278,8 +278,11 @@ class VisualizationWidget extends React.Component {
 
   componentDidMount() {
     const { widget, onLoad } = this.props;
+    // One event per widget, naming the query behind it. The widget's own id
+    // and the visualization's used to be recorded here as well: three rows
+    // per tile, two of which nothing on any page or in any report reads, on
+    // a dashboard that may hold thirty of them.
     recordEvent("view", "query", widget.visualization.query.id, { dashboard: true });
-    recordEvent("view", "visualization", widget.visualization.id, { dashboard: true });
     onLoad();
   }
 

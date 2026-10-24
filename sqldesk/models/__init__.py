@@ -510,7 +510,10 @@ class QueryResult(db.Model, BelongsToOrgMixin):
     org = db.relationship(Organization)
     data_source_id = Column(key_type("DataSource"), db.ForeignKey("data_sources.id"))
     data_source = db.relationship(DataSource, backref=backref("query_results"))
-    query_hash = Column(db.String(32), index=True)
+    #: No `index=True`: the lookup index below starts with this column, so a
+    #: single-column index on it was a second copy of the same prefix -- paid
+    #: for on every insert, and these are the biggest rows in the database.
+    query_hash = Column(db.String(32))
     query_text = Column("query", db.Text)
     data = Column(JSONText, nullable=True)
     runtime = Column(DOUBLE_PRECISION)
@@ -531,6 +534,9 @@ class QueryResult(db.Model, BelongsToOrgMixin):
             "data_source_id",
             retrieved_at.desc(),
         ),
+        #: The cleanup deletes by age, and age was not indexed: every run
+        #: scanned the largest table in the database to find the cutoff.
+        db.Index("ix_query_results_retrieved_at", "retrieved_at"),
     )
 
     def __str__(self):
@@ -787,6 +793,19 @@ class Query(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model):
     query_class = SearchBaseQuery
     __tablename__ = "queries"
     __mapper_args__ = {"version_id_col": version, "version_id_generator": False}
+    #: Two lookups that had no index and scan the whole table.
+    #:
+    #: `(query_hash, data_source_id)` is how a finished execution finds the
+    #: other queries whose text is the same, to hand them the result -- one
+    #: scan per execution.
+    #:
+    #: `latest_query_data_id` is how the result cleanup finds whether a
+    #: result is still somebody's latest. It runs every five minutes with a
+    #: cap of ten thousand results, and asked per result.
+    __table_args__ = (
+        db.Index("ix_queries_hash_data_source", "query_hash", "data_source_id"),
+        db.Index("ix_queries_latest_query_data_id", "latest_query_data_id"),
+    )
 
     #: On top of the mixin's own. The API key is a credential, and a change
     #: record is a copy of it that nothing ever expires -- it is not part of

@@ -13,9 +13,35 @@ logger = get_job_logger(__name__)
 
 @job("default")
 def record_event(raw_event):
-    event = models.Event.record(raw_event)
+    """
+    Write one event, or a batch of them.
+
+    A batch, because the browser sends a page's events together and each one
+    used to become a job of its own: a dashboard of thirty widgets queued
+    about seventy-five jobs, each with its own round trip to Redis, its own
+    worker pick-up and its own transaction, for seventy-five small inserts.
+    A list arrives as a list and is written in one transaction.
+
+    A single dict is still accepted: every call inside the server passes one,
+    and a job already on the queue at upgrade time carries one.
+    """
+    raw_events = raw_event if isinstance(raw_event, list) else [raw_event]
+    events = []
+    for one in raw_events:
+        try:
+            events.append(models.Event.record(dict(one)))
+        except (KeyError, TypeError, ValueError):
+            # One malformed event in a batch must not cost the rest. The
+            # browser builds these, so a page under development sends
+            # nonsense while somebody is writing it.
+            logger.warning("Could not record an event: %r", one)
     models.db.session.commit()
 
+    for event in events:
+        _forward(event)
+
+
+def _forward(event):
     for hook in settings.EVENT_REPORTING_WEBHOOKS:
         logger.debug("Forwarding event to: %s", hook)
         try:
