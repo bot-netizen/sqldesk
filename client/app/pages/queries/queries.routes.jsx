@@ -1,4 +1,5 @@
 import React from "react";
+import lazyPage from "@/lib/lazyPage";
 import routeWithUserSession from "@/components/ApplicationArea/routeWithUserSession";
 import routeWithApiKeySession from "@/components/ApplicationArea/routeWithApiKeySession";
 import location from "@/services/location";
@@ -19,11 +20,9 @@ import routes from "@/services/routes";
 
   The Suspense boundary that covers the wait is in Router.
 */
-const QuerySourcePage = React.lazy(() => import(/* webpackChunkName: "query-editor" */ "./QuerySource"));
-const QueryViewPage = React.lazy(() => import(/* webpackChunkName: "query-view" */ "./QueryView"));
-const VisualizationEmbed = React.lazy(
-  () => import(/* webpackChunkName: "visualization-embed" */ "./VisualizationEmbed")
-);
+const QuerySourcePage = lazyPage(() => import(/* webpackChunkName: "query-editor" */ "./QuerySource"));
+const QueryViewPage = lazyPage(() => import(/* webpackChunkName: "query-view" */ "./QueryView"));
+const VisualizationEmbed = lazyPage(() => import(/* webpackChunkName: "visualization-embed" */ "./VisualizationEmbed"));
 
 routes.register(
   "Queries.New",

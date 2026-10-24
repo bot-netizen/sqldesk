@@ -1,4 +1,5 @@
 import React, { Suspense } from "react";
+import lazyPage from "@/lib/lazyPage";
 
 /*
   The editor arrives when a form actually has one.
@@ -9,7 +10,7 @@ import React, { Suspense } from "react";
   opened a dashboard, because this module is imported eagerly through the
   dynamic form's field table.
 */
-const AceEditorInput = React.lazy(() => import(/* webpackChunkName: "ace-editor" */ "@/components/AceEditorInput"));
+const AceEditorInput = lazyPage(() => import(/* webpackChunkName: "ace-editor" */ "@/components/AceEditorInput"));
 
 export default function AceEditorField({ form, field, ...otherProps }) {
   return (

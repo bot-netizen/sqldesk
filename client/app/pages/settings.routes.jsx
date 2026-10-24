@@ -1,4 +1,5 @@
 import React from "react";
+import lazyPage from "@/lib/lazyPage";
 import routeWithUserSession from "@/components/ApplicationArea/routeWithUserSession";
 import routes from "@/services/routes";
 
@@ -21,19 +22,19 @@ import "./settings.menu";
 
   The Suspense boundary that covers the wait is in Router.
 */
-const DataSourcesList = React.lazy(() => import(/* webpackChunkName: "settings" */ "./data-sources/DataSourcesList"));
-const EditDataSource = React.lazy(() => import(/* webpackChunkName: "settings" */ "./data-sources/EditDataSource"));
-const DestinationsList = React.lazy(() => import(/* webpackChunkName: "settings" */ "./destinations/DestinationsList"));
-const EditDestination = React.lazy(() => import(/* webpackChunkName: "settings" */ "./destinations/EditDestination"));
-const GroupsList = React.lazy(() => import(/* webpackChunkName: "settings" */ "./groups/GroupsList"));
-const GroupMembers = React.lazy(() => import(/* webpackChunkName: "settings" */ "./groups/GroupMembers"));
-const GroupDataSources = React.lazy(() => import(/* webpackChunkName: "settings" */ "./groups/GroupDataSources"));
-const UsersList = React.lazy(() => import(/* webpackChunkName: "settings" */ "./users/UsersList"));
-const UserProfile = React.lazy(() => import(/* webpackChunkName: "settings" */ "./users/UserProfile"));
-const QuerySnippetsList = React.lazy(
+const DataSourcesList = lazyPage(() => import(/* webpackChunkName: "settings" */ "./data-sources/DataSourcesList"));
+const EditDataSource = lazyPage(() => import(/* webpackChunkName: "settings" */ "./data-sources/EditDataSource"));
+const DestinationsList = lazyPage(() => import(/* webpackChunkName: "settings" */ "./destinations/DestinationsList"));
+const EditDestination = lazyPage(() => import(/* webpackChunkName: "settings" */ "./destinations/EditDestination"));
+const GroupsList = lazyPage(() => import(/* webpackChunkName: "settings" */ "./groups/GroupsList"));
+const GroupMembers = lazyPage(() => import(/* webpackChunkName: "settings" */ "./groups/GroupMembers"));
+const GroupDataSources = lazyPage(() => import(/* webpackChunkName: "settings" */ "./groups/GroupDataSources"));
+const UsersList = lazyPage(() => import(/* webpackChunkName: "settings" */ "./users/UsersList"));
+const UserProfile = lazyPage(() => import(/* webpackChunkName: "settings" */ "./users/UserProfile"));
+const QuerySnippetsList = lazyPage(
   () => import(/* webpackChunkName: "settings" */ "./query-snippets/QuerySnippetsList")
 );
-const OrganizationSettings = React.lazy(
+const OrganizationSettings = lazyPage(
   () => import(/* webpackChunkName: "settings" */ "./settings/OrganizationSettings")
 );
 

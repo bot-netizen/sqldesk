@@ -1,4 +1,5 @@
 import React from "react";
+import lazyPage from "@/lib/lazyPage";
 import routeWithUserSession from "@/components/ApplicationArea/routeWithUserSession";
 import routes from "@/services/routes";
 import MODES from "./modes";
@@ -12,8 +13,8 @@ import MODES from "./modes";
 
   The Suspense boundary that covers the wait is in Router.
 */
-const AlertsList = React.lazy(() => import(/* webpackChunkName: "alerts" */ "../alerts/AlertsList"));
-const Alert = React.lazy(() => import(/* webpackChunkName: "alerts" */ "./Alert"));
+const AlertsList = lazyPage(() => import(/* webpackChunkName: "alerts" */ "../alerts/AlertsList"));
+const Alert = lazyPage(() => import(/* webpackChunkName: "alerts" */ "./Alert"));
 
 routes.register(
   "Alerts.List",

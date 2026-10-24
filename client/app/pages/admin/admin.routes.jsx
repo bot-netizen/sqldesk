@@ -1,4 +1,5 @@
 import React from "react";
+import lazyPage from "@/lib/lazyPage";
 import routeWithUserSession from "@/components/ApplicationArea/routeWithUserSession";
 import routes from "@/services/routes";
 
@@ -14,15 +15,15 @@ import routes from "@/services/routes";
 
   The Suspense boundary that covers the wait is in Router.
 */
-const Overview = React.lazy(() => import(/* webpackChunkName: "admin" */ "./overview/Overview"));
-const Jobs = React.lazy(() => import(/* webpackChunkName: "admin" */ "./Jobs"));
-const RunningQueries = React.lazy(() => import(/* webpackChunkName: "admin" */ "./RunningQueries"));
-const OutdatedQueries = React.lazy(() => import(/* webpackChunkName: "admin" */ "./OutdatedQueries"));
-const SystemStatus = React.lazy(() => import(/* webpackChunkName: "admin" */ "./SystemStatus"));
-const Catalog = React.lazy(() => import(/* webpackChunkName: "admin" */ "./Catalog"));
-const McpHome = React.lazy(() => import(/* webpackChunkName: "admin" */ "../mcp/McpHome"));
-const Storage = React.lazy(() => import(/* webpackChunkName: "admin" */ "./Storage"));
-const Streams = React.lazy(() => import(/* webpackChunkName: "admin" */ "./Streams"));
+const Overview = lazyPage(() => import(/* webpackChunkName: "admin" */ "./overview/Overview"));
+const Jobs = lazyPage(() => import(/* webpackChunkName: "admin" */ "./Jobs"));
+const RunningQueries = lazyPage(() => import(/* webpackChunkName: "admin" */ "./RunningQueries"));
+const OutdatedQueries = lazyPage(() => import(/* webpackChunkName: "admin" */ "./OutdatedQueries"));
+const SystemStatus = lazyPage(() => import(/* webpackChunkName: "admin" */ "./SystemStatus"));
+const Catalog = lazyPage(() => import(/* webpackChunkName: "admin" */ "./Catalog"));
+const McpHome = lazyPage(() => import(/* webpackChunkName: "admin" */ "../mcp/McpHome"));
+const Storage = lazyPage(() => import(/* webpackChunkName: "admin" */ "./Storage"));
+const Streams = lazyPage(() => import(/* webpackChunkName: "admin" */ "./Streams"));
 
 routes.register(
   "Admin.Streams",
