@@ -286,6 +286,39 @@ somebody already answered this".</p>
   launder permissions.</p>
 </div>
 
+<h3 id="writing">What an agent may write</h3>
+<p>Four tools change something, and they are offered only to a <strong>personal API key</strong> &mdash;
+never to a client signed in over OAuth, which carries <code>mcp:read</code>. Each one lands somewhere a
+person reviews, because a tool that could publish, verify or approve would be a tool that hands out
+trust.</p>
+<dl>
+  <dt><code>update_table(name, description)</code></dt>
+  <dd>Writes what a table is for. Needs <strong>Manage catalog</strong>. It will not replace a
+    description a person wrote unless <code>overwrite</code> is set, the catalog page marks what it wrote
+    <em>via MCP</em> with the name on the key that wrote it, and the card an agent reads next is rebuilt
+    at once rather than at the next harvest. Hiding a table is <em>not</em> here: that decides what
+    everybody is offered, so it stays in Admin &rarr; Catalog with the table in front of you.</dd>
+  <dt><code>save_query(name, sql, data_source)</code></dt>
+  <dd>Saves SQL worth keeping as a <strong>draft</strong> query, owned by the key's user. A draft is off
+    the Queries list and out of the dashboard picker until a person opens it and publishes it. Needs the
+    same permission as creating a query in the browser, full access to the data source, and the SQL must
+    be a single read &mdash; what is saved is what somebody will press Run on.</dd>
+  <dt><code>update_query(id, sql | name | description)</code></dt>
+  <dd>Changes a draft the caller could edit in the browser, and records a version, so the query's
+    history shows what the agent changed and when. A published query is read by other people's
+    dashboards and alerts: it is refused, with the suggestion to open it in SQLDesk.</dd>
+  <dt><code>propose_measure(name, table, kind, column)</code></dt>
+  <dd>Proposes a number and what it means, for a curator to agree or deny under Admin &rarr; Catalog
+    &rarr; Measures. A proposed measure reaches no other agent until somebody signs it off: a definition
+    of revenue that is merely plausible is worse than none. A measure already agreed is not proposed
+    over; a denied one goes back on the list rather than quietly becoming true.</dd>
+</dl>
+<p>Every write is capped at <strong>fifty a day per person</strong>
+(<code>SQLDESK_MCP_WRITES_PER_DAY</code>, 0 for no limit). An agent told to describe a warehouse will
+describe the whole warehouse, and a loop getting it wrong will do it just as fast; fifty keeps a mistake
+to a morning's review. The audit records each write's <em>before and after</em>, and Admin &rarr; Catalog
+has a filter for exactly what an agent wrote.</p>
+
 <h3 id="reads-only">Only reads</h3>
 <p><code>run_query</code> and <code>explain_query</code> refuse anything but a single read: a write,
 DDL, a second statement after a semicolon, a <code>SELECT</code> whose <code>WITH</code> deletes,
@@ -344,7 +377,10 @@ Administrators reach the same page under <strong>Admin</strong>, where it also c
 <p>Admin &rarr; MCP. Every request leaves a row, <em>including the refused ones</em> — a key that does not
 work, tried repeatedly, is exactly what an audit is for. Each row records who, when, which method, which
 tool, the outcome, how long it took, and where it came from.</p>
-<p>Arguments are summarised rather than stored: the question is worth keeping, a megabyte of SQL is not.</p>
+<p>Arguments are summarised rather than stored: the question is worth keeping, a megabyte of SQL is not.
+A write records what it changed instead &mdash; the table and its description before and after, or the
+query it saved &mdash; because "update_table ok" does not answer the question anybody brings to an audit
+of an agent's writes.</p>
 <p>The page also shows <strong>active sessions</strong> — clients seen in the last fifteen minutes. This
 transport holds no connection open, so "connected" can only honestly mean "recently active", and the
 page says so rather than showing a light that implies otherwise.</p>

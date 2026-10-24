@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Why SQLDesk — SQLDesk</title>
-<meta name="description" content="Where SQLDesk sits among BI tools and notebooks, what it does better, and what other tools do better.">
+<title>What SQLDesk is for — SQLDesk</title>
+<meta name="description" content="What SQLDesk is, who it is for, and the decisions behind it: self-hosted, unlimited viewers, no telemetry, one permission model.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -107,7 +107,7 @@ footer a{color:var(--muted)}
     </a>
     <nav>
       <a href="index.html">Overview</a>
-      <a href="why.html" aria-current="page">Why SQLDesk</a>
+      <a href="why.html" aria-current="page">What it is for</a>
       <a href="performance.html" class="hide-sm">Performance</a>
       <a href="roadmap.html">Roadmap</a>
       <a href="blog/index.html">Blog</a>
@@ -118,76 +118,84 @@ footer a{color:var(--muted)}
 </header>
 
 <div class="wrap head">
-  <span class="eyebrow">Positioning</span>
-  <h1>Why SQLDesk</h1>
+  <span class="eyebrow">What it is for</span>
+  <h1>A query editor your whole company can read from</h1>
   <p class="lede">
-    An honest account of where this sits, what it does better than the alternatives, and
-    what the alternatives still do better. If you only need one of the things below, one
-    of those other tools is probably the right answer.
+    SQLDesk connects to the databases you already have, lets the people who write SQL answer
+    questions with it, and puts those answers in front of everybody else &mdash; on a dashboard, in
+    an alert, or through an agent. You run it yourself, and nobody pays per person who looks.
   </p>
 </div>
 
 <section>
   <div class="wrap">
-    <h2>Six reasons, each with its receipt</h2>
+    <h2>Six decisions, and what each one costs us</h2>
+    <p class="sub">
+      Every one of these is a choice with a downside. They are written here with the downside
+      attached, because a list of advantages with no costs is a sales page.
+    </p>
 
     <div class="reasons">
       <div class="reason">
         <div class="reason-n">01</div>
         <div>
-          <h3>Your viewers are free, and always will be</h3>
+          <h3>Viewers are free, and always will be</h3>
           <p>
-            Self-hosted with no seat count, no viewer tier and no license server to call home to.
-            The tools that charge for viewers get expensive precisely when your work succeeds and
-            more people start looking at it.
+            No seat count, no viewer tier, no licence server to call. A dashboard read by four
+            hundred people costs exactly what one read by four costs: the box you run it on. The
+            cost of that decision is that there is no hosted tier to buy &mdash; somebody has to
+            run Postgres, Redis and a container, and that somebody is you.
           </p>
-          <p class="evidence">One published comparison puts a 10-editor, 10-viewer<br>
-          setup on a notebook-BI platform at <b>$27,000 a year</b>.<br>SQLDesk: the cost of the box you run it on.</p>
+          <p class="evidence">One <code>docker compose up</code>, or <code>helm install</code> for a cluster.<br>
+          <a href="guide/deploying.html">Deploying &rarr;</a></p>
         </div>
       </div>
 
       <div class="reason">
         <div class="reason-n">02</div>
         <div>
-          <h3>Actively built, not merely kept alive</h3>
+          <h3>It does not phone home</h3>
           <p>
-            SQLDesk forked Redash, which has been in maintenance mode for years — dependency
-            bumps and security patches rather than new work. That makes the fork additive rather
-            than divergent: there is no fast-moving upstream to fight, and the features people
-            have been asking for are simply unbuilt.
+            Not a policy, a removal: the hard-coded endpoints that posted usage statistics, and
+            separately an administrator's name and email, are gone from the code. Version checking
+            exists and is off until you point it at an endpoint you control. The cost is that we
+            learn nothing about how SQLDesk is used unless somebody tells us.
           </p>
-          <p class="evidence">Redash upstream: roughly <b>one release a year since 2022</b>,<br>
-          community forum read-only, ~7 volunteer maintainers.</p>
+          <p class="evidence">No outbound request SQLDesk makes is to us.<br>
+          <code>SQLDESK_VERSION_CHECK_URL</code> is empty by default.</p>
         </div>
       </div>
 
       <div class="reason">
         <div class="reason-n">03</div>
         <div>
-          <h3>It doesn't phone home</h3>
+          <h3>One permission model, for people and for agents</h3>
           <p>
-            Not a policy — a removal. The upstream shipped hard-coded endpoints that POSTed usage
-            statistics, and separately your admin's name and email, to servers you don't control.
-            Both are gone. Version checking exists but is off until you point it at an endpoint
-            of your own.
+            A group's access to a data source decides what its members see in the editor, on a
+            dashboard, in an alert, in an export &mdash; and through MCP, where an agent runs as the
+            person whose key it is and can reach nothing they could not. There is no service
+            account and no way to configure one, because a tool server with more access than its
+            user is a way to launder permissions. The cost is that an agent is sometimes refused
+            where a shared credential would have worked.
           </p>
-          <p class="evidence">Removed: <b>version.redash.io/api/report</b> (usage data)<br>
-          Removed: <b>version.redash.io/subscribe</b> (admin name + email)</p>
+          <p class="evidence"><a href="guide/mcp.html">MCP &rarr;</a> &nbsp;&middot;&nbsp;
+          <a href="guide/administration.html">Groups and permissions &rarr;</a></p>
         </div>
       </div>
 
       <div class="reason">
         <div class="reason-n">04</div>
         <div>
-          <h3>Performance claims come with numbers</h3>
+          <h3>Numbers, not adjectives</h3>
           <p>
-            Everything in the query path gets measured before and after, on real data volumes,
-            and the figures are published. No "blazing fast" — just what it was, what it is, and
-            how it was measured.
+            Work on the query path is measured before and after, on real data volumes, and the
+            figures are published with the method &mdash; including the changes that turned out not
+            to matter. The cost is that it is slower to claim anything: a figure nobody has
+            measured does not go on a page.
           </p>
-          <p class="evidence">Cached 27MB result: <b>547ms &rarr; 99ms</b><br>
-          Cache lookup on a year of history: <b>66.7ms &rarr; 0.064ms</b><br>
-          <a href="performance.html">See the full workings &rarr;</a></p>
+          <p class="evidence">Cached 27&nbsp;MB result: <b>547ms &rarr; 99ms</b><br>
+          Cache lookup over a year of history: <b>66.7ms &rarr; 0.064ms</b><br>
+          <a href="performance.html">The full workings &rarr;</a></p>
         </div>
       </div>
 
@@ -196,9 +204,9 @@ footer a{color:var(--muted)}
         <div>
           <h3>Apache 2.0, with the provenance kept straight</h3>
           <p>
-            A permissive licence with an explicit patent grant, which BSD 2-Clause does not
-            provide. The inherited code keeps its original copyright and licence text, reproduced
-            in full — because the alternative is a licence violation dressed up as a rebrand.
+            A permissive licence with an explicit patent grant. SQLDesk is built on top of Redash,
+            and the inherited code keeps its original copyright and licence text, reproduced in
+            full &mdash; because the alternative is a licence violation dressed up as a rebrand.
           </p>
           <p class="evidence">LICENSE &rarr; Apache 2.0 &nbsp;&middot;&nbsp; LICENSE.redash &rarr; BSD 2-Clause, verbatim<br>
           NOTICE &rarr; attribution, and an explicit "not affiliated" statement</p>
@@ -208,14 +216,15 @@ footer a{color:var(--muted)}
       <div class="reason">
         <div class="reason-n">06</div>
         <div>
-          <h3>One tool, not four stitched together</h3>
+          <h3>One deployment, not four stitched together</h3>
           <p>
-            SQL, dashboards and alerts today; notebooks and Kafka streams next — under one
-            permission model, one login and one deployment. The value isn't any single surface,
-            it's that a note can read a saved query, join it against a stream, and publish the
-            result to a dashboard without leaving the product or re-declaring who may see what.
+            Queries, dashboards, alerts, Kafka streams and an MCP server, under one login and one
+            permission model. A stream's window is a table you can join against; a saved query is
+            something an agent can find, read and extend; a dashboard is a page you can verify and
+            subscribe to. The cost is breadth: a specialist tool will beat any single surface
+            here, and if one of these is your whole problem, use the specialist.
           </p>
-          <p class="evidence"><a href="index.html#roadmap">Roadmap &rarr;</a></p>
+          <p class="evidence"><a href="guide/architecture.html">How the pieces fit &rarr;</a></p>
         </div>
       </div>
     </div>
@@ -224,74 +233,60 @@ footer a{color:var(--muted)}
 
 <section>
   <div class="wrap">
-    <h2>Where everyone sits</h2>
-    <p class="sub">
-      The open-source, self-hosted corner that covers all three surfaces is genuinely thin.
-      That's the gap SQLDesk is built for.
-    </p>
-
-    <div class="tablewrap">
-      <table>
-        <thead>
-          <tr><th>Tool</th><th class="mark">Dashboards</th><th class="mark">Notebooks</th><th class="mark">Streaming</th><th class="mark">Self-hosted</th><th>Shape</th></tr>
-        </thead>
-        <tbody>
-          <tr class="us">
-            <td>SQLDesk</td>
-            <td class="mark yes">&#10003;</td><td class="mark part">planned</td><td class="mark part">planned</td><td class="mark yes">&#10003;</td>
-            <td>SQL-first, open, unlimited viewers</td>
-          </tr>
-          <tr><td>Metabase</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td class="mark no">&mdash;</td><td class="mark yes">&#10003;</td><td>Easiest for non-technical users</td></tr>
-          <tr><td>Apache Superset</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td class="mark no">&mdash;</td><td class="mark yes">&#10003;</td><td>Most powerful for SQL teams</td></tr>
-          <tr><td>Redash</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td class="mark no">&mdash;</td><td class="mark yes">&#10003;</td><td>Maintenance mode</td></tr>
-          <tr><td>Briefer</td><td class="mark yes">&#10003;</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td class="mark yes">&#10003;</td><td>Notebooks + dashboards, multiplayer</td></tr>
-          <tr><td>Hex / Deepnote</td><td class="mark yes">&#10003;</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td class="mark no">&mdash;</td><td>SaaS, per-seat including viewers</td></tr>
-          <tr><td>Timeplus</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td class="mark yes">&#10003;</td><td class="mark yes">&#10003;</td><td>Streaming-first, ClickHouse storage</td></tr>
-          <tr><td>Tinybird</td><td class="mark no">&mdash;</td><td class="mark no">&mdash;</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td>Managed real-time APIs</td></tr>
-          <tr><td>Databricks</td><td class="mark yes">&#10003;</td><td class="mark yes">&#10003;</td><td class="mark yes">&#10003;</td><td class="mark no">&mdash;</td><td>All three, enterprise-priced</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="note">
-      <div class="note-h">Worth saying out loud</div>
-      <p>
-        Databricks acquired Redash in 2020. SQLDesk is building, from that lineage, toward a
-        subset of what Databricks does — with one <code>docker compose up</code>, no lakehouse
-        commitment and no per-seat bill.
-      </p>
+    <h2>Who it is for</h2>
+    <div class="two">
+      <div class="card">
+        <h3>A team with a warehouse and no BI budget</h3>
+        <p>Somebody writes SQL; everybody else needs the answer. Thirty-five data sources, charts
+          on top of results, scheduled refreshes and alerts, with no per-person cost.</p>
+      </div>
+      <div class="card">
+        <h3>Anyone who cannot send data to a SaaS</h3>
+        <p>Health, finance, government, or simply a policy. Nothing leaves the network, the
+          credentials stay encrypted in your own Postgres, and the only outbound requests are to
+          your own data sources.</p>
+      </div>
+      <div class="card">
+        <h3>People putting agents near their data</h3>
+        <p>An MCP server with the catalog behind it: an agent finds the query somebody already
+          wrote, reads what a table is for, and runs one read as the user whose key it holds &mdash;
+          with every call audited.</p>
+      </div>
+      <div class="card">
+        <h3>Teams with a Kafka topic nobody can query</h3>
+        <p>Point SQLDesk at the topic and the last few minutes become a table, with per-minute
+          rollups behind it. JSON, Avro and Protobuf, with or without a schema registry.</p>
+      </div>
     </div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <h2>What other tools do better</h2>
+    <h2>What it is not</h2>
     <p class="sub">
-      Breadth is the bet, and breadth has a cost. If one of these is your whole problem, use the
-      specialist.
+      Worth saying plainly, so nobody installs it expecting one of these.
     </p>
-
     <div class="two">
       <div class="card">
-        <h3>Briefer, for notebooks today</h3>
-        <p>Open-source notebooks and dashboards with real-time multiplayer editing, shipping now.
-        SQLDesk's Notes are still ahead of us on the roadmap.</p>
+        <h3>Not a point-and-click question builder</h3>
+        <p>SQLDesk assumes somebody on the team writes SQL. Everybody else reads what they wrote,
+          changes its parameters and subscribes to it.</p>
       </div>
       <div class="card">
-        <h3>Timeplus, for true streaming</h3>
-        <p>A purpose-built streaming engine with push-based dashboards over SSE. SQLDesk starts
-        with bounded reads from Kafka, which is a smaller claim honestly made.</p>
+        <h3>Not an infrastructure monitoring tool</h3>
+        <p>It queries Prometheus and Mimir like any other source, but alerting on infrastructure
+          metrics at second resolution is not what this is built around.</p>
       </div>
       <div class="card">
-        <h3>Metabase, for non-technical users</h3>
-        <p>The best point-and-click question builder in open source. SQLDesk assumes somebody on
-        the team writes SQL.</p>
+        <h3>Not a streaming engine</h3>
+        <p>A bounded window of a Kafka topic, kept in DuckDB and rolled up. Continuous queries and
+          push-based updates over a persistent connection are a different product.</p>
       </div>
       <div class="card">
-        <h3>Grafana, for time-series and ops</h3>
-        <p>If your dashboards are about infrastructure and alerting on metrics, that is what
-        Grafana was built for and SQLDesk was not.</p>
+        <h3>Not a notebook</h3>
+        <p>A query is a query, with a chart and a history. Mixing prose, Python and SQL on one
+          canvas is on the roadmap rather than in the product.</p>
       </div>
     </div>
   </div>
@@ -306,9 +301,10 @@ footer a{color:var(--muted)}
       <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a>
     </p>
     <p style="margin-top:14px;color:var(--faint);font-size:12.5px;max-width:74ch">
-      Comparisons reflect publicly documented capabilities as of September 2026 and are offered in
-      good faith. Every other project listed here is doing good work; several of them do their
-      speciality better than SQLDesk does.
+      SQLDesk is built on top of <a href="https://github.com/getredash/redash">Redash</a>, Apache 2.0,
+      whose copyright notice and BSD 2-Clause licence are kept in full in LICENSE.redash and NOTICE.
+      It is an independent project and is not affiliated with, endorsed by, or supported by that
+      project or its contributors.
     </p>
   </div>
 </footer>
