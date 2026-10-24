@@ -112,6 +112,7 @@ class TestPrometheus(TestCase):
         assert prometheus_kwargs == {
             "verify": True,
             "cert": (),
+            "timeout": 30,
         }
 
         create_cert_file_mock.assert_has_calls(
@@ -143,6 +144,7 @@ class TestPrometheus(TestCase):
         assert prometheus_kwargs == {
             "verify": "ca_cert_file.crt",
             "cert": ("cert_file.crt", "cert_key_file.key"),
+            "timeout": 30,
         }
         create_cert_file_mock.assert_has_calls(
             [mock.call("ca_cert_File"), mock.call("cert_File"), mock.call("cert_key_File")]
@@ -223,6 +225,11 @@ class TestPrometheus(TestCase):
                     "type": "string",
                     "title": "Extra Headers (one Name: value per line)",
                 },
+                "timeout": {
+                    "type": "number",
+                    "title": "Request Timeout (seconds)",
+                    "default": 30,
+                },
             },
             "required": ["url"],
             "secret": ["cert_File", "cert_key_File", "ca_cert_File", "password", "bearer_token"],
@@ -235,6 +242,7 @@ class TestPrometheus(TestCase):
                 "password",
                 "bearer_token",
                 "extra_headers",
+                "timeout",
             ],
         }
 
@@ -250,7 +258,7 @@ class TestPrometheus(TestCase):
     ):
         # 1. case: successful test connection
         prometheus = Prometheus({"url": "url"})
-        prometheus_kwargs = {"verify": True, "cert": ()}
+        prometheus_kwargs = {"verify": True, "cert": (), "timeout": 30}
 
         requests_get_mock.get.return_value = mock.Mock(ok=True)
 
@@ -265,7 +273,7 @@ class TestPrometheus(TestCase):
 
         # 2. case: unsuccessful test connection
         prometheus = Prometheus({"url": "url"})
-        prometheus_kwargs = {"verify": True, "cert": ()}
+        prometheus_kwargs = {"verify": True, "cert": (), "timeout": 30}
 
         requests_get_mock.return_value = mock.Mock(ok=False)
 
@@ -280,7 +288,7 @@ class TestPrometheus(TestCase):
 
         # 3. case: unsuccessful test connection with raised exception
         prometheus = Prometheus({"url": "url"})
-        prometheus_kwargs = {"verify": True, "cert": ()}
+        prometheus_kwargs = {"verify": True, "cert": (), "timeout": 30}
 
         requests_get_mock.side_effect = Exception("test exception")
 
@@ -301,7 +309,7 @@ class TestPrometheus(TestCase):
     ):
         # 1. case: successful get schema
         prometheus = Prometheus({"url": "url"})
-        prometheus_kwargs = {"verify": True, "cert": ()}
+        prometheus_kwargs = {"verify": True, "cert": (), "timeout": 30}
 
         requests_get_mock.return_value = mock.Mock(json=mock.Mock(return_value={"data": ["name1", "name2"]}))
 
@@ -316,7 +324,7 @@ class TestPrometheus(TestCase):
 
         # 2. case: successful get empty schema
         prometheus = Prometheus({"url": "url"})
-        prometheus_kwargs = {"verify": True, "cert": ()}
+        prometheus_kwargs = {"verify": True, "cert": (), "timeout": 30}
 
         requests_get_mock.return_value = mock.Mock(json=mock.Mock(return_value={"data": []}))
 
@@ -331,7 +339,7 @@ class TestPrometheus(TestCase):
 
         # 3. case: unsuccessful get schema with an exception
         prometheus = Prometheus({"url": "url"})
-        prometheus_kwargs = {"verify": True, "cert": ()}
+        prometheus_kwargs = {"verify": True, "cert": (), "timeout": 30}
 
         requests_get_mock.side_effect = Exception("test exception")
 
@@ -352,7 +360,7 @@ class TestPrometheus(TestCase):
     ):
         # 1. case: successful run instant query
         prometheus = Prometheus({"url": "url"})
-        prometheus_kwargs = {"verify": True, "cert": ()}
+        prometheus_kwargs = {"verify": True, "cert": (), "timeout": 30}
 
         timestamp_expected_7400 = sample_time(1516937400.781)
 
@@ -397,7 +405,7 @@ class TestPrometheus(TestCase):
 
         # 2. case: successful run instant query with empty result
         prometheus = Prometheus({"url": "url"})
-        prometheus_kwargs = {"verify": True, "cert": ()}
+        prometheus_kwargs = {"verify": True, "cert": (), "timeout": 30}
 
         requests_get_mock.return_value = mock.Mock(json=mock.Mock(return_value={"data": {"result": []}}))
 
@@ -415,7 +423,7 @@ class TestPrometheus(TestCase):
 
         # 3. case: successful run range query with start and end
         prometheus = Prometheus({"url": "url"})
-        prometheus_kwargs = {"verify": True, "cert": ()}
+        prometheus_kwargs = {"verify": True, "cert": (), "timeout": 30}
         timestamp_expected_8000 = sample_time(1516938000.781)
 
         rows = [
@@ -482,7 +490,7 @@ class TestPrometheus(TestCase):
 
         # 4. case: successful run range query with start and without end
         prometheus = Prometheus({"url": "url"})
-        prometheus_kwargs = {"verify": True, "cert": ()}
+        prometheus_kwargs = {"verify": True, "cert": (), "timeout": 30}
 
         rows = [
             {
@@ -551,7 +559,7 @@ class TestPrometheus(TestCase):
 
         # 5. case: run query with exception
         prometheus = Prometheus({"url": "url"})
-        prometheus_kwargs = {"verify": True, "cert": ()}
+        prometheus_kwargs = {"verify": True, "cert": (), "timeout": 30}
 
         requests_get_mock.side_effect = Exception("test exception")
 
@@ -700,6 +708,75 @@ class TestEveryResultTypeTheApiCanAnswerWith(TestCase):
             ([], "vector"),
         ):
             self.assertEqual(expected, guess_result_type(result), result)
+
+
+class TestEveryRequestHasATimeout(TestCase):
+    """
+    There was none. A Prometheus that accepts the connection and then says
+    nothing held the worker until the job's own limit, and `get_schema` runs
+    from the scheduler, where there is no job limit to reach.
+    """
+
+    def test_the_default_applies_when_nobody_set_one(self):
+        self.assertEqual(30, Prometheus({"url": "url"})._get_prometheus_kwargs()["timeout"])
+
+    def test_a_configured_timeout_is_used(self):
+        self.assertEqual(5.5, Prometheus({"url": "url", "timeout": "5.5"})._get_prometheus_kwargs()["timeout"])
+
+    def test_nonsense_and_zero_fall_back_rather_than_waiting_for_ever(self):
+        for value in ("", "soon", 0, -1, None):
+            self.assertEqual(30, Prometheus({"url": "url", "timeout": value})._timeout(), value)
+
+    @mock.patch("sqldesk.query_runner.prometheus.requests.get")
+    @mock.patch("sqldesk.query_runner.prometheus.Prometheus._cleanup_cert_files")
+    def test_the_schema_request_carries_it_too(self, cleanup, get):
+        get.return_value = mock.Mock(ok=True, json=mock.Mock(return_value={"data": []}))
+        Prometheus({"url": "url", "timeout": 7}).get_schema()
+        self.assertEqual(7, get.call_args[1]["timeout"])
+
+    def test_it_can_be_set_from_the_form(self):
+        schema = Prometheus.configuration_schema()
+        self.assertIn("timeout", schema["properties"])
+        self.assertIn("timeout", schema["extra_options"])
+
+
+class TestTheMimirApiPrefix(TestCase):
+    """
+    `prometheus_prefix` was read by the code and offered by nothing, so the
+    default was the only value it ever had. Grafana Cloud serves the same API
+    at /api/prom, and every query against one 404'd.
+    """
+
+    def test_it_is_in_the_form(self):
+        schema = Mimir.configuration_schema()
+        self.assertIn("prometheus_prefix", schema["properties"])
+        self.assertIn("prometheus_prefix", schema["extra_options"])
+        self.assertIn("prometheus_prefix", schema["order"])
+        self.assertEqual("/prometheus", schema["properties"]["prometheus_prefix"]["default"])
+
+    def test_grafana_clouds_prefix_is_used_when_it_is_given(self):
+        self.assertEqual(
+            "https://prometheus-us.grafana.net/api/prom",
+            Mimir(
+                {"url": "https://prometheus-us.grafana.net", "org_id": "1", "prometheus_prefix": "/api/prom"}
+            ).api_base_url,
+        )
+
+    def test_a_url_that_already_carries_the_configured_prefix_is_left_alone(self):
+        self.assertEqual(
+            "https://x/api/prom",
+            Mimir({"url": "https://x/api/prom/", "org_id": "1", "prometheus_prefix": "api/prom"}).api_base_url,
+        )
+
+    def test_an_emptied_prefix_means_the_root(self):
+        # A gateway in front of Mimir may serve the API there already.
+        self.assertEqual(
+            "https://x",
+            Mimir({"url": "https://x", "org_id": "1", "prometheus_prefix": " "}).api_base_url,
+        )
+
+    def test_a_source_saved_before_the_field_existed_still_gets_the_default(self):
+        self.assertEqual("https://x/prometheus", Mimir({"url": "https://x", "org_id": "1"}).api_base_url)
 
 
 class TestWhatTheServerSaidGetsThrough(TestCase):

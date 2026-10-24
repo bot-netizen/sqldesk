@@ -17,6 +17,15 @@ from sqldesk.query_runner import (
     register,
 )
 
+#: How long a request to the API may take, in seconds, when nobody has said.
+#: There was no timeout at all: a Prometheus that accepts the connection and
+#: never answers held a worker until the job's own limit, and `get_schema` is
+#: run from the scheduler where there is no job limit to reach.
+DEFAULT_TIMEOUT = 30
+
+#: Where Mimir serves the Prometheus API unless it was told otherwise.
+DEFAULT_MIMIR_PREFIX = "/prometheus"
+
 #: Everything the Prometheus HTTP API takes beside the expression itself. A
 #: query body is written as a URL query string, and the PromQL in it is not
 #: encoded, so these names are what tells an `&` that begins the next
@@ -315,6 +324,7 @@ class Prometheus(BaseQueryRunner):
         kwargs = {
             "verify": verify,
             "cert": cert,
+            "timeout": self._timeout(),
         }
 
         auth = self._get_auth()
@@ -326,6 +336,19 @@ class Prometheus(BaseQueryRunner):
             kwargs["headers"] = headers
 
         return kwargs
+
+    def _timeout(self):
+        """Seconds to wait for the API, never nothing.
+
+        A value that is not a number, or is not positive, is somebody having
+        meant to turn the wait up rather than off, so it falls back to the
+        default instead of to waiting for ever.
+        """
+        try:
+            timeout = float(self.configuration.get("timeout") or DEFAULT_TIMEOUT)
+        except (TypeError, ValueError):
+            return DEFAULT_TIMEOUT
+        return timeout if timeout > 0 else DEFAULT_TIMEOUT
 
     def _get_auth(self):
         username = self.configuration.get("username")
@@ -408,6 +431,11 @@ class Prometheus(BaseQueryRunner):
                     "type": "string",
                     "title": "Extra Headers (one Name: value per line)",
                 },
+                "timeout": {
+                    "type": "number",
+                    "title": "Request Timeout (seconds)",
+                    "default": DEFAULT_TIMEOUT,
+                },
             },
             "required": ["url"],
             "secret": ["cert_File", "cert_key_File", "ca_cert_File", "password", "bearer_token"],
@@ -420,6 +448,7 @@ class Prometheus(BaseQueryRunner):
                 "password",
                 "bearer_token",
                 "extra_headers",
+                "timeout",
             ],
         }
 
@@ -576,20 +605,35 @@ class Mimir(Prometheus):
     @classmethod
     def configuration_schema(cls):
         schema = super().configuration_schema()
-        schema["properties"]["url"]["title"] = "Mimir URL (the /prometheus prefix is added for you)"
+        schema["properties"]["url"]["title"] = "Mimir URL (the API prefix below is added for you)"
         schema["properties"]["org_id"] = {
             "type": "string",
             "title": "Tenant ID (sent as X-Scope-OrgID)",
         }
-        schema["order"] = ["url", "org_id"]
+        # The code has always read this; nothing offered a way to set it, so
+        # the default was the only value it ever had. Grafana Cloud serves the
+        # same API at /api/prom, and every query against one 404'd with no way
+        # to say so short of editing the options by hand.
+        schema["properties"]["prometheus_prefix"] = {
+            "type": "string",
+            "title": "API Prefix (Mimir: /prometheus, Grafana Cloud: /api/prom)",
+            "default": DEFAULT_MIMIR_PREFIX,
+        }
+        schema["order"] = ["url", "org_id", "prometheus_prefix"]
         schema["required"] = ["url", "org_id"]
+        schema["extra_options"].insert(0, "prometheus_prefix")
         return schema
 
     @property
     def api_base_url(self):
         """Mimir's Prometheus API lives under a prefix; accept a URL with or without it."""
         url = (self.configuration.get("url") or "").rstrip("/")
-        prefix = (self.configuration.get("prometheus_prefix") or "/prometheus").strip("/")
+        prefix = self.configuration.get("prometheus_prefix")
+        prefix = (DEFAULT_MIMIR_PREFIX if prefix is None else prefix).strip().strip("/")
+        if not prefix:
+            # Emptied on purpose: a gateway in front of Mimir may serve the
+            # API at the root already.
+            return url
         if url.endswith("/" + prefix):
             return url
         return "{}/{}".format(url, prefix)
