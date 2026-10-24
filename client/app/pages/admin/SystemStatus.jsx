@@ -1,83 +1,64 @@
 import { omit } from "lodash";
-import React from "react";
+import React, { useCallback, useEffect } from "react";
 import PropTypes from "prop-types";
 
 import Layout from "@/components/admin/Layout";
+import StaleNotice from "@/components/admin/StaleNotice";
 import * as StatusBlock from "@/components/admin/StatusBlock";
 
 import { axios } from "@/services/axios";
 import recordEvent from "@/services/recordEvent";
+import usePolledData from "@/lib/hooks/usePolledData";
 
 import "./system-status.less";
 
-class SystemStatus extends React.Component {
-  static propTypes = {
-    onError: PropTypes.func,
-  };
+/*
+  Fifteen panels of worker and database figures, refreshed on its own.
 
-  static defaultProps = {
-    onError: () => {},
-  };
+  Like the overview, it keeps what it has when a refresh fails: the page is
+  read while something is wrong, which is when a request is most likely to be
+  the thing that breaks.
+*/
+const REFRESH_MS = 60 * 1000;
 
-  state = {
-    queues: [],
-    manager: null,
-    databaseMetrics: {},
-    status: {},
-  };
+export default function SystemStatus({ onError }) {
+  const load = useCallback(() => axios.get("/status.json"), []);
+  const { data, loadedAt, failedAt, refresh } = usePolledData(load, { intervalMs: REFRESH_MS, onError });
 
-  _refreshTimer = null;
-
-  componentDidMount() {
+  useEffect(() => {
     recordEvent("view", "page", "admin/status");
-    this.refresh();
-  }
+  }, []);
 
-  componentWillUnmount() {
-    clearTimeout(this._refreshTimer);
-  }
+  const manager = data
+    ? {
+        startedAt: data.manager.started_at * 1000,
+        lastRefreshAt: data.manager.last_refresh_at * 1000,
+        outdatedQueriesCount: data.manager.outdated_queries_count,
+      }
+    : null;
 
-  refresh = () => {
-    axios
-      .get("/status.json")
-      .then((data) => {
-        this.setState({
-          queues: data.manager.queues,
-          manager: {
-            startedAt: data.manager.started_at * 1000,
-            lastRefreshAt: data.manager.last_refresh_at * 1000,
-            outdatedQueriesCount: data.manager.outdated_queries_count,
-          },
-          databaseMetrics: data.database_metrics.metrics || [],
-          status: omit(data, ["workers", "manager", "database_metrics"]),
-        });
-      })
-      .catch((error) => this.props.onError(error));
-    this._refreshTimer = setTimeout(this.refresh, 60 * 1000);
-  };
-
-  render() {
-    return (
-      <Layout activeTab="system_status">
-        <div className="system-status-page">
-          <div className="system-status-page-blocks">
-            <div className="system-status-page-block">
-              <StatusBlock.General info={this.state.status} />
-            </div>
-            <div className="system-status-page-block">
-              <StatusBlock.Manager info={this.state.manager} />
-            </div>
-            <div className="system-status-page-block">
-              <StatusBlock.Queues info={this.state.queues} />
-            </div>
-            <div className="system-status-page-block">
-              <StatusBlock.DatabaseMetrics info={this.state.databaseMetrics} />
-            </div>
+  return (
+    <Layout activeTab="system_status">
+      <div className="system-status-page">
+        {failedAt && <StaleNotice loadedAt={loadedAt} onRetry={refresh} />}
+        <div className="system-status-page-blocks">
+          <div className="system-status-page-block">
+            <StatusBlock.General info={data ? omit(data, ["workers", "manager", "database_metrics"]) : {}} />
+          </div>
+          <div className="system-status-page-block">
+            <StatusBlock.Manager info={manager} />
+          </div>
+          <div className="system-status-page-block">
+            <StatusBlock.Queues info={data ? data.manager.queues : []} />
+          </div>
+          <div className="system-status-page-block">
+            <StatusBlock.DatabaseMetrics info={data ? data.database_metrics.metrics || [] : []} />
           </div>
         </div>
-      </Layout>
-    );
-  }
+      </div>
+    </Layout>
+  );
 }
 
-export default SystemStatus;
+SystemStatus.propTypes = { onError: PropTypes.func };
+SystemStatus.defaultProps = { onError: () => {} };

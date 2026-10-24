@@ -1,15 +1,17 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect } from "react";
 import PropTypes from "prop-types";
 import Button from "antd/lib/button";
 import Modal from "antd/lib/modal";
 import Table from "antd/lib/table";
 
 import Layout from "@/components/admin/Layout";
+import StaleNotice from "@/components/admin/StaleNotice";
 import Link from "@/components/Link";
 import LoadingState from "@/components/items-list/components/LoadingState";
 import { axios } from "@/services/axios";
 import notification from "@/services/notification";
 import recordEvent from "@/services/recordEvent";
+import usePolledData from "@/lib/hooks/usePolledData";
 
 import { formatElapsed } from "./overview/pressure";
 
@@ -29,25 +31,20 @@ import { formatElapsed } from "./overview/pressure";
 const REFRESH_MS = 15 * 1000;
 
 export default function RunningQueries({ onError }) {
-  const [running, setRunning] = useState(null);
-  const onErrorRef = useRef(onError);
-  onErrorRef.current = onError;
-
-  const load = useCallback(
-    () =>
-      axios
-        .get("/api/admin/queries/running")
-        .then((data) => setRunning(data.running))
-        .catch((error) => onErrorRef.current(error)),
-    []
-  );
+  const load = useCallback(() => axios.get("/api/admin/queries/running").then((data) => data.running), []);
+  const {
+    data: running,
+    loadedAt,
+    failedAt,
+    refresh,
+  } = usePolledData(load, {
+    intervalMs: REFRESH_MS,
+    onError,
+  });
 
   useEffect(() => {
     recordEvent("view", "page", "admin/queries/running");
-    load();
-    const timer = setInterval(load, REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [load]);
+  }, []);
 
   const kill = (row) => {
     Modal.confirm({
@@ -62,7 +59,7 @@ export default function RunningQueries({ onError }) {
           .delete(`/api/admin/jobs/${row.job_id}`)
           .then(() => {
             notification.success("Query stopped.");
-            return load();
+            return refresh();
           })
           .catch(() => notification.error("Could not stop that query.")),
     });
@@ -117,6 +114,7 @@ export default function RunningQueries({ onError }) {
 
   return (
     <Layout activeTab="running_queries">
+      {failedAt && <StaleNotice loadedAt={loadedAt} onRetry={refresh} />}
       {running === null ? (
         <LoadingState className="" />
       ) : (
