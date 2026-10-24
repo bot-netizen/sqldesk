@@ -1314,3 +1314,61 @@ class TestAskingWhetherOneQueryIsConfirmed(TestVerifyingASavedQuery):
 
         self.assertTrue(rv.json["verified"])
         self.assertFalse(rv.json["current"])
+
+
+class TestReviewingWhatAnAgentWrote(CatalogTestCase):
+    """
+    An agent can describe a warehouse in an afternoon -- the point of letting
+    it -- so a curator needs the list of exactly what it wrote, and whose key
+    it was written with. A badge here and there in a catalog of three thousand
+    tables is not a review.
+    """
+
+    def setUp(self):
+        super().setUp()
+        group = self.factory.create_group(
+            name="Curators", permissions=models.Group.DEFAULT_PERMISSIONS + ["manage_catalog"]
+        )
+        models.db.session.add(group)
+        models.db.session.commit()
+        self.factory.data_source.add_group(group, view_only=True)
+        models.db.session.commit()
+        self.admin = self.factory.create_user(group_ids=[group.id])
+        self.source = self.factory.data_source
+        self.by_agent = models.CatalogTable(
+            org=self.factory.org,
+            data_source=self.source,
+            name="events",
+            description="One row per event.",
+            description_source="mcp",
+            described_by=self.admin,
+            described_at=datetime.datetime.now(datetime.timezone.utc),
+        )
+        self.by_hand = models.CatalogTable(
+            org=self.factory.org,
+            data_source=self.source,
+            name="orders",
+            description="One row per order.",
+            description_source="human",
+        )
+        self.untouched = models.CatalogTable(org=self.factory.org, data_source=self.source, name="audit_log")
+        models.db.session.add_all([self.by_agent, self.by_hand, self.untouched])
+        models.db.session.commit()
+
+    def _listed(self, **params):
+        query = "&".join("{}={}".format(key, value) for key, value in params.items())
+        rv = self.make_request("get", "/api/catalog?" + query, user=self.admin, org=False)
+        self.assertEqual(200, rv.status_code)
+        return {table["name"]: table for table in rv.json["tables"]}
+
+    def test_the_agent_filter_returns_only_what_an_agent_wrote(self):
+        self.assertEqual({"events"}, set(self._listed(source="mcp")))
+
+    def test_every_table_says_whose_key_described_it(self):
+        self.assertEqual(self.admin.name, self._listed()["events"]["described_by"])
+
+    def test_and_nobody_is_named_where_a_person_typed_it(self):
+        self.assertIsNone(self._listed()["orders"]["described_by"])
+
+    def test_without_the_filter_the_whole_catalog_is_still_listed(self):
+        self.assertEqual({"events", "orders", "audit_log"}, set(self._listed()))

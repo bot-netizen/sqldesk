@@ -73,7 +73,15 @@ function DescriptionCell({ table, onSaved }) {
         {/* Written by an agent somebody pointed at the catalog with their own
             API key. Kept apart from "yours" so a reviewer can tell a sentence a
             person typed from one a model proposed. */}
-        {table.description_source === "mcp" && <Tag color="purple">via MCP</Tag>}
+        {table.description_source === "mcp" && (
+          <Tooltip
+            title={
+              table.described_by ? `Written through MCP with ${table.described_by}'s API key.` : "Written through MCP."
+            }
+          >
+            <Tag color="purple">via MCP{table.described_by ? ` \u00b7 ${table.described_by}` : ""}</Tag>
+          </Tooltip>
+        )}
         <Button size="small" type="primary" disabled={!dirty} loading={saving} onClick={save}>
           Save
         </Button>
@@ -638,6 +646,9 @@ const DESCRIBED = [
   { value: "all", label: "All" },
   { value: "described", label: "With a description" },
   { value: "undescribed", label: "Missing one" },
+  // The review list: an agent can describe a warehouse in an afternoon, and
+  // somebody has to be able to read exactly what it wrote.
+  { value: "mcp", label: "Written by an agent" },
 ];
 
 export default function Catalog() {
@@ -670,6 +681,8 @@ export default function Catalog() {
       params.push("undescribed=1");
     } else if (described === "described") {
       params.push("described=1");
+    } else if (described === "mcp") {
+      params.push("source=mcp");
     }
     if (showHidden) {
       params.push("hidden=1");

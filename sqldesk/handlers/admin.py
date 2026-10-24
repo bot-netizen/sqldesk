@@ -304,6 +304,12 @@ def catalog_tables():
         tables = tables.filter(models.CatalogTable.description.is_(None))
     elif request.args.get("described"):
         tables = tables.filter(models.CatalogTable.description.isnot(None))
+    elif request.args.get("source") == "mcp":
+        # The reviewing question: what has an agent written? An agent can
+        # describe a thousand tables in an afternoon, which is the point of
+        # letting it -- and the reason somebody needs a list of exactly those
+        # rather than the whole catalog with a badge here and there.
+        tables = tables.filter(models.CatalogTable.description_source == "mcp")
 
     # On the server, over every table. The page shows the first 200 by usage,
     # and a search that only looked at those 200 would never find the 201st
@@ -344,6 +350,11 @@ def catalog_tables():
                     "usage_count": table.usage_count,
                     "description": table.description,
                     "description_source": table.description_source,
+                    # Whose key wrote it. "via MCP" says a machine typed the
+                    # sentence; the first question about a wrong one is whose
+                    # machine, and the answer belongs beside the badge.
+                    "described_by": table.described_by.name if table.described_by else None,
+                    "described_at": table.described_at,
                     "column_count": counts.get(table.id, 0),
                     "card": table.card,
                     "harvested_at": table.harvested_at,
@@ -516,6 +527,8 @@ def describe_catalog_table(table_id):
             "id": table.id,
             "description": table.description,
             "description_source": table.description_source,
+            "described_by": table.described_by.name if table.described_by else None,
+            "described_at": table.described_at,
             "hidden": table.hidden,
         }
     )

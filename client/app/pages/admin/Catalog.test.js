@@ -132,6 +132,38 @@ describe("the catalog page", () => {
     expect(wrapper.text()).toContain("via MCP");
   });
 
+  test("and says whose key wrote it", async () => {
+    // "via MCP" says a machine typed the sentence. The first question about a
+    // wrong one is whose machine.
+    server({
+      tables: [
+        {
+          id: 3,
+          name: "events",
+          column_count: 2,
+          description: "One row per event.",
+          description_source: "mcp",
+          described_by: "Iqbal",
+        },
+      ],
+    });
+    const wrapper = mount(<Catalog />);
+    await settle(wrapper);
+
+    expect(wrapper.text()).toContain("Iqbal");
+  });
+
+  test("the agent filter asks the server for exactly what an agent wrote", async () => {
+    const get = server();
+    const wrapper = mount(<Catalog />);
+    await settle(wrapper);
+
+    wrapper.find('input[value="mcp"]').simulate("change", { target: { checked: true } });
+    await settle(wrapper, 2);
+
+    expect(catalogCalls(get).some((url) => url.includes("source=mcp"))).toBe(true);
+  });
+
   test("an empty description shows the shape a good one takes", async () => {
     server();
     const wrapper = mount(<Catalog />);
