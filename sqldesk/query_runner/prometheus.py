@@ -500,6 +500,7 @@ class Prometheus(BaseQueryRunner):
 
         example: instant query
             query=http_requests_total
+            sum(rate(http_requests_total[5m])) by (code)
 
         example: range query
             query=http_requests_total&start=2018-01-20T00:00:00.000Z&end=2018-01-25T00:00:00.000Z&step=60s
@@ -507,6 +508,16 @@ class Prometheus(BaseQueryRunner):
         example: until now range query
             query=http_requests_total&start=2018-01-20T00:00:00.000Z&step=60s
             query=http_requests_total&start=2018-01-20T00:00:00.000Z&end=now&step=60s
+
+        example: a window relative to the present
+            query=http_requests_total&start=now-6h&step=60s
+
+        The PromQL is not URL-encoded, so `+`, `&` and regex metacharacters are
+        written as themselves -- except an `&` immediately followed by one of
+        this API's own parameter names, which has to be `%26`. `start` and
+        `end` take an RFC3339 time (read as UTC when it carries no offset), a
+        unix timestamp, `now`, or `now-1h`; either of them needs a `step`,
+        which Prometheus has no default for.
         """
 
         base_url = self.api_base_url
