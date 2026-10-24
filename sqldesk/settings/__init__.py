@@ -259,12 +259,30 @@ UPLOAD_UNLOAD_AFTER_DAYS = int(os.environ.get("SQLDESK_UPLOAD_UNLOAD_AFTER_DAYS"
 #: no figures is a message nobody can act on.
 UPLOAD_QUOTA_MB = int(os.environ.get("SQLDESK_UPLOAD_QUOTA_MB", "5120"))
 # Time limit (in seconds) for scheduled queries. Set this to -1 to execute without a time limit.
-SCHEDULED_QUERY_TIME_LIMIT = int(os.environ.get("SQLDESK_SCHEDULED_QUERY_TIME_LIMIT", -1))
-
 # Time limit (in seconds) for adhoc queries. Set this to -1 to execute without a time limit.
-ADHOC_QUERY_TIME_LIMIT = int(os.environ.get("SQLDESK_ADHOC_QUERY_TIME_LIMIT", -1))
+#
+# Five minutes rather than no limit at all. A query with no time limit holds a
+# worker for as long as the warehouse will keep the connection open -- hours,
+# in the cases that matter -- while passing every health probe, so an install
+# loses its capacity to something nobody is waiting for any more. Raise it
+# where a query legitimately takes longer, or set -1 for the old behaviour.
+ADHOC_QUERY_TIME_LIMIT = int(os.environ.get("SQLDESK_ADHOC_QUERY_TIME_LIMIT", 300))
+
+#: And for a scheduled one, which nobody is sitting in front of: half an hour.
+#: Same reasoning, longer rope -- an overnight roll-up is allowed to be slow,
+#: but not allowed to hold a worker until somebody notices next week.
+SCHEDULED_QUERY_TIME_LIMIT = int(os.environ.get("SQLDESK_SCHEDULED_QUERY_TIME_LIMIT", 1800))
 
 JOB_EXPIRY_TIME = int(os.environ.get("SQLDESK_JOB_EXPIRY_TIME", 3600 * 12))
+
+#: How long a finished job's record stays in Redis.
+#:
+#: Ten minutes, not the twelve hours the lock uses. The record exists so the
+#: browser that asked can be told the query is done; it then reads the result
+#: from Postgres and never asks again. Twelve hours of them is a Redis full of
+#: answers to questions nobody is going to ask -- and on an install that runs
+#: a few thousand queries a day, most of what is in there.
+JOB_RESULT_TTL = int(os.environ.get("SQLDESK_JOB_RESULT_TTL", 600))
 JOB_DEFAULT_FAILURE_TTL = int(os.environ.get("SQLDESK_JOB_DEFAULT_FAILURE_TTL", 7 * 24 * 60 * 60))
 
 LOG_LEVEL = os.environ.get("SQLDESK_LOG_LEVEL", "INFO")

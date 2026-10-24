@@ -81,6 +81,25 @@ def sample_time(timestamp):
     return datetime.fromtimestamp(timestamp, tz=timezone.utc)
 
 
+def api_body(response, what):
+    """
+    The JSON an OK response carried, or a message saying it carried none.
+
+    A gateway in front of Prometheus answers with its own HTML -- a login
+    page, an error page, a "service unavailable" -- and does it with a 200.
+    `response.json()` then raised, so the person saw a traceback about
+    expecting a value instead of being told their proxy answered.
+    """
+    try:
+        body = response.json()
+    except ValueError:
+        raise ValueError(
+            "{} answered with {}, not JSON. Check the URL: something in front of Prometheus is "
+            "answering instead of it.".format(what, response.headers.get("Content-Type") or "no content type")
+        ) from None
+    return body or {}
+
+
 def api_error(response):
     """What the server said about a refused request, not just its status line.
 
@@ -478,7 +497,7 @@ class Prometheus(BaseQueryRunner):
 
             if not response.ok:
                 raise Exception(api_error(response))
-            data = response.json()["data"]
+            data = api_body(response, "The metrics list").get("data") or []
 
             schema = {}
             for name in data:
@@ -559,7 +578,10 @@ class Prometheus(BaseQueryRunner):
             if not response.ok:
                 return None, api_error(response)
 
-            body = response.json().get("data") or {}
+            try:
+                body = api_body(response, "The query").get("data") or {}
+            except ValueError as not_json:
+                return None, str(not_json)
             result = body.get("result")
             # The server's own word for the shape, not the endpoint we asked:
             # an instant query given a range selector answers with a matrix.
@@ -673,7 +695,7 @@ class Mimir(Prometheus):
             if not response.ok:
                 raise Exception(api_error(response))
 
-            body = response.json() or {}
+            body = api_body(response, "The connection test")
             if body.get("status") != "success":
                 raise Exception(api_error(response))
             if not body.get("data"):

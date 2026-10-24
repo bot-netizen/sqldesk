@@ -722,6 +722,27 @@ def is_valid_cron(expression):
     return True
 
 
+#: The longest a run of failures may push a scheduled query out.
+#:
+#: The delay was 2**failures minutes with no ceiling, so a warehouse down for
+#: a day took a five-minute query to a 17-hour delay (2**10 minutes), and the
+#: morning after an outage every dashboard was still stale with nothing
+#: visibly wrong. An hour is long enough to stop hammering a broken source
+#: and short enough that recovery is not somebody's next job.
+MAX_SCHEDULE_BACKOFF = datetime.timedelta(hours=1)
+
+
+def _backoff(failures):
+    """How far a failing query's next run is pushed out."""
+    if not failures:
+        return datetime.timedelta(0)
+    try:
+        delay = datetime.timedelta(minutes=2**failures)
+    except OverflowError:
+        return MAX_SCHEDULE_BACKOFF
+    return min(delay, MAX_SCHEDULE_BACKOFF)
+
+
 def should_schedule_next(previous_iteration, now, interval, time=None, day_of_week=None, failures=0, cron=None):
     # if previous_iteration is None, it means the query has never been run before
     # so we should schedule it immediately
@@ -734,11 +755,7 @@ def should_schedule_next(previous_iteration, now, interval, time=None, day_of_we
         # since the query last ran. interval, time and day_of_week are ignored
         # -- the expression says everything.
         next_iteration = croniter(cron, previous_iteration).get_next(datetime.datetime)
-        if failures:
-            try:
-                next_iteration += datetime.timedelta(minutes=2**failures)
-            except OverflowError:
-                return False
+        next_iteration += _backoff(failures)
         return now > next_iteration
 
     # if time exists then interval > 23 hours (82800s)
@@ -768,11 +785,7 @@ def should_schedule_next(previous_iteration, now, interval, time=None, day_of_we
         next_iteration = (
             previous_iteration + datetime.timedelta(days=days_delay) + datetime.timedelta(days=days_to_add)
         ).replace(hour=hour, minute=minute)
-    if failures:
-        try:
-            next_iteration += datetime.timedelta(minutes=2**failures)
-        except OverflowError:
-            return False
+    next_iteration += _backoff(failures)
     return now > next_iteration
 
 
