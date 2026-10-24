@@ -188,6 +188,7 @@ class TimeoutSession(Session):
 
 
 class GoogleSpreadsheet(BaseQueryRunner):
+    query_language = "read_only_api"
     should_annotate_query = False
 
     def __init__(self, configuration):

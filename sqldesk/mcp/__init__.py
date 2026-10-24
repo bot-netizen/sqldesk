@@ -38,6 +38,13 @@ from sqldesk.ai.catalog.retrieve import context_for
 from sqldesk.ai.optimizer import analyze, dialect_for
 from sqldesk.permissions import has_access, not_view_only, view_only
 
+from sqldesk.query_runner import (
+    LANGUAGE_PYTHON,
+    LANGUAGE_SQL,
+    READ_ONLY_LANGUAGES,
+    UNCHECKABLE_LANGUAGES,
+    query_language_for,
+)
 #: The editor's own ceiling, reused rather than invented. A model exploring
 #: should not be able to ask for more than a person clicking Execute can.
 ROW_LIMIT = 1000
@@ -355,41 +362,6 @@ WRITES = (
 READ_WORDS = {"select", "with", "show", "describe", "desc", "values"}
 _LEADING_NOISE = re.compile(r"^(?:\s+|--[^\n]*(?:\n|$)|/\*.*?\*/|\()*", re.S)
 
-#: Sources whose query language cannot write, or that reach an API which only
-#: reads. Their queries go through unparsed.
-READ_ONLY_LANGUAGES = {
-    "elasticsearch",
-    "elasticsearch2",
-    "elasticsearch2_OpenDistroSQLElasticSearch",
-    "elasticsearch2_XPackSQLElasticSearch",
-    "aws_es",
-    "kibana",
-    "url",
-    "prometheus",
-    "graphite",
-    "google_spreadsheets",
-    "csv",
-    "excel",
-    "jirajql",
-    "results",
-    "cloudwatch",
-    "cloudwatch_insights",
-    "salesforce",
-    "google_analytics4",
-    "axibasetsd",
-}
-#: Sources whose language this cannot read for writes -- a program, or a
-#: query language with its own grammar. Refused; the editor is the place.
-UNCHECKABLE_LANGUAGES = {
-    "python",
-    "insecure_script",
-    "arangodb",
-    "azure_kusto",
-    "dgraph",
-    "sparql_endpoint",
-    "corporate_memory",
-    "influxdbv2",
-}
 #: Keywords that only ever start or mark a write, wherever they appear. The
 #: tokens are checked before the tree is, because a parse can succeed and
 #: still hide one: T-SQL needs no semicolon, so `SELECT 1 DELETE FROM t` read
@@ -501,10 +473,12 @@ def _http_writes(query):
     return None
 
 
-#: Languages that read except in a form this can spot.
+#: Languages that read except in a form this can spot. Keyed by the language
+#: the runner declares, not by the data source type, so a second runner that
+#: speaks one of them is covered the day it is added.
 LANGUAGE_CHECKS = {
-    "mongodb": _mongodb_writes,
-    "json": _http_writes,
+    "mongo": _mongodb_writes,
+    "http_request": _http_writes,
 }
 
 
@@ -548,19 +522,63 @@ def _capped(sql, source):
 
 
 def _by_language(sql, source):
+#: The data sources that run a program rather than a query.
+PROGRAM_SOURCES = ("python", "insecure_script")
+
+
+def _language(source):
+    """
+    What a query on this source is written in, asked of the runner itself.
+
+    It used to be read off a list of data source types kept here, and a runner
+    added without a line in that list was taken for SQL. `mimir` was: every
+    PromQL query a model wrote was refused for not beginning with SELECT, and
+    `yandex_*` and `google_search_console` had the same gap. The runner has
+    always known; `query_language` is it saying so.
+    """
+    return query_language_for(source.type) if source is not None else LANGUAGE_SQL
+
+
+def _not_sql_here(source):
+    """
+    Why SQL cannot be read, parsed or planned on this source, or None.
+
+    What `check_sql` and `explain_query` need: both of them are about SQL in
+    particular, so on a source that speaks something else they have nothing to
+    say, and saying it anyway is worse than refusing -- a plan for `EXPLAIN
+    up{job="api"}` is not a plan, and findings from parsing PromQL as SQL are
+    findings about a query nobody wrote.
+    """
+    language = _language(source)
+    if language == LANGUAGE_SQL:
+        return None
+    return "This data source's queries are written in {}, not SQL, so there is nothing here to read as SQL.".format(
+        language.replace("_", " ")
+    )
+
+
     """
     `(True, reason)` when the source's language decides, else `(False, None)`.
 
     A reason of None with True means "reads, go ahead". Everything not decided
     here is SQL, and the SQL checks follow.
     """
-    if source.type in ("python", "insecure_script"):
+    # By type as well as by language, for these two alone: both runners are
+    # off unless an install turns them on, and a type whose runner this
+    # process never loaded has no language to be read from. A `python` data
+    # source saved while it was enabled must still be refused by a worker
+    # where it is not.
+    if source is not None and source.type in PROGRAM_SOURCES:
         return True, "This data source runs Python, which a model may not."
-    if source.type in UNCHECKABLE_LANGUAGES:
+
+    language = _language(source)
+    if language == LANGUAGE_PYTHON:
+        return True, "This data source runs Python, which a model may not."
+    if language in UNCHECKABLE_LANGUAGES:
         return True, "This data source's queries cannot be checked for writes here; run them from the editor."
-    if source.type in LANGUAGE_CHECKS:
-        return True, LANGUAGE_CHECKS[source.type](sql)
-    if source.type in READ_ONLY_LANGUAGES:
+    if language in LANGUAGE_CHECKS:
+        return True, LANGUAGE_CHECKS[language](sql)
+    if language in READ_ONLY_LANGUAGES:
         return True, None
     return False, None
 
@@ -862,6 +880,13 @@ def tool_check_sql(user, org, arguments):
 #: names are the editor's own labels, so the words match what its author saw.
 CHART_ROLES = (
     ("x", "x"),
+    # Before the optimizer, which keeps its own idea of what is not SQL: it
+    # knows eight of the thirty-odd languages here, and the rest were parsed
+    # as SQL and reported on as if that had meant something.
+    not_sql = _not_sql_here(source)
+    if not_sql:
+        return _text(not_sql)
+
     ("y", "y"),
     ("series", "grouped by"),
     ("size", "size"),
@@ -1247,6 +1272,13 @@ def _over_the_ceiling(user, source, sql):
 
     Never raises and never refuses on an answer it did not get: an engine with
     no estimate, a ceiling nobody set, or an EXPLAIN that failed all mean "let
+    # A plan is a SQL engine's answer. On a source that speaks something else,
+    # `EXPLAIN ` in front of the query made it a query the engine could not
+    # read -- and on the read-only languages it was sent rather than refused.
+    not_sql = _not_sql_here(source)
+    if not_sql:
+        return {"content": [{"type": "text", "text": not_sql}], "isError": True}
+
     it run". Refusing a query for a reason that is not true would be worse than
     running an expensive one.
     """

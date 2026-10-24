@@ -66,6 +66,7 @@ class CustomPrint:
 
 
 class Python(BaseQueryRunner):
+    query_language = "python"
     should_annotate_query = False
 
     safe_builtins = (

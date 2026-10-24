@@ -84,6 +84,7 @@ def generate_rows_and_columns(csv_response):
 
 
 class AxibaseTSD(BaseQueryRunner):
+    query_language = "axibase_sql"
     noop_query = "SELECT 1"
 
     @classmethod

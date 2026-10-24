@@ -87,6 +87,7 @@ def parse_ga_response(response):
 
 
 class GoogleAnalytics(BaseSQLQueryRunner):
+    query_language = "read_only_api"
     should_annotate_query = False
 
     @classmethod

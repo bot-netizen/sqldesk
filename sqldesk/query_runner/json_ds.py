@@ -131,6 +131,7 @@ def parse_json(data, fields):
 
 
 class JSON(BaseHTTPQueryRunner):
+    query_language = "http_request"
     requires_url = False
     base_url_title = "Base URL"
 

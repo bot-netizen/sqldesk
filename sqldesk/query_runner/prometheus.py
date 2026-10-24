@@ -73,6 +73,7 @@ def convert_query_range(payload):
 
 
 class Prometheus(BaseQueryRunner):
+    query_language = "promql"
     should_annotate_query = False
 
     def _get_datetime_now(self):

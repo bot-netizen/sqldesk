@@ -110,6 +110,11 @@ __all__ = [
     "TYPE_DATE",
     "TYPE_FLOAT",
     "SUPPORTED_COLUMN_TYPES",
+    "LANGUAGE_SQL",
+    "LANGUAGE_PYTHON",
+    "READ_ONLY_LANGUAGES",
+    "UNCHECKABLE_LANGUAGES",
+    "query_language_for",
     "register",
     "get_query_runner",
     "import_query_runners",
@@ -123,6 +128,51 @@ TYPE_BOOLEAN = "boolean"
 TYPE_STRING = "string"
 TYPE_DATETIME = "datetime"
 TYPE_DATE = "date"
+
+#: What a saved query against a data source is actually written in. Most of
+#: them are SQL, so that is the default and only the rest say anything.
+#:
+#: It is a property of the language rather than of the runner on purpose.
+#: Whether a query can be read for writes was decided, until now, from a list
+#: of data source *types* kept in `sqldesk/mcp`, and a runner added without a
+#: line in that list was read as SQL: every PromQL query against a Mimir
+#: source was refused for not beginning with SELECT, and `yandex_*` and
+#: `google_search_console` had the same gap from the day they arrived. Two
+#: runners that speak the same language now answer the same way without
+#: anybody remembering to add them twice.
+LANGUAGE_SQL = "sql"
+LANGUAGE_PYTHON = "python"
+
+#: Languages whose queries cannot write: the engine has no write syntax, or
+#: the runner only ever reaches the read half of an API. A query in one of
+#: these needs no parsing before it runs.
+READ_ONLY_LANGUAGES = frozenset(
+    {
+        "promql",
+        "graphite",
+        "elasticsearch",
+        "jql",
+        "soql",
+        "axibase_sql",
+        "query_results",
+        # A declarative request -- YAML or JSON -- naming what to fetch from
+        # an API that serves reads and nothing else.
+        "read_only_api",
+    }
+)
+
+#: Languages with a grammar of their own that nothing here can read for
+#: writes. A caller that is not a person is refused and sent to the editor.
+UNCHECKABLE_LANGUAGES = frozenset(
+    {
+        LANGUAGE_PYTHON,
+        "kql",
+        "aql",
+        "dgraph",
+        "sparql",
+        "flux",
+    }
+)
 
 SUPPORTED_COLUMN_TYPES = set([TYPE_INTEGER, TYPE_FLOAT, TYPE_BOOLEAN, TYPE_STRING, TYPE_DATETIME, TYPE_DATE])
 
@@ -217,6 +267,10 @@ class BaseQueryRunner:
     #: against one would run against whatever happened to be in the window.
     #: Streams have their own place; see `handlers/streams.py`.
     streams_only = False
+
+    #: The language a query against this kind of source is written in. See
+    #: `LANGUAGE_SQL`; a runner whose queries are not SQL overrides it.
+    query_language = LANGUAGE_SQL
 
     deprecated = False
     should_annotate_query = True
@@ -538,6 +592,18 @@ def get_query_runner(query_runner_type, configuration):
         return None
 
     return query_runner_class(configuration)
+
+
+def query_language_for(query_runner_type):
+    """What a query against this kind of data source is written in.
+
+    Answered from the class, not from an instance: nothing is connected to and
+    no configuration is needed, so a caller deciding what it may do with a
+    query -- MCP -- can ask before it has anything to run it with. A type no
+    runner claims is SQL, which is what the rest of the application assumes of
+    one it cannot place.
+    """
+    return getattr(query_runners.get(query_runner_type), "query_language", LANGUAGE_SQL)
 
 
 def get_configuration_schema_for_query_runner_type(query_runner_type):

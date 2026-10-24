@@ -91,6 +91,7 @@ def get_formatted_value(column_type, value):
 
 
 class GoogleSearchConsole(BaseSQLQueryRunner):
+    query_language = "read_only_api"
     should_annotate_query = False
 
     @classmethod

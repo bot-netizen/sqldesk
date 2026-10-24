@@ -66,6 +66,7 @@ def _get_data_scanned(kusto_response):
 
 
 class AzureKusto(BaseQueryRunner):
+    query_language = "kql"
     should_annotate_query = False
     noop_query = "let noop = datatable (Noop:string)[1]; noop"
 

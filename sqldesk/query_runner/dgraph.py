@@ -29,6 +29,7 @@ def reduce_item(reduced_item, key, value):
 
 
 class Dgraph(BaseQueryRunner):
+    query_language = "dgraph"
     should_annotate_query = False
     noop_query = """
     {

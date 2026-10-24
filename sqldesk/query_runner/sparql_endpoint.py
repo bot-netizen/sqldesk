@@ -26,6 +26,8 @@ logger = logging.getLogger(__name__)
 class SPARQLEndpointQueryRunner(BaseQueryRunner):
     """Use a SPARQL endpoint as a data source"""
 
+    query_language = "sparql"
+
     # These environment keys are used by cmempy
     KNOWN_CONFIG_KEYS = ("SPARQL_BASE_URI", "SSL_VERIFY")
 

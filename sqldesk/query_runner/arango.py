@@ -28,6 +28,7 @@ _TYPE_MAPPINGS = {
 
 
 class Arango(BaseQueryRunner):
+    query_language = "aql"
     noop_query = "RETURN {'id': 1}"
 
     @classmethod

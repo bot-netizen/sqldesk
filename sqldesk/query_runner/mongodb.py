@@ -143,6 +143,7 @@ def _sorted_fields(fields):
 
 
 class MongoDB(BaseQueryRunner):
+    query_language = "mongo"
     should_annotate_query = False
 
     @classmethod

@@ -26,6 +26,7 @@ enabled = installed("numpy", "pandas")
 
 
 class CSV(BaseQueryRunner):
+    query_language = "read_only_api"
     should_annotate_query = False
 
     @classmethod

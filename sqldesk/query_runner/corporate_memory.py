@@ -30,6 +30,8 @@ logger = logging.getLogger(__name__)
 class CorporateMemoryQueryRunner(BaseQueryRunner):
     """Use eccenca Corporate Memory as a data source"""
 
+    query_language = "sparql"
+
     # These environment keys are used by cmempy
     KNOWN_CONFIG_KEYS = (
         "CMEM_BASE_PROTOCOL",
