@@ -308,8 +308,9 @@ metadata:
   labels:
     {{- include "sqldesk.labels" . | nindent 4 }}
 spec:
-  # One. Two schedulers would put every due job on the queue twice.
-  replicas: 1
+  # Safe above one: rq-scheduler enqueues only while holding a Redis lock, so
+  # the others skip the pass. See the comment on `scheduler.replicas`.
+  replicas: {{ .Values.scheduler.replicas }}
   strategy:
     type: Recreate
   selector:

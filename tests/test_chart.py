@@ -117,3 +117,61 @@ class TestWhatRunsTheHousekeeping(unittest.TestCase):
         # here is seconds.
         periodic = self.worker.split("component: periodic-worker", 1)[1]
         self.assertIn("terminationGracePeriodSeconds: 60", periodic)
+
+
+class TestWhatAClusterMayTakeAway(unittest.TestCase):
+    """
+    A node drain or a cluster upgrade is allowed to evict every pod of a
+    deployment at once -- nothing is unhealthy, so nothing stops it -- and the
+    install is then simply down until the replacements start.
+    """
+
+    def test_there_is_a_budget_for_the_web_pods(self):
+        pdb = template("pdb.yaml")
+
+        self.assertIn("kind: PodDisruptionBudget", pdb)
+        self.assertIn("minAvailable: 1", pdb)
+
+    def test_but_only_above_one_replica(self):
+        # Insisting on keeping one of one blocks the drain outright, which
+        # turns a routine node upgrade into something somebody has to
+        # override by hand.
+        self.assertIn("{{- if gt (int .Values.server.replicas) 1 }}", template("pdb.yaml"))
+
+
+class TestTheBundledRedis(unittest.TestCase):
+    """
+    Redis holds the queues. Two things about it decide whether a query
+    somebody submitted actually runs.
+    """
+
+    def setUp(self):
+        self.redis = template("redis.yaml")
+        self.values = open("charts/sqldesk/values.yaml").read()
+
+    def test_it_is_replaced_rather_than_rolled(self):
+        # Rolling runs two Redises behind one Service, so workers divide
+        # between two sets of queues and jobs enqueued through one are
+        # invisible to the workers reading the other.
+        self.assertIn("type: Recreate", self.redis)
+
+    def test_it_has_a_memory_ceiling(self):
+        self.assertIn("--maxmemory", self.redis)
+        self.assertRegex(self.values, r'maxmemory: "\d+[a-z]+"')
+
+    def test_and_refuses_writes_rather_than_evicting_queued_work(self):
+        # allkeys-lru would quietly evict queue entries and job records: the
+        # query never runs and nothing says so. Refusing is the honest
+        # failure -- the enqueue reports it.
+        self.assertIn('- "noeviction"', self.redis)
+        self.assertNotIn('- "allkeys-lru"', self.redis)
+
+    def test_it_asks_for_resources(self):
+        self.assertIn(".Values.redis.resources", self.redis)
+
+
+class TestTheScheduler(unittest.TestCase):
+    def test_its_replicas_can_be_raised(self):
+        # rq-scheduler enqueues only while holding a Redis lock, so a second
+        # pod is a warm spare rather than a second copy of every due job.
+        self.assertIn("replicas: {{ .Values.scheduler.replicas }}", template("worker.yaml"))
