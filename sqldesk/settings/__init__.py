@@ -33,7 +33,39 @@ SQLALCHEMY_DATABASE_URI = os.environ.get(
 SQLALCHEMY_MAX_OVERFLOW = int_or_none(os.environ.get("SQLALCHEMY_MAX_OVERFLOW"))
 SQLALCHEMY_POOL_SIZE = int_or_none(os.environ.get("SQLALCHEMY_POOL_SIZE"))
 SQLALCHEMY_DISABLE_POOL = parse_boolean(os.environ.get("SQLALCHEMY_DISABLE_POOL", "false"))
-SQLALCHEMY_ENABLE_POOL_PRE_PING = parse_boolean(os.environ.get("SQLALCHEMY_ENABLE_POOL_PRE_PING", "false"))
+
+# Check a pooled connection is alive before handing it out.
+#
+# On by default. A connection pooled across a Postgres restart, a failover or
+# an idle-connection timeout on a proxy is dead in a way nothing notices until
+# a request uses it, and then that request is a 500 for no reason anybody can
+# see. The check is one round trip on a connection that has been sitting idle,
+# which is cheaper than the first thing any handler does with it.
+SQLALCHEMY_ENABLE_POOL_PRE_PING = parse_boolean(os.environ.get("SQLALCHEMY_ENABLE_POOL_PRE_PING", "true"))
+
+# Which process this is: "server", "worker", "scheduler", or empty for a
+# manage command or a test. Set by bin/docker-entrypoint, and read only to
+# decide the statement timeout below -- the web tier can afford a short one
+# and a worker cannot.
+PROCESS_ROLE = os.environ.get("SQLDESK_PROCESS_ROLE", "")
+
+# How long a statement from the *web* tier may run, in milliseconds.
+#
+# Nothing a request does should take thirty seconds: a query against a data
+# source runs on a worker, not here. Without this, one lock or one bad plan
+# holds a gunicorn worker until gunicorn's own timeout kills the worker
+# outright -- taking the other requests it was serving with it. Postgres
+# cancelling one statement costs one request.
+#
+# Deliberately not applied to workers: storing a very large result is a single
+# long INSERT, and killing it would fail a query that had already run.
+SQLALCHEMY_STATEMENT_TIMEOUT_MS = int(os.environ.get("SQLALCHEMY_STATEMENT_TIMEOUT_MS", "30000"))
+
+# And how long a transaction may sit open having done nothing, in
+# milliseconds. A handler that opens a transaction and then waits on something
+# slow -- a data source's test connection, an HTTP call -- holds its row locks
+# the whole time, and a VACUUM cannot clean up behind it.
+SQLALCHEMY_IDLE_IN_TRANSACTION_TIMEOUT_MS = int(os.environ.get("SQLALCHEMY_IDLE_IN_TRANSACTION_TIMEOUT_MS", "60000"))
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 SQLALCHEMY_ECHO = False
 
