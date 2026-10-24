@@ -1,8 +1,7 @@
 import os
 import re
-import time
 from base64 import b64decode
-from datetime import datetime
+from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile
 from urllib.parse import unquote
 
@@ -50,6 +49,17 @@ def split_query_body(body):
     return fields
 
 
+def sample_time(timestamp):
+    """When a sample was taken, in UTC.
+
+    Prometheus timestamps are unix seconds and carry no zone;
+    `datetime.fromtimestamp` with no `tz` reads them into the *worker's* local
+    time and drops the fact, so the same query read differently depending on
+    which pod answered it, and a chart could not say which.
+    """
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc)
+
+
 def get_instant_rows(metrics_data):
     rows = []
 
@@ -57,7 +67,7 @@ def get_instant_rows(metrics_data):
         row_data = metric["metric"]
 
         timestamp, value = metric["value"]
-        date_time = datetime.fromtimestamp(timestamp)
+        date_time = sample_time(timestamp)
 
         row_data.update({"timestamp": date_time, "value": value})
         rows.append(row_data)
@@ -75,35 +85,66 @@ def get_range_rows(metrics_data):
             row_data = metric_labels.copy()
 
             timestamp, value = values
-            date_time = datetime.fromtimestamp(timestamp)
+            date_time = sample_time(timestamp)
 
             row_data.update({"timestamp": date_time, "value": value})
             rows.append(row_data)
     return rows
 
 
-# Convert datetime string to timestamp
-def convert_query_range(payload):
-    query_range = {}
+#: `now`, and `now-1h`: how a window that ends at the present gets written.
+#: Prometheus itself takes absolute times only.
+_RELATIVE_TIME = re.compile(r"now\s*(?:-\s*([0-9]+)\s*(ms|[smhdwy]))?", re.I)
+_UNIT_SECONDS = {
+    "ms": 0.001,
+    "s": 1,
+    "m": 60,
+    "h": 3600,
+    "d": 86400,
+    "w": 604800,
+    "y": 31536000,
+}
 
-    for key in ["start", "end"]:
-        if key not in payload.keys():
-            continue
-        value = payload[key]
 
-        if isinstance(value, str):
-            # Don't convert timestamp string
-            try:
-                int(value)
-                continue
-            except ValueError:
-                pass
-            value = parser.parse(value)
+def epoch(value):
+    """A `datetime` as a unix timestamp, reading one with no zone as UTC.
 
-        if type(value) is datetime:
-            query_range[key] = int(time.mktime(value.timetuple()))
+    That is the API's own convention for a time written without an offset, and
+    the only reading that answers the same question on every worker.
+    `time.mktime` was doing this, and it reads a `datetime` as the *local*
+    time of whatever process it is in: `2018-01-26T00:00:00Z` meant a
+    different instant depending on which pod picked up the job, and the offset
+    an RFC3339 time carries was dropped on the way.
+    """
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.timestamp()
 
-    payload.update(query_range)
+
+def resolve_time(value, now):
+    """One `start` or `end` as a unix timestamp Prometheus will accept.
+
+    A bare unix timestamp is passed through, which is what it already did.
+    `now` and `now-1h` are new: they are how a relative window is written
+    everywhere else, and `dateutil` raised on them.
+    """
+    if isinstance(value, datetime):
+        return epoch(value)
+
+    value = (value or "").strip()
+    relative = _RELATIVE_TIME.fullmatch(value)
+    if relative:
+        amount, unit = relative.groups()
+        if amount is None:
+            return epoch(now)
+        return epoch(now) - int(amount) * _UNIT_SECONDS[unit.lower()]
+
+    try:
+        return float(value)
+    except ValueError:
+        pass
+
+    return epoch(parser.parse(value))
 
 
 class Prometheus(BaseQueryRunner):
@@ -111,7 +152,8 @@ class Prometheus(BaseQueryRunner):
     should_annotate_query = False
 
     def _get_datetime_now(self):
-        return datetime.now()
+        """The present, with its zone on it -- see `epoch`."""
+        return datetime.now(timezone.utc)
 
     def _get_prometheus_kwargs(self):
         ca_cert_file = self._create_cert_file("ca_cert_File")
@@ -310,12 +352,24 @@ class Prometheus(BaseQueryRunner):
             payload = split_query_body(query)
             query_type = "query_range" if "step" in payload.keys() else "query"
 
-            # for the range of until now
-            if query_type == "query_range" and ("end" not in payload.keys() or "now" in payload["end"]):
-                date_now = self._get_datetime_now()
-                payload.update({"end": date_now})
+            if query_type == "query" and ("start" in payload or "end" in payload):
+                # The silence was the bug: a start and an end with no step ran
+                # as an instant query, answered for the present, and read as
+                # the history having gone missing.
+                return None, "A range needs a step, which Prometheus has no default for: add `&step=60s`."
 
-            convert_query_range(payload)
+            # for the range of until now
+            if query_type == "query_range" and not payload.get("end"):
+                payload["end"] = "now"
+
+            now = self._get_datetime_now()
+            for key in ("start", "end"):
+                if key not in payload:
+                    continue
+                try:
+                    payload[key] = resolve_time(payload[key], now)
+                except (ValueError, OverflowError) as time_error:
+                    return None, "Could not read `{}={}`: {}".format(key, payload[key], time_error)
 
             api_endpoint = base_url + "/api/v1/{}".format(query_type)
 

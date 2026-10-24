@@ -1,5 +1,4 @@
-import time
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest import TestCase
 
 import mock
@@ -7,8 +6,11 @@ import mock
 from sqldesk.query_runner.prometheus import (
     Mimir,
     Prometheus,
+    epoch,
     get_instant_rows,
     get_range_rows,
+    resolve_time,
+    sample_time,
     split_query_body,
 )
 
@@ -42,13 +44,13 @@ class TestPrometheus(TestCase):
             {
                 "name": "example_metric_name",
                 "foo_bar": "foo",
-                "timestamp": datetime.fromtimestamp(1516937400.781),
+                "timestamp": sample_time(1516937400.781),
                 "value": "7400_foo",
             },
             {
                 "name": "example_metric_name",
                 "foo_bar": "bar",
-                "timestamp": datetime.fromtimestamp(1516937400.781),
+                "timestamp": sample_time(1516937400.781),
                 "value": "7400_bar",
             },
         ]
@@ -61,25 +63,25 @@ class TestPrometheus(TestCase):
             {
                 "name": "example_metric_name",
                 "foo_bar": "foo",
-                "timestamp": datetime.fromtimestamp(1516937400.781),
+                "timestamp": sample_time(1516937400.781),
                 "value": "7400_foo",
             },
             {
                 "name": "example_metric_name",
                 "foo_bar": "foo",
-                "timestamp": datetime.fromtimestamp(1516938000.781),
+                "timestamp": sample_time(1516938000.781),
                 "value": "8000_foo",
             },
             {
                 "name": "example_metric_name",
                 "foo_bar": "bar",
-                "timestamp": datetime.fromtimestamp(1516937400.781),
+                "timestamp": sample_time(1516937400.781),
                 "value": "7400_bar",
             },
             {
                 "name": "example_metric_name",
                 "foo_bar": "bar",
-                "timestamp": datetime.fromtimestamp(1516938000.781),
+                "timestamp": sample_time(1516938000.781),
                 "value": "8000_bar",
             },
         ]
@@ -348,7 +350,7 @@ class TestPrometheus(TestCase):
         prometheus = Prometheus({"url": "url"})
         prometheus_kwargs = {"verify": True, "cert": ()}
 
-        timestamp_expected_7400 = datetime.fromtimestamp(1516937400.781)
+        timestamp_expected_7400 = sample_time(1516937400.781)
 
         rows = [
             {
@@ -410,7 +412,7 @@ class TestPrometheus(TestCase):
         # 3. case: successful run range query with start and end
         prometheus = Prometheus({"url": "url"})
         prometheus_kwargs = {"verify": True, "cert": ()}
-        timestamp_expected_8000 = datetime.fromtimestamp(1516938000.781)
+        timestamp_expected_8000 = sample_time(1516938000.781)
 
         rows = [
             {
@@ -451,8 +453,8 @@ class TestPrometheus(TestCase):
             json=mock.Mock(return_value={"data": {"result": self.range_query_result}})
         )
 
-        start_timestamp_expected = int(time.mktime(datetime(2018, 1, 26).timetuple()))
-        end_timestamp_expected = int(time.mktime(datetime(2018, 1, 27).timetuple()))
+        start_timestamp_expected = epoch(datetime(2018, 1, 26, tzinfo=timezone.utc))
+        end_timestamp_expected = epoch(datetime(2018, 1, 27, tzinfo=timezone.utc))
         data, error = prometheus.run_query(
             "http_requests_total&start=2018-01-26T00:00:00.000Z&end=2018-01-27T00:00:00.000Z&step=60s", "user"
         )
@@ -513,8 +515,8 @@ class TestPrometheus(TestCase):
 
         data_expected = {"rows": rows, "columns": columns}
 
-        now_datetime = datetime(2023, 12, 12, 11, 00, 00)
-        end_timestamp_expected = int(time.mktime(now_datetime.timetuple()))
+        now_datetime = datetime(2023, 12, 12, 11, 00, 00, tzinfo=timezone.utc)
+        end_timestamp_expected = epoch(now_datetime)
 
         requests_get_mock.return_value = mock.Mock(
             json=mock.Mock(return_value={"data": {"result": self.range_query_result}})
@@ -602,6 +604,77 @@ class TestTheQueryBodySurvivesTheTrip(TestCase):
         promql = 'sum(rate(http_requests_total{job=~"api-[0-9]+"}[5m])) + 1'
         Prometheus({"url": "url"}).run_query(promql, "user")
         self.assertEqual(promql, get.call_args[1]["params"]["query"])
+
+
+class TestTimes(TestCase):
+    """
+    `start=now-1h` raised, an RFC3339 offset was dropped on the way to
+    `time.mktime` -- which reads a naive `datetime` as the worker's own local
+    time -- and a start and an end with no step quietly ran as an instant
+    query instead.
+    """
+
+    NOW = datetime(2026, 10, 24, 12, 0, tzinfo=timezone.utc)
+
+    def test_now_is_now(self):
+        self.assertEqual(epoch(self.NOW), resolve_time("now", self.NOW))
+
+    def test_a_relative_time_goes_back_from_now(self):
+        self.assertEqual(epoch(self.NOW) - 3600, resolve_time("now-1h", self.NOW))
+        self.assertEqual(epoch(self.NOW) - 1800, resolve_time("now - 30m", self.NOW))
+        self.assertEqual(epoch(self.NOW) - 7 * 86400, resolve_time("now-7d", self.NOW))
+        self.assertEqual(epoch(self.NOW) - 45, resolve_time("NOW-45s", self.NOW))
+
+    def test_an_rfc3339_time_keeps_its_offset(self):
+        # 09:00 in Berlin is 08:00 UTC, whatever the worker's clock says.
+        self.assertEqual(
+            epoch(datetime(2026, 10, 24, 8, 0, tzinfo=timezone.utc)),
+            resolve_time("2026-10-24T09:00:00+01:00", self.NOW),
+        )
+
+    def test_a_time_with_no_zone_is_utc_not_the_workers_local_time(self):
+        self.assertEqual(
+            epoch(datetime(2026, 10, 24, 9, 0, tzinfo=timezone.utc)),
+            resolve_time("2026-10-24T09:00:00", self.NOW),
+        )
+
+    def test_a_unix_timestamp_is_left_alone(self):
+        self.assertEqual(1516937400.0, resolve_time("1516937400", self.NOW))
+
+    def test_a_sample_time_carries_utc(self):
+        taken = sample_time(1516937400.781)
+        self.assertEqual(timezone.utc, taken.tzinfo)
+        self.assertEqual(1516937400.781, taken.timestamp())
+
+    @mock.patch("sqldesk.query_runner.prometheus.requests.get")
+    @mock.patch("sqldesk.query_runner.prometheus.Prometheus._cleanup_cert_files")
+    def test_a_relative_range_reaches_the_api_as_two_timestamps(self, cleanup, get):
+        series = [{"metric": {}, "values": [[1516937400.0, "1"]]}]
+        get.return_value = mock.Mock(json=mock.Mock(return_value={"data": {"result": series}}))
+        runner = Prometheus({"url": "url"})
+        with mock.patch.object(Prometheus, "_get_datetime_now", return_value=self.NOW):
+            data, error = runner.run_query("query=up&start=now-1h&step=60s", "user")
+        self.assertIsNone(error)
+        params = get.call_args[1]["params"]
+        self.assertEqual("url/api/v1/query_range", get.call_args[0][0])
+        self.assertEqual(epoch(self.NOW) - 3600, params["start"])
+        self.assertEqual(epoch(self.NOW), params["end"])
+
+    @mock.patch("sqldesk.query_runner.prometheus.requests.get")
+    @mock.patch("sqldesk.query_runner.prometheus.Prometheus._cleanup_cert_files")
+    def test_a_range_without_a_step_says_so(self, cleanup, get):
+        data, error = Prometheus({"url": "url"}).run_query("query=up&start=now-1h&end=now", "user")
+        self.assertIsNone(data)
+        self.assertIn("step", error)
+        get.assert_not_called()
+
+    @mock.patch("sqldesk.query_runner.prometheus.requests.get")
+    @mock.patch("sqldesk.query_runner.prometheus.Prometheus._cleanup_cert_files")
+    def test_a_time_nobody_can_read_is_a_message_not_a_crash(self, cleanup, get):
+        data, error = Prometheus({"url": "url"}).run_query("query=up&start=last tuesday-ish&step=60s", "user")
+        self.assertIsNone(data)
+        self.assertIn("start=last tuesday-ish", error)
+        get.assert_not_called()
 
 
 class TestPrometheusCredentials(TestCase):
