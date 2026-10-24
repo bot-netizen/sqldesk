@@ -8,6 +8,7 @@ from operator import or_
 from flask import current_app, request_started, url_for
 from flask_login import AnonymousUserMixin, UserMixin, current_user
 from passlib.apps import custom_app_context as pwd_context
+from redis.exceptions import RedisError
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy_utils import EmailType
 from sqlalchemy_utils.models import generic_repr
@@ -46,10 +47,19 @@ def sync_last_active_at():
 def update_user_active_at(sender, *args, **kwargs):
     """
     Used as a Flask request_started signal callback that adds
-    the current user's details to Redis
+    the current user's details to Redis.
+
+    Best effort, because it runs on *every* request from a signed-in person
+    and nothing depends on the answer: "last seen" being a few minutes stale
+    is not worth a 500. A Redis that is restarting, full, or read-only used
+    to fail the request before the handler ran -- so a cache the product
+    treats as optional took the whole application down with it.
     """
     if current_user.is_authenticated and not current_user.is_api_user():
-        redis_connection.hset(LAST_ACTIVE_KEY, current_user.id, int(time.time()))
+        try:
+            redis_connection.hset(LAST_ACTIVE_KEY, current_user.id, int(time.time()))
+        except RedisError:
+            logger.warning("Could not record that %s is active.", current_user.id, exc_info=True)
 
 
 def init_app(app):

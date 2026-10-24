@@ -9,6 +9,7 @@ import time
 
 import pytz
 from croniter import CroniterBadCronError, croniter
+from redis.exceptions import RedisError
 from sqlalchemy import UniqueConstraint, and_, cast, distinct, func, or_
 from sqlalchemy.dialects.postgresql import ARRAY, DOUBLE_PRECISION, JSONB
 from sqlalchemy.event import listens_for
@@ -135,6 +136,12 @@ class DataSource(BelongsToOrgMixin, db.Model):
     )
     queue_name = Column(db.String(255), default="queries")
     scheduled_queue_name = Column(db.String(255), default="scheduled_queries")
+    #: When an administrator stopped this source being queried, and why. In
+    #: Postgres because a pause is a decision, not a cache: in Redis alone it
+    #: lasted until the next restart, after which every scheduled query ran
+    #: against the warehouse somebody had deliberately taken out of service.
+    paused_at = Column(db.DateTime(True), nullable=True)
+    paused_note = Column(db.Text, nullable=True)
     created_at = Column(db.DateTime(True), default=db.func.now())
 
     data_source_groups = db.relationship("DataSourceGroup", back_populates="data_source", cascade="all")
@@ -257,17 +264,49 @@ class DataSource(BelongsToOrgMixin, db.Model):
 
     @property
     def paused(self):
-        return redis_connection.exists(self._pause_key)
+        """
+        Whether an administrator has stopped this source being queried.
+
+        Read from Postgres, with Redis as a fallback for an install upgrading
+        with a pause already in place. It lived only in Redis, which made
+        pausing a warehouse -- the thing somebody does when it is overloaded
+        or being migrated -- survive exactly until the next Redis restart, at
+        which point every scheduled query started running against it again
+        and nothing said so.
+        """
+        if self.paused_at is not None:
+            return True
+        try:
+            return bool(redis_connection.exists(self._pause_key))
+        except RedisError:
+            return False
 
     @property
     def pause_reason(self):
-        return redis_connection.get(self._pause_key)
+        if self.paused_at is not None:
+            return self.paused_note or ""
+        try:
+            return redis_connection.get(self._pause_key)
+        except RedisError:
+            return None
 
     def pause(self, reason=None):
-        redis_connection.set(self._pause_key, reason or "")
+        self.paused_at = utils.utcnow()
+        self.paused_note = reason or ""
+        # Still written to Redis, so a worker running the previous version
+        # during a rolling upgrade sees the pause too.
+        try:
+            redis_connection.set(self._pause_key, reason or "")
+        except RedisError:
+            logger.warning("Could not mirror the pause of %s to Redis.", self.id, exc_info=True)
 
     def resume(self):
-        redis_connection.delete(self._pause_key)
+        self.paused_at = None
+        self.paused_note = None
+        try:
+            redis_connection.delete(self._pause_key)
+        except RedisError:
+            logger.warning("Could not clear the pause of %s in Redis.", self.id, exc_info=True)
 
     def add_group(self, group, view_only=False):
         dsg = DataSourceGroup(group=group, data_source=self, view_only=view_only)
