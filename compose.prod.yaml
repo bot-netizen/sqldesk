@@ -100,6 +100,14 @@ services:
       <<: *sqldesk-environment
       SQLDESK_WEB_WORKERS: ${SQLDESK_WEB_WORKERS:-4}
 
+  # Queries, and nothing else.
+  #
+  # The housekeeping queues moved to a worker of their own below. A query can
+  # hold a worker for minutes; with everything on one worker, two slow queries
+  # meant nothing was deciding what to refresh, nothing was evaluating alerts
+  # and nothing was sending mail -- so an install under load stopped doing the
+  # things that make it an install rather than a SQL console, and the only
+  # symptom was staleness nobody could explain.
   worker:
     <<: *sqldesk-service
     command: worker
@@ -108,11 +116,25 @@ services:
       # `mcp` last: taken only when everything else is empty, and never
       # stranded -- with SQLDESK_MCP_QUEUE=mcp and no mcp profile running,
       # a model's query would otherwise wait for a worker that is not there.
-      QUEUES: "queries,scheduled_queries,schemas,periodic,emails,default,mcp"
+      QUEUES: "queries,scheduled_queries,schemas,mcp"
       WORKERS_COUNT: ${SQLDESK_WORKERS_COUNT:-2}
     # Time to finish the query it is running before `down` or an upgrade
     # kills it. Docker's default is ten seconds.
     stop_grace_period: 5m
+
+  # Scheduling, alerts, mail, cleanups: everything that is not a query.
+  #
+  # One process, because none of this is heavy -- it is a few seconds of work
+  # a minute. What it needs is to be *running*, which is exactly what it was
+  # not while the query workers were busy.
+  periodic-worker:
+    <<: *sqldesk-service
+    command: worker
+    environment:
+      <<: *sqldesk-environment
+      QUEUES: "periodic,emails,default"
+      WORKERS_COUNT: ${SQLDESK_PERIODIC_WORKERS_COUNT:-1}
+    stop_grace_period: 2m
 
   # MCP's own worker, for when a model asking questions should never hold up
   # a dashboard. Only useful with SQLDESK_MCP_QUEUE=mcp in .env, which is

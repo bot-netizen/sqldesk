@@ -58,11 +58,30 @@ worker:
   # queue and its own workers, so it cannot starve the rest. MCP's queue is
   # added at the end when MCP is on without a worker of its own, so it is
   # never left with nobody to take it.
-  queues: "queries,scheduled_queries,schemas,periodic,emails,default"
+  #
+  # Queries only. The housekeeping queues are the periodic worker's below:
+  # with everything here, two slow queries meant nothing was deciding what to
+  # refresh, nothing was evaluating alerts and nothing was sending mail.
+  queues: "queries,scheduled_queries,schemas"
   workersCount: 2
   resources:
     requests: { cpu: 200m, memory: 512Mi }
     limits: { memory: 2Gi }
+
+# Scheduling, alerts, mail and the cleanups: everything that is not a query.
+#
+# A separate deployment because none of it is heavy -- a few seconds of work a
+# minute -- and all of it needs to be *running*, which is exactly what it was
+# not while the query workers were busy. Turn it off and its queues go back on
+# the ordinary worker, which is the behaviour before 0.7.7.
+periodicWorker:
+  enabled: true
+  replicas: 1
+  queues: "periodic,emails,default"
+  workersCount: 1
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 1Gi }
 
 # The Model Context Protocol server, and the catalog it answers from.
 #

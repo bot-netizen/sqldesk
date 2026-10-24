@@ -81,3 +81,39 @@ class TestTheRestrictedPodSecurityStandard(unittest.TestCase):
         self.assertIn("type: RuntimeDefault", pod)
         self.assertIn("allowPrivilegeEscalation: false", container)
         self.assertIn('drop: ["ALL"]', container)
+
+
+class TestWhatRunsTheHousekeeping(unittest.TestCase):
+    """
+    Scheduling, alerts, mail and the cleanups sat on the same worker as
+    queries. A query can hold a worker for minutes, so two slow ones meant
+    nothing was deciding what to refresh, nothing was evaluating alerts and
+    nothing was sending mail -- while every probe still passed.
+    """
+
+    def setUp(self):
+        self.worker = template("worker.yaml")
+        self.values = open("charts/sqldesk/values.yaml").read()
+
+    def test_the_query_worker_takes_only_query_queues(self):
+        queues = re.search(r'^  queues: "([^"]+)"', self.values, re.M).group(1)
+
+        self.assertEqual("queries,scheduled_queries,schemas", queues)
+
+    def test_there_is_a_deployment_for_the_rest(self):
+        self.assertIn("component: periodic-worker", self.worker)
+        self.assertIn(".Values.periodicWorker.queues", self.worker)
+
+    def test_and_its_queues_are_not_stranded_when_it_is_switched_off(self):
+        # No scheduling, no alerts and no mail is a worse failure than a slow
+        # query, because nothing reports it.
+        self.assertIn("{{- if not .Values.periodicWorker.enabled }}", self.worker)
+
+    def test_it_is_on_by_default(self):
+        self.assertRegex(self.values, r"periodicWorker:\n  enabled: true")
+
+    def test_it_is_not_given_a_five_minute_grace_period(self):
+        # The query worker needs one: somebody's four-minute query. A job
+        # here is seconds.
+        periodic = self.worker.split("component: periodic-worker", 1)[1]
+        self.assertIn("terminationGracePeriodSeconds: 60", periodic)

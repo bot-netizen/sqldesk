@@ -90,6 +90,13 @@ worker:
     requests: { cpu: 500m, memory: 1Gi }
     limits: { memory: 2Gi }
 
+# Scheduling, alerts, mail and the cleanups. One pod is enough -- it is a few
+# seconds of work a minute -- and it is separate so that busy query workers
+# cannot stop any of it happening.
+periodicWorker:
+  replicas: 1
+  workersCount: 1
+
 # Uploads, and streams' windows, live on a volume the server writes and the
 # workers read. ReadWriteOnce mounts on one node, so the chart keeps every pod
 # that mounts it -- both server replicas included -- on that node: they run,
