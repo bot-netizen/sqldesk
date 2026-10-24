@@ -6,11 +6,14 @@ import mock
 from sqldesk.query_runner.prometheus import (
     Mimir,
     Prometheus,
+    columns_for,
     epoch,
     get_instant_rows,
     get_range_rows,
+    guess_result_type,
     resolve_time,
     sample_time,
+    sample_value,
     split_query_body,
 )
 
@@ -20,22 +23,22 @@ class TestPrometheus(TestCase):
         self.instant_query_result = [
             {
                 "metric": {"name": "example_metric_name", "foo_bar": "foo"},
-                "value": [1516937400.781, "7400_foo"],
+                "value": [1516937400.781, "1.5"],
             },
             {
                 "metric": {"name": "example_metric_name", "foo_bar": "bar"},
-                "value": [1516937400.781, "7400_bar"],
+                "value": [1516937400.781, "2.5"],
             },
         ]
 
         self.range_query_result = [
             {
                 "metric": {"name": "example_metric_name", "foo_bar": "foo"},
-                "values": [[1516937400.781, "7400_foo"], [1516938000.781, "8000_foo"]],
+                "values": [[1516937400.781, "1.5"], [1516938000.781, "3.5"]],
             },
             {
                 "metric": {"name": "example_metric_name", "foo_bar": "bar"},
-                "values": [[1516937400.781, "7400_bar"], [1516938000.781, "8000_bar"]],
+                "values": [[1516937400.781, "2.5"], [1516938000.781, "4.5"]],
             },
         ]
 
@@ -45,13 +48,13 @@ class TestPrometheus(TestCase):
                 "name": "example_metric_name",
                 "foo_bar": "foo",
                 "timestamp": sample_time(1516937400.781),
-                "value": "7400_foo",
+                "value": 1.5,
             },
             {
                 "name": "example_metric_name",
                 "foo_bar": "bar",
                 "timestamp": sample_time(1516937400.781),
-                "value": "7400_bar",
+                "value": 2.5,
             },
         ]
 
@@ -64,25 +67,25 @@ class TestPrometheus(TestCase):
                 "name": "example_metric_name",
                 "foo_bar": "foo",
                 "timestamp": sample_time(1516937400.781),
-                "value": "7400_foo",
+                "value": 1.5,
             },
             {
                 "name": "example_metric_name",
                 "foo_bar": "foo",
                 "timestamp": sample_time(1516938000.781),
-                "value": "8000_foo",
+                "value": 3.5,
             },
             {
                 "name": "example_metric_name",
                 "foo_bar": "bar",
                 "timestamp": sample_time(1516937400.781),
-                "value": "7400_bar",
+                "value": 2.5,
             },
             {
                 "name": "example_metric_name",
                 "foo_bar": "bar",
                 "timestamp": sample_time(1516938000.781),
-                "value": "8000_bar",
+                "value": 4.5,
             },
         ]
 
@@ -357,18 +360,18 @@ class TestPrometheus(TestCase):
                 "name": "example_metric_name",
                 "foo_bar": "foo",
                 "timestamp": timestamp_expected_7400,
-                "value": "7400_foo",
+                "value": 1.5,
             },
             {
                 "name": "example_metric_name",
                 "foo_bar": "bar",
                 "timestamp": timestamp_expected_7400,
-                "value": "7400_bar",
+                "value": 2.5,
             },
         ]
         columns = [
             {"friendly_name": "timestamp", "type": "datetime", "name": "timestamp"},
-            {"friendly_name": "value", "type": "string", "name": "value"},
+            {"friendly_name": "value", "type": "float", "name": "value"},
             {"friendly_name": "name", "type": "string", "name": "name"},
             {"friendly_name": "foo_bar", "type": "string", "name": "foo_bar"},
         ]
@@ -419,30 +422,30 @@ class TestPrometheus(TestCase):
                 "name": "example_metric_name",
                 "foo_bar": "foo",
                 "timestamp": timestamp_expected_7400,
-                "value": "7400_foo",
+                "value": 1.5,
             },
             {
                 "name": "example_metric_name",
                 "foo_bar": "foo",
                 "timestamp": timestamp_expected_8000,
-                "value": "8000_foo",
+                "value": 3.5,
             },
             {
                 "name": "example_metric_name",
                 "foo_bar": "bar",
                 "timestamp": timestamp_expected_7400,
-                "value": "7400_bar",
+                "value": 2.5,
             },
             {
                 "name": "example_metric_name",
                 "foo_bar": "bar",
                 "timestamp": timestamp_expected_8000,
-                "value": "8000_bar",
+                "value": 4.5,
             },
         ]
         columns = [
             {"friendly_name": "timestamp", "type": "datetime", "name": "timestamp"},
-            {"friendly_name": "value", "type": "string", "name": "value"},
+            {"friendly_name": "value", "type": "float", "name": "value"},
             {"friendly_name": "name", "type": "string", "name": "name"},
             {"friendly_name": "foo_bar", "type": "string", "name": "foo_bar"},
         ]
@@ -485,30 +488,30 @@ class TestPrometheus(TestCase):
                 "name": "example_metric_name",
                 "foo_bar": "foo",
                 "timestamp": timestamp_expected_7400,
-                "value": "7400_foo",
+                "value": 1.5,
             },
             {
                 "name": "example_metric_name",
                 "foo_bar": "foo",
                 "timestamp": timestamp_expected_8000,
-                "value": "8000_foo",
+                "value": 3.5,
             },
             {
                 "name": "example_metric_name",
                 "foo_bar": "bar",
                 "timestamp": timestamp_expected_7400,
-                "value": "7400_bar",
+                "value": 2.5,
             },
             {
                 "name": "example_metric_name",
                 "foo_bar": "bar",
                 "timestamp": timestamp_expected_8000,
-                "value": "8000_bar",
+                "value": 4.5,
             },
         ]
         columns = [
             {"friendly_name": "timestamp", "type": "datetime", "name": "timestamp"},
-            {"friendly_name": "value", "type": "string", "name": "value"},
+            {"friendly_name": "value", "type": "float", "name": "value"},
             {"friendly_name": "name", "type": "string", "name": "name"},
             {"friendly_name": "foo_bar", "type": "string", "name": "foo_bar"},
         ]
@@ -604,6 +607,129 @@ class TestTheQueryBodySurvivesTheTrip(TestCase):
         promql = 'sum(rate(http_requests_total{job=~"api-[0-9]+"}[5m])) + 1'
         Prometheus({"url": "url"}).run_query(promql, "user")
         self.assertEqual(promql, get.call_args[1]["params"]["query"])
+
+
+class TestEveryResultTypeTheApiCanAnswerWith(TestCase):
+    """
+    Four shapes come back, and only two of them were read. A scalar, a string
+    and a native histogram all crashed on `metric["metric"]` or on a `value`
+    that was not there, and an instant query given a range selector -- `foo[5m]`
+    -- is answered with a matrix, which crashed the same way.
+
+    Response shapes recorded from the Prometheus HTTP API documentation; there
+    is no Mimir or Prometheus to query from here, so nothing below has been
+    confirmed against a live one.
+    """
+
+    def answer(self, result_type, result):
+        return mock.Mock(
+            ok=True,
+            json=mock.Mock(return_value={"status": "success", "data": {"resultType": result_type, "result": result}}),
+        )
+
+    def run_query(self, result_type, result, query="query=up"):
+        with mock.patch("sqldesk.query_runner.prometheus.requests.get") as get:
+            with mock.patch("sqldesk.query_runner.prometheus.Prometheus._cleanup_cert_files"):
+                get.return_value = self.answer(result_type, result)
+                return Prometheus({"url": "url"}).run_query(query, "user")
+
+    def test_a_scalar(self):
+        data, error = self.run_query("scalar", [1516937400.781, "42"])
+        self.assertIsNone(error)
+        self.assertEqual([{"timestamp": sample_time(1516937400.781), "value": 42.0}], data["rows"])
+        self.assertEqual("float", data["columns"][1]["type"])
+
+    def test_a_string_stays_a_string(self):
+        data, error = self.run_query("string", [1516937400.781, "the answer"])
+        self.assertIsNone(error)
+        self.assertEqual("the answer", data["rows"][0]["value"])
+        self.assertEqual("string", data["columns"][1]["type"])
+
+    def test_a_range_selector_in_an_instant_query_is_a_matrix(self):
+        # /api/v1/query, not query_range, so the old code read it as a vector
+        # and raised a KeyError on `value`.
+        matrix = [{"metric": {"job": "api"}, "values": [[1516937400.0, "1"], [1516937460.0, "2"]]}]
+        data, error = self.run_query("matrix", matrix, query="query=up[5m]")
+        self.assertIsNone(error)
+        self.assertEqual([1.0, 2.0], [row["value"] for row in data["rows"]])
+
+    def test_a_native_histogram_gets_columns_of_its_own(self):
+        histogram = [
+            {
+                "metric": {"job": "api"},
+                "histogram": [
+                    1516937400.0,
+                    {"count": "24", "sum": "100.5", "buckets": [[0, "0.5", "1", "4"]]},
+                ],
+            }
+        ]
+        data, error = self.run_query("vector", histogram)
+        self.assertIsNone(error)
+        row = data["rows"][0]
+        self.assertEqual(24.0, row["histogram_count"])
+        self.assertEqual(100.5, row["histogram_sum"])
+        self.assertEqual('[[0, "0.5", "1", "4"]]', row["histogram_buckets"])
+        types = {column["name"]: column["type"] for column in data["columns"]}
+        self.assertEqual("float", types["histogram_count"])
+        self.assertEqual("string", types["histogram_buckets"])
+
+    def test_a_histogram_in_a_range_query_too(self):
+        matrix = [
+            {
+                "metric": {},
+                "histograms": [[1516937400.0, {"count": "2", "sum": "3", "buckets": []}]],
+            }
+        ]
+        data, error = self.run_query("matrix", matrix)
+        self.assertIsNone(error)
+        self.assertEqual(2.0, data["rows"][0]["histogram_count"])
+
+    def test_a_shape_nothing_here_reads_is_a_message_not_a_crash(self):
+        data, error = self.run_query("hologram", {"something": "new"})
+        self.assertIsNone(data)
+        self.assertIn("hologram", error)
+
+    def test_a_server_that_does_not_say_is_read_from_the_shape(self):
+        # Every Prometheus sends resultType; a gateway or a recorded response
+        # may not, and the shapes tell themselves apart.
+        for result, expected in (
+            ([{"metric": {}, "values": [[1.0, "1"]]}], "matrix"),
+            ([{"metric": {}, "value": [1.0, "1"]}], "vector"),
+            ([1.0, "1"], "scalar"),
+            ([], "vector"),
+        ):
+            self.assertEqual(expected, guess_result_type(result), result)
+
+
+class TestColumnsComeFromEverySeries(TestCase):
+    def test_a_label_only_the_second_series_has_is_still_a_column(self):
+        rows = get_instant_rows(
+            [
+                {"metric": {"job": "api"}, "value": [1.0, "1"]},
+                {"metric": {"job": "api", "pod": "api-7"}, "value": [1.0, "2"]},
+            ]
+        )
+        names = [column["name"] for column in columns_for(rows)]
+        self.assertEqual(["timestamp", "value", "job", "pod"], names)
+
+    def test_the_value_column_is_a_number(self):
+        self.assertEqual("float", columns_for([])[1]["type"])
+
+    def test_a_value_is_converted_and_not_handed_on_as_text(self):
+        self.assertEqual(0.5, sample_value("0.5"))
+        self.assertEqual(float("inf"), sample_value("+Inf"))
+        self.assertTrue(sample_value("NaN") != sample_value("NaN"))
+
+    def test_a_value_nothing_can_read_is_empty_rather_than_a_crash(self):
+        self.assertIsNone(sample_value("not a number"))
+        self.assertIsNone(sample_value(None))
+
+    def test_the_recorded_response_is_not_edited_in_place(self):
+        # The labels dict used to be the row, so the parsed response grew a
+        # timestamp and a value of its own.
+        response = [{"metric": {"job": "api"}, "value": [1.0, "1"]}]
+        get_instant_rows(response)
+        self.assertEqual({"job": "api"}, response[0]["metric"])
 
 
 class TestTimes(TestCase):

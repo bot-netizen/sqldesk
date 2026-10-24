@@ -1,3 +1,4 @@
+import json
 import os
 import re
 from base64 import b64decode
@@ -10,6 +11,7 @@ from dateutil import parser
 
 from sqldesk.query_runner import (
     TYPE_DATETIME,
+    TYPE_FLOAT,
     TYPE_STRING,
     BaseQueryRunner,
     register,
@@ -49,6 +51,16 @@ def split_query_body(body):
     return fields
 
 
+#: The columns a native histogram sample brings instead of a value. Prefixed
+#: because `count` and `sum` are both perfectly ordinary label names, and a
+#: label would have been given a numeric column holding its text.
+HISTOGRAM_COLUMNS = {
+    "histogram_count": TYPE_FLOAT,
+    "histogram_sum": TYPE_FLOAT,
+    "histogram_buckets": TYPE_STRING,
+}
+
+
 def sample_time(timestamp):
     """When a sample was taken, in UTC.
 
@@ -60,16 +72,50 @@ def sample_time(timestamp):
     return datetime.fromtimestamp(timestamp, tz=timezone.utc)
 
 
+def sample_value(value):
+    """A sample's value as a number.
+
+    The API sends it as a string -- "1", "0.5", "NaN", "+Inf" -- and handing
+    that on as one typed the column as text, so a chart over Prometheus got a
+    category axis and nothing could be summed. "NaN" and the infinities are
+    floats in Python, so they survive as themselves.
+    """
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def histogram_fields(histogram):
+    """A native histogram, which has no single value, as columns of its own.
+
+    What anybody charts is the count or the sum. The buckets are kept as they
+    came, so the part nobody charts is still there to read rather than being
+    quietly dropped -- which is what happened to the whole sample before
+    this, by way of a KeyError on `value`.
+    """
+    histogram = histogram or {}
+    return {
+        "histogram_count": sample_value(histogram.get("count")),
+        "histogram_sum": sample_value(histogram.get("sum")),
+        "histogram_buckets": json.dumps(histogram.get("buckets") or []),
+    }
+
+
 def get_instant_rows(metrics_data):
     rows = []
 
     for metric in metrics_data:
-        row_data = metric["metric"]
+        row_data = dict(metric.get("metric") or {})
 
-        timestamp, value = metric["value"]
-        date_time = sample_time(timestamp)
+        if "histogram" in metric:
+            timestamp, histogram = metric["histogram"]
+            row_data.update(histogram_fields(histogram))
+        else:
+            timestamp, value = metric["value"]
+            row_data["value"] = sample_value(value)
 
-        row_data.update({"timestamp": date_time, "value": value})
+        row_data["timestamp"] = sample_time(timestamp)
         rows.append(row_data)
     return rows
 
@@ -78,18 +124,89 @@ def get_range_rows(metrics_data):
     rows = []
 
     for metric in metrics_data:
-        ts_values = metric["values"]
-        metric_labels = metric["metric"]
+        metric_labels = metric.get("metric") or {}
 
-        for values in ts_values:
-            row_data = metric_labels.copy()
+        for timestamp, value in metric.get("values") or []:
+            row_data = dict(metric_labels)
+            row_data["value"] = sample_value(value)
+            row_data["timestamp"] = sample_time(timestamp)
+            rows.append(row_data)
 
-            timestamp, value = values
-            date_time = sample_time(timestamp)
-
-            row_data.update({"timestamp": date_time, "value": value})
+        for timestamp, histogram in metric.get("histograms") or []:
+            row_data = dict(metric_labels)
+            row_data.update(histogram_fields(histogram))
+            row_data["timestamp"] = sample_time(timestamp)
             rows.append(row_data)
     return rows
+
+
+def get_scalar_rows(result, numeric=True):
+    """A `scalar` or a `string` result: one sample, no labels, not in a list.
+
+    Both crashed on `metric["metric"]`, and both are ordinary things to ask
+    for -- `scalar(up)` and `time()` answer with the first, and a
+    `label_replace` over a constant with the second.
+    """
+    timestamp, value = result
+    return [{"timestamp": sample_time(timestamp), "value": sample_value(value) if numeric else value}]
+
+
+def guess_result_type(result):
+    """Which of the four shapes came back, for an answer that did not say.
+
+    Prometheus always sends `resultType`; something else speaking its API, or
+    a recorded response, may not, and the shapes tell themselves apart. The
+    endpoint cannot be trusted to say either: `/api/v1/query` answers a range
+    selector like `foo[5m]` with a *matrix*, and reading that as a vector was
+    a KeyError rather than a result.
+    """
+    if not isinstance(result, list) or not result:
+        return "vector"
+    if not isinstance(result[0], dict):
+        return "scalar"
+    if "values" in result[0] or "histograms" in result[0]:
+        return "matrix"
+    return "vector"
+
+
+def rows_for(result, result_type):
+    """The rows of any result type, or None for one nothing here can read."""
+    if result_type == "matrix":
+        return get_range_rows(result)
+    if result_type == "vector":
+        return get_instant_rows(result)
+    if result_type in ("scalar", "string"):
+        return get_scalar_rows(result, numeric=result_type == "scalar")
+    return None
+
+
+def columns_for(rows, value_type=TYPE_FLOAT):
+    """The columns a result needs, taken from every row rather than the first.
+
+    Two series in one result need not carry the same labels -- an `or` of two
+    selectors, a `label_replace`, a recording rule beside a raw metric -- and
+    reading the names off `result[0]` dropped every label the first series
+    happened not to have, along with the values under them.
+    """
+    columns = [
+        {"friendly_name": "timestamp", "type": TYPE_DATETIME, "name": "timestamp"},
+        {"friendly_name": "value", "type": value_type, "name": "value"},
+    ]
+
+    named = {"timestamp", "value"}
+    for row in rows:
+        for name in row:
+            if name in named:
+                continue
+            named.add(name)
+            columns.append(
+                {
+                    "friendly_name": name,
+                    "type": HISTOGRAM_COLUMNS.get(name, TYPE_STRING),
+                    "name": name,
+                }
+            )
+    return columns
 
 
 #: `now`, and `now-1h`: how a window that ends at the present gets written.
@@ -337,10 +454,6 @@ class Prometheus(BaseQueryRunner):
         """
 
         base_url = self.api_base_url
-        columns = [
-            {"friendly_name": "timestamp", "type": TYPE_DATETIME, "name": "timestamp"},
-            {"friendly_name": "value", "type": TYPE_STRING, "name": "value"},
-        ]
         promehteus_kwargs = {}
 
         try:
@@ -378,28 +491,23 @@ class Prometheus(BaseQueryRunner):
             response = requests.get(api_endpoint, params=payload, **promehteus_kwargs)
             response.raise_for_status()
 
-            metrics = response.json()["data"]["result"]
+            body = response.json().get("data") or {}
+            result = body.get("result")
+            # The server's own word for the shape, not the endpoint we asked:
+            # an instant query given a range selector answers with a matrix.
+            result_type = body.get("resultType") or guess_result_type(result)
 
-            if len(metrics) == 0:
+            rows = rows_for(result, result_type)
+            if rows is None:
+                return None, "Prometheus answered with a {} result, which this cannot read.".format(result_type)
+
+            if len(rows) == 0:
                 return None, "query result is empty."
 
-            metric_labels = metrics[0]["metric"].keys()
-
-            for label_name in metric_labels:
-                columns.append(
-                    {
-                        "friendly_name": label_name,
-                        "type": TYPE_STRING,
-                        "name": label_name,
-                    }
-                )
-
-            if query_type == "query_range":
-                rows = get_range_rows(metrics)
-            else:
-                rows = get_instant_rows(metrics)
-
-            data = {"rows": rows, "columns": columns}
+            data = {
+                "rows": rows,
+                "columns": columns_for(rows, TYPE_STRING if result_type == "string" else TYPE_FLOAT),
+            }
 
         except requests.RequestException as e:
             return None, str(e)
