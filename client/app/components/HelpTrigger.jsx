@@ -10,7 +10,7 @@ import "./HelpTrigger.less";
 
 // The documentation, which lives in this repository under `docs/` and is
 // published by GitHub Pages. Every link here used to point at
-// `sqldesk.github.io/sqldesk/help/...` with paths inherited from Redash's
+// `sqldesk.github.io/sqldesk/help/...` with paths inherited from the upstream
 // docs site -- a domain that is not ours and paths that never existed, so
 // all twenty-five of them answered 404.
 const DOMAIN = "https://bot-netizen.github.io/sqldesk";

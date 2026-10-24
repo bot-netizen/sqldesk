@@ -70,7 +70,7 @@ export default function getOptions(options: any) {
     result.series.stacking = "stack";
   }
 
-  // Charts saved before the rename store color_scheme "Redash"
+  // Charts saved before the rename store color_scheme "Tealdash"
   result.color_scheme = resolveColorScheme(result.color_scheme);
 
   // A saved chart holds numeral format strings; the editor writes the shared

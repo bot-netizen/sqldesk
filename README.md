@@ -106,9 +106,9 @@ pnpm start             # webpack dev server + viz-lib watch
 
 ## Configuration
 
-SQLDesk reads `SQLDESK_*` environment variables. If you are migrating an existing
-Redash deployment, your `REDASH_*` variables are still honoured as a fallback — an
-explicitly set `SQLDESK_*` always wins.
+SQLDesk reads `SQLDESK_*` environment variables. On an install that predates the
+rename, `TEALDASH_*` variables are still honoured as a fallback — an explicitly
+set `SQLDESK_*` always wins.
 
 SQLDesk does not phone home. Version checking is off unless you set
 `SQLDESK_VERSION_CHECK_URL` to an endpoint you control.

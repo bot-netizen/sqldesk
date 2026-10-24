@@ -206,8 +206,8 @@ class BigQuery(BaseSQLQueryRunner):
         A dry run costs nothing and returns the figure BigQuery bills on, which
         makes it the one cost estimate in SQLDesk that is money rather than a
         proxy for it. Public because `sqldesk.mcp.cost` asks for it by name --
-        the private `_get_total_bytes_processed` below has existed for the
-        scanned-data limit since Redash, and this is the same call with a name
+        the private `_get_total_bytes_processed` below is inherited, serving the
+        scanned-data limit, and this is the same call under a name
         something outside the runner may use.
         """
         return self._get_total_bytes_processed(self._get_bigquery_service().jobs(), query)

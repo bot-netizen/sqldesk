@@ -107,16 +107,15 @@ export const ColorPaletteTypes = {
 export const DEFAULT_COLOR_SCHEME = "SQLDesk";
 
 // Chart options persist the scheme by name. Charts saved before the rename carry
-// "Redash", and anything imported or created through the API can name a palette
+// "Tealdash", and anything imported or created through the API can name a palette
 // that does not exist. A lookup on either returned undefined and the next
 // `palette.length` took down the whole dashboard the chart sat on -- so every
 // name is resolved to a real palette first.
 //
 // Aliases live here rather than as extra keys on AllColorPalettes because the
-// editor lists that object's keys; a key would put "Redash" back in the dropdown.
+// editor lists that object's keys; a key would put "Tealdash" back in the dropdown.
 const LEGACY_COLOR_SCHEMES: { [name: string]: string } = {
   Tealdash: DEFAULT_COLOR_SCHEME,
-  Redash: DEFAULT_COLOR_SCHEME,
 };
 
 export function resolveColorScheme(name: any): string {

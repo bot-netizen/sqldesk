@@ -1,21 +1,18 @@
 import os
 from urllib.parse import urlparse, urlunparse
 
-# SQLDesk reads SQLDESK_* environment variables. This project has been renamed
-# twice -- Redash set REDASH_*, Tealdash set TEALDASH_* -- and an operator
-# upgrading in place has no reason to expect their .env to stop working, so both
-# older prefixes are accepted as fallbacks. An explicitly set SQLDESK_* always
-# wins, and TEALDASH_* wins over REDASH_* because it is the more recent thing
-# the operator wrote.
+# SQLDesk reads SQLDESK_* environment variables. Under its previous name it read
+# TEALDASH_*, and an operator upgrading in place has no reason to expect their
+# .env to stop working, so that prefix is accepted as a fallback. An explicitly
+# set SQLDESK_* always wins.
 #
 # This lives here rather than in settings/__init__.py because that module reads
-# the environment at import time, and it imports this one first. Remove a prefix
-# once no deployment carries it.
-for _prefix in ("TEALDASH_", "REDASH_"):
-    for _key, _value in list(os.environ.items()):
-        if _key.startswith(_prefix):
-            os.environ.setdefault("SQLDESK_" + _key[len(_prefix) :], _value)
-del _prefix, _key, _value
+# the environment at import time, and it imports this one first. Remove it once
+# no deployment carries the old prefix.
+for _key, _value in list(os.environ.items()):
+    if _key.startswith("TEALDASH_"):
+        os.environ.setdefault("SQLDESK_" + _key[len("TEALDASH_") :], _value)
+del _key, _value
 
 
 def fix_assets_path(path):

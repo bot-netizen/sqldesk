@@ -3,10 +3,9 @@ import buildOption from "./echarts/buildOption";
 import { DEFAULT_COLOR_SCHEME, resolveColorScheme } from "@/visualizations/ColorPalette";
 
 describe("Visualizations -> Chart -> color scheme", () => {
-  test("charts saved under either former name resolve to the default palette", () => {
-    // This project has been renamed twice, and the default palette carries the
-    // product's name, so a saved chart can hold any of the three.
-    expect(getOptions({ color_scheme: "Redash" }).color_scheme).toBe("SQLDesk");
+  test("a chart saved under the former name resolves to the default palette", () => {
+    // The default palette carries the product's name, so a chart saved before
+    // the rename holds the old one.
     expect(getOptions({ color_scheme: "Tealdash" }).color_scheme).toBe("SQLDesk");
   });
 
@@ -54,8 +53,7 @@ describe("Visualizations -> Chart -> legacy color scheme rendering", () => {
     return buildOption(chartData, options);
   }
 
-  test("a chart saved with either old scheme name renders instead of throwing", () => {
-    expect(() => buildWithScheme("Redash")).not.toThrow();
+  test("a chart saved with the old scheme name renders instead of throwing", () => {
     expect(() => buildWithScheme("Tealdash")).not.toThrow();
   });
 
@@ -63,12 +61,10 @@ describe("Visualizations -> Chart -> legacy color scheme rendering", () => {
     expect(() => buildWithScheme("No Such Palette")).not.toThrow();
   });
 
-  test("either old scheme name renders exactly like the new one", () => {
-    for (const formerName of ["Redash", "Tealdash"]) {
-      expect(buildWithScheme(formerName).option.color).toEqual(buildWithScheme("SQLDesk").option.color);
-      expect(buildWithScheme(formerName).option.series[0].itemStyle).toEqual(
-        buildWithScheme("SQLDesk").option.series[0].itemStyle
-      );
-    }
+  test("the old scheme name renders exactly like the new one", () => {
+    expect(buildWithScheme("Tealdash").option.color).toEqual(buildWithScheme("SQLDesk").option.color);
+    expect(buildWithScheme("Tealdash").option.series[0].itemStyle).toEqual(
+      buildWithScheme("SQLDesk").option.series[0].itemStyle
+    );
   });
 });
