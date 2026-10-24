@@ -1869,6 +1869,53 @@ class TestCuratingTheCatalogOverMcp(McpTestCase):
         self.assertEqual("One row per order. Key: order_id (UUID).", self.table.description)
         self.assertEqual("mcp", self.table.description_source)
 
+    def test_the_card_an_agent_is_given_carries_the_new_description(self):
+        """
+        The reported bug: described through MCP, and find_context still did
+        not say so. The card is what an agent reads, and only the harvest
+        ever wrote it -- a day later at best, never on a paused source.
+        """
+        self.call({"name": "orders", "description": "One row per order."}, user=self.admin)
+
+        models.db.session.refresh(self.table)
+        self.assertIn("One row per order.", self.table.card or "")
+
+    def test_and_so_does_the_card_after_the_page_describes_one(self):
+        rv = self.make_request(
+            "post",
+            "/api/catalog/tables/{}".format(self.table.id),
+            data={"description": "Typed on the page."},
+            user=self.admin,
+            org=False,
+        )
+
+        self.assertEqual(200, rv.status_code)
+        models.db.session.refresh(self.table)
+        self.assertIn("Typed on the page.", self.table.card or "")
+
+    def test_clearing_a_description_takes_it_off_the_card_too(self):
+        self.call({"name": "orders", "description": "One row per order."}, user=self.admin)
+        self.call({"name": "orders", "description": ""}, user=self.admin)
+
+        models.db.session.refresh(self.table)
+        self.assertNotIn("One row per order.", self.table.card or "")
+
+    def test_it_records_whose_key_wrote_the_description(self):
+        """ "mcp" says a machine typed it; it does not say whose key it was."""
+        self.call({"name": "orders", "description": "One row per order."}, user=self.admin)
+
+        models.db.session.refresh(self.table)
+        self.assertEqual(self.admin.id, self.table.described_by_id)
+        self.assertIsNotNone(self.table.described_at)
+
+    def test_and_clearing_it_clears_the_author(self):
+        self.call({"name": "orders", "description": "One row per order."}, user=self.admin)
+        self.call({"name": "orders", "description": ""}, user=self.admin)
+
+        models.db.session.refresh(self.table)
+        self.assertIsNone(self.table.described_by_id)
+        self.assertIsNone(self.table.described_at)
+
     def test_it_hides_one(self):
         rv = self.call({"name": "orders", "hidden": True}, user=self.admin)
 

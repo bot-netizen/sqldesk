@@ -34,6 +34,7 @@ from sqlglot import exp
 from sqlglot.tokens import TokenType
 
 from sqldesk import __version__, features, models, settings
+from sqldesk.ai.catalog.harvest import rebuild_card
 from sqldesk.ai.catalog.retrieve import context_for
 from sqldesk.ai.optimizer import analyze, dialect_for
 from sqldesk.permissions import has_access, not_view_only, view_only
@@ -825,11 +826,30 @@ def tool_expand_table(user, org, arguments):
     if source is not None:
         query = query.filter(models.CatalogTable.data_source_id == source.id)
 
+    # Descriptions, on the table and on every column that has one. Without
+    # them this tool was a worse answer than the find_context card it exists
+    # to follow: more columns, and none of what anybody knows about them --
+    # so an agent that needed the full list lost the meaning to get it.
     blocks = []
     for table in query:
         columns = table.columns.order_by(models.CatalogColumn.usage_count.desc())
-        body = ", ".join("{} {}".format(c.name, c.type or "?") for c in columns)
-        blocks.append("{}({})".format(table.name, body))
+        body = ", ".join(
+            "{} {}{}".format(
+                column.name,
+                column.type or "?",
+                " /* {} */".format(" ".join(column.description.split())) if column.description else "",
+            )
+            for column in columns
+        )
+        lines = []
+        if table.description:
+            lines.append("-- {}".format(" ".join(table.description.split())))
+        lines.append("{}({})".format(table.name, body))
+        if source is None and len(readable) > 1:
+            # Two sources can both have a `users` table, and a column list
+            # with no source on it is a sentence about the wrong table.
+            lines.append("  in data source {}".format(table.data_source.name))
+        blocks.append("\n".join(lines))
     if not blocks:
         raise McpError(INVALID_PARAMS, "None of those tables are in the catalog.")
     return _text("\n\n".join(blocks))
@@ -1444,6 +1464,12 @@ def tool_update_table(user, org, arguments):
             }
         table.description = description
         table.description_source = WRITTEN_BY_MCP if description else None
+        table.described_by = user if description else None
+        table.described_at = models.db.func.now() if description else None
+        # The card is the text an agent is handed, and only a harvest wrote
+        # it: this description would not have been read back by find_context
+        # for a day, or ever on a paused data source.
+        rebuild_card(table)
         said.append(
             "Described {}.".format(table.name) if description else "Cleared the description of {}.".format(table.name)
         )
