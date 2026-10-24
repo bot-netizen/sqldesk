@@ -9,6 +9,7 @@ from sqldesk.query_runner.prometheus import (
     Prometheus,
     get_instant_rows,
     get_range_rows,
+    split_query_body,
 )
 
 
@@ -381,7 +382,7 @@ class TestPrometheus(TestCase):
         self.assertEqual(data, data_expected)
         self.assertIsNone(error)
         requests_get_mock.assert_called_once_with(
-            "url/api/v1/query", params={"query": ["http_requests_total"]}, **prometheus_kwargs
+            "url/api/v1/query", params={"query": "http_requests_total"}, **prometheus_kwargs
         )
         cleanup_cert_files_mock.assert_called_once_with(prometheus_kwargs)
 
@@ -399,7 +400,7 @@ class TestPrometheus(TestCase):
         self.assertIsNone(data)
         self.assertEqual(error, "query result is empty.")
         requests_get_mock.assert_called_once_with(
-            "url/api/v1/query", params={"query": ["http_requests_total"]}, **prometheus_kwargs
+            "url/api/v1/query", params={"query": "http_requests_total"}, **prometheus_kwargs
         )
         cleanup_cert_files_mock.assert_called_once_with(prometheus_kwargs)
 
@@ -461,10 +462,10 @@ class TestPrometheus(TestCase):
         requests_get_mock.assert_called_once_with(
             "url/api/v1/query_range",
             params={
-                "query": ["http_requests_total"],
-                "start": [start_timestamp_expected],
-                "end": [end_timestamp_expected],
-                "step": ["60s"],
+                "query": "http_requests_total",
+                "start": start_timestamp_expected,
+                "end": end_timestamp_expected,
+                "step": "60s",
             },
             **prometheus_kwargs,
         )
@@ -528,10 +529,10 @@ class TestPrometheus(TestCase):
         requests_get_mock.assert_called_once_with(
             "url/api/v1/query_range",
             params={
-                "query": ["http_requests_total"],
-                "start": [start_timestamp_expected],
-                "end": [end_timestamp_expected],
-                "step": ["60s"],
+                "query": "http_requests_total",
+                "start": start_timestamp_expected,
+                "end": end_timestamp_expected,
+                "step": "60s",
             },
             **prometheus_kwargs,
         )
@@ -555,9 +556,52 @@ class TestPrometheus(TestCase):
         self.assertIsNone(error)
         self.assertEqual(str(exception_obj.exception), "test exception")
         requests_get_mock.assert_called_once_with(
-            "url/api/v1/query", params={"query": ["http_requests_total"]}, **prometheus_kwargs
+            "url/api/v1/query", params={"query": "http_requests_total"}, **prometheus_kwargs
         )
         cleanup_cert_files_mock.assert_called_once_with(prometheus_kwargs)
+
+
+class TestTheQueryBodySurvivesTheTrip(TestCase):
+    """
+    A query body is a URL query string, and `parse_qs` read it as a form
+    submission: `+` became a space, so `a + b` went to Prometheus as `a   b`
+    (a 400) and `web-[0-9]+` as `web-[0-9] `, which matches nothing and says
+    nothing about why. Every `&` split the body, so one inside a label value
+    cut the query in half.
+    """
+
+    def test_a_plus_is_an_operator_not_a_space(self):
+        self.assertEqual({"query": "a + b"}, split_query_body("query=a + b"))
+
+    def test_a_regex_keeps_its_metacharacters(self):
+        self.assertEqual(
+            {"query": 'up{instance=~"web-[0-9]+"}'},
+            split_query_body('query=up{instance=~"web-[0-9]+"}'),
+        )
+
+    def test_an_ampersand_inside_a_label_does_not_split_the_query(self):
+        self.assertEqual(
+            {"query": 'rate(hits{path="/a&b"}[5m])', "step": "60s"},
+            split_query_body('query=rate(hits{path="/a&b"}[5m])&step=60s'),
+        )
+
+    def test_the_parameters_are_still_read(self):
+        self.assertEqual(
+            {"query": "up", "start": "2018-01-26T00:00:00Z", "end": "now", "step": "60s"},
+            split_query_body("query=up&start=2018-01-26T00:00:00Z&end=now&step=60s"),
+        )
+
+    def test_percent_encoding_still_decodes(self):
+        # What somebody encoding a space by hand actually has to write.
+        self.assertEqual({"query": "sum by (job) (up)"}, split_query_body("query=sum%20by%20(job)%20(up)"))
+
+    @mock.patch("sqldesk.query_runner.prometheus.requests.get")
+    @mock.patch("sqldesk.query_runner.prometheus.Prometheus._cleanup_cert_files")
+    def test_promql_reaches_the_api_as_written(self, cleanup, get):
+        get.return_value = mock.Mock(json=mock.Mock(return_value={"data": {"result": []}}))
+        promql = 'sum(rate(http_requests_total{job=~"api-[0-9]+"}[5m])) + 1'
+        Prometheus({"url": "url"}).run_query(promql, "user")
+        self.assertEqual(promql, get.call_args[1]["params"]["query"])
 
 
 class TestPrometheusCredentials(TestCase):

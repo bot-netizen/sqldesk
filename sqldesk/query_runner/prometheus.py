@@ -1,9 +1,10 @@
 import os
+import re
 import time
 from base64 import b64decode
 from datetime import datetime
 from tempfile import NamedTemporaryFile
-from urllib.parse import parse_qs
+from urllib.parse import unquote
 
 import requests
 from dateutil import parser
@@ -14,6 +15,39 @@ from sqldesk.query_runner import (
     BaseQueryRunner,
     register,
 )
+
+#: Everything the Prometheus HTTP API takes beside the expression itself. A
+#: query body is written as a URL query string, and the PromQL in it is not
+#: encoded, so these names are what tells an `&` that begins the next
+#: parameter from an `&` inside a label value.
+API_PARAMETERS = ("query", "start", "end", "step", "time", "timeout", "limit")
+
+_NEXT_PARAMETER = re.compile(r"&(?=(?:{})=)".format("|".join(API_PARAMETERS)))
+
+
+def split_query_body(body):
+    """The query body as parameter name -> value.
+
+    `parse_qs` was doing this, and using it is why PromQL did not survive the
+    trip. It reads a body as a *form submission*, where `+` means an encoded
+    space: `a + b` arrived as `a   b`, which Prometheus answers with a 400,
+    and `web-[0-9]+` as `web-[0-9] `, a regex that matches nothing and says
+    nothing about why. It also split on every `&`, including one inside a
+    label value, which turned the rest of the query into a parameter nobody
+    asked for.
+
+    A label value holding the text `&step=` -- or any other parameter name
+    with its `=` -- still has to be written `%26`; nothing can tell that from
+    the start of the next parameter.
+    """
+    fields = {}
+    for part in _NEXT_PARAMETER.split(body):
+        name, _, value = part.partition("=")
+        # unquote, not unquote_plus: in PromQL a `+` is the addition operator
+        # or part of a regex, never a space. Anybody who really is encoding
+        # one still has %20.
+        fields[name.strip()] = unquote(value).strip()
+    return fields
 
 
 def get_instant_rows(metrics_data):
@@ -55,7 +89,7 @@ def convert_query_range(payload):
     for key in ["start", "end"]:
         if key not in payload.keys():
             continue
-        value = payload[key][0]
+        value = payload[key]
 
         if isinstance(value, str):
             # Don't convert timestamp string
@@ -67,7 +101,7 @@ def convert_query_range(payload):
             value = parser.parse(value)
 
         if type(value) is datetime:
-            query_range[key] = [int(time.mktime(value.timetuple()))]
+            query_range[key] = int(time.mktime(value.timetuple()))
 
     payload.update(query_range)
 
@@ -273,13 +307,13 @@ class Prometheus(BaseQueryRunner):
             # for backward compatibility
             query = "query={}".format(query) if not query.startswith("query=") else query
 
-            payload = parse_qs(query)
+            payload = split_query_body(query)
             query_type = "query_range" if "step" in payload.keys() else "query"
 
             # for the range of until now
             if query_type == "query_range" and ("end" not in payload.keys() or "now" in payload["end"]):
                 date_now = self._get_datetime_now()
-                payload.update({"end": [date_now]})
+                payload.update({"end": date_now})
 
             convert_query_range(payload)
 
