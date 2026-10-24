@@ -293,9 +293,9 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
     <div class="two">
       <div class="card">
         <h3>Configuration</h3>
-        <p>SQLDesk reads <code>SQLDESK_*</code> environment variables. Migrating an existing
-        Redash install? Your <code>REDASH_*</code> variables still work as a fallback, so your
-        <code>.env</code> keeps running untouched.</p>
+        <p>SQLDesk reads <code>SQLDESK_*</code> environment variables. On an install that predates
+        the rename, <code>TEALDASH_*</code> still works as a fallback, and an explicitly set
+        <code>SQLDESK_*</code> always wins.</p>
       </div>
       <div class="card">
         <h3>Keep your secret key</h3>
