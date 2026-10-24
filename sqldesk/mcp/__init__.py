@@ -37,7 +37,6 @@ from sqldesk import __version__, features, models, settings
 from sqldesk.ai.catalog.retrieve import context_for
 from sqldesk.ai.optimizer import analyze, dialect_for
 from sqldesk.permissions import has_access, not_view_only, view_only
-
 from sqldesk.query_runner import (
     LANGUAGE_PYTHON,
     LANGUAGE_SQL,
@@ -45,6 +44,7 @@ from sqldesk.query_runner import (
     UNCHECKABLE_LANGUAGES,
     query_language_for,
 )
+
 #: The editor's own ceiling, reused rather than invented. A model exploring
 #: should not be able to ask for more than a person clicking Execute can.
 ROW_LIMIT = 1000
@@ -521,7 +521,6 @@ def _capped(sql, source):
         return None
 
 
-def _by_language(sql, source):
 #: The data sources that run a program rather than a query.
 PROGRAM_SOURCES = ("python", "insecure_script")
 
@@ -557,6 +556,7 @@ def _not_sql_here(source):
     )
 
 
+def _by_language(sql, source):
     """
     `(True, reason)` when the source's language decides, else `(False, None)`.
 
@@ -860,6 +860,13 @@ def tool_check_sql(user, org, arguments):
     sql = _sql_argument(arguments)
     source = _resolve_source(user, org, (arguments or {}).get("data_source"))
 
+    # Before the optimizer, which keeps its own idea of what is not SQL: it
+    # knows eight of the thirty-odd languages here, and the rest were parsed
+    # as SQL and reported on as if that had meant something.
+    not_sql = _not_sql_here(source)
+    if not_sql:
+        return _text(not_sql)
+
     result = analyze(sql, source.type if source else None)
     if not result["applicable"]:
         return _text(result["reason"])
@@ -880,13 +887,6 @@ def tool_check_sql(user, org, arguments):
 #: names are the editor's own labels, so the words match what its author saw.
 CHART_ROLES = (
     ("x", "x"),
-    # Before the optimizer, which keeps its own idea of what is not SQL: it
-    # knows eight of the thirty-odd languages here, and the rest were parsed
-    # as SQL and reported on as if that had meant something.
-    not_sql = _not_sql_here(source)
-    if not_sql:
-        return _text(not_sql)
-
     ("y", "y"),
     ("series", "grouped by"),
     ("size", "size"),
@@ -1252,6 +1252,13 @@ def _rows_as_text(result, limit=50):
 def tool_explain_query(user, org, arguments):
     sql = _sql_argument(arguments)
     source = _runnable_source(user, org, arguments, "`data_source` is required: a plan is the engine's, not ours.")
+    # A plan is a SQL engine's answer. On a source that speaks something else,
+    # `EXPLAIN ` in front of the query made it a query the engine could not
+    # read -- and on the read-only languages it was sent rather than refused.
+    not_sql = _not_sql_here(source)
+    if not_sql:
+        return {"content": [{"type": "text", "text": not_sql}], "isError": True}
+
     # Checked before EXPLAIN goes in front of it. `ANALYZE DELETE FROM t`
     # would otherwise become `EXPLAIN ANALYZE DELETE FROM t`, which deletes.
     refused = _why_not_a_read(sql, source)
@@ -1272,13 +1279,6 @@ def _over_the_ceiling(user, source, sql):
 
     Never raises and never refuses on an answer it did not get: an engine with
     no estimate, a ceiling nobody set, or an EXPLAIN that failed all mean "let
-    # A plan is a SQL engine's answer. On a source that speaks something else,
-    # `EXPLAIN ` in front of the query made it a query the engine could not
-    # read -- and on the read-only languages it was sent rather than refused.
-    not_sql = _not_sql_here(source)
-    if not_sql:
-        return {"content": [{"type": "text", "text": not_sql}], "isError": True}
-
     it run". Refusing a query for a reason that is not true would be worse than
     running an expensive one.
     """
