@@ -72,6 +72,32 @@ def sample_time(timestamp):
     return datetime.fromtimestamp(timestamp, tz=timezone.utc)
 
 
+def api_error(response):
+    """What the server said about a refused request, not just its status line.
+
+    Prometheus and Mimir answer one with a JSON body naming the problem:
+    "parse error at char 8: unexpected character" says where to look, and "no
+    org id" says a tenant never arrived. `raise_for_status` threw all of that
+    away and left "400 Client Error: Bad Request for url: ...", which is the
+    one part the person reading it already knew.
+    """
+    try:
+        body = response.json()
+    except ValueError:
+        body = None
+
+    detail = None
+    if isinstance(body, dict) and body.get("error"):
+        detail = body["error"]
+        if body.get("errorType"):
+            detail = "{}: {}".format(body["errorType"], detail)
+    if not detail:
+        detail = " ".join((response.text or "").split())[:500] or None
+
+    status = "{} {}".format(response.status_code, response.reason or "").strip()
+    return "{} ({})".format(detail, status) if detail else status
+
+
 def sample_value(value):
     """A sample's value as a number.
 
@@ -421,7 +447,8 @@ class Prometheus(BaseQueryRunner):
 
             response = requests.get(base_url + metrics_path, **promehteus_kwargs)
 
-            response.raise_for_status()
+            if not response.ok:
+                raise Exception(api_error(response))
             data = response.json()["data"]
 
             schema = {}
@@ -489,7 +516,8 @@ class Prometheus(BaseQueryRunner):
             promehteus_kwargs = self._get_prometheus_kwargs()
 
             response = requests.get(api_endpoint, params=payload, **promehteus_kwargs)
-            response.raise_for_status()
+            if not response.ok:
+                return None, api_error(response)
 
             body = response.json().get("data") or {}
             result = body.get("result")
@@ -501,9 +529,11 @@ class Prometheus(BaseQueryRunner):
             if rows is None:
                 return None, "Prometheus answered with a {} result, which this cannot read.".format(result_type)
 
-            if len(rows) == 0:
-                return None, "query result is empty."
-
+            # No rows is an answer, not a failure: a matcher that matches
+            # nothing, a window that starts before the data does, or -- the
+            # one that cost the most time -- a Mimir tenant with a typo in it.
+            # Returned as "query result is empty." it read as a broken data
+            # source, and sent people looking anywhere but at the tenant.
             data = {
                 "rows": rows,
                 "columns": columns_for(rows, TYPE_STRING if result_type == "string" else TYPE_FLOAT),
@@ -565,22 +595,39 @@ class Mimir(Prometheus):
         return "{}/{}".format(url, prefix)
 
     def test_connection(self):
-        """Ask the query API, not the root URL.
+        """Ask the query API, not the root URL, and ask it something the tenant
+        decides the answer to.
 
         `GET /prometheus` on Mimir is not dependably a 200, and a bare `requests.get`
         against a gateway happily succeeds on a welcome page -- which is how you get a
         data source that tests fine and cannot answer a query.
+
+        `query=1` is no better: Mimir answers it without reading a single series, so
+        the test passed for every tenant that has ever been typed, including one with
+        a letter missing. That tenant then answers every real query with nothing,
+        which is the hardest possible way to find a typo. The tenant's own metric
+        names are the cheapest question whose answer depends on which tenant was sent.
         """
         prometheus_kwargs = {}
         try:
             prometheus_kwargs = self._get_prometheus_kwargs()
             response = requests.get(
-                self.api_base_url + "/api/v1/query",
-                params={"query": "1"},
+                self.api_base_url + "/api/v1/label/__name__/values",
                 **prometheus_kwargs,
             )
-            response.raise_for_status()
-            return response.json().get("status") == "success"
+            if not response.ok:
+                raise Exception(api_error(response))
+
+            body = response.json() or {}
+            if body.get("status") != "success":
+                raise Exception(api_error(response))
+            if not body.get("data"):
+                raise Exception(
+                    "Mimir answered, but tenant '{}' holds no metrics. Check the Tenant ID.".format(
+                        self.configuration.get("org_id")
+                    )
+                )
+            return True
         finally:
             self._cleanup_cert_files(prometheus_kwargs)
 

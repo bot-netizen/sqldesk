@@ -6,6 +6,7 @@ import mock
 from sqldesk.query_runner.prometheus import (
     Mimir,
     Prometheus,
+    api_error,
     columns_for,
     epoch,
     get_instant_rows,
@@ -402,8 +403,8 @@ class TestPrometheus(TestCase):
 
         data, error = prometheus.run_query("http_requests_total", "user")
 
-        self.assertIsNone(data)
-        self.assertEqual(error, "query result is empty.")
+        self.assertIsNone(error)
+        self.assertEqual([], data["rows"])
         requests_get_mock.assert_called_once_with(
             "url/api/v1/query", params={"query": "http_requests_total"}, **prometheus_kwargs
         )
@@ -701,6 +702,69 @@ class TestEveryResultTypeTheApiCanAnswerWith(TestCase):
             self.assertEqual(expected, guess_result_type(result), result)
 
 
+class TestWhatTheServerSaidGetsThrough(TestCase):
+    """
+    `raise_for_status` left "400 Client Error: Bad Request for url: ...", which
+    is the one part of a refused query the person reading it already knew.
+    Prometheus names the problem in the body.
+    """
+
+    def refusal(self, status_code=400, reason="Bad Request", body=None, text=""):
+        return mock.Mock(
+            ok=False,
+            status_code=status_code,
+            reason=reason,
+            text=text,
+            json=mock.Mock(return_value=body) if body is not None else mock.Mock(side_effect=ValueError("not json")),
+        )
+
+    def test_a_parse_error_says_where(self):
+        detail = 'parse error at char 9: unexpected character: "{"'
+        error = api_error(self.refusal(body={"status": "error", "errorType": "bad_data", "error": detail}))
+        self.assertIn(detail, error)
+        self.assertIn("bad_data", error)
+        self.assertIn("400 Bad Request", error)
+
+    def test_a_missing_tenant_says_so(self):
+        error = api_error(self.refusal(status_code=401, reason="Unauthorized", body={"error": "no org id"}))
+        self.assertIn("no org id", error)
+
+    def test_a_body_that_is_not_json_still_gets_quoted(self):
+        error = api_error(self.refusal(status_code=502, reason="Bad Gateway", text="\n  upstream connect error\n"))
+        self.assertIn("upstream connect error", error)
+        self.assertIn("502 Bad Gateway", error)
+
+    def test_an_empty_refusal_is_at_least_its_status(self):
+        self.assertEqual("503 Service Unavailable", api_error(self.refusal(503, "Service Unavailable")))
+
+    @mock.patch("sqldesk.query_runner.prometheus.requests.get")
+    @mock.patch("sqldesk.query_runner.prometheus.Prometheus._cleanup_cert_files")
+    def test_a_refused_query_returns_the_reason(self, cleanup, get):
+        get.return_value = self.refusal(body={"errorType": "bad_data", "error": 'invalid parameter "step"'})
+        data, error = Prometheus({"url": "url"}).run_query("query=up&step=nonsense", "user")
+        self.assertIsNone(data)
+        self.assertIn('invalid parameter "step"', error)
+
+
+class TestAnEmptyResultIsAnAnswer(TestCase):
+    """
+    The usual cause is a Mimir tenant with a letter missing. Reported as
+    "query result is empty." it read as a broken data source and sent people
+    looking anywhere but at the tenant.
+    """
+
+    @mock.patch("sqldesk.query_runner.prometheus.requests.get")
+    @mock.patch("sqldesk.query_runner.prometheus.Prometheus._cleanup_cert_files")
+    def test_no_series_is_no_rows_and_no_error(self, cleanup, get):
+        get.return_value = mock.Mock(
+            ok=True, json=mock.Mock(return_value={"data": {"resultType": "vector", "result": []}})
+        )
+        data, error = Prometheus({"url": "url"}).run_query("query=up", "user")
+        self.assertIsNone(error)
+        self.assertEqual([], data["rows"])
+        self.assertEqual(["timestamp", "value"], [column["name"] for column in data["columns"]])
+
+
 class TestColumnsComeFromEverySeries(TestCase):
     def test_a_label_only_the_second_series_has_is_still_a_column(self):
         rows = get_instant_rows(
@@ -885,9 +949,32 @@ class TestMimir(TestCase):
         self.assertEqual(headers["Authorization"], "Bearer tok")
 
     @mock.patch("sqldesk.query_runner.prometheus.requests.get")
-    def test_test_connection_asks_the_query_api(self, get):
-        get.return_value = mock.Mock(ok=True, **{"json.return_value": {"status": "success"}})
+    def test_test_connection_asks_what_the_tenant_holds(self, get):
+        get.return_value = mock.Mock(ok=True, **{"json.return_value": {"status": "success", "data": ["up"]}})
         self.assertTrue(Mimir({"url": "http://mimir:8080", "org_id": "t1"}).test_connection())
         url, kwargs = get.call_args[0][0], get.call_args[1]
-        self.assertEqual(url, "http://mimir:8080/prometheus/api/v1/query")
+        self.assertEqual(url, "http://mimir:8080/prometheus/api/v1/label/__name__/values")
         self.assertEqual(kwargs["headers"]["X-Scope-OrgID"], "t1")
+
+    @mock.patch("sqldesk.query_runner.prometheus.requests.get")
+    def test_a_tenant_with_nothing_in_it_fails_the_test_and_says_which(self, get):
+        # `query=1` passed for any tenant at all, because Mimir answers it
+        # without reading a series. The typo then showed up as every query
+        # coming back empty.
+        get.return_value = mock.Mock(ok=True, **{"json.return_value": {"status": "success", "data": []}})
+        with self.assertRaises(Exception) as raised:
+            Mimir({"url": "http://mimir:8080", "org_id": "tenant-a"}).test_connection()
+        self.assertIn("tenant-a", str(raised.exception))
+
+    @mock.patch("sqldesk.query_runner.prometheus.requests.get")
+    def test_a_refused_connection_test_carries_mimirs_own_words(self, get):
+        get.return_value = mock.Mock(
+            ok=False,
+            status_code=401,
+            reason="Unauthorized",
+            text="",
+            **{"json.return_value": {"status": "error", "error": "no org id"}},
+        )
+        with self.assertRaises(Exception) as raised:
+            Mimir({"url": "http://mimir:8080", "org_id": "t1"}).test_connection()
+        self.assertIn("no org id", str(raised.exception))
