@@ -2,7 +2,7 @@ import React from "react";
 import { mount } from "enzyme";
 import { act } from "react-dom/test-utils";
 import { newestStored, noOlderThan, onPageLoad, runNow } from "@/services/freshness";
-import useDashboard from "./useDashboard";
+import useDashboard, { keepPendingValues } from "./useDashboard";
 
 /*
   341 lines, 27 hooks, a 36-key return and the hub of all four refresh paths,
@@ -233,5 +233,53 @@ describe("useDashboard", () => {
 
     expect(asked(widget)).toHaveLength(1);
     act(() => finish());
+  });
+});
+
+function fakeParameter(name, value, { type = "text", pendingValue } = {}) {
+  return {
+    name,
+    type,
+    value,
+    pendingValue,
+    get hasPendingValue() {
+      return this.pendingValue !== undefined && this.pendingValue !== this.value;
+    },
+  };
+}
+
+describe("an unapplied parameter edit", () => {
+  test("survives the dashboard changing as a widget finishes loading", () => {
+    const widget = fakeWidget(1);
+    const dashboard = fakeDashboard([widget]);
+    // A fresh set every call, as the real one builds.
+    dashboard.getParametersDefs = () => [fakeParameter("region", "emea")];
+    act(() => {
+      mount(<Harness dashboard={dashboard} />);
+    });
+    hook.globalParameters[0].pendingValue = "apac";
+
+    act(() => {
+      hook.loadWidget(widget);
+    });
+
+    expect(hook.globalParameters[0].pendingValue).toBe("apac");
+  });
+
+  test("is not carried onto a different parameter, or one of another type", () => {
+    const fresh = [fakeParameter("region", "emea"), fakeParameter("since", "d_last_7_days", { type: "date-range" })];
+    keepPendingValues(fresh, [
+      fakeParameter("country", "ca", { pendingValue: "us" }),
+      fakeParameter("since", "2026-01-01", { type: "date", pendingValue: "2026-02-01" }),
+    ]);
+
+    expect(fresh.map((param) => param.pendingValue)).toEqual([undefined, undefined]);
+  });
+
+  test("one already applied is not brought back", () => {
+    const fresh = [fakeParameter("region", "apac")];
+    keepPendingValues(fresh, [fakeParameter("region", "apac", { pendingValue: "apac" })]);
+
+    expect(fresh[0].pendingValue).toBeUndefined();
   });
 });

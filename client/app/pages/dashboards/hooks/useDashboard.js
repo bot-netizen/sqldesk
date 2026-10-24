@@ -57,12 +57,40 @@ function getAffectedWidgets(widgets, updatedParameters = []) {
     : widgets;
 }
 
+/*
+  An edit somebody has typed into a dashboard parameter but not yet applied.
+
+  The parameters are rebuilt from the widgets every time the dashboard
+  object changes, and it changes as each widget finishes loading -- so on a
+  dashboard of twenty widgets a value typed during the first few seconds was
+  thrown away, with the Apply button, as soon as the next one came in. The
+  applied values survive because they are in the URL; this is the half that
+  is not.
+*/
+export function keepPendingValues(fresh, previous) {
+  const pending = new Map(
+    (previous || []).filter((param) => param.hasPendingValue).map((param) => [param.name, param])
+  );
+  (fresh || []).forEach((param) => {
+    const before = pending.get(param.name);
+    if (before && before.type === param.type) {
+      param.pendingValue = before.pendingValue;
+    }
+  });
+  return fresh;
+}
+
 function useDashboard(dashboardData, { publicToken = null } = {}) {
   const [dashboard, setDashboard] = useState(dashboardData);
   const [filters, setFilters] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [gridDisabled, setGridDisabled] = useState(false);
-  const globalParameters = useMemo(() => dashboard.getParametersDefs(), [dashboard]);
+  const previousParameters = useRef([]);
+  const globalParameters = useMemo(() => {
+    const fresh = keepPendingValues(dashboard.getParametersDefs(), previousParameters.current);
+    previousParameters.current = fresh;
+    return fresh;
+  }, [dashboard]);
   const canEditDashboard = !dashboard.is_archived && policy.canEdit(dashboard);
   const isDashboardOwnerOrAdmin = useMemo(
     () =>
