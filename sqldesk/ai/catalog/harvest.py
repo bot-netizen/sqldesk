@@ -313,6 +313,7 @@ def harvest_data_source(data_source):
     _store_relationships(data_source, org, usage["joins"])
     _store_measures(data_source, org, usage["measures"])
     _drop_tables_that_went_away(data_source, {entry["name"] for entry in entries})
+    _drop_columns_that_went_away(ids, cards)
     _write_cards(data_source, entries, cards, usage["joins"], ids, {e["name"]: used(e["name"]) for e in entries})
     db.session.commit()
 
@@ -375,6 +376,36 @@ def _drop_tables_that_went_away(data_source, still_there):
     if stale:
         CatalogColumn.query.filter(CatalogColumn.catalog_table_id.in_(stale)).delete(synchronize_session=False)
         CatalogTable.query.filter(CatalogTable.id.in_(stale)).delete(synchronize_session=False)
+
+
+def _drop_columns_that_went_away(ids, cards):
+    """
+    A renamed or dropped column should leave the catalog with it.
+
+    The upsert only ever adds and updates, so a column the warehouse no
+    longer has stayed -- and a card is built from the columns stored, which
+    means a renamed column was offered to a model for ever, alongside its
+    replacement. SQL written against it fails on the one query that matters,
+    and the catalog looks authoritative while saying it.
+
+    Only tables this harvest actually read are touched: a table whose columns
+    could not be listed this time has `cards` empty for it, and emptying the
+    catalog on the strength of a failed listing would be worse than stale.
+    """
+    dropped = 0
+    for name, table_id in ids.items():
+        columns = cards.get(name)
+        if not columns:
+            continue
+        kept = {column[0] for column in columns}
+        dropped += (
+            CatalogColumn.query.filter(
+                CatalogColumn.catalog_table_id == table_id,
+                CatalogColumn.name.notin_(kept),
+            ).delete(synchronize_session=False)
+            or 0
+        )
+    return dropped
 
 
 def _store_relationships(data_source, org, joins):
@@ -487,3 +518,54 @@ def _write_cards(data_source, entries, cards, joins, ids, usage):
             }
         )
     _upsert(CatalogTable.__table__, rows, ["data_source_id", "name"], ("card", "updated_at"))
+
+
+def rebuild_card(table):
+    """
+    Rebuild one table's card from what is now stored.
+
+    The card is the text a model is actually given, and it was only ever
+    written by a harvest. So a description somebody typed on the catalog page,
+    or an agent wrote through MCP, did not reach any agent until the next
+    harvest -- 24 hours later at best, and never at all if the source is
+    paused, its schedule is 0, or the harvest fails. The description was
+    visible on the page the whole time, which is what made it look like it had
+    been saved and ignored.
+
+    Reads the stored row rather than a harvest entry, so it is the same text
+    whoever wrote it. Caller commits.
+    """
+    columns = [
+        (column.name, column.type, column.usage_count or 0, column.description)
+        for column in table.columns.order_by(CatalogColumn.usage_count.desc().nullslast())
+    ]
+
+    bare = table.name.split(".")[-1]
+    edges = {}
+    for relationship in CatalogRelationship.query.filter(CatalogRelationship.data_source_id == table.data_source_id):
+        for this_side, other in (
+            (relationship.left_table, relationship.right_table),
+            (relationship.right_table, relationship.left_table),
+        ):
+            if this_side in (table.name, bare):
+                edges[other] = max(edges.get(other, 0), relationship.observed_count or 0)
+    neighbours = sorted(edges.items(), key=lambda edge: -edge[1])[:4]
+
+    measures = [
+        "{} = {}({})".format(measure.name, (measure.kind or "").upper(), measure.column_name)
+        for measure in CatalogMeasure.query.filter(
+            CatalogMeasure.data_source_id == table.data_source_id,
+            CatalogMeasure.table_name.in_([table.name, bare]),
+            CatalogMeasure.status == MEASURE_APPROVED,
+        )
+    ]
+
+    table.card = build_card(
+        table.name,
+        table.usage_count or 0,
+        columns,
+        neighbours,
+        table.description,
+        sorted(measures),
+    )
+    return table.card

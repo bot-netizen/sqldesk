@@ -2355,10 +2355,19 @@ class CatalogTable(TimestampMixin, BelongsToOrgMixin, db.Model):
     #: and meaning is the thing a model most needs and least can guess.
     description = Column(db.Text, nullable=True)
     #: Where that sentence came from: "engine" for a comment the warehouse
-    #: already carried, "human" for one somebody wrote here. Harvesting must
-    #: never overwrite a human's words with an engine's silence, and without
-    #: recording the origin there is no way to tell the two apart.
+    #: already carried, "human" for one somebody wrote here, "mcp" for one an
+    #: agent wrote through MCP. Harvesting must never overwrite a human's words
+    #: with an engine's silence, and without recording the origin there is no
+    #: way to tell the two apart.
     description_source = Column(db.String(16), nullable=True)
+    #: Who wrote it and when. "mcp" says a machine typed the sentence; it does
+    #: not say whose key it was, and that is the question asked first when a
+    #: description turns out to be wrong. An agent writes far more of these
+    #: than a person ever will, so the answer has to be in a column rather
+    #: than reconstructed from the event log.
+    described_by_id = Column(key_type("User"), db.ForeignKey("users.id"), nullable=True)
+    described_by = db.relationship("User", foreign_keys=[described_by_id])
+    described_at = Column(db.DateTime(True), nullable=True)
     #: The compact text handed to a model, built at harvest rather than per
     #: request so assembling a prompt is concatenation.
     card = Column(db.Text, nullable=True)
@@ -2447,6 +2456,17 @@ class CatalogMeasure(TimestampMixin, BelongsToOrgMixin, db.Model):
     #: organisation stands behind is not.
     status = Column(db.String(16), default=MEASURE_PROPOSED, nullable=False)
     description = Column(db.Text, nullable=True)
+    #: Who proposed it, where anybody did. Null for the harvest's own finds,
+    #: which is most of them: mined from saved SQL, nobody proposed those.
+    #: A measure an agent proposes needs an author for the same reason a
+    #: description does -- the curator reviewing it asks whose it is first.
+    proposed_by_id = Column(key_type("User"), db.ForeignKey("users.id"), nullable=True)
+    proposed_by = db.relationship("User", foreign_keys=[proposed_by_id])
+    #: Who approved or denied it, and when. The reviewer was only ever in an
+    #: Event row, which is not something a tool can return beside the measure.
+    reviewed_by_id = Column(key_type("User"), db.ForeignKey("users.id"), nullable=True)
+    reviewed_by = db.relationship("User", foreign_keys=[reviewed_by_id])
+    reviewed_at = Column(db.DateTime(True), nullable=True)
 
     @property
     def approved(self):

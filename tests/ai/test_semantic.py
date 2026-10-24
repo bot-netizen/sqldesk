@@ -1,3 +1,4 @@
+import datetime
 import os
 import tempfile
 from unittest import mock
@@ -259,6 +260,118 @@ class TestImport(HarvestHelpers):
         import_catalog(self.factory.org, directory)
 
         self.assertEqual("Edited in the repo.", self._table(source).description)
+
+
+class TestImportDoesNotRunOverWhatSomebodyJustWrote(TestImport):
+    """
+    Somebody fixes a description on the catalog page; the next import replaces
+    it with the file's older sentence and their fix looks like it never saved.
+    The file wins only where it is the newer statement.
+    """
+
+    def _write(self, cube, written_at=None):
+        directory = tempfile.mkdtemp()
+        path = os.path.join(directory, "orders.yml")
+        with open(path, "w") as handle:
+            yaml.safe_dump({"cubes": [cube]}, handle)
+        if written_at is not None:
+            stamp = written_at.timestamp()
+            os.utime(path, (stamp, stamp))
+        return directory
+
+    def _table(self, source):
+        db.session.expire_all()
+        return CatalogTable.query.filter(CatalogTable.data_source_id == source.id, CatalogTable.name == "orders").one()
+
+    def _described_here(self, source, text, source_name="human", at=None):
+        table = self._table(source)
+        table.description = text
+        table.description_source = source_name
+        table.described_at = at or datetime.datetime.now(datetime.timezone.utc)
+        db.session.commit()
+        return table
+
+    def _older_file(self, description="From the file."):
+        yesterday = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)
+        return self._write({"name": "orders", "sql_table": "orders", "description": description}, written_at=yesterday)
+
+    def test_a_description_written_since_the_file_is_kept(self):
+        source = self._harvest()
+        self._described_here(source, "Fixed on the page.")
+
+        result = import_catalog(self.factory.org, self._older_file())
+
+        self.assertEqual("Fixed on the page.", self._table(source).description)
+        self.assertEqual(1, result["kept"])
+        self.assertEqual(0, result["tables"])
+
+    def test_one_an_agent_wrote_is_kept_too(self):
+        source = self._harvest()
+        self._described_here(source, "Written through MCP.", source_name="mcp")
+
+        import_catalog(self.factory.org, self._older_file())
+
+        self.assertEqual("Written through MCP.", self._table(source).description)
+
+    def test_the_engines_own_comment_is_the_files_to_replace(self):
+        source = self._harvest()
+        self._described_here(source, "A warehouse comment.", source_name="engine")
+
+        import_catalog(self.factory.org, self._older_file())
+
+        self.assertEqual("From the file.", self._table(source).description)
+
+    def test_and_so_is_a_previous_imports(self):
+        source = self._harvest()
+        self._described_here(source, "An older file's words.", source_name="file")
+
+        import_catalog(self.factory.org, self._older_file())
+
+        self.assertEqual("From the file.", self._table(source).description)
+
+    def test_a_file_newer_than_the_description_wins(self):
+        source = self._harvest()
+        self._described_here(
+            source,
+            "Written before the file was.",
+            at=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=2),
+        )
+
+        import_catalog(self.factory.org, self._older_file())
+
+        self.assertEqual("From the file.", self._table(source).description)
+
+    def test_overwrite_takes_the_file_regardless(self):
+        source = self._harvest()
+        self._described_here(source, "Fixed on the page.")
+
+        import_catalog(self.factory.org, self._older_file(), overwrite=True)
+
+        self.assertEqual("From the file.", self._table(source).description)
+
+    def test_a_column_somebody_described_is_kept_as_well(self):
+        source = self._harvest()
+        column = CatalogColumn.query.filter(
+            CatalogColumn.catalog_table_id == self._table(source).id, CatalogColumn.name == "amount"
+        ).one()
+        column.description = "Gross, as the page says."
+        column.description_source = "human"
+        column.described_at = datetime.datetime.now(datetime.timezone.utc)
+        db.session.commit()
+        yesterday = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)
+        directory = self._write(
+            {
+                "name": "orders",
+                "sql_table": "orders",
+                "dimensions": [{"name": "amount", "sql": "amount", "description": "From the file."}],
+            },
+            written_at=yesterday,
+        )
+
+        import_catalog(self.factory.org, directory)
+
+        db.session.expire_all()
+        self.assertEqual("Gross, as the page says.", models.CatalogColumn.query.get(column.id).description)
 
 
 class TestImportFindsTheRightSource(HarvestHelpers):

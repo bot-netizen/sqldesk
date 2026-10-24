@@ -122,7 +122,13 @@ def export_semantic(directory, data_source):
 
 @manager.command(name="import")
 @argument("directory")
-def import_semantic(directory):
+@option(
+    "--overwrite",
+    is_flag=True,
+    default=False,
+    help="Take the file's description even where somebody has since written their own.",
+)
+def import_semantic(directory, overwrite):
     """
     Read descriptions and agreed measures back out of a directory of YAML.
 
@@ -130,17 +136,27 @@ def import_semantic(directory):
     warehouse's to state, and a file claiming otherwise is a second opinion
     about a fact. What a file carries is what people wrote -- descriptions,
     and which definitions they stand behind.
+
+    A description written here after the file was last written is kept, and
+    counted as kept: an import that silently replaced it made somebody's fix
+    look like it had never saved. Pass --overwrite where the repository is
+    the system of record.
     """
     if not os.path.isdir(directory):
         raise SystemExit("{} is not a directory.".format(directory))
 
-    result = import_catalog(_org(), directory)
+    result = import_catalog(_org(), directory, overwrite=overwrite)
     print(
         "Applied {} table and {} column descriptions, and agreed {} measures. "
         "Skipped {} that the catalog has not heard of.".format(
             result["tables"], result["columns"], result["measures"], result["skipped"]
         )
     )
+    if result["kept"]:
+        print(
+            "Kept {} description(s) written here since the file was. "
+            "Pass --overwrite to take the file's instead.".format(result["kept"])
+        )
 
 
 @manager.command(name="eval")

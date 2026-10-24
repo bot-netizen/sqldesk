@@ -17,13 +17,14 @@ One file per table rather than one per warehouse: a three-thousand line file
 has no readable diff, and the diff is the entire point of keeping it in git.
 """
 
+import datetime
 import logging
 import os
 import re
 
 import yaml
 
-from sqldesk.ai.catalog.harvest import FILE
+from sqldesk.ai.catalog.harvest import ENGINE, FILE
 from sqldesk.models import (
     MEASURE_APPROVED,
     CatalogColumn,
@@ -259,7 +260,7 @@ def _files(directory):
                 yield os.path.join(root, name)
 
 
-def import_catalog(org, directory):
+def import_catalog(org, directory, overwrite=False):
     """
     Read descriptions and agreed measures back out of the files.
 
@@ -272,8 +273,15 @@ def import_catalog(org, directory):
     created -- it means the file is ahead of the harvest, or names something
     that no longer exists, and inventing a row for it would put something in
     front of a model that is not in the warehouse.
+
+    Words typed here since the file was written are kept. An import ran over
+    them: somebody fixed a description on the catalog page, the next import
+    replaced it with the file's older sentence, and the fix looked like it had
+    never been saved. The file wins only where it is the newer statement --
+    `overwrite=True` says to take it regardless, which is what a repository
+    that is the system of record wants.
     """
-    applied = {"tables": 0, "columns": 0, "measures": 0, "skipped": 0}
+    applied = {"tables": 0, "columns": 0, "measures": 0, "skipped": 0, "kept": 0}
 
     # Export writes `<data source>/<table>.yml`, so the folder says which
     # source a file is about. Matching on the table name alone put staging's
@@ -294,6 +302,11 @@ def import_catalog(org, directory):
 
         relative = os.path.relpath(path, directory).split(os.sep)
         sources = by_folder.get(relative[0]) if len(relative) > 1 else None
+        # When the file was last written, as the age to compare against. A
+        # repository checkout has the checkout's timestamps, which is why a
+        # file that is behind can still look new -- so this only ever protects
+        # a description written after the file arrived on this machine.
+        written_at = _written_at(path)
 
         for cube in document.get("cubes") or []:
             name = cube.get("sql_table") or cube.get("name")
@@ -304,11 +317,16 @@ def import_catalog(org, directory):
                 continue
 
             if cube.get("description"):
-                table.description = cube["description"]
-                table.description_source = FILE
-                applied["tables"] += 1
+                if _written_since(table, written_at, overwrite):
+                    applied["kept"] += 1
+                else:
+                    table.description = cube["description"]
+                    table.description_source = FILE
+                    table.described_by = None
+                    table.described_at = None
+                    applied["tables"] += 1
 
-            applied["columns"] += _apply_dimensions(table, cube.get("dimensions") or [])
+            applied["columns"] += _apply_dimensions(table, cube.get("dimensions") or [], written_at, overwrite)
             applied["measures"] += _apply_measures(table, cube.get("measures") or [])
 
     db.session.commit()
@@ -333,7 +351,32 @@ def _table_for(org, name, sources):
     return matches[0] if len(matches) == 1 else None
 
 
-def _apply_dimensions(table, dimensions):
+def _written_at(path):
+    """The file's own timestamp, timezone-aware so it can be compared."""
+    try:
+        return datetime.datetime.fromtimestamp(os.path.getmtime(path), datetime.timezone.utc)
+    except OSError:
+        return None
+
+
+def _written_since(row, written_at, overwrite):
+    """
+    Whether somebody described this after the file was written.
+
+    Only a person's or an agent's words are protected: the engine's comment
+    and a previous import's are the file's to replace. With no timestamp on
+    either side there is nothing to compare, so the import proceeds -- the
+    behaviour everything had before.
+    """
+    if overwrite or written_at is None:
+        return False
+    if row.description_source in (None, ENGINE, FILE):
+        return False
+    described_at = getattr(row, "described_at", None) or row.updated_at
+    return bool(described_at and described_at > written_at)
+
+
+def _apply_dimensions(table, dimensions, written_at=None, overwrite=False):
     described = {d["name"]: d["description"] for d in dimensions if d.get("name") and d.get("description")}
     if not described:
         return 0
@@ -342,6 +385,8 @@ def _apply_dimensions(table, dimensions):
     for column in CatalogColumn.query.filter(
         CatalogColumn.catalog_table_id == table.id, CatalogColumn.name.in_(described)
     ):
+        if _written_since(column, written_at, overwrite):
+            continue
         column.description = described[column.name]
         column.description_source = FILE
         count += 1

@@ -10,6 +10,7 @@ from rq.exceptions import NoSuchJobError
 from sqldesk import features, models, redis_connection, rq_redis_connection, settings
 from sqldesk import uploads as sqldesk_uploads
 from sqldesk.ai.catalog.freshness import in_days, stale_sources
+from sqldesk.ai.catalog.harvest import rebuild_card
 from sqldesk.ai.catalog.semantic import catalog_documents
 from sqldesk.authentication import current_org
 from sqldesk.handlers import routes
@@ -490,6 +491,12 @@ def describe_catalog_table(table_id):
         # nothing to protect, the source goes back to unset so the engine may
         # fill it.
         table.description_source = "human" if description else None
+        table.described_by = current_user._get_current_object() if description else None
+        table.described_at = models.db.func.now() if description else None
+        # The card is what any agent is actually given. Written only by the
+        # harvest, this sentence would not have reached one for a day, or at
+        # all on a paused source.
+        rebuild_card(table)
     if "hidden" in body:
         table.hidden = bool(body["hidden"])
     models.db.session.commit()
