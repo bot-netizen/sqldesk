@@ -198,6 +198,39 @@ starting again is a deliberate act.</p>
 events with an arrival time of now, which would be a chart that lies &mdash; so a pause leaves a hole,
 and the chart says it was paused.</p>
 
+<h2 id="rollups">Rollups, for the part worth keeping</h2>
+<p>A window is minutes long, so &ldquo;how does now compare with this morning&rdquo; has nowhere to
+read the answer from. A <strong>rollup</strong> is the answer: one row per minute per group, counted
+as the events arrive and kept for <strong>24 hours</strong>
+(<code>SQLDESK_STREAM_ROLLUP_HOURS</code>). The raw window lives in DuckDB and does not survive a
+restart; the rollup lives in Postgres and does.</p>
+<p>A stream declares the columns it groups by and the measures it keeps. The measures are
+<code>count</code>, <code>sum</code>, <code>min</code>, <code>max</code>, <code>avg</code>,
+<code>approx_distinct</code> and <code>distinct</code> &mdash; and distinct counts default to the
+approximate one, a HyperLogLog that costs almost nothing, because an exact distinct over a minute of
+a busy topic can cost more than everything else together. A dashboard counting unique visitors per
+minute does not need exact; the one rollup that does can say so.</p>
+<p><strong>Cardinality is what kills a rollup.</strong> Grouped by <code>user_id</code> on a
+ten-million-user stream it is not a rollup, it is the stream again with extra steps. So the distinct
+groups kept per minute are capped at a thousand &mdash; already more lines than a chart can draw
+&mdash; and everything past the cap lands in one <code>other</code> bucket that the chart
+<em>shows</em>. A total missing its long tail is wrong while looking right.</p>
+<p>A definition is checked against the stream&rsquo;s real columns when it is saved, so a column that
+is not there is a sentence you read immediately rather than a DuckDB error in a worker&rsquo;s log
+once a minute with nobody watching.</p>
+<div class="note">
+  <p><strong>There is no editor for this yet.</strong> Rollups are defined through the API, by an
+  administrator, against the stream:</p>
+<pre><code>POST /api/data_sources/&lt;data_source_id&gt;/stream/&lt;stream_id&gt;
+{"group_by": ["region"],
+ "measures": [{"name": "orders", "kind": "count"},
+              {"name": "revenue", "kind": "sum", "column": "amount"}]}</code></pre>
+  <p>and read back from
+  <code>GET /api/data_sources/&lt;data_source_id&gt;/stream/&lt;stream_id&gt;/rollup</code>, which
+  answers with the minutes it holds. A page for it is a later release; the store, the job and the
+  checking are here now.</p>
+</div>
+
 <h2 id="slots">Slots</h2>
 <p>A <strong>slot is a topic, not a viewer</strong>. Five people watching <code>orders</code> share one
 consumer and one window and take one slot between them, which is what makes a limit mean five topics
