@@ -184,6 +184,60 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 .legal p{margin:0 0 8px}
 
 @media (prefers-reduced-motion: reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ---- a row: the visual on one side, the words on the other ---- */
+.split{display:grid;gap:clamp(22px,3.5vw,54px);align-items:center;margin-top:40px}
+.split-text h3{font-size:clamp(1.3rem,2.3vw,1.85rem);letter-spacing:-.02em;margin:4px 0 12px}
+.split-text p{color:var(--muted);max-width:54ch}
+.split-list{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:9px}
+.split-list li{position:relative;padding-left:21px;color:var(--ink-2)}
+.split-list li::before{content:"";position:absolute;left:0;top:.52em;width:9px;height:9px;border-radius:2px;background:var(--accent)}
+.split-cta{margin-top:18px}
+.split + .split{margin-top:clamp(44px,6vw,86px);padding-top:clamp(44px,6vw,86px);border-top:1px solid var(--rule-soft)}
+@media(min-width:960px){
+  .split{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr)}
+  .split.reverse .split-vis{order:2}
+  .split.reverse .split-text{order:1}
+}
+.split-vis .term,.split-vis .demo-video{margin:0;width:100%}
+.split-vis pre{margin:0}
+
+/* ---- the live window: a real tick, not a gif ---- */
+.live{margin:0;border:1px solid var(--rule);border-radius:var(--r-card);background:var(--surface);overflow:hidden}
+.live figcaption{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--rule-soft);
+  font:500 .82rem/1 var(--mono);color:var(--muted);letter-spacing:.02em}
+.live-n{margin-left:auto;color:var(--ink);font-weight:700}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 var(--accent-edge);animation:pulse 2s ease-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 var(--accent-edge)}70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.live svg{display:block;width:100%;height:168px;background:var(--surface)}
+.live rect{fill:var(--ac-400);transition:height .45s cubic-bezier(.3,.8,.3,1),y .45s cubic-bezier(.3,.8,.3,1)}
+.live rect.now{fill:var(--accent)}
+.live-foot{display:flex;gap:16px;padding:10px 14px;border-top:1px solid var(--rule-soft);
+  font:.76rem/1 var(--mono);color:var(--faint);letter-spacing:.03em}
+
+/* ---- what it is not, on one line ---- */
+.oneline{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:14px;
+  grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.oneline li{padding-left:16px;border-left:2px solid var(--accent-edge);color:var(--muted);font-size:.95rem}
+.oneline strong{display:block;color:var(--ink);font-weight:600;margin-bottom:3px}
+
+/* ---- a section arrives rather than appears ---- */
+.reveal{opacity:0;transform:translateY(16px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* ---- copy, on the commands ---- */
+.copy{position:absolute;top:8px;right:8px;z-index:2;border:1px solid var(--rule);background:var(--surface);
+  color:var(--muted);border-radius:var(--r-chip);padding:5px 10px;font:500 .76rem var(--sans);cursor:pointer}
+.copy:hover{color:var(--ink);border-color:var(--accent-edge)}
+.copy[data-done]{color:var(--accent-ink);border-color:var(--accent-edge)}
+.term{position:relative}
+
+/* Nothing above moves for somebody who asked for no movement. */
+@media(prefers-reduced-motion:reduce){
+  .live-dot{animation:none!important}
+  .reveal{opacity:1;transform:none;transition:none}
+  .live rect{transition:none}
+}
 </style>
 </head>
 <body>
@@ -213,17 +267,22 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 
 <div class="wrap hero" id="top">
   <svg class="hero-mark" viewBox="0 0 120 120" role="img" aria-label="SQLDesk">
-    <g fill="none" stroke="currentColor" stroke-width="4">
-      <circle cx="60" cy="60" r="55.5"/><circle cx="60" cy="60" r="47.5" stroke-width="3.5"/>
+    <g fill="none" stroke="currentColor">
+      <circle class="ring ring-1" cx="60" cy="60" r="55.5" stroke-width="4"/>
+      <circle class="ring ring-2" cx="60" cy="60" r="47.5" stroke-width="3.5"/>
     </g>
     <g fill="currentColor">
-      <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
-      <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
-      <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+      <rect class="bar" x="34" y="70" width="12" height="15" rx="1.5"/>
+      <rect class="bar" x="48" y="56" width="12" height="29" rx="1.5"/>
+      <rect class="bar" x="62" y="63" width="12" height="22" rx="1.5"/>
+      <rect class="bar" x="76" y="50" width="12" height="35" rx="1.5"/>
+      <rect class="base" x="30" y="84" width="62" height="5.5" rx="2.75"/>
     </g>
-    <polyline points="40,62 54,50 68,58 82,39" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline class="trend" points="40,62 54,50 68,58 82,39" fill="none" stroke="currentColor"
+              stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
     <g fill="currentColor">
-      <circle cx="40" cy="62" r="5.5"/><circle cx="54" cy="50" r="5.5"/><circle cx="68" cy="58" r="5.5"/><circle cx="82" cy="39" r="6.5"/>
+      <circle class="pip" cx="40" cy="62" r="5.5"/><circle class="pip" cx="54" cy="50" r="5.5"/>
+      <circle class="pip" cx="68" cy="58" r="5.5"/><circle class="pip" cx="82" cy="39" r="6.5"/>
     </g>
   </svg>
 
@@ -251,76 +310,93 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
     <p class="eyebrow">What it does that a query tool usually does not</p>
     <h2>Three things, and the ordinary BI tool underneath them.</h2>
 
-    <div class="features">
-      <div class="feature">
-        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 1.6 14 5v6l-6 3.4L2 11V5z"/><path d="M8 8.2 14 5M8 8.2v6.2M8 8.2 2 5"/></svg>Your agent, your permissions</h3>
-        <p>Connect Claude, or anything else that speaks MCP, and it sees exactly what you see
-           &mdash; the same data sources, the same row limits, the same groups. Thirteen tools:
-           find work that already exists, read the catalog, check SQL before running it, run it.</p>
-        <p>Writes are off unless you turn them on, go in as drafts, are capped per day and are
-           audited with what they changed. <a href="guide/mcp.html">How it works &rarr;</a></p>
-      </div>
-      <div class="feature">
-        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 12.5c2.2 0 2.2-9 4.4-9s2.2 9 4.4 9 2.2-6 3.2-6"/></svg>A Kafka topic you can chart</h3>
-        <p>A cluster is a data source and its topics are its tables. Write SQL against a live
-           window of one, join it to another, give it parameters, and put the chart on a
-           dashboard &mdash; in the same editor, with Execute replaced by Start streaming.</p>
-        <p>JSON, Avro and Protobuf, with or without a schema registry. Per-minute rollups keep
-           the part worth keeping. <a href="guide/streams.html">How it works &rarr;</a></p>
-      </div>
-      <div class="feature">
-        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M2 6h12M6 6v8"/></svg>Everything underneath</h3>
-        <p>35+ data sources, a query editor with parameters and a schedule, 25+ visualizations,
-           dashboards, alerts to email and Slack, public links and embeds. The part that has been
-           working for ten years, kept and sharpened rather than rebuilt.</p>
-        <p><a href="guide/overview.html">Read the guide &rarr;</a></p>
-      </div>
-    </div>
-  </div>
-</section>
+    <div class="split reveal">
+      <div class="split-vis">
+        <div class="term" id="exchange">
+          <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span class="term-title">claude &mdash; sqldesk</span></div>
+<pre><code><span class="ask-q" data-type>&gt; which regions are below their revenue target this quarter?</span>
 
-<section id="ask">
-  <div class="wrap narrow">
-    <p class="eyebrow">What asking looks like</p>
-    <h2>A question, and what came back.</h2>
-    <p class="sub">The agent is not guessing at table names. It reads the catalog your team wrote,
-       and it is told when that catalog is stale.</p>
-
-    <div class="term">
-      <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
-        <span class="term-title">claude &mdash; sqldesk</span></div>
-<pre><code><span class="ask-q">&gt; which regions are below their revenue target this quarter?</span>
-
-  find_context("revenue by region")
+<span class="step">  find_context("revenue by region")
     -- The quarterly revenue target per region, set by finance.
     -- One row per region, replaced each quarter.
     orders(amount numeric, ts timestamptz, region text, product text)
     region_targets(region text, quarter text, target numeric)
-    revenue = SUM(amount) on orders   -- Gross, before refunds.
+    revenue = SUM(amount) on orders   -- Gross, before refunds.</span>
 
-  check_sql(...)    WARNING: no WHERE clause and no LIMIT
-  run_query(...)    3 rows, 240 ms
+<span class="step">  check_sql(...)    WARNING: no WHERE clause and no LIMIT
+  run_query(...)    3 rows, 240 ms</span>
 
-  <span class="ask-out">north   892,400   target 1,000,000   -11%
+<span class="step ask-out">  north   892,400   target 1,000,000   -11%
   west    631,900   target   750,000   -16%
   south   410,200   target   500,000   -18%</span>
 </code></pre>
+        </div>
+      </div>
+      <div class="split-text">
+        <p class="eyebrow">MCP</p>
+        <h3>Your agent, your permissions.</h3>
+        <p>Point Claude &mdash; or anything else that speaks MCP &mdash; at SQLDesk and it sees
+           exactly what you see: the same data sources, the same row limits, the same groups.
+           It is not guessing at table names. It reads the catalog your team wrote, and it is told
+           when that catalog has gone stale.</p>
+        <ul class="split-list">
+          <li>Thirteen tools: find work that exists, read the catalog, check SQL, then run it.</li>
+          <li>Writes are off until you turn them on, arrive as drafts, and are capped per day.</li>
+          <li>Every call is audited, refusals included, with what it changed.</li>
+        </ul>
+        <p class="split-cta"><a href="guide/mcp.html">How it works &rarr;</a></p>
+      </div>
     </div>
-  </div>
-</section>
 
-<section id="demo">
-  <div class="wrap">
-    <p class="eyebrow">See it</p>
-    <h2>A dashboard that keeps itself up to date</h2>
-    <p class="sub">A live dashboard refreshing on the server every 30 seconds: a stat with its
-    sparkline, a gauge, progress against target, a status grid, a formatted table and charts with
-    goal lines. Nobody is pressing refresh.</p>
-    <video class="demo-video" controls muted loop playsinline preload="metadata"
-           poster="assets/live-dashboard.jpg" width="1920" height="892">
-      <source src="assets/live-dashboard.mp4" type="video/mp4">
-      <a href="assets/live-dashboard.mp4">Watch the demo</a>
-    </video>
+    <div class="split reverse reveal">
+      <div class="split-vis">
+        <figure class="live" id="live">
+          <figcaption><span class="live-dot"></span> orders &middot; events per minute
+            <span class="live-n" data-live-n>&mdash;</span></figcaption>
+          <svg viewBox="0 0 320 120" preserveAspectRatio="none" aria-label="A live window of a Kafka topic" role="img">
+            <g data-live-bars></g>
+          </svg>
+          <div class="live-foot"><span>window 60s</span><span>DuckDB</span><span>1 slot</span></div>
+        </figure>
+      </div>
+      <div class="split-text">
+        <p class="eyebrow">Streams</p>
+        <h3>A Kafka topic you can chart.</h3>
+        <p>A cluster is a data source and its topics are its tables. Write SQL against a live
+           window of one, join it to another, give it parameters, and put the chart on a dashboard
+           &mdash; in the same editor, with Execute replaced by Start streaming.</p>
+        <ul class="split-list">
+          <li>JSON, Avro and Protobuf, with or without a schema registry.</li>
+          <li>Per-minute rollups keep the part worth keeping, for 24 hours.</li>
+          <li>A slot is a topic, not a viewer: five people watching one share one consumer.</li>
+        </ul>
+        <p class="split-cta"><a href="guide/streams.html">How it works &rarr;</a></p>
+      </div>
+    </div>
+
+    <div class="split reveal">
+      <div class="split-vis">
+        <video class="demo-video" controls muted loop playsinline preload="metadata"
+               poster="assets/live-dashboard.jpg" width="1920" height="892">
+          <source src="assets/live-dashboard.mp4" type="video/mp4">
+          <a href="assets/live-dashboard.mp4">Watch the demo</a>
+        </video>
+      </div>
+      <div class="split-text">
+        <p class="eyebrow">See it</p>
+        <h3>A dashboard that keeps itself up to date.</h3>
+        <p>A live dashboard refreshing on the server every 30 seconds: a stat with its sparkline, a
+           gauge, progress against target, a status grid, a formatted table and charts with goal
+           lines. Nobody is pressing refresh.</p>
+        <ul class="split-list">
+          <li>35+ data sources, parameters, schedules and 25+ visualizations underneath it.</li>
+          <li>Alerts to email and Slack, public links, embeds, and scheduled subscriptions.</li>
+          <li>The part that has worked for ten years, kept and sharpened rather than rebuilt.</li>
+        </ul>
+        <p class="split-cta"><a href="guide/overview.html">Read the guide &rarr;</a></p>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -469,32 +545,19 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 </section>
 
 <section id="not">
-  <div class="wrap narrow">
+  <div class="wrap">
     <p class="eyebrow">Worth saying plainly</p>
     <h2>What it is not.</h2>
-    <p class="sub">So nobody installs it expecting one of these.</p>
-    <div class="two">
-      <div class="card">
-        <h3>Not a point-and-click question builder</h3>
-        <p>SQLDesk assumes somebody on the team writes SQL. Everybody else reads what they wrote,
-           changes its parameters, and subscribes to it.</p>
-      </div>
-      <div class="card">
-        <h3>Not an infrastructure monitoring tool</h3>
-        <p>It queries Prometheus and Mimir like any other source, but alerting on metrics at second
-           resolution is not what it is built around.</p>
-      </div>
-      <div class="card">
-        <h3>Not a streaming engine</h3>
-        <p>A bounded window of a Kafka topic, kept in DuckDB and rolled up. Continuous queries over
-           a persistent connection are a different product.</p>
-      </div>
-      <div class="card">
-        <h3>Not a notebook</h3>
-        <p>A query is a query, with a chart and a history. Prose, Python and SQL on one canvas is
-           0.8, on the roadmap rather than in the product.</p>
-      </div>
-    </div>
+    <p class="sub">So nobody installs it expecting one of these. Each one is a decision, not an
+       omission &mdash; the reasoning is in <a href="releases.html">the releases</a>.</p>
+    <ul class="oneline">
+      <li><strong>Not a point-and-click question builder.</strong> Somebody writes SQL; everybody
+          else reads it, changes its parameters and subscribes.</li>
+      <li><strong>Not infrastructure monitoring.</strong> It queries Prometheus and Mimir, but not
+          at second resolution.</li>
+      <li><strong>Not a streaming engine.</strong> A bounded window, kept in DuckDB and rolled up.</li>
+      <li><strong>Not a notebook.</strong> That is 0.8.</li>
+    </ul>
   </div>
 </section>
 
@@ -571,5 +634,148 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
   </div>
 </footer>
 
+
+<script>
+/*
+ * Three small things, all optional: the page is complete without any of them.
+ *   - sections arrive as they are scrolled to;
+ *   - the exchange types itself once, when it is first seen;
+ *   - the live window ticks while it is on screen and the tab is in front.
+ * Anybody who asked for reduced motion gets the finished state immediately.
+ */
+(function () {
+  var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* Sections arrive. */
+  var reveals = document.querySelectorAll(".reveal");
+  if (still || !("IntersectionObserver" in window)) {
+    reveals.forEach(function (el) { el.classList.add("in"); });
+  } else {
+    var seen = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add("in"); seen.unobserve(e.target); }
+      });
+    }, { rootMargin: "0px 0px -8% 0px" });
+    reveals.forEach(function (el) { seen.observe(el); });
+  }
+
+  /* The exchange types itself, once. */
+  var exchange = document.getElementById("exchange");
+  if (exchange && !still && "IntersectionObserver" in window) {
+    var typed = exchange.querySelector("[data-type]");
+    var steps = exchange.querySelectorAll(".step");
+    var question = typed.textContent;
+    typed.textContent = "> ";
+    steps.forEach(function (s) { s.style.opacity = "0"; });
+
+    /* Whatever happens, the transcript ends up readable: if the observer
+       never fires -- a browser that does not scroll it into view, a tab
+       restored mid-page -- this puts it back after three seconds. */
+    var played = false;
+    var finish = function () {
+      typed.textContent = question;
+      steps.forEach(function (s) { s.style.opacity = "1"; });
+    };
+    var safety = setTimeout(function () { if (!played) { played = true; finish(); } }, 3000);
+
+    var once = new IntersectionObserver(function (entries) {
+      if (!entries[0].isIntersecting || played) return;
+      played = true;
+      clearTimeout(safety);
+      once.disconnect();
+      var i = 2;
+      (function letter() {
+        if (i <= question.length) {
+          typed.textContent = question.slice(0, i++);
+          setTimeout(letter, 22);
+          return;
+        }
+        steps.forEach(function (s, n) {
+          setTimeout(function () {
+            s.style.transition = "opacity .45s ease";
+            s.style.opacity = "1";
+          }, 260 + n * 420);
+        });
+      })();
+    }, { threshold: 0.35 });
+    once.observe(exchange);
+  }
+
+  /* The live window. Numbers are a demonstration, and say so in the markup. */
+  var live = document.getElementById("live");
+  if (live) {
+    var group = live.querySelector("[data-live-bars]");
+    var count = live.querySelector("[data-live-n]");
+    var W = 320, H = 120, N = 28, gap = 2, w = (W - gap * (N - 1)) / N;
+    var data = [], bars = [];
+    for (var i = 0; i < N; i++) data.push(28 + Math.random() * 46);
+
+    for (var j = 0; j < N; j++) {
+      var r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      r.setAttribute("x", (j * (w + gap)).toFixed(2));
+      r.setAttribute("width", w.toFixed(2));
+      r.setAttribute("rx", "1.5");
+      group.appendChild(r);
+      bars.push(r);
+    }
+
+    var draw = function () {
+      for (var k = 0; k < N; k++) {
+        var h = Math.max(3, data[k]);
+        bars[k].setAttribute("y", (H - h).toFixed(2));
+        bars[k].setAttribute("height", h.toFixed(2));
+        bars[k].classList.toggle("now", k === N - 1);
+      }
+      count.textContent = Math.round(data[N - 1] * 1.7) + "/min";
+    };
+    draw();
+
+    var timer = null;
+    var tick = function () {
+      var last = data[data.length - 1];
+      var next = last + (Math.random() - 0.48) * 22;
+      if (next < 14) next = 14 + Math.random() * 8;
+      if (next > 96) next = 96 - Math.random() * 10;
+      data.push(next);
+      data.shift();
+      draw();
+    };
+    var start = function () { if (!timer && !still) timer = setInterval(tick, 1100); };
+    var stop = function () { clearInterval(timer); timer = null; };
+
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(function (entries) {
+        entries[0].isIntersecting && !document.hidden ? start() : stop();
+      }, { threshold: 0.2 }).observe(live);
+    } else {
+      start();
+    }
+    document.addEventListener("visibilitychange", function () {
+      document.hidden ? stop() : start();
+    });
+  }
+
+  /* Copy, on anything that is a command. */
+  document.querySelectorAll("#start .term").forEach(function (block) {
+    var pre = block.querySelector("pre");
+    if (!pre || !navigator.clipboard) return;
+    var button = document.createElement("button");
+    button.className = "copy";
+    button.type = "button";
+    button.textContent = "Copy";
+    button.addEventListener("click", function () {
+      navigator.clipboard.writeText(pre.innerText.trim()).then(function () {
+        button.textContent = "Copied";
+        button.setAttribute("data-done", "");
+        setTimeout(function () {
+          button.textContent = "Copy";
+          button.removeAttribute("data-done");
+        }, 1600);
+      });
+    });
+    block.appendChild(button);
+  });
+})();
+</script>
 </body>
 </html>
