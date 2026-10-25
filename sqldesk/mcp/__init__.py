@@ -20,6 +20,7 @@ application uses: reading the catalog needs what viewing a dashboard needs,
 running SQL needs what the editor needs. There is no service account.
 """
 
+import datetime
 import json
 import logging
 import re
@@ -59,6 +60,15 @@ EXPLAIN_TIMEOUT = 20
 #: Ceilings on what a caller can make as large as it likes. SQL is parsed in
 #: the web process, and every search term is another ILIKE.
 MAX_SQL = 100000
+
+#: How a measure may be aggregated -- the words cube uses for the same thing,
+#: and the ones the harvester mines.
+#: How many matching dashboards are read before the words on their widgets
+#: are matched. The match itself is now done by the database, so this is a
+#: ceiling on a pathological question rather than on the catalog's size.
+MAX_DASHBOARDS_SEARCHED = 200
+
+MEASURE_KINDS = ("sum", "count", "count_distinct", "avg", "min", "max")
 MAX_TERMS = 12
 
 #: A client asking for every agreed measure should get a usable list, not a
@@ -250,6 +260,67 @@ INTERNAL_ERROR = -32603
 #: cannot add up to more than the web server will wait for.
 _deadline = ContextVar("mcp_deadline", default=None)
 
+#: What a write tool did, for the audit row the transport writes.
+#:
+#: "update_table ok" said nothing about what changed, so the audit could not
+#: answer the only question anybody brings to it -- what did this agent do to
+#: my catalog, and what was there before. A tool sets this; sqldesk.handlers.mcp
+#: reads it and puts it in the row's detail.
+_written = ContextVar("mcp_written", default=None)
+
+
+def note_write(line):
+    """Record, for the audit, what a write changed. Trimmed by the caller."""
+    _written.set(line)
+
+
+def take_write_note():
+    """The last write's line, cleared. Read once, by the transport."""
+    line = _written.get()
+    _written.set(None)
+    return line
+
+
+#: The tools that change something. Capped per person per day, and audited
+#: with their before and after.
+WRITE_TOOLS = ("update_table", "save_query", "update_query", "propose_measure")
+
+
+def _writes_today(user, org):
+    """How many writes this person's key has made since midnight UTC."""
+    since = datetime.datetime.now(datetime.timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    return (
+        models.McpEvent.query.filter(
+            models.McpEvent.org == org,
+            models.McpEvent.user_id == user.id,
+            models.McpEvent.tool.in_(WRITE_TOOLS),
+            models.McpEvent.outcome == "ok",
+            models.McpEvent.created_at >= since,
+        ).count()
+        or 0
+    )
+
+
+def _within_the_daily_cap(user, org, tool):
+    """
+    Refuse a write once the day's allowance is gone.
+
+    An agent that has decided to describe every table in a warehouse will do
+    exactly that, and a loop that is getting it wrong will do it just as
+    fast. Fifty a day is enough for a person working through their catalog
+    with help, and small enough that a mistake is a morning's review rather
+    than a restore. The cap is per person, because it is their key.
+    """
+    allowed = settings.MCP_WRITES_PER_DAY
+    if allowed <= 0:
+        return
+    if _writes_today(user, org) >= allowed:
+        raise McpError(
+            INVALID_PARAMS,
+            "{} has written {} things to the catalog today, which is the daily limit. It resets at midnight "
+            "UTC; an administrator can raise SQLDESK_MCP_WRITES_PER_DAY.".format(tool, allowed),
+        )
+
 
 @contextmanager
 def time_budget(seconds):
@@ -321,9 +392,23 @@ def _runnable_source(user, org, arguments, required_message):
     return source
 
 
-def _text(body):
-    """MCP tool results are content blocks; ours are all text."""
-    return {"content": [{"type": "text", "text": body}], "isError": False}
+def _text(body, data=None):
+    """
+    A tool result: the text a model reads, and optionally the same answer as
+    data.
+
+    `structuredContent` is in the protocol for exactly this. The text is
+    written to be read and leaves things out that would be noise in prose --
+    a null author, an empty tag list -- and a client parsing the prose back
+    into fields has to guess at each of those. "none" and "?" in a line meant
+    for a person are not an absent value; they are two more strings to
+    special-case. Both are returned, and the data says null where there is
+    nothing.
+    """
+    result = {"content": [{"type": "text", "text": body}], "isError": False}
+    if data is not None:
+        result["structuredContent"] = data
+    return result
 
 
 def _terms(question):
@@ -792,6 +877,7 @@ def tool_find_measures(user, org, arguments):
         )
 
     lines = []
+    structured = []
     for measure in found:
         described = " -- {}".format(" ".join(measure.description.split())) if measure.description else ""
         lines.append(
@@ -803,7 +889,33 @@ def tool_find_measures(user, org, arguments):
                 described,
             )
         )
-    return _text("\n".join(lines))
+        # Who agreed it, where that is recorded. "Agreed" is the whole value
+        # of a measure, and an agreement with nobody's name on it is a claim
+        # rather than a decision -- the reviewer was only ever in an event
+        # row, which no tool could return beside the measure it is about.
+        if measure.reviewed_by is not None:
+            lines.append(
+                "  agreed by {}{}".format(
+                    _who(measure.reviewed_by),
+                    " on {}".format(measure.reviewed_at.date()) if measure.reviewed_at else "",
+                )
+            )
+        structured.append(
+            {
+                "name": measure.name,
+                "expression": "{}({})".format((measure.kind or "").upper(), measure.column_name or "*"),
+                "kind": measure.kind,
+                "column": measure.column_name or None,
+                "table": measure.table_name,
+                "data_source": measure.data_source.name if measure.data_source else None,
+                "description": measure.description or None,
+                "used_by_queries": measure.usage_count or 0,
+                "proposed_by": _who(measure.proposed_by) if measure.proposed_by else None,
+                "agreed_by": _who(measure.reviewed_by) if measure.reviewed_by else None,
+                "agreed_at": measure.reviewed_at.isoformat() if measure.reviewed_at else None,
+            }
+        )
+    return _text("\n".join(lines), {"measures": structured})
 
 
 def tool_expand_table(user, org, arguments):
@@ -1017,6 +1129,12 @@ def tool_find_queries(user, org, arguments):
         .filter(
             models.Query.org == org,
             models.Query.is_archived.is_(False),
+            # No drafts, not even the caller's own. This tool answers "has
+            # somebody already worked this out", and a draft is unfinished by
+            # definition -- offering one as the answer is how an agent ends up
+            # building on somebody's half-written query. An agent that has
+            # just saved a draft is given its id in save_query's reply, so it
+            # does not need to find it again here.
             models.Query.is_draft.is_(False),
             models.Query.data_source_id.in_(readable),
             *matches,
@@ -1039,6 +1157,7 @@ def tool_find_queries(user, org, arguments):
     confirmed = _verifications_for(org, found)
 
     lines = []
+    structured = []
     for query in found:
         verification = confirmed.get(query.id)
         lines.append("#{} {}{}".format(query.id, query.name, " [VERIFIED]" if verification is not None else ""))
@@ -1052,6 +1171,10 @@ def tool_find_queries(user, org, arguments):
                 query.updated_at.date() if query.updated_at else "?",
             )
         )
+        # Who wrote it and who last touched it. A saved query is somebody's
+        # work, and "ask the person who wrote this" is often the right next
+        # step for an agent as much as for a person.
+        lines.append("  by {}{}".format(_who(query.user), _last_changed_by(query)))
         for visualization in charts.get(query.id, [])[:MAX_CHARTS]:
             lines.append(
                 "  - "
@@ -1059,8 +1182,67 @@ def tool_find_queries(user, org, arguments):
                     visualization.type, visualization.name, visualization.description, visualization.options
                 )
             )
+        # The SQL itself.
+        #
+        # Left out until now, which made this tool a way to *discover* that
+        # the answer existed and no way to use it: an agent found a verified
+        # query and then wrote its own SQL anyway, which is the opposite of
+        # the point. Returned under the same rule the editor uses -- the
+        # caller can already open this query and read it there, because the
+        # list above is filtered to data sources they may read.
+        if query.query_text:
+            lines.append("  sql:")
+            lines.extend("    " + line for line in _short_sql(query.query_text).splitlines())
         lines.append("")
-    return _text("\n".join(lines).strip())
+        structured.append(
+            {
+                "id": query.id,
+                "name": query.name,
+                "description": query.description or None,
+                "sql": query.query_text or None,
+                "data_source": query.data_source.name if query.data_source else None,
+                "data_source_id": query.data_source_id,
+                "owner": _who(query.user) if query.user else None,
+                "last_modified_by": _who(query.last_modified_by) if query.last_modified_by else None,
+                "is_draft": bool(query.is_draft),
+                "tags": list(query.tags or []),
+                "updated_at": query.updated_at.isoformat() if query.updated_at else None,
+                "url": "queries/{}".format(query.id),
+                "verified": None
+                if verification is None
+                else {
+                    "by": _who(verification.verified_by) if verification.verified_by else None,
+                    "at": verification.verified_at.isoformat() if verification.verified_at else None,
+                    "question": verification.question or None,
+                    "note": verification.note or None,
+                },
+            }
+        )
+    return _text("\n".join(lines).strip(), {"queries": structured})
+
+
+def _who(user):
+    """A person's name, as somebody would say it."""
+    return user.name if user is not None and getattr(user, "name", None) else "somebody no longer here"
+
+
+def _last_changed_by(query):
+    """ ", last changed by X" -- only where that is somebody else."""
+    changer = query.last_modified_by
+    if changer is None or changer.id == query.user_id:
+        return ""
+    return ", last changed by {}".format(_who(changer))
+
+
+#: How much SQL goes in the text, before the rest is left to the data.
+MAX_SQL_SHOWN = 4000
+
+
+def _short_sql(sql):
+    text = sql.strip()
+    if len(text) <= MAX_SQL_SHOWN:
+        return text
+    return text[:MAX_SQL_SHOWN] + "\n-- (truncated; the whole query is in this result's data)"
 
 
 def _verifications_for(org, queries):
@@ -1108,16 +1290,39 @@ def tool_find_dashboards(user, org, arguments):
 
     # The dashboards list's own rule for who sees what, so a dashboard is
     # found here exactly when its owner's colleagues could find it there.
+    #
+    # Narrowed by the database first, rather than taking the 200 most
+    # recently updated and matching those in Python. The dashboard somebody
+    # is looking for is often the one nobody has touched for a year -- which
+    # is exactly the one that fell off the end of that list. The words on its
+    # widgets are still matched here, because they are not in a column.
     visible = models.Dashboard.all(org, user.group_ids, user.id).options(load_only("id"))
-    dashboards = (
-        models.Dashboard.query.filter(
-            models.Dashboard.id.in_(visible),
-            models.Dashboard.is_draft.is_(False),
-        )
-        .order_by(models.Dashboard.updated_at.desc())
-        .limit(200)
-        .all()
+    dashboards = models.Dashboard.query.filter(
+        models.Dashboard.id.in_(visible),
+        models.Dashboard.is_draft.is_(False),
     )
+    if terms:
+        by_name = or_(*[models.Dashboard.name.ilike("%{}%".format(term)) for term in terms])
+        on_a_widget = (
+            models.db.session.query(models.Widget.dashboard_id)
+            .outerjoin(models.Visualization, models.Widget.visualization_id == models.Visualization.id)
+            .outerjoin(models.Query, models.Visualization.query_id == models.Query.id)
+            .filter(
+                or_(
+                    *[
+                        or_(
+                            models.Widget.text.ilike("%{}%".format(term)),
+                            models.Visualization.name.ilike("%{}%".format(term)),
+                            models.Visualization.description.ilike("%{}%".format(term)),
+                            models.Query.name.ilike("%{}%".format(term)),
+                        )
+                        for term in terms
+                    ]
+                )
+            )
+        )
+        dashboards = dashboards.filter(or_(by_name, models.Dashboard.id.in_(on_a_widget.subquery().select())))
+    dashboards = dashboards.order_by(models.Dashboard.updated_at.desc()).limit(MAX_DASHBOARDS_SEARCHED).all()
 
     # The words on a dashboard are in its textboxes, its charts and the
     # queries behind them, which is where its subject is actually written
@@ -1165,7 +1370,7 @@ def tool_find_dashboards(user, org, arguments):
         return _text("No dashboard matches that.")
 
     # Settings only for the charts about to be described: a chart's options
-    # run to kilobytes, and the search above looked at two hundred dashboards.
+    # run to kilobytes, and the search above looked at every match.
     listed = {
         dashboard.id: [chart for chart in charts[dashboard.id] if _worth_listing(chart[1], chart[3])]
         for dashboard in found
@@ -1178,20 +1383,64 @@ def tool_find_dashboards(user, org, arguments):
     )
 
     lines = []
+    structured = []
     for dashboard in found:
-        lines.append("{} — /dashboards/{}".format(dashboard.name, dashboard.id))
+        verified = dashboard.verified_at is not None
+        lines.append("{}{} — /dashboards/{}".format(dashboard.name, " [VERIFIED]" if verified else "", dashboard.id))
         lines.append(
-            "  {} widgets · updated {}".format(
-                widgets[dashboard.id], dashboard.updated_at.date() if dashboard.updated_at else "?"
+            "  {} widgets · by {} · updated {}".format(
+                widgets[dashboard.id],
+                _who(dashboard.user),
+                dashboard.updated_at.date() if dashboard.updated_at else "?",
             )
         )
+        if verified:
+            # A dashboard a person has read and confirmed is worth more than
+            # one nobody has, and the tool never said so even though 0.7.3
+            # recorded it. Said in the same words find_queries uses.
+            lines.append(
+                "  verified{}{}{}".format(
+                    " by {}".format(_who(dashboard.verified_by)) if dashboard.verified_by else "",
+                    " on {}".format(dashboard.verified_at.date()),
+                    " -- {}".format(" ".join(dashboard.verified_note.split())) if dashboard.verified_note else "",
+                )
+            )
         for chart_id, chart_type, chart_name, about, query_id, query_name in listed[dashboard.id][:MAX_CHARTS]:
             source = "query #{} {}".format(query_id, query_name)
             lines.append("  - " + _chart_summary(chart_type, chart_name, about, options.get(chart_id), source))
         if len(listed[dashboard.id]) > MAX_CHARTS:
             lines.append("  - and {} more".format(len(listed[dashboard.id]) - MAX_CHARTS))
         lines.append("")
-    return _text("\n".join(lines).strip())
+        structured.append(
+            {
+                "id": dashboard.id,
+                "name": dashboard.name,
+                "url": "dashboards/{}".format(dashboard.id),
+                "owner": _who(dashboard.user) if dashboard.user else None,
+                "widgets": widgets[dashboard.id],
+                "updated_at": dashboard.updated_at.isoformat() if dashboard.updated_at else None,
+                "verified": None
+                if not verified
+                else {
+                    "by": _who(dashboard.verified_by) if dashboard.verified_by else None,
+                    "at": dashboard.verified_at.isoformat(),
+                    "note": dashboard.verified_note or None,
+                },
+                "charts": [
+                    {
+                        "type": chart_type,
+                        "name": chart_name or None,
+                        "description": about or None,
+                        "query_id": query_id,
+                        "query_name": query_name or None,
+                    }
+                    for chart_id, chart_type, chart_name, about, query_id, query_name in listed[dashboard.id][
+                        :MAX_CHARTS
+                    ]
+                ],
+            }
+        )
+    return _text("\n".join(lines).strip(), {"dashboards": structured})
 
 
 def _on_a_worker(user, source, sql, timeout):
@@ -1358,11 +1607,10 @@ def tool_run_query(user, org, arguments):
 #: scope of its own rather than those tokens quietly growing the power to write.
 UPDATE_TABLE = {
     "name": "update_table",
-    "title": "Describe or hide a catalog table",
+    "title": "Describe a catalog table",
     "description": (
-        "Curate the catalog: write what a table is for, or hide it from what is offered. "
-        "Not for answering questions. Will not replace a description a person wrote unless "
-        "`overwrite` is true."
+        "Write what a table is for. Not for answering questions. Will not replace a description "
+        "a person wrote unless `overwrite` is true."
     ),
     "inputSchema": {
         "type": "object",
@@ -1379,10 +1627,6 @@ UPDATE_TABLE = {
                     "what nobody should trust. An empty string clears it."
                 ),
             },
-            "hidden": {
-                "type": "boolean",
-                "description": "Leave it off the catalog page and out of what MCP offers. It can still be queried.",
-            },
             "overwrite": {
                 "type": "boolean",
                 "description": "Replace a description a person wrote. Off unless set.",
@@ -1392,6 +1636,15 @@ UPDATE_TABLE = {
     },
     "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True},
 }
+
+
+def _short(text, limit=120):
+    """One line of somebody's prose, for an audit row."""
+    if not text:
+        return ""
+    collapsed = " ".join(str(text).split())
+    return collapsed if len(collapsed) <= limit else collapsed[: limit - 1] + "\u2026"
+
 
 #: What a description written through this tool is marked as. Not "human" and
 #: not "engine": a harvest leaves it alone -- it protects anything the engine
@@ -1411,14 +1664,25 @@ def tool_update_table(user, org, arguments):
         raise McpError(INVALID_PARAMS, "`name` is required: the table's name as the catalog has it.")
     name = name.strip()
 
-    changes_description = "description" in arguments
-    changes_hidden = "hidden" in arguments
-    if not changes_description and not changes_hidden:
-        raise McpError(INVALID_PARAMS, "Nothing to change: give a `description`, `hidden`, or both.")
-    if changes_description and arguments["description"] is not None and not isinstance(arguments["description"], str):
+    if "hidden" in arguments:
+        # Said before "nothing to change", so an agent that asked only to hide
+        # a table is told why it cannot rather than told it asked for nothing.
+        #
+        # Hiding decides what everybody is offered, and any key that may
+        # curate could have done it silently -- no review, and nothing on a
+        # page to notice. It stays a decision somebody makes in the Catalog
+        # page, with the table in front of them.
+        raise McpError(
+            INVALID_PARAMS,
+            "Hiding a table is done in Admin -> Catalog, not from here: it changes what everybody is "
+            "offered, and a person should see the table while deciding.",
+        )
+    if "description" not in arguments:
+        raise McpError(INVALID_PARAMS, "Nothing to change: give a `description`.")
+    if arguments["description"] is not None and not isinstance(arguments["description"], str):
         raise McpError(INVALID_PARAMS, "`description` is text, or an empty string to clear it.")
-    if changes_hidden and not isinstance(arguments["hidden"], bool):
-        raise McpError(INVALID_PARAMS, "`hidden` is true or false.")
+
+    _within_the_daily_cap(user, org, "update_table")
 
     # Curating is not a way into a data source one cannot read: the same rule
     # every read tool uses.
@@ -1445,44 +1709,39 @@ def tool_update_table(user, org, arguments):
         )
     table = matches[0]
 
-    said = []
-    if changes_description:
-        description = (arguments.get("description") or "").strip() or None
-        written_by_a_person = table.description_source not in (None, "engine", WRITTEN_BY_MCP)
-        if written_by_a_person and description != table.description and not arguments.get("overwrite"):
-            return {
-                "content": [
-                    {
-                        "type": "text",
-                        "text": (
-                            "{} already has a description a person wrote, so it was left alone:\n\n{}\n\n"
-                            "Call again with `overwrite: true` to replace it.".format(table.name, table.description)
-                        ),
-                    }
-                ],
-                "isError": True,
-            }
-        table.description = description
-        table.description_source = WRITTEN_BY_MCP if description else None
-        table.described_by = user if description else None
-        table.described_at = models.db.func.now() if description else None
-        # The card is the text an agent is handed, and only a harvest wrote
-        # it: this description would not have been read back by find_context
-        # for a day, or ever on a paused data source.
-        rebuild_card(table)
-        said.append(
-            "Described {}.".format(table.name) if description else "Cleared the description of {}.".format(table.name)
-        )
-    if changes_hidden:
-        table.hidden = arguments["hidden"]
-        said.append(
-            "Hid {}: it is off the catalog page and out of what MCP offers, and can still be queried.".format(
-                table.name
-            )
-            if table.hidden
-            else "{} is shown again.".format(table.name)
-        )
+    before = table.description
+    description = (arguments.get("description") or "").strip() or None
+    written_by_a_person = table.description_source not in (None, "engine", WRITTEN_BY_MCP)
+    if written_by_a_person and description != table.description and not arguments.get("overwrite"):
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": (
+                        "{} already has a description a person wrote, so it was left alone:\n\n{}\n\n"
+                        "Call again with `overwrite: true` to replace it.".format(table.name, table.description)
+                    ),
+                }
+            ],
+            "isError": True,
+        }
+    table.description = description
+    table.description_source = WRITTEN_BY_MCP if description else None
+    table.described_by = user if description else None
+    table.described_at = models.db.func.now() if description else None
+    # The card is the text an agent is handed, and only a harvest wrote it:
+    # this description would not have been read back by find_context for a
+    # day, or ever on a paused data source.
+    rebuild_card(table)
+    said = ["Described {}.".format(table.name) if description else "Cleared the description of {}.".format(table.name)]
     models.db.session.commit()
+
+    # What the audit row says. Before and after, because the question brought
+    # to an audit of an agent's writes is never "did it write" -- it is what
+    # this table used to say.
+    note_write(
+        "{} in {}: {!r} -> {!r}".format(table.name, table.data_source.name, _short(before), _short(table.description))
+    )
 
     from flask import has_request_context
 
@@ -1495,13 +1754,350 @@ def tool_update_table(user, org, arguments):
             org,
             user,
             {
-                "action": "hide" if arguments.get("hidden") else "describe",
+                "action": "describe",
                 "object_id": table.id,
                 "object_type": "catalog_table",
                 "via": "mcp",
             },
         )
     return _text(" ".join(said))
+
+
+#: The write tools beyond the catalog: saving the SQL an agent and a person
+#: worked out together, and proposing a measure for a curator to agree.
+#:
+#: Each is a draft or a proposal, never something anybody else is shown as
+#: settled. A tool that could publish, verify or approve would be a tool that
+#: grants trust, and trust is a person's to give -- see SD-12 in
+#: plan/0.7.7-plan.md. Everything here lands somewhere a person reviews.
+SAVE_QUERY = {
+    "name": "save_query",
+    "title": "Save SQL as a draft query",
+    "description": (
+        "Save SQL somebody will want again as a draft query, with a name and a description of what "
+        "it answers. It is a draft: it stays off the Queries list until a person opens it and "
+        "publishes it. Use it when the SQL you just ran is worth keeping, not for every run."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "What it answers, as a person would say it."},
+            "sql": {"type": "string", "description": "The query, exactly as it should be saved."},
+            "data_source": {"type": "string", "description": "The data source it runs on."},
+            "description": {
+                "type": "string",
+                "description": "What the result means, and anything somebody reading it later needs to know.",
+            },
+            "tags": {"type": "array", "items": {"type": "string"}, "description": "Tags, if the install uses them."},
+        },
+        "required": ["name", "sql", "data_source"],
+    },
+    "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False},
+}
+
+UPDATE_QUERY = {
+    "name": "update_query",
+    "title": "Change a draft query you can edit",
+    "description": (
+        "Change the SQL, name or description of an existing query. Only a draft, and only one you "
+        "could edit in the browser. A published query is somebody's work that other people's "
+        "dashboards read: open it in SQLDesk instead."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "id": {"type": "integer", "description": "The query's id, as find_queries gives it."},
+            "sql": {"type": "string", "description": "The new SQL."},
+            "name": {"type": "string"},
+            "description": {"type": "string"},
+        },
+        "required": ["id"],
+    },
+    "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True},
+}
+
+PROPOSE_MEASURE = {
+    "name": "propose_measure",
+    "title": "Propose a measure for a curator to agree",
+    "description": (
+        "Propose a number and what it means -- `gross_revenue = SUM(orders.amount)` -- for a curator "
+        "to agree or deny. A proposed measure reaches nobody until somebody signs it off, because a "
+        "definition of revenue that is merely plausible is worse than none."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "What it is called: gross_revenue, not sum_amount."},
+            "table": {"type": "string", "description": "The table it comes from, as the catalog has it."},
+            "kind": {
+                "type": "string",
+                "enum": ["sum", "count", "count_distinct", "avg", "min", "max"],
+                "description": "How it is aggregated.",
+            },
+            "column": {"type": "string", "description": "The column it aggregates. Omit for a count of rows."},
+            "data_source": {"type": "string", "description": "Needed when two sources have that table."},
+            "description": {"type": "string", "description": "What it means, and what it excludes."},
+        },
+        "required": ["name", "table", "kind"],
+    },
+    "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True},
+}
+
+#: Offered to a personal API key whose owner may write queries. Not tied to
+#: MANAGE_CATALOG: saving a draft query is something any analyst does, and the
+#: permission that governs it is the one that governs it in the browser.
+WRITE_QUERY_TOOLS = (SAVE_QUERY, UPDATE_QUERY)
+
+
+def may_write_queries(user, by_api_key):
+    """
+    Whether this caller is offered save_query and update_query.
+
+    A personal API key only: an OAuth session is `mcp:read`, which was stated
+    when OAuth was added and is what an agent connected by somebody else's
+    client holds. And the same permission the browser checks -- a reader who
+    cannot create a query there cannot create one from here.
+    """
+    return bool(by_api_key) and user.has_permission("create_query")
+
+
+def _editable_query(user, org, query_id):
+    """
+    The query this caller may change through MCP, or a refusal saying why.
+
+    Draft only, and only one they could edit in the browser. A published
+    query is read by other people's dashboards and alerts: changing its SQL
+    from here would change what those say, without anybody seeing a diff.
+    """
+    query = models.Query.query.filter(models.Query.id == query_id, models.Query.org == org).first()
+    if query is None or query.is_archived:
+        raise McpError(INVALID_PARAMS, "No query {} that you can see.".format(query_id))
+    if query.data_source is None or not has_access(query.data_source, user, not_view_only):
+        raise McpError(
+            INVALID_PARAMS,
+            "Query {} runs on a data source you may only read, so you cannot change it.".format(query_id),
+        )
+    if not query.is_draft:
+        raise McpError(
+            INVALID_PARAMS,
+            "Query {} is published, so other people's dashboards and alerts read it. Open it in SQLDesk to "
+            "change it.".format(query_id),
+        )
+    if query.user_id != user.id and not user.has_permission("edit_others_queries"):
+        raise McpError(INVALID_PARAMS, "Query {} is somebody else's draft.".format(query_id))
+    return query
+
+
+def tool_save_query(user, org, arguments):
+    arguments = arguments or {}
+    name = (arguments.get("name") or "").strip()
+    sql = (arguments.get("sql") or "").strip()
+    if not name:
+        raise McpError(INVALID_PARAMS, "`name` is required: what the query answers.")
+    if not sql:
+        raise McpError(INVALID_PARAMS, "`sql` is required.")
+    if len(sql) > MAX_SQL:
+        raise McpError(INVALID_PARAMS, "`sql` is over {} characters.".format(MAX_SQL))
+
+    source = _resolve_source(user, org, arguments.get("data_source"), need=not_view_only)
+    if source is None:
+        raise McpError(INVALID_PARAMS, "`data_source` is required: the data source this query runs on.")
+
+    # A draft saved from here is still a query that runs on somebody's
+    # warehouse on a schedule later, so the same read-only rule applies as to
+    # running one: what is saved is what a person will press Run on.
+    refusal = _why_not_a_read(sql, source)
+    if refusal:
+        raise McpError(INVALID_PARAMS, refusal)
+
+    _within_the_daily_cap(user, org, "save_query")
+
+    tags = arguments.get("tags")
+    if tags is not None and (not isinstance(tags, list) or any(not isinstance(tag, str) for tag in tags)):
+        raise McpError(INVALID_PARAMS, "`tags` is a list of strings.")
+
+    query = models.Query.create(
+        name=name[:255],
+        description=(arguments.get("description") or "").strip() or None,
+        query_text=sql,
+        user=user,
+        data_source=source,
+        org=org,
+        # Always a draft. Nobody's list, nobody's search results and nobody's
+        # dashboard picker until a person has read it and published it.
+        is_draft=True,
+        schedule=None,
+        options={},
+        tags=[tag.strip() for tag in (tags or []) if tag.strip()] or None,
+    )
+    models.db.session.add(query)
+    models.db.session.commit()
+
+    note_write("saved query {} {!r} on {}".format(query.id, _short(name, 60), source.name))
+
+    from flask import has_request_context
+
+    from sqldesk.handlers.base import record_event
+
+    if has_request_context():
+        record_event(org, user, {"action": "create", "object_id": query.id, "object_type": "query", "via": "mcp"})
+
+    return _text(
+        "Saved as draft query {}, at queries/{}. It is a draft: open it in SQLDesk and publish it to put it on "
+        "the Queries list.".format(query.id, query.id)
+    )
+
+
+def tool_update_query(user, org, arguments):
+    arguments = arguments or {}
+    query_id = arguments.get("id")
+    if not isinstance(query_id, int):
+        raise McpError(INVALID_PARAMS, "`id` is required: the query's id, as find_queries gives it.")
+    changes = {field: arguments[field] for field in ("sql", "name", "description") if field in arguments}
+    if not changes:
+        raise McpError(INVALID_PARAMS, "Nothing to change: give `sql`, `name` or `description`.")
+
+    query = _editable_query(user, org, query_id)
+    _within_the_daily_cap(user, org, "update_query")
+
+    said = []
+    if "sql" in changes:
+        sql = (changes["sql"] or "").strip()
+        if not sql:
+            raise McpError(INVALID_PARAMS, "`sql` cannot be emptied.")
+        if len(sql) > MAX_SQL:
+            raise McpError(INVALID_PARAMS, "`sql` is over {} characters.".format(MAX_SQL))
+        refusal = _why_not_a_read(sql, query.data_source)
+        if refusal:
+            raise McpError(INVALID_PARAMS, refusal)
+        before = query.query_text
+        query.query_text = sql
+        said.append("SQL: {!r} -> {!r}".format(_short(before, 80), _short(sql, 80)))
+    if "name" in changes:
+        name = (changes["name"] or "").strip()
+        if not name:
+            raise McpError(INVALID_PARAMS, "`name` cannot be emptied.")
+        said.append("name: {!r} -> {!r}".format(_short(query.name, 60), _short(name, 60)))
+        query.name = name[:255]
+    if "description" in changes:
+        description = (changes["description"] or "").strip() or None
+        said.append("description: {!r} -> {!r}".format(_short(query.description, 60), _short(description, 60)))
+        query.description = description
+
+    # Recorded as a version, like an edit in the browser, so the history page
+    # shows what changed and who -- which is the whole point of letting an
+    # agent edit anything.
+    query.record_changes(changed_by=user)
+    query.last_modified_by = user
+    models.db.session.add(query)
+    models.db.session.commit()
+
+    note_write("query {}: {}".format(query.id, "; ".join(said)))
+
+    from flask import has_request_context
+
+    from sqldesk.handlers.base import record_event
+
+    if has_request_context():
+        record_event(org, user, {"action": "edit", "object_id": query.id, "object_type": "query", "via": "mcp"})
+
+    return _text("Query {} updated: {}. Its history shows the change.".format(query.id, "; ".join(said)))
+
+
+def tool_propose_measure(user, org, arguments):
+    arguments = arguments or {}
+    name = (arguments.get("name") or "").strip()
+    table_name = (arguments.get("table") or "").strip()
+    kind = (arguments.get("kind") or "").strip().lower()
+    # "*" for a count of rows, which is what the harvester stores for
+    # COUNT(*) -- and what the column is declared as, so None would be a
+    # not-null violation reported as "that tool failed".
+    column = (arguments.get("column") or "").strip() or ("*" if kind == "count" else None)
+    if not name or not table_name or not kind:
+        raise McpError(INVALID_PARAMS, "`name`, `table` and `kind` are required.")
+    if kind not in MEASURE_KINDS:
+        raise McpError(INVALID_PARAMS, "`kind` is one of {}.".format(", ".join(MEASURE_KINDS)))
+    if kind != "count" and not column:
+        raise McpError(INVALID_PARAMS, "`column` is required for a {}.".format(kind))
+
+    readable = [source.id for source in _readable_sources(user, org)]
+    source = _resolve_source(user, org, arguments.get("data_source"))
+    matches = models.CatalogTable.query.filter(
+        models.CatalogTable.org == org,
+        models.CatalogTable.name == table_name,
+        models.CatalogTable.data_source_id.in_(readable or [0]),
+    )
+    if source is not None:
+        matches = matches.filter(models.CatalogTable.data_source_id == source.id)
+    matches = matches.all()
+    if not matches:
+        raise McpError(INVALID_PARAMS, "No table called {!r} in the catalog that you can read.".format(table_name))
+    if len(matches) > 1:
+        raise McpError(
+            INVALID_PARAMS,
+            "{!r} is in {} data sources ({}). Say which with `data_source`.".format(
+                table_name, len(matches), ", ".join(sorted(t.data_source.name for t in matches))
+            ),
+        )
+    table = matches[0]
+
+    existing = models.CatalogMeasure.query.filter(
+        models.CatalogMeasure.data_source_id == table.data_source_id,
+        models.CatalogMeasure.table_name == table.name,
+        models.CatalogMeasure.name == name,
+    ).first()
+    if existing is not None and existing.status == models.MEASURE_APPROVED:
+        return _text(
+            "{} on {} is already agreed: {} = {}({}). Use it rather than proposing another.".format(
+                existing.name,
+                table.name,
+                existing.name,
+                (existing.kind or "").upper(),
+                existing.column_name,
+            )
+        )
+
+    _within_the_daily_cap(user, org, "propose_measure")
+
+    description = (arguments.get("description") or "").strip() or None
+    if existing is None:
+        measure = models.CatalogMeasure(
+            org=org,
+            data_source_id=table.data_source_id,
+            table_name=table.name,
+            name=name[:255],
+            kind=kind,
+            column_name=column,
+            description=description,
+            status=models.MEASURE_PROPOSED,
+            proposed_by=user,
+            usage_count=0,
+        )
+        models.db.session.add(measure)
+        was = "proposed"
+    else:
+        # A denied measure proposed again is a proposal, not a decision
+        # reversed: it goes back on the curator's list rather than quietly
+        # becoming true.
+        measure = existing
+        measure.kind = kind
+        measure.column_name = column
+        measure.description = description or measure.description
+        measure.status = models.MEASURE_PROPOSED
+        measure.proposed_by = user
+        measure.reviewed_by = None
+        measure.reviewed_at = None
+        was = "re-proposed"
+    models.db.session.commit()
+
+    note_write(
+        "{} {} = {}({}) on {} in {}".format(was, name, kind.upper(), column or "*", table.name, table.data_source.name)
+    )
+
+    return _text(
+        "{} {} = {}({}) on {}. It reaches nobody until a curator agrees it, on the Catalog page under "
+        "Measures.".format(was.capitalize(), name, kind.upper(), column or "*", table.name)
+    )
 
 
 HANDLERS = {
@@ -1515,7 +2111,33 @@ HANDLERS = {
     "list_data_sources": tool_list_data_sources,
     "check_sql": tool_check_sql,
     "update_table": tool_update_table,
+    "save_query": tool_save_query,
+    "update_query": tool_update_query,
+    "propose_measure": tool_propose_measure,
 }
+
+
+def _may_call(name, user, by_api_key):
+    """
+    Refuse a write tool the caller is not offered.
+
+    Checked here as well as in the listing, because a client may call a tool
+    it was never told about -- and the two write paths need different
+    permissions: curating the catalog is not the same decision as saving a
+    query.
+    """
+    if name in (UPDATE_TABLE["name"], PROPOSE_MEASURE["name"]) and not may_curate(user, by_api_key):
+        raise McpError(
+            INVALID_PARAMS,
+            "{} writes to the catalog, so it needs a personal API key from somebody who may curate "
+            "it. OAuth sessions are read-only (mcp:read).".format(name),
+        )
+    if name in (tool["name"] for tool in WRITE_QUERY_TOOLS) and not may_write_queries(user, by_api_key):
+        raise McpError(
+            INVALID_PARAMS,
+            "{} saves a query, so it needs a personal API key from somebody who may create queries. "
+            "OAuth sessions are read-only (mcp:read).".format(name),
+        )
 
 
 def handle(message, user, org, by_api_key=False):
@@ -1546,7 +2168,15 @@ def handle(message, user, org, by_api_key=False):
     if method == "tools/list":
         # A tool is listed only to somebody who may call it, so an agent working
         # for a reader never sees a way to write and never tries one.
-        return {"tools": TOOLS + [UPDATE_TABLE] if may_curate(user, by_api_key) else TOOLS}
+        # A tool is listed only to somebody who may call it, so an agent
+        # working for a reader never sees a way to write and never tries one.
+        offered = list(TOOLS)
+        if may_curate(user, by_api_key):
+            offered.append(UPDATE_TABLE)
+            offered.append(PROPOSE_MEASURE)
+        if may_write_queries(user, by_api_key):
+            offered.extend(WRITE_QUERY_TOOLS)
+        return {"tools": offered}
     if method == "tools/call":
         params = message.get("params") or {}
         if not isinstance(params, dict):
@@ -1554,12 +2184,7 @@ def handle(message, user, org, by_api_key=False):
         name = params.get("name")
         if name not in HANDLERS:
             raise McpError(INVALID_PARAMS, "No tool called {!r}.".format(name))
-        if name == UPDATE_TABLE["name"] and not may_curate(user, by_api_key):
-            raise McpError(
-                INVALID_PARAMS,
-                "update_table writes to the catalog, so it needs a personal API key from somebody who may curate "
-                "it. OAuth sessions are read-only (mcp:read).",
-            )
+        _may_call(name, user, by_api_key)
         arguments = params.get("arguments")
         if arguments is not None and not isinstance(arguments, dict):
             raise McpError(INVALID_PARAMS, "`arguments` must be an object.")

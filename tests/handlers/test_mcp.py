@@ -1916,12 +1916,24 @@ class TestCuratingTheCatalogOverMcp(McpTestCase):
         self.assertIsNone(self.table.described_by_id)
         self.assertIsNone(self.table.described_at)
 
-    def test_it_hides_one(self):
+    def test_it_will_not_hide_one(self):
+        """
+        Hiding a table decides what everybody is offered, and any key that
+        may curate could have done it with no review and nothing on a page to
+        notice. It stays a decision somebody makes in the Catalog page, with
+        the table in front of them.
+        """
         rv = self.call({"name": "orders", "hidden": True}, user=self.admin)
 
-        self.assertIn("can still be queried", rv.json["result"]["content"][0]["text"])
+        self.assertIn("Admin -> Catalog", rv.json["error"]["message"])
         models.db.session.refresh(self.table)
-        self.assertTrue(self.table.hidden)
+        self.assertFalse(self.table.hidden)
+
+    def test_and_does_not_offer_it_either(self):
+        rv = self.post(rpc("tools/list"), user=self.admin)
+        update_table = [tool for tool in rv.json["result"]["tools"] if tool["name"] == "update_table"][0]
+
+        self.assertNotIn("hidden", update_table["inputSchema"]["properties"])
 
     def test_it_will_not_replace_what_a_person_wrote(self):
         self.table.description = "Orders, excluding the test tenant."
@@ -1946,7 +1958,7 @@ class TestCuratingTheCatalogOverMcp(McpTestCase):
         self.assertEqual("Orders.", self.table.description)
         self.assertEqual("mcp", self.table.description_source)
 
-    def test_hiding_does_not_need_overwrite_and_leaves_a_persons_words_alone(self):
+    def test_a_refused_hide_leaves_a_persons_words_alone(self):
         self.table.description = "Orders, excluding the test tenant."
         self.table.description_source = "human"
         models.db.session.commit()
@@ -1954,7 +1966,7 @@ class TestCuratingTheCatalogOverMcp(McpTestCase):
         self.call({"name": "orders", "hidden": True}, user=self.admin)
 
         models.db.session.refresh(self.table)
-        self.assertTrue(self.table.hidden)
+        self.assertFalse(self.table.hidden)
         self.assertEqual("Orders, excluding the test tenant.", self.table.description)
 
     def test_a_name_in_two_data_sources_asks_which(self):
@@ -1976,3 +1988,376 @@ class TestCuratingTheCatalogOverMcp(McpTestCase):
         rv = self.call({"name": "nope", "description": "x"}, user=self.admin)
 
         self.assertIn("No table called", rv.json["error"]["message"])
+
+
+class TestSavingAQueryOverMcp(McpTestCase):
+    """
+    `save_query` and `update_query`: what an agent may do with somebody's
+    saved SQL.
+
+    The rule throughout is that nothing an agent writes is shown to anybody
+    else as settled. A saved query is a draft; an edit is a draft's edit, with
+    a version recorded. Publishing, verifying and approving stay with people.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.author = self.factory.user
+
+    def call(self, tool, arguments, user=None, api_key=None):
+        return self.post(rpc("tools/call", {"name": tool, "arguments": arguments}), user=user, api_key=api_key)
+
+    def listed(self, user=None, api_key=None):
+        rv = self.post(rpc("tools/list"), user=user, api_key=api_key)
+        return [tool["name"] for tool in rv.json["result"]["tools"]]
+
+    def test_it_is_offered_to_somebody_who_may_create_queries(self):
+        self.assertIn("save_query", self.listed(user=self.author))
+        self.assertIn("update_query", self.listed(user=self.author))
+
+    def test_a_saved_query_is_a_draft_on_the_right_source(self):
+        rv = self.call(
+            "save_query",
+            {
+                "name": "Orders by region",
+                "sql": "SELECT region, COUNT(*) FROM orders GROUP BY 1",
+                "data_source": self.factory.data_source.name,
+                "description": "One row per region.",
+            },
+        )
+
+        self.assertFalse(rv.json["result"].get("isError"))
+        query = models.Query.query.filter(models.Query.name == "Orders by region").one()
+        self.assertTrue(query.is_draft)
+        self.assertEqual(self.factory.data_source.id, query.data_source_id)
+        self.assertEqual(self.author.id, query.user_id)
+        self.assertEqual("One row per region.", query.description)
+
+    def test_the_reply_says_where_to_find_it(self):
+        rv = self.call(
+            "save_query",
+            {"name": "Orders", "sql": "SELECT 1", "data_source": self.factory.data_source.name},
+        )
+        query = models.Query.query.filter(models.Query.name == "Orders").one()
+
+        self.assertIn("queries/{}".format(query.id), rv.json["result"]["content"][0]["text"])
+
+    def test_it_refuses_to_save_something_that_is_not_a_read(self):
+        # What is saved is what a person will press Run on.
+        rv = self.call(
+            "save_query",
+            {"name": "Tidy up", "sql": "DELETE FROM orders", "data_source": self.factory.data_source.name},
+        )
+
+        self.assertIn("error", rv.json)
+        self.assertEqual(0, models.Query.query.filter(models.Query.name == "Tidy up").count())
+
+    def test_it_will_not_save_against_a_source_the_caller_may_only_read(self):
+        view_only = self.factory.create_data_source(group=self.factory.default_group, view_only=True)
+
+        rv = self.call(
+            "save_query",
+            {"name": "Peek", "sql": "SELECT 1", "data_source": view_only.name},
+        )
+
+        self.assertIn("error", rv.json)
+
+    def test_editing_a_draft_records_a_version(self):
+        query = self.factory.create_query(query_text="SELECT 1", is_draft=True, user=self.author)
+        models.db.session.commit()
+
+        rv = self.call("update_query", {"id": query.id, "sql": "SELECT 2"})
+
+        self.assertFalse(rv.json["result"].get("isError"))
+        models.db.session.refresh(query)
+        self.assertEqual("SELECT 2", query.query_text)
+        self.assertEqual(self.author.id, query.last_modified_by_id)
+        self.assertTrue(models.Change.query.filter(models.Change.object_id == query.id).count() >= 1)
+
+    def test_but_a_published_query_is_left_alone(self):
+        # Other people's dashboards and alerts read it, and nobody would see
+        # a diff.
+        query = self.factory.create_query(query_text="SELECT 1", is_draft=False, user=self.author)
+        models.db.session.commit()
+
+        rv = self.call("update_query", {"id": query.id, "sql": "SELECT 2"})
+
+        self.assertIn("published", rv.json["error"]["message"])
+        models.db.session.refresh(query)
+        self.assertEqual("SELECT 1", query.query_text)
+
+    def test_and_so_is_somebody_elses_draft(self):
+        other = self.factory.create_user()
+        query = self.factory.create_query(query_text="SELECT 1", is_draft=True, user=other)
+        models.db.session.commit()
+
+        rv = self.call("update_query", {"id": query.id, "sql": "SELECT 2"})
+
+        self.assertIn("somebody else's", rv.json["error"]["message"])
+
+    def test_nothing_to_change_is_refused_rather_than_a_silent_success(self):
+        query = self.factory.create_query(is_draft=True, user=self.author)
+        models.db.session.commit()
+
+        rv = self.call("update_query", {"id": query.id})
+
+        self.assertIn("Nothing to change", rv.json["error"]["message"])
+
+    def test_an_oauth_session_is_offered_neither(self):
+        with mock.patch("sqldesk.settings.MCP_OAUTH_ENABLED", True):
+            import secrets
+
+            from sqldesk.oauth import ACCESS_PREFIX
+
+            value = ACCESS_PREFIX + secrets.token_urlsafe(32)
+            models.db.session.add(
+                models.OAuthToken(
+                    client_id="test-client",
+                    org_id=self.author.org_id,
+                    user_id=self.author.id,
+                    access_token_digest=models._token_digest(value),
+                    scope=models.OAUTH_SCOPE,
+                    access_expires_at=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1),
+                )
+            )
+            models.db.session.commit()
+
+            listed = self.listed(api_key=value)
+            rv = self.call("save_query", {"name": "x", "sql": "SELECT 1", "data_source": "x"}, api_key=value)
+
+        self.assertNotIn("save_query", listed)
+        self.assertIn("mcp:read", rv.json["error"]["message"])
+
+
+class TestProposingAMeasureOverMcp(McpTestCase):
+    def setUp(self):
+        super().setUp()
+        self.admin = self.factory.create_admin()
+        self.table = models.CatalogTable(
+            org=self.factory.org, data_source_id=self.factory.data_source.id, name="orders"
+        )
+        models.db.session.add(self.table)
+        models.db.session.commit()
+
+    def call(self, arguments, user=None):
+        return self.post(rpc("tools/call", {"name": "propose_measure", "arguments": arguments}), user=user)
+
+    def test_a_proposal_waits_for_a_curator(self):
+        rv = self.call(
+            {"name": "gross_revenue", "table": "orders", "kind": "sum", "column": "amount"}, user=self.admin
+        )
+
+        self.assertIn("until a curator agrees", rv.json["result"]["content"][0]["text"])
+        measure = models.CatalogMeasure.query.one()
+        self.assertEqual(models.MEASURE_PROPOSED, measure.status)
+        self.assertEqual(self.admin.id, measure.proposed_by_id)
+
+    def test_an_agreed_measure_is_not_proposed_over(self):
+        models.db.session.add(
+            models.CatalogMeasure(
+                org=self.factory.org,
+                data_source_id=self.factory.data_source.id,
+                table_name="orders",
+                name="gross_revenue",
+                kind="sum",
+                column_name="amount",
+                status=models.MEASURE_APPROVED,
+            )
+        )
+        models.db.session.commit()
+
+        rv = self.call(
+            {"name": "gross_revenue", "table": "orders", "kind": "avg", "column": "amount"}, user=self.admin
+        )
+
+        self.assertIn("already agreed", rv.json["result"]["content"][0]["text"])
+        self.assertEqual(models.MEASURE_APPROVED, models.CatalogMeasure.query.one().status)
+        self.assertEqual("sum", models.CatalogMeasure.query.one().kind)
+
+    def test_a_denied_one_goes_back_on_the_list_rather_than_becoming_true(self):
+        models.db.session.add(
+            models.CatalogMeasure(
+                org=self.factory.org,
+                data_source_id=self.factory.data_source.id,
+                table_name="orders",
+                name="gross_revenue",
+                kind="sum",
+                column_name="amount",
+                status=models.MEASURE_DENIED,
+            )
+        )
+        models.db.session.commit()
+
+        self.call({"name": "gross_revenue", "table": "orders", "kind": "sum", "column": "net"}, user=self.admin)
+
+        measure = models.CatalogMeasure.query.one()
+        self.assertEqual(models.MEASURE_PROPOSED, measure.status)
+        self.assertEqual("net", measure.column_name)
+
+    def test_a_count_needs_no_column(self):
+        rv = self.call({"name": "orders_placed", "table": "orders", "kind": "count"}, user=self.admin)
+
+        self.assertFalse(rv.json["result"].get("isError"))
+        # "*", as the harvester stores COUNT(*): the column is declared NOT
+        # NULL, and the two have to agree or a mined measure and a proposed
+        # one are different rows for the same number.
+        self.assertEqual("*", models.CatalogMeasure.query.one().column_name)
+
+    def test_but_a_sum_does(self):
+        rv = self.call({"name": "revenue", "table": "orders", "kind": "sum"}, user=self.admin)
+
+        self.assertIn("`column` is required", rv.json["error"]["message"])
+
+    def test_an_invented_kind_is_refused(self):
+        rv = self.call({"name": "revenue", "table": "orders", "kind": "median", "column": "amount"}, user=self.admin)
+
+        self.assertIn("`kind` is one of", rv.json["error"]["message"])
+
+    def test_a_table_nobody_has_harvested_says_so(self):
+        rv = self.call({"name": "x", "table": "nowhere", "kind": "count"}, user=self.admin)
+
+        self.assertIn("No table called", rv.json["error"]["message"])
+
+    def test_somebody_who_may_not_curate_is_not_offered_it(self):
+        rv = self.post(rpc("tools/list"), user=self.factory.user)
+
+        self.assertNotIn("propose_measure", [tool["name"] for tool in rv.json["result"]["tools"]])
+
+
+class TestTheDailyCapOnWrites(McpTestCase):
+    """
+    An agent told to describe a warehouse will describe the whole warehouse,
+    and a loop getting it wrong will do it just as fast. The cap makes a
+    mistake a morning's review rather than a restore.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.admin = self.factory.create_admin()
+        models.db.session.add(
+            models.CatalogTable(org=self.factory.org, data_source_id=self.factory.data_source.id, name="orders")
+        )
+        models.db.session.commit()
+
+    def _wrote(self, count, tool="update_table", outcome="ok", user=None):
+        for _ in range(count):
+            models.db.session.add(
+                models.McpEvent(
+                    org=self.factory.org,
+                    user=user or self.admin,
+                    method="tools/call",
+                    tool=tool,
+                    outcome=outcome,
+                )
+            )
+        models.db.session.commit()
+
+    def _describe(self):
+        return self.post(
+            rpc("tools/call", {"name": "update_table", "arguments": {"name": "orders", "description": "One row."}}),
+            user=self.admin,
+        )
+
+    def test_under_the_cap_a_write_goes_through(self):
+        self._wrote(10)
+
+        self.assertFalse(self._describe().json["result"].get("isError"))
+
+    def test_at_the_cap_it_is_refused_and_says_when_it_resets(self):
+        self._wrote(50)
+
+        message = self._describe().json["error"]["message"]
+
+        self.assertIn("daily limit", message)
+        self.assertIn("midnight", message)
+
+    def test_refused_and_failed_calls_do_not_count_towards_it(self):
+        self._wrote(50, outcome="error")
+        self._wrote(10, outcome="refused")
+
+        self.assertFalse(self._describe().json["result"].get("isError"))
+
+    def test_reads_do_not_count_towards_it(self):
+        self._wrote(60, tool="find_context")
+
+        self.assertFalse(self._describe().json["result"].get("isError"))
+
+    def test_the_cap_is_per_person(self):
+        other = self.factory.create_admin()
+        self._wrote(50, user=other)
+
+        self.assertFalse(self._describe().json["result"].get("isError"))
+
+    def test_an_install_may_turn_it_off(self):
+        self._wrote(80)
+
+        with mock.patch("sqldesk.settings.MCP_WRITES_PER_DAY", 0):
+            self.assertFalse(self._describe().json["result"].get("isError"))
+
+
+class TestWhatTheAuditSaysAboutAWrite(McpTestCase):
+    """
+    "update_table ok" did not answer the question anybody brings to an audit
+    of an agent's writes, which is what that table used to say.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.admin = self.factory.create_admin()
+        self.table = models.CatalogTable(
+            org=self.factory.org,
+            data_source_id=self.factory.data_source.id,
+            name="orders",
+            description="What it was before.",
+            description_source="mcp",
+        )
+        models.db.session.add(self.table)
+        models.db.session.commit()
+
+    def _detail(self):
+        row = (
+            models.McpEvent.query.filter(models.McpEvent.tool.isnot(None)).order_by(models.McpEvent.id.desc()).first()
+        )
+        return row.detail or ""
+
+    def test_it_records_the_before_and_the_after(self):
+        self.post(
+            rpc(
+                "tools/call",
+                {"name": "update_table", "arguments": {"name": "orders", "description": "What it says now."}},
+            ),
+            user=self.admin,
+        )
+
+        detail = self._detail()
+        self.assertIn("What it was before.", detail)
+        self.assertIn("What it says now.", detail)
+        self.assertIn("orders", detail)
+
+    def test_a_saved_query_is_recorded_by_id_and_name(self):
+        self.post(
+            rpc(
+                "tools/call",
+                {
+                    "name": "save_query",
+                    "arguments": {
+                        "name": "Orders by region",
+                        "sql": "SELECT 1",
+                        "data_source": self.factory.data_source.name,
+                    },
+                },
+            ),
+            user=self.admin,
+        )
+
+        detail = self._detail()
+        self.assertIn("saved query", detail)
+        self.assertIn("Orders by region", detail)
+
+    def test_and_a_read_still_records_the_question_rather_than_a_write(self):
+        self.post(
+            rpc("tools/call", {"name": "find_context", "arguments": {"question": "what are orders"}}),
+            user=self.admin,
+        )
+
+        self.assertIn("what are orders", self._detail())
