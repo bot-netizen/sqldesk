@@ -667,6 +667,26 @@ class TestQueryRegenerateApiKey(BaseTestCase):
         updated_query = models.Query.query.get(query.id)
         self.assertNotEqual(orig_api_key, updated_query.api_key)
 
+    def test_and_the_new_key_comes_back_in_the_answer(self):
+        """
+        The dialog that asks for this reads `api_key` off the response and puts
+        it straight into its own field and into the CSV and JSON URLs it
+        offers. Every other query endpoint serializes with `with_api_key`; this
+        one did not, so the key the caller just asked for came back missing and
+        the dialog went blank until the page was reloaded. The tests above all
+        passed, because they read the database instead of the answer.
+        """
+        user = self.factory.create_user()
+        query = self.factory.create_query(user=user)
+        orig_api_key = query.api_key
+
+        rv = self.make_request("post", "/api/queries/{}/regenerate_api_key".format(query.id), user=user)
+
+        self.assertEqual(200, rv.status_code)
+        self.assertIn("api_key", rv.json)
+        self.assertNotEqual(orig_api_key, rv.json["api_key"])
+        self.assertEqual(models.Query.query.get(query.id).api_key, rv.json["api_key"])
+
 
 class TestQueryForkResourcePost(BaseTestCase):
     def test_forks_a_query(self):

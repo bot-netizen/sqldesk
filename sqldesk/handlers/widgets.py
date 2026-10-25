@@ -74,7 +74,10 @@ class WidgetListResource(BaseResource):
 
         widget_properties.pop("id", None)
 
-        visualization_id = widget_properties.pop("visualization_id")
+        # Absent, not just null: the browser always sends the key, an API
+        # client writing a textbox has no reason to, and a KeyError here is a
+        # 500 with a traceback for what is a perfectly good request.
+        visualization_id = widget_properties.pop("visualization_id", None)
         if visualization_id:
             visualization = models.Visualization.get_by_id_and_org(visualization_id, self.current_org)
             require_access(visualization.query_rel, self.current_user, view_only)

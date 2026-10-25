@@ -557,8 +557,10 @@ class QueryRegenerateApiKeyResource(BaseResource):
             }
         )
 
-        result = QuerySerializer(query).serialize()
-        return result
+        # with_api_key, or the one thing the caller asked for is the one thing
+        # missing from the answer: the dialog reads `api_key` off this response
+        # and would blank its own field and build `?api_key=undefined` URLs.
+        return QuerySerializer(query, with_api_key=True).serialize()
 
 
 class QueryForkResource(BaseResource):

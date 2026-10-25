@@ -772,6 +772,54 @@
       ],
       "status": "fixed",
       "found": "2026-10-25"
+    },
+    {
+      "error_message": "Wrong return value",
+      "file": "sqldesk/handlers/queries.py",
+      "root_cause": "Was returning: result",
+      "fix": "Now returns: QuerySerializer(query, with_api_key=True).serializ",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-046",
+      "timestamp": "2026-10-25T12:08:51.960Z",
+      "last_seen": "2026-10-25T12:08:51.960Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "id": "bug-046",
+      "error_message": "The API Key dialog on a query empties its own field after Regenerate, and the CSV and JSON URLs it offers become ?api_key=undefined",
+      "root_cause": "POST /api/queries/<id>/regenerate_api_key returned QuerySerializer(query).serialize() with no with_api_key, while every other query endpoint the editor uses passes with_visualizations=True, with_api_key=True. The one endpoint whose entire purpose is to hand back a new key was the one that left it out. The client does setQuery(extend(query.clone(), {api_key: data.api_key})), so api_key became undefined until the page was reloaded. Three tests covered the endpoint and all three read the database rather than the response, so none of them saw it.",
+      "fix": "QuerySerializer(query, with_api_key=True).serialize(), guarded by tests/handlers/test_queries.py::TestQueryRegenerateApiKey::test_and_the_new_key_comes_back_in_the_answer, which asserts on the response body and that it matches what the database now holds.",
+      "tags": [
+        "api",
+        "queries",
+        "serializer",
+        "ui",
+        "found-by-exercising-the-api"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "id": "bug-047",
+      "error_message": "POST /api/widgets without a visualization_id key: 500 Internal Server Error, KeyError: 'visualization_id' at sqldesk/handlers/widgets.py:77",
+      "root_cause": "The handler did widget_properties.pop('visualization_id') with no default. The browser always sends the key (Dashboard.addWidget seeds props with visualization_id: null), so the UI never hit it; anyone writing a textbox widget against the API themselves, which is a documented use of the endpoint, got a 500 and a traceback in the server log for a perfectly good request.",
+      "fix": "pop('visualization_id', None) -- absent means a textbox, as the docstring already said. tests/handlers/test_widgets.py::test_create_text_widget_without_mentioning_a_visualization_at_all.",
+      "tags": [
+        "api",
+        "widgets",
+        "dashboards",
+        "500",
+        "found-by-exercising-the-api"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
     }
   ],
   "applied_observations": {
@@ -797,7 +845,8 @@
     "fd79c25f-4e02-4bf1-beed-292227fcaa52": true,
     "fb0be46b-ecbd-48a9-8c27-6e75795cef7a": true,
     "f678aa72-2d25-4d68-9495-d4f7f2415faa": true,
-    "dfdd981a-446a-4a9d-bd1a-c5306c2e29e1": true
+    "dfdd981a-446a-4a9d-bd1a-c5306c2e29e1": true,
+    "bcbd42d8-c4a0-4cd6-a14f-e74d6d0288d3": true
   },
-  "next_id": 42
+  "next_id": 47
 }

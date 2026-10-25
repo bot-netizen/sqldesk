@@ -70,6 +70,24 @@ class WidgetAPITest(BaseTestCase):
         self.assertEqual(rv.status_code, 200)
         self.assertEqual(rv.json["text"], "Sample text.")
 
+    def test_create_text_widget_without_mentioning_a_visualization_at_all(self):
+        """
+        The browser always sends `visualization_id: null`, so this only ever
+        bit whoever wrote against the API themselves -- and it bit them with a
+        500 and a traceback in the log for a request that is simply a textbox.
+        """
+        dashboard = self.factory.create_dashboard()
+
+        rv = self.make_request(
+            "post",
+            "/api/widgets",
+            data={"text": "No visualization here.", "dashboard_id": dashboard.id, "options": {}, "width": 1},
+        )
+
+        self.assertEqual(200, rv.status_code, rv.data[:200])
+        self.assertEqual("No visualization here.", rv.json["text"])
+        self.assertIsNone(rv.json.get("visualization"))
+
     def test_delete_widget(self):
         widget = self.factory.create_widget()
 
