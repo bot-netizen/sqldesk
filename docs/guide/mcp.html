@@ -240,13 +240,27 @@ somebody already answered this".</p>
 <h3>Look for work that already exists</h3>
 <dl>
   <dt><code>find_queries(question)</code></dt>
-  <dd>Saved queries matching, with their descriptions. A saved query carries its author's
-    understanding of the data &mdash; which join is the right one, what a status means &mdash; and no
-    amount of schema carries that.</dd>
+  <dd>Saved queries matching, <strong>with their SQL</strong>, their description, who wrote it and who
+    last changed it. A saved query carries its author's understanding of the data &mdash; which join is
+    the right one, what a status means &mdash; and no amount of schema carries that. Until 0.7.7 this
+    returned everything about a query except the query, which made it a way to discover that the answer
+    existed and no way to use it: an agent found a verified query and then wrote its own SQL anyway. The
+    SQL comes back under the same rule the editor uses &mdash; only for data sources the caller may read.
+    Drafts are left out, including the caller's own: this answers "has somebody worked this out", and a
+    draft has not.</dd>
   <dt><code>find_dashboards(question)</code></dt>
-  <dd>Dashboards matching, with their addresses. Often the useful answer is a page that already
-    exists rather than a new query.</dd>
+  <dd>Dashboards matching, with their addresses, their owner, and whether a person has verified one.
+    Every dashboard the caller can see is searched, not the two hundred most recently updated &mdash; the
+    page somebody wants is often the one nobody has touched for a year, which is exactly the one that
+    fell off the end of that list.</dd>
 </dl>
+<div class="note">
+  <div class="note-h">Answers come back twice: as prose, and as data</div>
+  <p>These three, and <code>find_measures</code>, also return their answer as MCP
+  <code>structuredContent</code>. The text is written to be read and leaves things out that would be
+  noise in prose; the data says <code>null</code> where there is nothing, rather than leaving a client to
+  parse "none" and "?" out of a sentence meant for a person.</p>
+</div>
 
 <h3>Understand the data</h3>
 <dl>
