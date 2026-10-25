@@ -34,9 +34,8 @@ ECharts, which is smaller and keeps up with data that changes while you are watc
 on the server rather than in a tab somebody left open — and only while a visible tab is actually
 watching, so nobody pays for a dashboard on a television in an empty room.
 
-Each of those is measured rather than asserted; the [performance page](/performance.html) has
-the numbers and the [why page](/why.html) has the rest of the reasoning, including the things
-other tools do better.
+Each of those is measured rather than asserted, and the numbers are in the commit that made
+the change.
 
 ## 0.6: your warehouse, answerable
 

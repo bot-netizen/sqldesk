@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
-<script>try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
+<script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
 
@@ -60,6 +60,7 @@
       <a href="queries.html">Queries and parameters</a>
       <a href="visualizations.html">Visualizations</a>
       <a href="dashboards.html" aria-current="page">Dashboards and textboxes</a>
+      <a href="streams.html">Streams</a>
       <a href="alerts.html">Alerts</a>
       <h4>AI</h4>
       <a href="mcp.html">MCP</a>
@@ -224,7 +225,7 @@ is sent.</p>
 <p>A dashboard can be made <strong>live</strong>: the server refreshes it every 30 seconds to 5 minutes,
 once for everyone looking, and only while somebody has it open. <code>/wall/dashboards/&lt;token&gt;</code>
 gives a version with no chrome, for a screen nobody interacts with.</p>
-<div class="doc-next"><a class="btn btn-ghost" href="visualizations.html">&larr; Visualizations</a><a class="btn btn-primary" href="alerts.html">Alerts &rarr;</a></div>
+<div class="doc-next"><a class="btn btn-ghost" href="visualizations.html">&larr; Visualizations</a><a class="btn btn-primary" href="streams.html">Streams &rarr;</a></div>
   </main>
 </div>
 

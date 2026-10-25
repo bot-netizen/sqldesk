@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
-<script>try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
+<script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
 
@@ -60,6 +60,7 @@
       <a href="queries.html">Queries and parameters</a>
       <a href="visualizations.html">Visualizations</a>
       <a href="dashboards.html">Dashboards and textboxes</a>
+      <a href="streams.html">Streams</a>
       <a href="alerts.html" aria-current="page">Alerts</a>
       <h4>AI</h4>
       <a href="mcp.html">MCP</a>
@@ -129,7 +130,7 @@ webhook needs nothing but a URL, and this needs the app.</p>
 <p>A picture that will not upload never stops the alert &mdash; the threshold was still crossed and
 somebody still needs to know &mdash; but the message says which one is missing, because an alert about a
 chart arriving with no chart and no explanation reads as the alert being broken.</p>
-<div class="doc-next"><a class="btn btn-ghost" href="dashboards.html">&larr; Dashboards and textboxes</a><a class="btn btn-primary" href="mcp.html">MCP &rarr;</a></div>
+<div class="doc-next"><a class="btn btn-ghost" href="streams.html">&larr; Streams</a><a class="btn btn-primary" href="mcp.html">MCP &rarr;</a></div>
   </main>
 </div>
 

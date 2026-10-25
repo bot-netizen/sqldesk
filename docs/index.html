@@ -28,7 +28,9 @@
   --ink:var(--n-900);
   --ink-2:var(--n-800);
   --muted:var(--n-700);
-  --faint:var(--n-600);
+  /* Not var(--n-600): small labels sit on this and #8a857e measured 3.44:1,
+     under AA. 4.82:1 on the canvas, and still lighter than --muted. */
+  --faint:#726d65;
   --accent:var(--ac-600);
   --accent-ink:var(--ac-700);
   --accent-wash:var(--ac-100);
@@ -231,7 +233,9 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 .oneline strong{display:block;color:var(--ink);font-weight:600;margin-bottom:3px}
 
 /* ---- a section arrives rather than appears ---- */
-.reveal{opacity:0;transform:translateY(16px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1)}
+/* Only where scripting can undo it: with JavaScript off the three rows below
+   the hero would never be revealed, and the page would be missing its middle. */
+.js .reveal{opacity:0;transform:translateY(16px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1)}
 .reveal.in{opacity:1;transform:none}
 
 /* ---- copy, on the commands ---- */
@@ -280,7 +284,10 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
   --ink: #f4f3f7;
   --ink-2: #d6d4dd;
   --muted: #a5a2ae;
-  --faint: #6e6b78;
+  /* Lighter than the application's wall token: there it labels nothing smaller
+     than body text, here it carries 11-13px notes, and #6e6b78 measured 3.58:1
+     on canvas -- under AA. This is 5.52:1 on canvas, 4.67:1 on the sunken. */
+  --faint: #8d8a99;
   --accent: #2e93a8;
   --accent-ink: #6bb4c4;
   --accent-wash: #28333b;
@@ -297,7 +304,7 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 
 /* The switch itself. */
 .theme-toggle {
-  display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0;
+  display: none; place-items: center; width: 34px; height: 34px; padding: 0;
   margin-left: 4px; border: 1px solid transparent; border-radius: 8px;
   background: none; color: var(--muted); cursor: pointer;
 }
@@ -307,10 +314,16 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 .theme-toggle .sun { display: none; }
 :root[data-theme="dark"] .theme-toggle .moon { display: none; }
 :root[data-theme="dark"] .theme-toggle .sun { display: block; }
+/* The switch appears only where the script that works it is running. */
+.js .theme-toggle { display: inline-grid; }
 /* A product screenshot is a light image whatever the page is doing. */
 :root[data-theme="dark"] .demo-video { border: 1px solid var(--rule); }
+/* White on the accent measures 3.59:1 in dark, and 2.35:1 on the hover colour,
+   both under AA. The accent is a light teal there, so the ink flips with it. */
+:root[data-theme="dark"] .btn-primary { color: #0c0b10; }
+:root[data-theme="dark"] .btn-primary:hover { color: #0c0b10; }
 </style>
-<script>try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
+<script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
 
@@ -752,20 +765,32 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
     typed.textContent = "> ";
     steps.forEach(function (s) { s.style.opacity = "0"; });
 
-    /* Whatever happens, the transcript ends up readable: if the observer
-       never fires -- a browser that does not scroll it into view, a tab
-       restored mid-page -- this puts it back after three seconds. */
+    /* Whatever happens, the transcript ends up readable. The guard used to be
+       a flat three-second timer, which fired whether or not anybody had
+       reached the transcript -- so a reader who took longer than that to
+       scroll down, which is most of them, arrived to a finished transcript
+       and never saw it type. This watches instead: if the thing is on screen
+       and the observer has still not fired, the observer is the broken part
+       and the text goes back. Off screen, it waits as long as it takes. */
     var played = false;
     var finish = function () {
       typed.textContent = question;
       steps.forEach(function (s) { s.style.opacity = "1"; });
     };
-    var safety = setTimeout(function () { if (!played) { played = true; finish(); } }, 3000);
+    var safety = setInterval(function () {
+      if (played) { clearInterval(safety); return; }
+      var box = exchange.getBoundingClientRect();
+      if (box.top < window.innerHeight && box.bottom > 0) {
+        played = true;
+        clearInterval(safety);
+        finish();
+      }
+    }, 2500);
 
     var once = new IntersectionObserver(function (entries) {
       if (!entries[0].isIntersecting || played) return;
       played = true;
-      clearTimeout(safety);
+      clearInterval(safety);
       once.disconnect();
       var i = 2;
       (function letter() {
