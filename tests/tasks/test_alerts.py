@@ -9,32 +9,60 @@ from tests import BaseTestCase
 
 
 class TestCheckAlertsForQuery(BaseTestCase):
+    """
+    These replaced `Alert.evaluate` and `notify_subscriptions` by assignment
+    and never put them back, so for the rest of the process every alert in
+    every later test evaluated to whatever the last of these set -- which is
+    why `tests/models/test_alerts.py` passed alone and failed eight ways
+    after `tests/tasks` had run. Patched now, so they are restored.
+    """
+
+    def evaluates_to(self, state):
+        """Make every alert evaluate to `state`, for this test only."""
+        patched = mock.patch.object(Alert, "evaluate", return_value=state)
+        patched.start()
+        self.addCleanup(patched.stop)
+
+    def nothing_is_notified(self):
+        """Replace the notifier, for this test only, and hand it back."""
+        patched = mock.patch.object(sqldesk.tasks.alerts, "notify_subscriptions")
+        notifier = patched.start()
+        self.addCleanup(patched.stop)
+        return notifier
+
     def test_notifies_subscribers_when_should(self):
-        sqldesk.tasks.alerts.notify_subscriptions = MagicMock()
-        Alert.evaluate = MagicMock(return_value=Alert.TRIGGERED_STATE)
+        notify = self.nothing_is_notified()
+        self.evaluates_to(Alert.TRIGGERED_STATE)
 
         alert = self.factory.create_alert()
         check_alerts_for_query(alert.query_id, metadata={"Scheduled": False})
 
-        self.assertTrue(sqldesk.tasks.alerts.notify_subscriptions.called)
+        self.assertTrue(notify.called)
 
     def test_doesnt_notify_when_nothing_changed(self):
-        sqldesk.tasks.alerts.notify_subscriptions = MagicMock()
-        Alert.evaluate = MagicMock(return_value=Alert.OK_STATE)
+        notify = self.nothing_is_notified()
+        self.evaluates_to(Alert.OK_STATE)
 
         alert = self.factory.create_alert()
         check_alerts_for_query(alert.query_id, metadata={"Scheduled": False})
 
-        self.assertFalse(sqldesk.tasks.alerts.notify_subscriptions.called)
+        self.assertFalse(notify.called)
 
     def test_doesnt_notify_when_muted(self):
-        sqldesk.tasks.alerts.notify_subscriptions = MagicMock()
-        Alert.evaluate = MagicMock(return_value=Alert.TRIGGERED_STATE)
+        notify = self.nothing_is_notified()
+        self.evaluates_to(Alert.TRIGGERED_STATE)
 
         alert = self.factory.create_alert(options={"muted": True})
         check_alerts_for_query(alert.query_id, metadata={"Scheduled": False})
 
-        self.assertFalse(sqldesk.tasks.alerts.notify_subscriptions.called)
+        self.assertFalse(notify.called)
+
+    def test_and_evaluate_is_the_real_one_again_afterwards(self):
+        """
+        The guard on the bug above: these tests used to leave a MagicMock on
+        the class, and nothing said so until an unrelated file failed.
+        """
+        self.assertFalse(isinstance(Alert.evaluate, MagicMock))
 
 
 class TestNotifySubscriptions(BaseTestCase):

@@ -727,6 +727,21 @@
       ],
       "status": "fixed",
       "found": "2026-10-25"
+    },
+    {
+      "id": "bug-043",
+      "error_message": "tests/models/test_alerts.py: AssertionError: 'triggered' != 'unknown' -- eight TestAlertEvaluate tests fail, but only when something else ran first",
+      "root_cause": "tests/tasks/test_alerts.py replaced Alert.evaluate and sqldesk.tasks.alerts.notify_subscriptions by plain assignment -- `Alert.evaluate = MagicMock(return_value=...)` -- with no patch and no cleanup. The mock stays on the class for the rest of the process, so every alert in every later test evaluates to whatever the last of those three tests set. The files pass alone and fail together, which is why it read as a flake and why the failing file was never the guilty one. CI ran the whole suite in one process, so it was red there and green locally for anyone running a subset.",
+      "fix": "mock.patch.object with addCleanup, so both are restored; the notifier is handed back to the test rather than read off the module. A new test asserts Alert.evaluate is not a MagicMock afterwards, so the next person to do this is told by a test rather than by an unrelated file. Note tests/factories.py ModelFactory._get_kwargs shallow-copies its defaults, so `options={}` and `data={...}` are shared objects -- the same class of hazard, not yet triggered.",
+      "tags": [
+        "tests",
+        "mock",
+        "order-dependence",
+        "alerts",
+        "ci"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
     }
   ],
   "applied_observations": {
