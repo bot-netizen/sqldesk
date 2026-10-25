@@ -151,7 +151,7 @@ def _shown(day):
     return "{} {}".format(day.day, day.strftime("%B %Y"))
 
 
-def _head(title, description, og_title, og_type):
+def _head(title, description, og_title, og_type, url):
     return """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -162,6 +162,14 @@ def _head(title, description, og_title, og_type):
 <meta property="og:title" content="{og_title}">
 <meta property="og:description" content="{description}">
 <meta property="og:type" content="{og_type}">
+<meta property="og:url" content="{url}">
+<meta property="og:image" content="https://sqldesk.org/assets/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SQLDesk: one place for everything you do with data">
+<meta property="og:site_name" content="SQLDesk">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sqldesk.org/assets/social-card.png">
 <link rel="icon" href="{icon}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -187,6 +195,7 @@ def _head(title, description, og_title, og_type):
         description=html.escape(description),
         og_title=html.escape(og_title),
         og_type=og_type,
+        url=url,
         icon=ICON,
         brand=BRAND,
         nav=site_nav("../", "blog/index.html"),
@@ -241,7 +250,13 @@ def render_post(post, posts):
             html.escape(post["next"]["link"]), html.escape(post["next"]["label"])
         )
     page = (
-        _head(post["title"] + " — SQLDesk", post["description"], post["title"], "article")
+        _head(
+            post["title"] + " — SQLDesk",
+            post["description"],
+            post["title"],
+            "article",
+            "https://sqldesk.org/blog/" + post["file"],
+        )
         + """
 <div class="wrap post-layout">
   <nav class="post-nav" aria-label="Posts">
@@ -301,7 +316,7 @@ def render_listing(posts):
             )
         )
     page = (
-        _head("Blog — SQLDesk", LISTING_DESCRIPTION, "SQLDesk blog", "website")
+        _head("Blog — SQLDesk", LISTING_DESCRIPTION, "SQLDesk blog", "website", "https://sqldesk.org/blog/")
         + """
 <div class="wrap post-layout">
   <nav class="post-nav" aria-label="Posts">

@@ -180,6 +180,17 @@ def render(filename, description, body):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} \u2014 SQLDesk docs</title>
 <meta name="description" content="{description}">
+<meta property="og:title" content="{title} \u2014 SQLDesk docs">
+<meta property="og:description" content="{description}">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://sqldesk.org/guide/{filename}">
+<meta property="og:image" content="https://sqldesk.org/assets/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SQLDesk: one place for everything you do with data">
+<meta property="og:site_name" content="SQLDesk">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sqldesk.org/assets/social-card.png">
 <link rel="icon" href="{icon}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -225,6 +236,7 @@ def render(filename, description, body):
 </html>
 """.format(
         title=title,
+        filename=filename,
         description=description,
         icon=ICON,
         brand=BRAND,
