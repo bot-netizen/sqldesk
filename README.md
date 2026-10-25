@@ -42,9 +42,10 @@ charge you for them.
 - **Dashboards** — arrange visualizations, filter across them, export a one-page report as PDF or image
 - **Alerts** — trigger on a query result and notify Slack, email, PagerDuty, webhooks and more
 - **Permissions** — groups, per-data-source access, view-only roles, shareable public links
-- **MCP** — an endpoint at `/mcp` with eight read-only tools over your schema and saved queries, run as the
-  user whose API key it is and audited; off until `SQLDESK_FEATURE_AI=true`. See the
-  [MCP guide](https://sqldesk.org/guide/mcp.html)
+- **MCP** — an endpoint at `/mcp` with thirteen tools over your catalog, saved queries and dashboards:
+  nine read-only, and four that write back as drafts and proposals a person approves. Everything runs as
+  the user whose key it is, capped per day and audited with what it changed; off until
+  `SQLDESK_FEATURE_AI=true`. See the [MCP guide](https://sqldesk.org/guide/mcp.html)
 
 ## Running it
 
