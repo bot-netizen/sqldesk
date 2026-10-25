@@ -60,6 +60,18 @@ def site_nav(prefix, current):
         mark = ' aria-current="page"' if href == current else ""
         out.append('      <a href="{}{}"{}{}>{}</a>'.format(prefix, href, cls, mark, label))
     out.append('      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>')
+    out.append("""      <button class="theme-toggle" type="button" data-theme-toggle
+              aria-label="Switch to dark mode" title="Switch to dark mode">
+        <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.7 5.7 0 1 0 7.1 7.1Z"/>
+        </svg>
+        <svg class="sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="3.1"/>
+          <path d="M8 1v1.6M8 13.4V15M15 8h-1.6M2.6 8H1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1M12.9 12.9l-1.1-1.1M4.2 4.2 3.1 3.1"/>
+        </svg>
+      </button>""")
     return "\n".join(out)
 
 
@@ -170,6 +182,7 @@ def render(filename, description, body):
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
+<script>try{{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}}catch(e){{}}</script>
 </head>
 <body>
 
@@ -204,6 +217,7 @@ def render(filename, description, body):
   </div>
 </footer>
 
+<script src="../assets/theme.js" defer></script>
 </body>
 </html>
 """.format(
