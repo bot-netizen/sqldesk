@@ -100,9 +100,9 @@ TOOLS = [
         "name": "find_context",
         "title": "Find the tables a question is about",
         "description": (
-            "Given a question in plain English, return the handful of tables most likely to answer it, "
-            "with their columns already pruned to the ones people actually use, and the joins observed "
-            "between them. One call replaces browsing the schema."
+            "Given a question in plain English, return the tables most likely to answer it, their "
+            "columns pruned to the ones people use, and the joins observed between them. One call "
+            "replaces browsing the schema."
         ),
         "inputSchema": {
             "type": "object",
@@ -117,10 +117,9 @@ TOOLS = [
         "name": "find_measures",
         "title": "The numbers this organization has agreed on",
         "description": (
-            "The measures a curator has signed off on -- what each one is called, what it computes and "
-            "which table it comes from. Ask before writing an aggregate of your own: if a measure exists "
-            "for what you need, using it is the difference between the organization's number and a "
-            "plausible one."
+            "The measures a curator has signed off on: what each is called, what it computes, which "
+            "table. Ask before writing an aggregate of your own -- using one is the difference between "
+            "the organization's number and a plausible one."
         ),
         "inputSchema": {
             "type": "object",
@@ -158,12 +157,9 @@ TOOLS = [
         "name": "find_queries",
         "title": "Queries somebody has already written",
         "description": (
-            "Search saved queries by name and description, and by their charts' names and descriptions. "
-            "Before writing SQL, look for the question already answered -- a saved query carries its "
-            "author's understanding of the data, which no amount of schema does. Each result lists its "
-            "charts: what kind, which columns they plot, and what their author said they show. "
-            "Results marked [VERIFIED] have been read and confirmed by a person as the right answer to "
-            "their question; prefer one of those, unchanged, over SQL of your own."
+            "Search saved queries by name, description and their charts. Look here before writing "
+            "SQL: a saved query carries its author's understanding of the data. Prefer a [VERIFIED] "
+            "result, unchanged, over SQL of your own."
         ),
         "inputSchema": {
             "type": "object",
@@ -175,10 +171,8 @@ TOOLS = [
         "name": "find_dashboards",
         "title": "Dashboards somebody has already built",
         "description": (
-            "Search dashboards by name, the text on them, and their charts. Often the answer is a page "
-            "that already exists, and the useful reply is its address rather than a new query. Each "
-            "result lists the charts on it that you can see: what kind, which columns they plot, which "
-            "query they come from, and what their author said they show."
+            "Search dashboards by name, the text on them and their charts. Often the answer is a page "
+            "that already exists, and its address is the useful reply."
         ),
         "inputSchema": {
             "type": "object",
@@ -190,9 +184,8 @@ TOOLS = [
         "name": "explain_query",
         "title": "What a query will cost, before running it",
         "description": (
-            "Run EXPLAIN against the data source and return the plan. Use this between writing SQL "
-            "and running it: check_sql says whether the shape is wrong, this says what it will cost. "
-            "Pass the query itself, without EXPLAIN; only a single read is accepted."
+            "The data source's EXPLAIN plan for one read. check_sql says whether the shape is wrong; "
+            "this says what it will cost. Pass the SQL without EXPLAIN."
         ),
         "inputSchema": {
             "type": "object",
@@ -204,10 +197,9 @@ TOOLS = [
         "name": "run_query",
         "title": "Run SQL and return rows",
         "description": (
-            "Execute one read-only statement (SELECT, WITH, SHOW, DESCRIBE) against a data source "
-            "and return up to {} rows. Runs on a worker as the user whose key this is, appears in the "
-            "admin's list of running queries, and can be cancelled there like any other. Check the "
-            "plan with explain_query first."
+            "Run one read-only statement (SELECT, WITH, SHOW, DESCRIBE) and return up to {} rows. "
+            "Runs on a worker as this key's owner, and an administrator can cancel it. Check the plan "
+            "with explain_query first."
         ).format(ROW_LIMIT),
         "inputSchema": {
             "type": "object",
@@ -219,9 +211,8 @@ TOOLS = [
         "name": "check_sql",
         "title": "Check SQL before running it",
         "description": (
-            "Parse SQL for the given data source's dialect and report expensive patterns -- a join with "
-            "no condition, SELECT * on a columnar table, a filter that defeats partition pruning. "
-            "Nothing is executed."
+            "Parse SQL in the data source's dialect and report expensive patterns -- an unconditional "
+            "join, SELECT * on a columnar table, a filter that defeats partition pruning. Nothing runs."
         ),
         "inputSchema": {
             "type": "object",
@@ -392,23 +383,27 @@ def _runnable_source(user, org, arguments, required_message):
     return source
 
 
-def _text(body, data=None):
+def _text(body):
     """
-    A tool result: the text a model reads, and optionally the same answer as
-    data.
+    A tool result: the text a model reads.
 
-    `structuredContent` is in the protocol for exactly this. The text is
-    written to be read and leaves things out that would be noise in prose --
-    a null author, an empty tag list -- and a client parsing the prose back
-    into fields has to guess at each of those. "none" and "?" in a line meant
-    for a person are not an absent value; they are two more strings to
-    special-case. Both are returned, and the data says null where there is
-    nothing.
+    This used to return the same answer twice -- the prose, and
+    `structuredContent` carrying the same fields as data -- on the argument
+    that a client parsing prose back into fields has to guess at an absent
+    author or an empty tag list.
+
+    Measured, that cost about 90% of the answer's bytes again, for something
+    no client could rely on: the protocol pairs `structuredContent` with an
+    `outputSchema`, and no tool here declares one. A client either ignored it
+    or put it in the model's context beside the prose, so a question was paid
+    for twice. The prose is written for a model to read and is what every
+    client does use.
+
+    If a typed answer is wanted later it comes back with the schema that makes
+    it dependable, and the text shortens to a summary rather than repeating
+    it -- which is the trade that was missing the first time.
     """
-    result = {"content": [{"type": "text", "text": body}], "isError": False}
-    if data is not None:
-        result["structuredContent"] = data
-    return result
+    return {"content": [{"type": "text", "text": body}], "isError": False}
 
 
 def _terms(question):
@@ -877,7 +872,6 @@ def tool_find_measures(user, org, arguments):
         )
 
     lines = []
-    structured = []
     for measure in found:
         described = " -- {}".format(" ".join(measure.description.split())) if measure.description else ""
         lines.append(
@@ -900,22 +894,7 @@ def tool_find_measures(user, org, arguments):
                     " on {}".format(measure.reviewed_at.date()) if measure.reviewed_at else "",
                 )
             )
-        structured.append(
-            {
-                "name": measure.name,
-                "expression": "{}({})".format((measure.kind or "").upper(), measure.column_name or "*"),
-                "kind": measure.kind,
-                "column": measure.column_name or None,
-                "table": measure.table_name,
-                "data_source": measure.data_source.name if measure.data_source else None,
-                "description": measure.description or None,
-                "used_by_queries": measure.usage_count or 0,
-                "proposed_by": _who(measure.proposed_by) if measure.proposed_by else None,
-                "agreed_by": _who(measure.reviewed_by) if measure.reviewed_by else None,
-                "agreed_at": measure.reviewed_at.isoformat() if measure.reviewed_at else None,
-            }
-        )
-    return _text("\n".join(lines), {"measures": structured})
+    return _text("\n".join(lines))
 
 
 def tool_expand_table(user, org, arguments):
@@ -1028,6 +1007,85 @@ CHART_ROLES = (
 
 #: One page of a dashboard, the most anybody reads at once -- export's limit.
 MAX_CHARTS = 12
+
+#: Dashboards described in one answer. Eight dashboards at twelve charts each
+#: was ninety-six lines for one question -- six times what the whole semantic
+#: catalog costs. Four is enough to recognise the right one, and the answer
+#: says how many more matched and how to ask for them.
+MAX_DASHBOARDS = 4
+
+#: Lines of chart per dashboard, after charts sharing a query are collapsed
+#: onto one line. A board built to show every visualization of one query was
+#: most of what made these answers long.
+MAX_CHART_LINES = 6
+
+
+def _options_for_described(found, listed):
+    """
+    The options of the charts the answer will actually describe.
+
+    One chart per query, in the order they appear, and only as many as will
+    be printed: a chart's options run to kilobytes, and the search above
+    looked at every match on every board.
+    """
+    shown = []
+    for dashboard in found:
+        seen = []
+        for chart in listed[dashboard.id]:
+            if chart[4] not in seen:
+                seen.append(chart[4])
+                shown.append(chart[0])
+            if len(seen) == MAX_CHART_LINES:
+                break
+    return dict(
+        models.db.session.query(models.Visualization.id, models.Visualization.options).filter(
+            models.Visualization.id.in_(shown or [0])
+        )
+    )
+
+
+def _charts_by_query(charts, options):
+    """
+    The panels of one dashboard, one line per query rather than per panel.
+
+    A dashboard often shows the same query several ways -- a counter, a line
+    chart and a table of the same numbers -- and three lines describing one
+    query is three times the tokens for no more meaning. They are collapsed
+    onto the query they come from, which is also the thing an agent needs if
+    it wants the SQL.
+    """
+    by_query, order = {}, []
+    for chart_id, chart_type, chart_name, about, query_id, query_name in charts:
+        if query_id not in by_query:
+            by_query[query_id] = {"name": query_name, "charts": [], "about": None}
+            order.append(query_id)
+        entry = by_query[query_id]
+        entry["charts"].append((chart_id, chart_type, chart_name, about))
+        # The first description anybody wrote is the one worth carrying.
+        if about and not entry["about"]:
+            entry["about"] = about
+
+    lines = []
+    for query_id in order[:MAX_CHART_LINES]:
+        entry = by_query[query_id]
+        first_id, first_type, first_name, first_about = entry["charts"][0]
+        summary = _chart_summary(first_type, first_name, entry["about"], options.get(first_id))
+        others = len(entry["charts"]) - 1
+        lines.append(
+            "- {}{} — from query #{} {}".format(
+                summary,
+                " (+{} more view{} of it)".format(others, "" if others == 1 else "s") if others else "",
+                query_id,
+                entry["name"] or "",
+            ).rstrip()
+        )
+    if len(order) > MAX_CHART_LINES:
+        lines.append(
+            "- and {} more quer{}".format(
+                len(order) - MAX_CHART_LINES, "y" if len(order) - MAX_CHART_LINES == 1 else "ies"
+            )
+        )
+    return lines
 
 
 def _one_line(text, limit):
@@ -1157,7 +1215,6 @@ def tool_find_queries(user, org, arguments):
     confirmed = _verifications_for(org, found)
 
     lines = []
-    structured = []
     for query in found:
         verification = confirmed.get(query.id)
         lines.append("#{} {}{}".format(query.id, query.name, " [VERIFIED]" if verification is not None else ""))
@@ -1194,31 +1251,7 @@ def tool_find_queries(user, org, arguments):
             lines.append("  sql:")
             lines.extend("    " + line for line in _short_sql(query.query_text).splitlines())
         lines.append("")
-        structured.append(
-            {
-                "id": query.id,
-                "name": query.name,
-                "description": query.description or None,
-                "sql": query.query_text or None,
-                "data_source": query.data_source.name if query.data_source else None,
-                "data_source_id": query.data_source_id,
-                "owner": _who(query.user) if query.user else None,
-                "last_modified_by": _who(query.last_modified_by) if query.last_modified_by else None,
-                "is_draft": bool(query.is_draft),
-                "tags": list(query.tags or []),
-                "updated_at": query.updated_at.isoformat() if query.updated_at else None,
-                "url": "queries/{}".format(query.id),
-                "verified": None
-                if verification is None
-                else {
-                    "by": _who(verification.verified_by) if verification.verified_by else None,
-                    "at": verification.verified_at.isoformat() if verification.verified_at else None,
-                    "question": verification.question or None,
-                    "note": verification.note or None,
-                },
-            }
-        )
-    return _text("\n".join(lines).strip(), {"queries": structured})
+    return _text("\n".join(lines).strip())
 
 
 def _who(user):
@@ -1360,11 +1393,12 @@ def tool_find_dashboards(user, org, arguments):
                 words[dashboard_id].extend([query_name or "", chart_name or "", about or ""])
                 charts[dashboard_id].append((chart_id, chart_type, chart_name, about, query_id, query_name))
 
-    found = [
+    matching = [
         dashboard
         for dashboard in dashboards
         if not terms or _existing_work_matches(" ".join(words[dashboard.id]), terms)
-    ][:8]
+    ]
+    found = matching[:MAX_DASHBOARDS]
 
     if not found:
         return _text("No dashboard matches that.")
@@ -1375,15 +1409,11 @@ def tool_find_dashboards(user, org, arguments):
         dashboard.id: [chart for chart in charts[dashboard.id] if _worth_listing(chart[1], chart[3])]
         for dashboard in found
     }
-    shown = [chart for dashboard in found for chart in listed[dashboard.id][:MAX_CHARTS]]
-    options = dict(
-        models.db.session.query(models.Visualization.id, models.Visualization.options).filter(
-            models.Visualization.id.in_([chart[0] for chart in shown] or [0])
-        )
-    )
+    # The options of the charts those lines will actually describe: one per
+    # query, in the order they appear, and only as many as will be printed.
+    options = _options_for_described(found, listed)
 
     lines = []
-    structured = []
     for dashboard in found:
         verified = dashboard.verified_at is not None
         lines.append("{}{} — /dashboards/{}".format(dashboard.name, " [VERIFIED]" if verified else "", dashboard.id))
@@ -1405,42 +1435,14 @@ def tool_find_dashboards(user, org, arguments):
                     " -- {}".format(" ".join(dashboard.verified_note.split())) if dashboard.verified_note else "",
                 )
             )
-        for chart_id, chart_type, chart_name, about, query_id, query_name in listed[dashboard.id][:MAX_CHARTS]:
-            source = "query #{} {}".format(query_id, query_name)
-            lines.append("  - " + _chart_summary(chart_type, chart_name, about, options.get(chart_id), source))
-        if len(listed[dashboard.id]) > MAX_CHARTS:
-            lines.append("  - and {} more".format(len(listed[dashboard.id]) - MAX_CHARTS))
+        for line in _charts_by_query(listed[dashboard.id], options):
+            lines.append("  " + line)
         lines.append("")
-        structured.append(
-            {
-                "id": dashboard.id,
-                "name": dashboard.name,
-                "url": "dashboards/{}".format(dashboard.id),
-                "owner": _who(dashboard.user) if dashboard.user else None,
-                "widgets": widgets[dashboard.id],
-                "updated_at": dashboard.updated_at.isoformat() if dashboard.updated_at else None,
-                "verified": None
-                if not verified
-                else {
-                    "by": _who(dashboard.verified_by) if dashboard.verified_by else None,
-                    "at": dashboard.verified_at.isoformat(),
-                    "note": dashboard.verified_note or None,
-                },
-                "charts": [
-                    {
-                        "type": chart_type,
-                        "name": chart_name or None,
-                        "description": about or None,
-                        "query_id": query_id,
-                        "query_name": query_name or None,
-                    }
-                    for chart_id, chart_type, chart_name, about, query_id, query_name in listed[dashboard.id][
-                        :MAX_CHARTS
-                    ]
-                ],
-            }
+    if len(matching) > MAX_DASHBOARDS:
+        lines.append(
+            "{} more match. Name one to see its panels.".format(len(matching) - MAX_DASHBOARDS),
         )
-    return _text("\n".join(lines).strip(), {"dashboards": structured})
+    return _text("\n".join(lines).strip())
 
 
 def _on_a_worker(user, source, sql, timeout):

@@ -2361,3 +2361,107 @@ class TestWhatTheAuditSaysAboutAWrite(McpTestCase):
         )
 
         self.assertIn("what are orders", self._detail())
+
+
+class TestWhatAnAnswerCosts(McpTestCase):
+    """
+    Measured on a real catalog on 2026-10-25, one question to `find_dashboards`
+    cost 1,346 tokens: eight dashboards, twelve chart lines each, and the whole
+    thing again as `structuredContent`. The semantic catalog that makes an
+    agent correct costs 153. These hold the answers to the shape that made
+    that difference.
+    """
+
+    def call(self, name, arguments=None):
+        return json.loads(self.post(rpc("tools/call", {"name": name, "arguments": arguments or {}})).data)["result"]
+
+    def text(self, name, arguments=None):
+        return self.call(name, arguments)["content"][0]["text"]
+
+    def board_showing_one_query_several_ways(self, name, views=5):
+        dashboard = self.factory.create_dashboard(name=name)
+        query = self.factory.create_query(
+            name="Revenue per minute", description="revenue by region", data_source=self.factory.data_source
+        )
+        for kind in ("CHART", "COUNTER", "TABLE", "BOXPLOT", "PIVOT")[:views]:
+            visualization = self.factory.create_visualization(query_rel=query, type=kind, name=kind.title())
+            self.factory.create_widget(dashboard=dashboard, visualization=visualization)
+        return dashboard, query
+
+    def test_no_tool_repeats_its_answer_as_structured_content(self):
+        """
+        It was sent with no `outputSchema` declared anywhere, so no client
+        could rely on it, and it repeated about 90% of the text's bytes.
+        """
+        self.factory.create_query(
+            name="Revenue by region", description="revenue by region", data_source=self.factory.data_source
+        )
+        models.db.session.commit()
+        for name, arguments in (
+            ("find_queries", {"question": "revenue"}),
+            ("find_measures", {"question": "revenue"}),
+            ("find_dashboards", {"question": "revenue"}),
+            ("list_data_sources", {}),
+        ):
+            with self.subTest(name):
+                self.assertNotIn("structuredContent", self.call(name, arguments))
+
+    def test_panels_showing_the_same_query_are_one_line(self):
+        self.board_showing_one_query_several_ways("Revenue board")
+        models.db.session.commit()
+
+        found = self.text("find_dashboards", {"question": "revenue"})
+
+        self.assertIn("Revenue board", found)
+        # Four, not five: a plain table nobody described says nothing the
+        # query does not already say, and _worth_listing drops it.
+        self.assertIn("+3 more views of it", found, "panels of one query are one line and a count")
+        self.assertEqual(1, found.count("from query #"), "one line per query, not per panel")
+
+    def test_only_a_few_boards_are_described_and_the_rest_are_counted(self):
+        for n in range(7):
+            self.board_showing_one_query_several_ways("Revenue board {}".format(n), views=1)
+        models.db.session.commit()
+
+        found = self.text("find_dashboards", {"question": "revenue"})
+
+        described = found.count("— /dashboards/")
+        self.assertEqual(4, described, "four boards described")
+        self.assertIn("3 more match", found, "and the rest counted, with how to ask for them")
+        self.assertIn("Name one", found)
+
+    def test_the_tool_list_stays_lean(self):
+        """
+        It is sent on every turn whether a tool is called or not, so it is the
+        one thing here whose size is paid again and again. The nine a reader
+        is offered measured 4,348 bytes before the prose was trimmed; the
+        budget below is what that became, with room to add a tool without
+        rewriting this.
+        """
+        listed = json.loads(self.post(rpc("tools/list", {})).data)["result"]["tools"]
+
+        self.assertTrue(listed)
+        for tool in listed:
+            with self.subTest(tool["name"]):
+                self.assertLessEqual(
+                    len(tool["description"]),
+                    340,
+                    "a tool description earns its place on every turn: say what it does, when to "
+                    "reach for it, and the one constraint that is not obvious",
+                )
+
+        # The read-only nine, whatever else this caller is also offered.
+        reading = {
+            "list_data_sources",
+            "find_context",
+            "find_queries",
+            "find_dashboards",
+            "find_measures",
+            "expand_table",
+            "check_sql",
+            "explain_query",
+            "run_query",
+        }
+        offered = [tool for tool in listed if tool["name"] in reading]
+        self.assertEqual(len(reading), len(offered), "a read tool went missing")
+        self.assertLessEqual(len(json.dumps(offered, separators=(",", ":"))), 3800)

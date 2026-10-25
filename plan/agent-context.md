@@ -68,6 +68,36 @@ The protocol has it for clients that want typed data, but a client has no
 schema to validate it against here, so most will either ignore it or put it
 in the context beside the prose — paying twice for one answer.
 
+## What changed, and what it bought (2026-10-25)
+
+The first three were done the same day, and the same script re-measured them
+against the same catalog.
+
+| | before | after |
+|---|---|---|
+| Tool list, every turn | 1,087 tok | **892 tok** |
+| `find_dashboards`, one question | 1,346 tok | **353 tok** |
+| `find_queries` | 463 tok | 238 tok |
+| `find_measures` | 76 tok | 14 tok |
+| One full exploration | 2,247 tok | **967 tok** |
+
+A 57% cut to what an exploration costs, and 195 tokens off every single turn.
+Three changes did it:
+
+- **`structuredContent` is gone.** It was sent with no `outputSchema`, so no
+  client could rely on it, and it repeated ~90% of the text's bytes.
+- **Panels of the same query collapse onto one line**, and four dashboards are
+  described rather than eight, with "3 more match. Name one to see its panels."
+  A board built to show one query twelve ways was most of the old cost.
+- **The descriptions say what the tool does, when to reach for it, and the one
+  constraint that is not obvious** -- and stop selling. The persuasion in
+  `find_queries` ("which no amount of schema does") was 510 characters sent on
+  every turn forever.
+
+Held by `tests/handlers/test_mcp.py::TestWhatAnAnswerCosts`: no tool may send
+`structuredContent`, panels of one query are one line, only four boards are
+described, and a tool description may not pass 340 characters.
+
 ## What to change, in the order worth doing it
 
 1. **Stop sending `structuredContent` without an `outputSchema`.** Either
@@ -117,10 +147,38 @@ nothing changes, drop to 5 while something does. Same freshness where it
 matters, no connection arithmetic. Revisit push when there is an async
 worker to hold the connections.
 
-**Pagination is the real performance item left.** A stored result goes to
-the browser whole — compressed since 0.7.2, but still parsed whole, and a
-6.7 MB result was the case that prompted that fix. The table visualization
-is the only one that shows raw rows, and it paginates *after* receiving
-everything. A server-side slice for the table, and a row ceiling for charts
-(no chart is legible past a few thousand points), is the biggest remaining
-win on load time and the one most visible to somebody with a wide result.
+**Pagination of the result set: measured, and not worth building.** This
+page said it was the biggest remaining win. That was reasoning, not
+measurement, and measuring it says otherwise.
+
+A 50,000-row, eight-column result -- 7.41 MB of JSON -- measured in a
+browser on 2026-10-25:
+
+| | full result | a 10,000-row window |
+|---|---|---|
+| gzipped over the wire | 0.86 MB (8.6:1) | 0.17 MB |
+| on a 10 Mbit link | 0.7 s | 0.1 s |
+| `JSON.parse` | 15 ms | ~3 ms |
+| sort, filter and init per interaction | 26 ms | ~5 ms |
+
+The browser is not struggling: fifty thousand rows parse in fifteen
+milliseconds and sort in eighteen. Compression, which 0.7.2 added, already
+took the transfer from 7.4 MB to 0.86. Windowing would save about six tenths
+of a second on a slow link and twenty milliseconds of CPU.
+
+And it would cost more than it saves on the server. `serialize_query_result_json`
+deliberately never builds the object graph: the payload is already JSON in
+Postgres, so the metadata is encoded and the stored bytes are dropped into a
+slot in the string. That optimisation measured ~1 s of CPU saved on a 27 MB
+result. Serving a *window* means parsing that payload and re-encoding a
+slice -- undoing exactly that, on every request, on the worker.
+
+So: **do not paginate at read time.** If very large results need bounding,
+bound them where it is free -- a row ceiling applied when the result is
+stored, so nothing enormous is ever written or served, and the byte-copy fast
+path stays intact. That is a product decision (a capped result is a changed
+answer), not a performance fix to be made quietly.
+
+What is left, in order: **browser memory** on a dashboard holding several
+large results at once, which none of the above addresses; and the
+**adaptive poll** above, which is cheap.
