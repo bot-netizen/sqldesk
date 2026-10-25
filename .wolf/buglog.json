@@ -758,6 +758,20 @@
       ],
       "status": "fixed",
       "found": "2026-10-25"
+    },
+    {
+      "id": "bug-045",
+      "error_message": "No failure yet -- found by inspection while fixing bug-043 and bug-044: tests/factories.py handed the same dict to every model a factory made",
+      "root_cause": "ModelFactory._get_kwargs did `self.kwargs.copy()`, a shallow copy, so the mutable defaults declared once at module level -- options={} on the alert, visualization and widget factories, data={'columns': {}, 'rows': []} on the query result factory -- were a single object shared by every model those factories ever made in the process. A test that writes into options rather than replacing it would leak into objects other tests are holding, and the test that failed would be in another file, as in bug-043 and bug-044. Hidden until now because the models commit and Flask-SQLAlchemy expires them, so reads after create() come back from Postgres; the shared object only bites between construction and flush.",
+      "fix": "Deep-copy only the factory's own dict/list/set defaults, and only those: what the caller passes stays the caller's object, and callables are left alone so Sequence keeps one counter instead of being copied back to where the call before it started. tests/test_factories.py guards all four properties; two of them fail if the copy goes back to shallow.",
+      "tags": [
+        "tests",
+        "factories",
+        "order-dependence",
+        "latent"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
     }
   ],
   "applied_observations": {

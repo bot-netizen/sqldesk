@@ -1,3 +1,5 @@
+import copy
+
 from passlib.apps import custom_app_context as pwd_context
 
 import sqldesk.models
@@ -13,7 +15,14 @@ class ModelFactory:
         self.kwargs = kwargs
 
     def _get_kwargs(self, override_kwargs):
-        kwargs = self.kwargs.copy()
+        # The defaults are copied deeply, because a shallow copy hands the
+        # same `options={}` or `data={"columns": {}, "rows": []}` to every
+        # model this factory makes: one test writing to an object's options
+        # writes to objects other tests are still holding. What the caller
+        # passes is left alone -- it is the caller's object.
+        kwargs = {
+            key: copy.deepcopy(arg) if isinstance(arg, (dict, list, set)) else arg for key, arg in self.kwargs.items()
+        }
         kwargs.update(override_kwargs)
 
         for key, arg in kwargs.items():
