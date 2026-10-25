@@ -160,6 +160,29 @@ a:focus-visible {
     display: none;
   }
 }
+/* Five links, the mark and the switch do not fit a phone: at 375px the bar
+   needed 545, so Releases was clipped and GitHub and the switch could not be
+   reached at all. The bar stacks instead -- the mark on its own line, the
+   links wrapping under it -- rather than hiding anything, because every one
+   of the five is a destination somebody came for. */
+@media (max-width: 620px) {
+  .topbar-in {
+    flex-wrap: wrap;
+    height: auto;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    gap: 8px;
+  }
+  .topbar nav {
+    margin-left: 0;
+    width: 100%;
+    gap: 2px;
+  }
+  .topbar nav a {
+    font-size: 13px;
+    padding: 5px 8px;
+  }
+}
 
 /* ---------- type ---------- */
 .hero {
