@@ -1,4 +1,5 @@
 import io
+import logging
 import os
 import re
 from contextlib import redirect_stdout
@@ -102,6 +103,25 @@ class MigrationsTest(BaseTestCase):
         # A guard on the guard: an exclusion list that grew to cover
         # everything would leave this passing while checking nothing.
         self.assertGreater(compiled, 10)
+
+    def test_compiling_one_leaves_the_rest_of_the_process_able_to_log(self):
+        """
+        `migrations/env.py` calls `fileConfig`, and its `disable_existing_loggers`
+        defaults to on: it switches off every logger that exists by then.
+
+        In this suite that silenced `sqldesk.query_runner.clickhouse` for
+        everything after this file, so the test guarding a ClickHouse password
+        out of the log passed alone and failed in a full run. In `manage db
+        upgrade` or `manage database create_tables` it silences the
+        application's own logging for the rest of the process.
+        """
+        logger = logging.getLogger("sqldesk.a_logger_that_already_existed")
+        self.assertFalse(logger.disabled)
+
+        _offline_sql(self._config(), "upgrade", "a3f5c07be41d:c9f1a67b3d84")
+
+        self.assertFalse(logger.disabled, "a migration switched off a logger that already existed")
+        self.assertTrue(logger.isEnabledFor(logging.WARNING))
 
     def test_index_migrations_are_run_against_postgres(self):
         """

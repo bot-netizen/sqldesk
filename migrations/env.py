@@ -10,7 +10,13 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-fileConfig(config.config_file_name)
+#
+# disable_existing_loggers has to stay off. Its default is on, and it then
+# switches off every logger that already exists -- so any process that runs
+# a migration in-process (`manage db upgrade`, `manage database
+# create_tables`, which stamps) stops logging anything afterwards, and the
+# names it silences are the application's own.
+fileConfig(config.config_file_name, disable_existing_loggers=False)
 logger = logging.getLogger("alembic.env")
 
 # add your model's MetaData object here

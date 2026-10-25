@@ -742,6 +742,22 @@
       ],
       "status": "fixed",
       "found": "2026-10-25"
+    },
+    {
+      "id": "bug-044",
+      "error_message": "tests/query_runner/test_clickhouse.py::test_a_connection_error_does_not_carry_it_either: AssertionError: no logs of level WARNING or higher triggered on sqldesk.query_runner.clickhouse -- passes alone, fails in a full run",
+      "root_cause": "migrations/env.py called fileConfig(config.config_file_name), and fileConfig's disable_existing_loggers defaults to True: it sets .disabled = True on every logger that exists by then, keeping only the names in migrations/alembic.ini (root, sqlalchemy.engine, alembic). tests/test_migrations.py compiles every migration through alembic's command API, which runs env.py, so from that file onwards every sqldesk logger in the process was switched off. assertLogs sets a handler and a level but never clears .disabled, so the ClickHouse test saw no records and read as if the warning had stopped being emitted -- the assertion that failed was the one guarding a password out of the log, which made it look like a sanitisation regression. Beyond the suite it is worse: `manage db upgrade` and `manage database create_tables` (which stamps) run env.py in-process, so the application's own logging went quiet for the rest of those processes.",
+      "fix": "fileConfig(config.config_file_name, disable_existing_loggers=False) in migrations/env.py, with a comment saying why it has to stay off. Guarded by tests/test_migrations.py::test_compiling_one_leaves_the_rest_of_the_process_able_to_log, which creates a logger, compiles a migration and asserts the logger is still enabled. Found by bisecting the suite in halves against the one failing test: 32 root-level files -> second half -> quarter 3 -> test_migrations.py, then proved directly by calling fileConfig on migrations/alembic.ini in a shell and printing logger.disabled before and after.",
+      "tags": [
+        "tests",
+        "logging",
+        "order-dependence",
+        "migrations",
+        "alembic",
+        "ci"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
     }
   ],
   "applied_observations": {
