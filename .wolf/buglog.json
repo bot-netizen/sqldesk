@@ -820,6 +820,126 @@
       ],
       "status": "fixed",
       "found": "2026-10-25"
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/mcp/__init__.py",
+      "root_cause": "14 lines replaced/restructured",
+      "fix": "Rewrote 17\u219221 lines (14 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-048",
+      "timestamp": "2026-10-25T17:07:19.926Z",
+      "last_seen": "2026-10-25T17:07:19.926Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/mcp/__init__.py",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 7\u21928 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-049",
+      "timestamp": "2026-10-25T17:09:59.969Z",
+      "last_seen": "2026-10-25T17:09:59.969Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of index.html",
+      "file": "docs/index.html",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 9\u219221 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "html"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-050",
+      "timestamp": "2026-10-25T17:39:45.389Z",
+      "last_seen": "2026-10-25T17:39:45.389Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "id": "bug-048",
+      "error_message": "The Streams guide vanished from the sidebar of ten of the twelve guide pages",
+      "root_cause": "docs/tools/chrome.py rebuilds each guide page's whole frame, including the sidebar, from its own PAGES list. The Streams link had been added to the pages by hand and streams.html was never added to PAGES, so the first regeneration deleted the link everywhere. Silent: the generator reports only how many pages it rewrote.",
+      "fix": "streams.html added to PAGES between dashboards and alerts, so the page is generated like its neighbours and the link cannot be dropped again. Verified: 12 of 12 sidebars carry it and the generator runs twice with nothing to change.",
+      "tags": [
+        "docs",
+        "generator",
+        "navigation"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "id": "bug-049",
+      "error_message": "Three sections of the homepage are invisible when JavaScript is off",
+      "root_cause": "`.reveal{opacity:0}` is undone by an IntersectionObserver adding `.in`. With no JavaScript nothing adds it, so the agent transcript, the stream window and the demo video never appear -- while the commit that introduced it claimed the page was complete without script. The theme toggle had the same shape: rendered, and dead.",
+      "fix": "The head sets a `js` class on <html>, and the hiding rule and the toggle's display both hang off it. With scripting off the rows are simply visible and the switch is not shown. Verified in the browser by removing the class.",
+      "tags": [
+        "docs",
+        "progressive-enhancement",
+        "accessibility"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "id": "bug-050",
+      "error_message": "Dark mode shipped two colour pairings below WCAG AA, in a change whose message said they were measured",
+      "root_cause": "The dark values are the application's wall-display tokens, which are measured -- but for the pairings the application has. The site introduced two it does not: white on the accent (3.59:1, and 2.35:1 against the hover colour) and --faint for 11-13px labels (3.58:1). Light mode had the same fault on small labels at 3.44:1, from before.",
+      "fix": "The primary button's ink flips with the theme (#0c0b10 on the accent: 5.47:1, 8.36:1 on hover), and --faint became a literal in both themes (#8d8a99 dark, #726d65 light). Measured in the browser afterwards: every pairing 4.67:1 or better in both themes.",
+      "tags": [
+        "docs",
+        "dark-mode",
+        "accessibility",
+        "contrast"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "id": "bug-051",
+      "error_message": "On a phone the site's top bar clipped its own links: GitHub and the theme switch could not be reached",
+      "root_cause": "The bar is a single flex row with no wrap. At 375px its contents needed 545px, so Releases was cut in half and the last two items were outside the viewport entirely. The previous bar hid one link with hide-sm and fitted; five links plus a switch do not.",
+      "fix": "Below 620px the bar wraps: the mark on its own line, the links under it, smaller padding. Nothing is hidden, because each of the five is a destination. Verified at 375px on the overview and a guide page -- bar fits, every item on screen, no sideways scroll.",
+      "tags": [
+        "docs",
+        "responsive",
+        "navigation"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "id": "bug-052",
+      "error_message": "find_dashboards could drop a verified dashboard into a count, named none of the ones it omitted, and described a panel with a sibling panel's words",
+      "root_cause": "Cutting the described dashboards from eight to four exposed three things: the order was `updated_at desc` with no verified-first rule, so a confirmed board fell behind four unchecked ones; the tail said 'N more match. Name one' without ever saying the names; and collapsing panels onto one line per query took the description from whichever panel carried one while printing the first panel's type and columns.",
+      "fix": "Verified first then most recent, as find_queries already did; the omitted boards are named, up to eight; and the panel that carries the description is the panel described, with its own options fetched. Three tests in TestWhichDashboardsAreDescribed.",
+      "tags": [
+        "mcp",
+        "agents",
+        "ranking"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
     }
   ],
   "applied_observations": {
@@ -846,7 +966,10 @@
     "fb0be46b-ecbd-48a9-8c27-6e75795cef7a": true,
     "f678aa72-2d25-4d68-9495-d4f7f2415faa": true,
     "dfdd981a-446a-4a9d-bd1a-c5306c2e29e1": true,
-    "bcbd42d8-c4a0-4cd6-a14f-e74d6d0288d3": true
+    "bcbd42d8-c4a0-4cd6-a14f-e74d6d0288d3": true,
+    "d3d0bf0c-1a80-4b62-a9e0-312c6829c283": true,
+    "714dbb60-2a4e-48c4-860f-92721d6fe2bd": true,
+    "120a39e6-991b-4d22-bfea-de78468169b5": true
   },
-  "next_id": 47
+  "next_id": 51
 }

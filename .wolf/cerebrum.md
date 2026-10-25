@@ -49,6 +49,18 @@ budget_tokens: 2000
   response.** Both bug-046 and bug-047 sat under tests that asserted on
   `models.Query.query.get(...)` or on the status code alone. Assert on what
   the endpoint actually answered.
+- **[2026-10-25] `docs/tools/chrome.py` rebuilds each guide page's sidebar
+  from its own `PAGES` list.** A link added to a page by hand is deleted the
+  next time the generator runs, silently -- that is how the Streams guide
+  left the sidebar of ten pages. Add the page to `PAGES`, never to the HTML.
+- **[2026-10-25] An animation that hides content must be gated on scripting
+  being present.** `.reveal{opacity:0}` undone by JavaScript means the
+  content is gone for anybody without it. Hang the hiding rule on a `js`
+  class the head sets, so the default state is visible.
+- **[2026-10-25] Firing an alert with `notify_subscriptions(alert, STATE, {})`
+  leaves the email saying `STATUS: UNKNOWN`.** The template reads
+  `alert.state`, and the real path sets and commits it before notifying. Set
+  `alert.state` first, or the message looks broken when it is the harness.
 
 ## Decision Log
 
