@@ -145,6 +145,11 @@ p{margin:0 0 16px}
   border:1px solid var(--rule);background:var(--surface);color:var(--muted);
 }
 .chip.more{border-style:dashed;color:var(--faint)}
+/* The sample exchange: the question in the accent, the answer in full ink,
+   and the tool calls between them left quiet so the eye goes to the ends. */
+#ask .ask-q{color:var(--accent-ink);font-weight:600}
+#ask .ask-out{color:var(--ink);font-weight:600}
+#ask pre code{color:var(--muted)}
 
 /* ---------- roadmap ---------- */
 .road{margin-top:34px;display:flex;flex-direction:column}
@@ -198,11 +203,9 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
     </a>
     <nav>
       <a href="index.html" aria-current="page">Overview</a>
-      <a href="why.html">Why SQLDesk</a>
-      <a href="performance.html" class="hide-sm">Performance</a>
-      <a href="roadmap.html">Roadmap</a>
-      <a href="blog/index.html">Blog</a>
       <a href="guide/overview.html">Docs</a>
+      <a href="blog/index.html">Blog</a>
+      <a href="releases.html">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
     </nav>
   </div>
@@ -226,9 +229,12 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 
   <h1>One place for everything you do with data.</h1>
   <p class="lede">
-    Connect to your data, write a query, turn it into a chart, put it on a dashboard
-    other people actually use. <strong>Self-hosted, open source, and viewers are free</strong>
-    — because there is nobody to charge you for them.
+    Query 35+ databases, chart the result, and put it on a dashboard people actually use.
+    Then point <strong>your agent</strong> at the same data &mdash; it gets your permissions and
+    your team&rsquo;s meaning, not a second set of credentials &mdash; and
+    <strong>watch a Kafka topic</strong> as if it were a table.
+    <strong>Self-hosted, open source, and viewers are free</strong>, because there is nobody
+    to charge you for them.
   </p>
   <div class="cta">
     <a class="btn btn-primary" href="#start">Get started</a>
@@ -239,6 +245,69 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
   </div>
   <p class="hero-note">Apache 2.0 &middot; Python + React &middot; runs in Docker</p>
 </div>
+
+<section id="different">
+  <div class="wrap">
+    <p class="eyebrow">What it does that a query tool usually does not</p>
+    <h2>Three things, and the ordinary BI tool underneath them.</h2>
+
+    <div class="features">
+      <div class="feature">
+        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 1.6 14 5v6l-6 3.4L2 11V5z"/><path d="M8 8.2 14 5M8 8.2v6.2M8 8.2 2 5"/></svg>Your agent, your permissions</h3>
+        <p>Connect Claude, or anything else that speaks MCP, and it sees exactly what you see
+           &mdash; the same data sources, the same row limits, the same groups. Thirteen tools:
+           find work that already exists, read the catalog, check SQL before running it, run it.</p>
+        <p>Writes are off unless you turn them on, go in as drafts, are capped per day and are
+           audited with what they changed. <a href="guide/mcp.html">How it works &rarr;</a></p>
+      </div>
+      <div class="feature">
+        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 12.5c2.2 0 2.2-9 4.4-9s2.2 9 4.4 9 2.2-6 3.2-6"/></svg>A Kafka topic you can chart</h3>
+        <p>A cluster is a data source and its topics are its tables. Write SQL against a live
+           window of one, join it to another, give it parameters, and put the chart on a
+           dashboard &mdash; in the same editor, with Execute replaced by Start streaming.</p>
+        <p>JSON, Avro and Protobuf, with or without a schema registry. Per-minute rollups keep
+           the part worth keeping. <a href="guide/streams.html">How it works &rarr;</a></p>
+      </div>
+      <div class="feature">
+        <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M2 6h12M6 6v8"/></svg>Everything underneath</h3>
+        <p>35+ data sources, a query editor with parameters and a schedule, 25+ visualizations,
+           dashboards, alerts to email and Slack, public links and embeds. The part that has been
+           working for ten years, kept and sharpened rather than rebuilt.</p>
+        <p><a href="guide/overview.html">Read the guide &rarr;</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ask">
+  <div class="wrap narrow">
+    <p class="eyebrow">What asking looks like</p>
+    <h2>A question, and what came back.</h2>
+    <p class="sub">The agent is not guessing at table names. It reads the catalog your team wrote,
+       and it is told when that catalog is stale.</p>
+
+    <div class="term">
+      <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="term-title">claude &mdash; sqldesk</span></div>
+<pre><code><span class="ask-q">&gt; which regions are below their revenue target this quarter?</span>
+
+  find_context("revenue by region")
+    -- The quarterly revenue target per region, set by finance.
+    -- One row per region, replaced each quarter.
+    orders(amount numeric, ts timestamptz, region text, product text)
+    region_targets(region text, quarter text, target numeric)
+    revenue = SUM(amount) on orders   -- Gross, before refunds.
+
+  check_sql(...)    WARNING: no WHERE clause and no LIMIT
+  run_query(...)    3 rows, 240 ms
+
+  <span class="ask-out">north   892,400   target 1,000,000   -11%
+  west    631,900   target   750,000   -16%
+  south   410,200   target   500,000   -18%</span>
+</code></pre>
+    </div>
+  </div>
+</section>
 
 <section id="demo">
   <div class="wrap">
@@ -366,69 +435,64 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
   </div>
 </section>
 
-<section id="roadmap">
+<section id="releases">
   <div class="wrap">
-    <p class="eyebrow">Roadmap</p>
-    <h2>Where this is going</h2>
-    <p class="sub">The goal is one tool for the whole job — not another dashboard you bolt onto four other products.</p>
+    <p class="eyebrow">Releases</p>
+    <h2>One release, one idea.</h2>
+    <p class="sub">Each release has a single theme, because a release that does a little of
+       everything is one nobody can describe.</p>
 
-    <div class="road">
-      <div class="road-item">
-        <div class="road-k"><span class="road-status s-now">New</span>0.7</div>
-        <div>
-          <h3>Kafka topics you can chart</h3>
-          <p class="road-b">A cluster is a data source and its enabled topics are its tables, so a stream joins
-          another stream, takes parameters, gets visualizations and goes on a dashboard — in the same editor,
-          with Execute replaced by Start streaming. Nothing is stored: the window exists while somebody is watching.
-          With it, dashboard folders that carry a stated meaning, scheduled subscriptions by email, OAuth for MCP
-          clients, and an admin section that answers what is happening now. The
-          <a href="guide/streams.html">Streams guide</a> has the details.</p>
-        </div>
+    <div class="two">
+      <div class="card">
+        <h3>0.7 &mdash; Kafka Streams</h3>
+        <p>Topics you can query and chart, dashboard folders with a stated meaning, OAuth 2.1 for
+           MCP clients, and permissions an administrator hands to a group.</p>
       </div>
-      <div class="road-item">
-        <div class="road-k"><span class="road-status s-next">Shipped</span>0.6</div>
-        <div>
-          <h3>Your warehouse, answerable over MCP</h3>
-          <p class="road-b">An endpoint at <code>/mcp</code> with eight tools over a catalog built from your schema
-          and the SQL your team has already saved. It runs as the person whose API key it is, only reads, and
-          audits every request. Metrics are proposed from saved queries and agreed by a person before a model
-          sees them. The <a href="guide/mcp.html">MCP guide</a> has the details.</p>
-        </div>
+      <div class="card">
+        <h3>0.6 &mdash; MCP</h3>
+        <p>An agent that reaches your data with your permissions, and a catalog that tells it what
+           the tables mean. Measures are proposed, never assumed.</p>
       </div>
-      <div class="road-item">
-        <div class="road-k"><span class="road-status s-next">Shipped</span>0.5</div>
-        <div>
-          <h3>Less chrome, more chart</h3>
-          <p class="road-b">Textboxes you can write in, eight more chart types, an Admin section that says what is
-          running and who asked for it, and alert emails that carry a picture of the dashboard.</p>
-        </div>
+      <div class="card">
+        <h3>0.5 &mdash; Interface</h3>
+        <p>The application got out of the way of the charts, and stopped fetching the same result
+           once per widget.</p>
       </div>
-      <div class="road-item">
-        <div class="road-k"><span class="road-status s-next">Shipped</span>0.4</div>
-        <div>
-          <h3>Live dashboards and KPI tiles</h3>
-          <p class="road-b">Dashboards that update every 30 seconds without every viewer re-running the queries,
-          plus a gauge, a stat with a trend line, progress bars, a status grid, table formatting and goal lines.
-          The <a href="roadmap.html">roadmap</a> has the whole history.</p>
-        </div>
+      <div class="card">
+        <h3>Next &mdash; 0.8 Notebooks</h3>
+        <p>Steps that build on each other, in SQL and Python. A cost model before the query runs,
+           and an MCP that asks before it spends.</p>
       </div>
-      <div class="road-item">
-        <div class="road-k"><span class="road-status s-next">Next</span>0.8</div>
-        <div>
-          <h3>Notebooks, and knowing what a query costs</h3>
-          <p class="road-b">Everything in SQLDesk today ends in one SELECT. A notebook is for the work that does not:
-          cells in SQL and in Python, each reading the last one's result, saved and re-runnable. Beside it, the rule
-          the rest of 0.8 is organised around — bytes scanned and an estimate of the work, shown as a number you
-          can refuse, before the query runs rather than after the invoice arrives.</p>
-        </div>
+    </div>
+    <p style="margin-top:20px"><a href="releases.html">Every release, in order &rarr;</a></p>
+  </div>
+</section>
+
+<section id="not">
+  <div class="wrap narrow">
+    <p class="eyebrow">Worth saying plainly</p>
+    <h2>What it is not.</h2>
+    <p class="sub">So nobody installs it expecting one of these.</p>
+    <div class="two">
+      <div class="card">
+        <h3>Not a point-and-click question builder</h3>
+        <p>SQLDesk assumes somebody on the team writes SQL. Everybody else reads what they wrote,
+           changes its parameters, and subscribes to it.</p>
       </div>
-      <div class="road-item">
-        <div class="road-k"><span class="road-status s-next">Next</span>Performance</div>
-        <div>
-          <h3>Push instead of poll</h3>
-          <p class="road-b">Server-sent events replacing the status polling loop, concurrency that does not cost a
-          whole OS process per connection, and a frontend that no longer ships its entire bundle on first load.</p>
-        </div>
+      <div class="card">
+        <h3>Not an infrastructure monitoring tool</h3>
+        <p>It queries Prometheus and Mimir like any other source, but alerting on metrics at second
+           resolution is not what it is built around.</p>
+      </div>
+      <div class="card">
+        <h3>Not a streaming engine</h3>
+        <p>A bounded window of a Kafka topic, kept in DuckDB and rolled up. Continuous queries over
+           a persistent connection are a different product.</p>
+      </div>
+      <div class="card">
+        <h3>Not a notebook</h3>
+        <p>A query is a query, with a chart and a history. Prose, Python and SQL on one canvas is
+           0.8, on the roadmap rather than in the product.</p>
       </div>
     </div>
   </div>
@@ -478,8 +542,6 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
         <h4>Getting started</h4>
         <ul>
           <li><a href="#start">Quick start</a></li>
-          <li><a href="why.html">Why SQLDesk</a></li>
-          <li><a href="performance.html">Performance work</a></li>
           <li><a href="https://github.com/bot-netizen/sqldesk/blob/main/README.md">README</a></li>
           <li><a href="https://github.com/bot-netizen/sqldesk/blob/main/.github/CONTRIBUTING.md">Contributing</a></li>
         </ul>

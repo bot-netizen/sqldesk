@@ -28,11 +28,9 @@
     </a>
     <nav>
       <a href="../index.html">Overview</a>
-      <a href="../why.html">Why SQLDesk</a>
-      <a href="../performance.html" class="hide-sm">Performance</a>
-      <a href="../roadmap.html">Roadmap</a>
-      <a href="../blog/index.html">Blog</a>
       <a href="../guide/overview.html" aria-current="page">Docs</a>
+      <a href="../blog/index.html">Blog</a>
+      <a href="../releases.html">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
     </nav>
   </div>
@@ -49,7 +47,6 @@
       <a href="queries.html">Queries and parameters</a>
       <a href="visualizations.html">Visualizations</a>
       <a href="dashboards.html">Dashboards and textboxes</a>
-      <a href="streams.html">Streams</a>
       <a href="alerts.html" aria-current="page">Alerts</a>
       <h4>AI</h4>
       <a href="mcp.html">MCP</a>
@@ -57,7 +54,7 @@
       <a href="administration.html">Administration</a>
       <a href="deploying.html">Deploying</a>
       <h4>Reference</h4>
-      <a href="../roadmap.html">Releases &amp; roadmap</a>
+      <a href="../releases.html">Releases</a>
   </nav>
   <main class="doc-body">
 <h1>Alerts</h1>
@@ -84,6 +81,24 @@ sitting above its threshold for a day is one message rather than a hundred.</p>
 <p>How long before a still-triggered alert notifies again. Zero means it tells you once and stays quiet
 until it recovers and trips a second time.</p>
 
+<h2>Muting</h2>
+<p><strong>Mute</strong> stops the messages without stopping the watching. The alert still runs after
+its query, still moves between triggered and ok, and its page still says which it is &mdash; nobody is
+sent anything while it is muted. That is the difference between muting a noisy alert and deleting it:
+unmute, and it tells you about now rather than replaying what it missed.</p>
+<p>It is for the alert everybody already knows about &mdash; the migration running this afternoon, the
+backfill that will hold revenue flat until Tuesday. An alert nobody ever wants unmuted is an alert to
+delete.</p>
+
+<h2>Who else gets told</h2>
+<p>Anybody who can see the alert can subscribe themselves to it, and being the owner does not subscribe
+you &mdash; somebody can build an alert for a team and stay off it. A subscription is either a person,
+who is mailed, or a <strong>destination</strong>: the Slack channel, webhook or address an
+administrator added under Settings &rarr; Alert Destinations.</p>
+<p>The subscriptions are listed on the alert itself, which is where one is removed. A destination
+belongs to the organization rather than to the alert, so taking it off one alert leaves every other
+alert using it alone.</p>
+
 <h2>Attachments</h2>
 <p>An alert can carry pictures of up to five dashboards or queries, rendered by a headless browser. It is
 off unless a renderer is configured, and the published image does not include one — it runs in its own
@@ -108,7 +123,7 @@ chart arriving with no chart and no explanation reads as the alert being broken.
 <footer>
   <div class="wrap">
     <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
-       <a href="../roadmap.html">Releases</a> &nbsp;&middot;&nbsp;
+       <a href="../releases.html">Releases</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
   </div>

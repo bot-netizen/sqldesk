@@ -63,11 +63,11 @@ class TestThePlanDirectory(unittest.TestCase):
         # The naming convention is the thing most likely to drift, because it
         # is written down in three places and only one of them is code.
         conventions = self.plan("conventions.md")
-        roadmap = page("roadmap.html")
+        releases = page("releases.html")
 
         for version, name in (("0.4", "Live"), ("0.5", "Interface"), ("0.6", "MCP"), ("0.8", "Notebooks")):
             self.assertIn(name, conventions)
-            self.assertIn("{} &mdash; {}".format(version, name), roadmap)
+            self.assertIn("{} &mdash; {}".format(version, name), releases)
 
     def test_claude_md_sends_people_to_it(self):
         with open(os.path.join(os.path.dirname(DOCS), "CLAUDE.md"), encoding="utf-8") as f:

@@ -39,16 +39,14 @@ BRAND = """<svg viewBox="0 0 120 120" aria-hidden="true">
 # (file, label, hide on narrow screens)
 SITE_NAV = [
     ("index.html", "Overview", False),
-    ("why.html", "Why SQLDesk", False),
-    ("performance.html", "Performance", True),
-    ("roadmap.html", "Roadmap", False),
-    ("blog/index.html", "Blog", False),
     ("guide/overview.html", "Docs", False),
+    ("blog/index.html", "Blog", False),
+    ("releases.html", "Releases", False),
 ]
 
 #: Pages that live at the root and keep their own stylesheet, so only their
 #: header nav is rewritten.
-TOP_LEVEL = ["index.html", "why.html", "performance.html", "roadmap.html"]
+TOP_LEVEL = ["index.html", "releases.html"]
 
 
 def site_nav(prefix, current):
@@ -112,7 +110,7 @@ PAGES = [
     ("mcp.html", "MCP", "AI"),
     ("administration.html", "Administration", "Running it"),
     ("deploying.html", "Deploying", "Running it"),
-    ("../roadmap.html", "Releases &amp; roadmap", "Reference"),
+    ("../releases.html", "Releases", "Reference"),
 ]
 
 
@@ -200,7 +198,7 @@ def render(filename, description, body):
 <footer>
   <div class="wrap">
     <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
-       <a href="../roadmap.html">Releases</a> &nbsp;&middot;&nbsp;
+       <a href="../releases.html">Releases</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
   </div>
@@ -224,8 +222,13 @@ def main():
     docs = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
     changed = []
 
-    # The guide, whose whole frame is generated.
+    # The guide, whose whole frame is generated. An entry reaching outside
+    # guide/ is a sidebar link to a page that keeps its own frame -- it
+    # belongs in the list so it appears in the contents, not in this loop,
+    # which would look for a guide body it does not have.
     for filename, _title, _section in PAGES:
+        if filename.startswith("../"):
+            continue
         path = os.path.join(docs, "guide", filename)
         before = open(path).read()
         after = render(filename, _description(path), _read(path))

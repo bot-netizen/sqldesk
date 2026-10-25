@@ -28,11 +28,9 @@
     </a>
     <nav>
       <a href="../index.html">Overview</a>
-      <a href="../why.html">Why SQLDesk</a>
-      <a href="../performance.html" class="hide-sm">Performance</a>
-      <a href="../roadmap.html">Roadmap</a>
-      <a href="../blog/index.html">Blog</a>
       <a href="../guide/overview.html" aria-current="page">Docs</a>
+      <a href="../blog/index.html">Blog</a>
+      <a href="../releases.html">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
     </nav>
   </div>
@@ -49,7 +47,6 @@
       <a href="queries.html" aria-current="page">Queries and parameters</a>
       <a href="visualizations.html">Visualizations</a>
       <a href="dashboards.html">Dashboards and textboxes</a>
-      <a href="streams.html">Streams</a>
       <a href="alerts.html">Alerts</a>
       <h4>AI</h4>
       <a href="mcp.html">MCP</a>
@@ -57,7 +54,7 @@
       <a href="administration.html">Administration</a>
       <a href="deploying.html">Deploying</a>
       <h4>Reference</h4>
-      <a href="../roadmap.html">Releases &amp; roadmap</a>
+      <a href="../releases.html">Releases</a>
   </nav>
   <main class="doc-body">
 <h1>Queries and parameters</h1>
@@ -112,6 +109,24 @@ moved a query to another warehouse would be a surprise.</p>
 <p>Anyone who can read the query can read its history; the restore is offered only to somebody who could
 have made the same edit by hand.</p>
 
+<h2 id="taking-it-away">Taking the result away</h2>
+<p><strong>Download</strong> sits beside the result: CSV, Excel or JSON. The same three are URLs, so a
+spreadsheet, a script or a scheduled job can fetch the latest stored result without a session and
+without a password:</p>
+<pre><code>GET /api/queries/&lt;id&gt;/results.csv?api_key=&lt;the query's key&gt;</code></pre>
+<p><strong>The key belongs to the query, not to you.</strong> It is in <strong>Show API Key</strong>
+under the query's &vellip; menu, and it returns the <em>stored</em> result &mdash; the same one the
+dashboards see, with the same age &mdash; rather than running the SQL again. <strong>Regenerate</strong>
+makes a new one and anything holding the old one stops working that second, which is the point of
+having it.</p>
+<p>A single visualization can be put in another page the same way, with <strong>Embed</strong>:
+an <code>&lt;iframe&gt;</code> pointing at
+<code>/embed/query/&lt;id&gt;/visualization/&lt;id&gt;?api_key=…</code>. Whoever opens that page sees
+the chart and nothing else &mdash; no SQL, no editor, no way into the rest of SQLDesk.</p>
+<p><strong>Fork</strong> copies the SQL, the parameters and the visualizations into a new query that
+belongs to you. It is the honest way to answer &ldquo;the same, but for Europe&rdquo; without editing
+somebody else's query and quietly changing what their dashboard means.</p>
+
 <h2>Snippets and formatting</h2>
 <p>Snippets are reusable fragments — Settings &rarr; Query Snippets — inserted by typing their trigger.
 <strong>Format Query</strong> tidies SQL for the dialects that support it.</p>
@@ -122,7 +137,7 @@ have made the same edit by hand.</p>
 <footer>
   <div class="wrap">
     <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
-       <a href="../roadmap.html">Releases</a> &nbsp;&middot;&nbsp;
+       <a href="../releases.html">Releases</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
   </div>

@@ -28,11 +28,9 @@
     </a>
     <nav>
       <a href="../index.html">Overview</a>
-      <a href="../why.html">Why SQLDesk</a>
-      <a href="../performance.html" class="hide-sm">Performance</a>
-      <a href="../roadmap.html">Roadmap</a>
-      <a href="../blog/index.html">Blog</a>
       <a href="../guide/overview.html" aria-current="page">Docs</a>
+      <a href="../blog/index.html">Blog</a>
+      <a href="../releases.html">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
     </nav>
   </div>
@@ -49,7 +47,6 @@
       <a href="queries.html">Queries and parameters</a>
       <a href="visualizations.html">Visualizations</a>
       <a href="dashboards.html">Dashboards and textboxes</a>
-      <a href="streams.html">Streams</a>
       <a href="alerts.html">Alerts</a>
       <h4>AI</h4>
       <a href="mcp.html">MCP</a>
@@ -57,7 +54,7 @@
       <a href="administration.html">Administration</a>
       <a href="deploying.html" aria-current="page">Deploying</a>
       <h4>Reference</h4>
-      <a href="../roadmap.html">Releases &amp; roadmap</a>
+      <a href="../releases.html">Releases</a>
   </nav>
   <main class="doc-body">
 <h1>Deploying</h1>
@@ -289,7 +286,7 @@ to the release it was written for.</p>
 which address the login throttle and the audit log see.</p>
 
 <h2 id="upgrading">Upgrading</h2>
-<pre><code># .env: SQLDESK_IMAGE=ghcr.io/bot-netizen/sqldesk:0.7.0
+<pre><code># .env: SQLDESK_IMAGE=ghcr.io/bot-netizen/sqldesk:0.7.6
 docker compose -f compose.prod.yaml pull
 docker compose -f compose.prod.yaml run --rm server manage db upgrade
 docker compose -f compose.prod.yaml up -d</code></pre>
@@ -301,7 +298,7 @@ rather than adding to it. The chart does this itself, as a hook that runs before
 
 <p><strong>Docker Compose.</strong> Pin the image, migrate, then start:</p>
 <pre><code># .env
-SQLDESK_IMAGE=ghcr.io/bot-netizen/sqldesk:0.7.0
+SQLDESK_IMAGE=ghcr.io/bot-netizen/sqldesk:0.7.6
 
 docker compose -f compose.prod.yaml pull
 docker compose -f compose.prod.yaml run --rm server manage db upgrade
@@ -309,7 +306,7 @@ docker compose -f compose.prod.yaml up -d</code></pre>
 
 <p><strong>Helm.</strong> The chart migrates itself, in a hook that runs before anything else changes:</p>
 <pre><code>helm upgrade sqldesk ./charts/sqldesk --reuse-values \
-  --set image.tag=0.7.0</code></pre>
+  --set image.tag=0.7.6</code></pre>
 <p>The last migration stays as the Job <code>sqldesk-migrate</code>, with its log, until the next
 upgrade replaces it. Before 0.7.5 every upgrade left a Job of its own behind, named with the
 revision; remove those once:</p>
@@ -327,7 +324,7 @@ revision; remove those once:</p>
   <code>--set uploads.enabled=true</code> brings it back exactly as it was. Add it to the upgrade if
   anyone uses uploads:</p>
   <pre><code>helm upgrade sqldesk ./charts/sqldesk --reuse-values \
-  --set image.tag=0.7.0 \
+  --set image.tag=0.7.6 \
   --set uploads.enabled=true</code></pre>
 </div>
 
@@ -354,7 +351,7 @@ kind from the widgets again, as it did before.</p>
 <p>Each add-on is off so that an install pays for nothing it does not use. To see all of them at once
 &mdash; on a laptop, with nothing real attached &mdash; turn them all on together:</p>
 <pre><code>helm upgrade --install sqldesk ./charts/sqldesk \
-  --set image.tag=0.7.0 \
+  --set image.tag=0.7.6 \
   --set streams.enabled=true \
   --set mcp.enabled=true \
   --set uploads.enabled=true \
@@ -485,7 +482,7 @@ chart treats an empty value as "generate one", and no saved credential would dec
 git clone https://github.com/bot-netizen/sqldesk.git</code></pre>
 <p>Give Docker Desktop at least 8&nbsp;GB of memory first; with less, pods get restarted under load. The clone
 is the latest release, because <code>main</code> only moves at a release. For another one, add
-<code>--branch</code> and its tag from <a href="../roadmap.html">Releases</a>.</p>
+<code>--branch</code> and its tag from <a href="../releases.html">Releases</a>.</p>
 
 <h3>3. Write a values file</h3>
 <pre><code># sqldesk-values.yaml -- private, it holds the secrets
@@ -645,14 +642,14 @@ plain container with no persistence.</p>
 made with: data source and alert destination credentials are encrypted with it. To change the key, re-encrypt
 first rather than after:</p>
 <pre><code>manage database reencrypt &lt;old key&gt; &lt;new key&gt;</code></pre>
-<div class="doc-next"><a class="btn btn-ghost" href="administration.html">&larr; Administration</a><a class="btn btn-primary" href="../roadmap.html">Releases &amp; roadmap &rarr;</a></div>
+<div class="doc-next"><a class="btn btn-ghost" href="administration.html">&larr; Administration</a><a class="btn btn-primary" href="../releases.html">Releases &rarr;</a></div>
   </main>
 </div>
 
 <footer>
   <div class="wrap">
     <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
-       <a href="../roadmap.html">Releases</a> &nbsp;&middot;&nbsp;
+       <a href="../releases.html">Releases</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
   </div>
