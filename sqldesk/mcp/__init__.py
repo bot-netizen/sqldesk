@@ -1019,6 +1019,10 @@ MAX_DASHBOARDS = 4
 #: most of what made these answers long.
 MAX_CHART_LINES = 6
 
+#: Dashboards named in the "and N more" tail. Enough to ask for the right
+#: one; past this it is a list nobody reads.
+MAX_NAMED = 8
+
 
 def _options_for_described(found, listed):
     """
@@ -1030,18 +1034,37 @@ def _options_for_described(found, listed):
     """
     shown = []
     for dashboard in found:
-        seen = []
-        for chart in listed[dashboard.id]:
-            if chart[4] not in seen:
-                seen.append(chart[4])
-                shown.append(chart[0])
-            if len(seen) == MAX_CHART_LINES:
-                break
+        by_query, order = _grouped_by_query(listed[dashboard.id])
+        for query_id in order[:MAX_CHART_LINES]:
+            shown.append(_representative(by_query[query_id]["charts"])[0])
     return dict(
         models.db.session.query(models.Visualization.id, models.Visualization.options).filter(
             models.Visualization.id.in_(shown or [0])
         )
     )
+
+
+def _grouped_by_query(charts):
+    """The charts of one dashboard, gathered under the query each came from."""
+    by_query, order = {}, []
+    for chart_id, chart_type, chart_name, about, query_id, query_name in charts:
+        if query_id not in by_query:
+            by_query[query_id] = {"name": query_name, "charts": []}
+            order.append(query_id)
+        by_query[query_id]["charts"].append((chart_id, chart_type, chart_name, about))
+    return by_query, order
+
+
+def _representative(charts):
+    """
+    The one panel that stands for the rest.
+
+    Whichever carries a description, because the description is the part
+    written nowhere else -- and because taking the words from one panel and
+    the shape from another would describe a counter as plotting what the line
+    chart beside it plots.
+    """
+    return next((chart for chart in charts if (chart[3] or "").strip()), charts[0])
 
 
 def _charts_by_query(charts, options):
@@ -1054,22 +1077,13 @@ def _charts_by_query(charts, options):
     onto the query they come from, which is also the thing an agent needs if
     it wants the SQL.
     """
-    by_query, order = {}, []
-    for chart_id, chart_type, chart_name, about, query_id, query_name in charts:
-        if query_id not in by_query:
-            by_query[query_id] = {"name": query_name, "charts": [], "about": None}
-            order.append(query_id)
-        entry = by_query[query_id]
-        entry["charts"].append((chart_id, chart_type, chart_name, about))
-        # The first description anybody wrote is the one worth carrying.
-        if about and not entry["about"]:
-            entry["about"] = about
+    by_query, order = _grouped_by_query(charts)
 
     lines = []
     for query_id in order[:MAX_CHART_LINES]:
         entry = by_query[query_id]
-        first_id, first_type, first_name, first_about = entry["charts"][0]
-        summary = _chart_summary(first_type, first_name, entry["about"], options.get(first_id))
+        chart_id, chart_type, chart_name, about = _representative(entry["charts"])
+        summary = _chart_summary(chart_type, chart_name, about, options.get(chart_id))
         others = len(entry["charts"]) - 1
         lines.append(
             "- {}{} — from query #{} {}".format(
@@ -1249,7 +1263,7 @@ def tool_find_queries(user, org, arguments):
         # list above is filtered to data sources they may read.
         if query.query_text:
             lines.append("  sql:")
-            lines.extend("    " + line for line in _short_sql(query.query_text).splitlines())
+            lines.extend("    " + line for line in _short_sql(query.query_text, query.id).splitlines())
         lines.append("")
     return _text("\n".join(lines).strip())
 
@@ -1267,15 +1281,19 @@ def _last_changed_by(query):
     return ", last changed by {}".format(_who(changer))
 
 
-#: How much SQL goes in the text, before the rest is left to the data.
+#: How much SQL goes in the text before the rest is left on the page it came
+#: from. It used to be "left to the data", when the same answer was also sent
+#: as `structuredContent`; there is no second copy now, so the note says where
+#: the whole thing actually is.
 MAX_SQL_SHOWN = 4000
 
 
-def _short_sql(sql):
+def _short_sql(sql, query_id=None):
     text = sql.strip()
     if len(text) <= MAX_SQL_SHOWN:
         return text
-    return text[:MAX_SQL_SHOWN] + "\n-- (truncated; the whole query is in this result's data)"
+    where = "queries/{}".format(query_id) if query_id else "the query's own page"
+    return text[:MAX_SQL_SHOWN] + "\n-- (truncated here; the whole query is at {})".format(where)
 
 
 def _verifications_for(org, queries):
@@ -1398,6 +1416,16 @@ def tool_find_dashboards(user, org, arguments):
         for dashboard in dashboards
         if not terms or _existing_work_matches(" ".join(words[dashboard.id]), terms)
     ]
+    # Verified first, as find_queries already does. A board somebody has read
+    # and confirmed is the one worth describing, and ordering by when it was
+    # last touched would drop it behind four boards nobody has checked --
+    # into a count, where an agent cannot see that it exists at all.
+    matching.sort(
+        key=lambda dashboard: (
+            dashboard.verified_at is None,
+            -(dashboard.updated_at.timestamp() if dashboard.updated_at else 0),
+        )
+    )
     found = matching[:MAX_DASHBOARDS]
 
     if not found:
@@ -1439,8 +1467,16 @@ def tool_find_dashboards(user, org, arguments):
             lines.append("  " + line)
         lines.append("")
     if len(matching) > MAX_DASHBOARDS:
+        # Named, not just counted: "3 more match, name one" is not actionable
+        # if the three are never said. A name costs a handful of tokens and is
+        # the whole point of the sentence.
+        rest = matching[MAX_DASHBOARDS:]
         lines.append(
-            "{} more match. Name one to see its panels.".format(len(matching) - MAX_DASHBOARDS),
+            "{} more match: {}{}. Ask for one by name to see its panels.".format(
+                len(rest),
+                ", ".join(dashboard.name for dashboard in rest[:MAX_NAMED]),
+                " and others" if len(rest) > MAX_NAMED else "",
+            )
         )
     return _text("\n".join(lines).strip())
 

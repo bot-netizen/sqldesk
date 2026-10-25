@@ -2428,7 +2428,7 @@ class TestWhatAnAnswerCosts(McpTestCase):
         described = found.count("— /dashboards/")
         self.assertEqual(4, described, "four boards described")
         self.assertIn("3 more match", found, "and the rest counted, with how to ask for them")
-        self.assertIn("Name one", found)
+        self.assertIn("Ask for one by name", found)
 
     def test_the_tool_list_stays_lean(self):
         """
@@ -2465,3 +2465,91 @@ class TestWhatAnAnswerCosts(McpTestCase):
         offered = [tool for tool in listed if tool["name"] in reading]
         self.assertEqual(len(reading), len(offered), "a read tool went missing")
         self.assertLessEqual(len(json.dumps(offered, separators=(",", ":"))), 3800)
+
+
+class TestWhichDashboardsAreDescribed(McpTestCase):
+    """
+    Four boards are described and the rest are counted, so which four is the
+    whole question. Ordered by when they were last touched, a board somebody
+    read and confirmed falls behind four nobody has checked -- into a count,
+    where an agent cannot see that it exists.
+    """
+
+    def call(self, name, arguments=None):
+        return json.loads(self.post(rpc("tools/call", {"name": name, "arguments": arguments or {}})).data)["result"]
+
+    def text(self, name, arguments=None):
+        return self.call(name, arguments)["content"][0]["text"]
+
+    def board(self, name, verified=False, panels=1):
+        dashboard = self.factory.create_dashboard(name=name)
+        query = self.factory.create_query(
+            name=name + " query", description="revenue by region", data_source=self.factory.data_source
+        )
+        for n in range(panels):
+            visualization = self.factory.create_visualization(query_rel=query, type="CHART", name="Chart {}".format(n))
+            self.factory.create_widget(dashboard=dashboard, visualization=visualization)
+        if verified:
+            dashboard.verified_at = datetime.datetime.utcnow() - datetime.timedelta(days=30)
+            dashboard.verified_note = "checked against finance"
+            models.db.session.add(dashboard)
+        return dashboard
+
+    def test_a_verified_board_is_described_even_behind_newer_ones(self):
+        self.board("Revenue, checked", verified=True)
+        for n in range(6):
+            self.board("Revenue draft {}".format(n))
+        models.db.session.commit()
+
+        found = self.text("find_dashboards", {"question": "revenue"})
+
+        self.assertIn("Revenue, checked", found)
+        self.assertIn("[VERIFIED]", found)
+        self.assertIn("checked against finance", found)
+
+    def test_the_boards_that_did_not_fit_are_named_not_only_counted(self):
+        for n in range(7):
+            self.board("Revenue board {}".format(n))
+        models.db.session.commit()
+
+        found = self.text("find_dashboards", {"question": "revenue"})
+
+        self.assertIn("3 more match:", found)
+        self.assertIn("Ask for one by name", found)
+        named = [
+            name
+            for name in (
+                "Revenue board 0",
+                "Revenue board 1",
+                "Revenue board 2",
+                "Revenue board 3",
+                "Revenue board 4",
+                "Revenue board 5",
+                "Revenue board 6",
+            )
+            if name in found
+        ]
+        self.assertEqual(7, len(named), "every board is either described or named in the tail")
+
+    def test_a_panel_is_described_by_the_words_written_on_it(self):
+        """
+        Not by a sibling's words: a counter and a line chart of one query are
+        one line, and the line has to say what the panel it describes shows.
+        """
+        dashboard = self.factory.create_dashboard(name="Revenue board")
+        query = self.factory.create_query(
+            name="Revenue", description="revenue by region", data_source=self.factory.data_source
+        )
+        plain = self.factory.create_visualization(query_rel=query, type="CHART", name="Plain", description="")
+        described = self.factory.create_visualization(
+            query_rel=query, type="COUNTER", name="Counted", description="completed orders only"
+        )
+        self.factory.create_widget(dashboard=dashboard, visualization=plain)
+        self.factory.create_widget(dashboard=dashboard, visualization=described)
+        models.db.session.commit()
+
+        found = self.text("find_dashboards", {"question": "revenue"})
+
+        self.assertIn("completed orders only", found)
+        line = next(one for one in found.splitlines() if "completed orders only" in one)
+        self.assertIn("counter", line.lower(), "the description belongs to the counter, so the line is the counter's")
