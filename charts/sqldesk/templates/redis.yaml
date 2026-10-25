@@ -21,15 +21,29 @@ metadata:
     {{- include "sqldesk.labels" . | nindent 4 }}
 spec:
   replicas: 1
-  # Replace rather than roll.
+  # One Redis at a time, briefly none.
   #
-  # The default strategy starts the new Redis before stopping the old one, and
-  # with one Service in front of them the workers divide between two queues
-  # for as long as that takes: a job enqueued through one is invisible to a
-  # worker reading the other, so queries submitted during an upgrade simply
-  # never ran. One Redis at a time, briefly none.
+  # The default strategy starts the new one before stopping the old, and with
+  # a single Service in front of them the workers divide between two sets of
+  # queues for as long as that takes: a job enqueued through one is invisible
+  # to a worker reading the other, so a query submitted during an upgrade
+  # simply never ran.
+  #
+  # Expressed as maxSurge 0 rather than `type: Recreate`, which cannot be
+  # applied to a Deployment that already exists: Kubernetes defaults
+  # `rollingUpdate` on every RollingUpdate deployment, those defaults are
+  # owned by the API server rather than by Helm, and the apply is then
+  # rejected outright --
+  #   spec.strategy.rollingUpdate: Forbidden: may not be specified when
+  #   strategy `type` is 'Recreate'
+  # -- which fails the whole upgrade, for every install that has ever run
+  # this chart. maxSurge 0 with one replica is the same behaviour: the old
+  # pod goes before the new one starts.
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       {{- include "sqldesk.selectorLabels" . | nindent 6 }}

@@ -149,11 +149,20 @@ class TestTheBundledRedis(unittest.TestCase):
         self.redis = template("redis.yaml")
         self.values = open("charts/sqldesk/values.yaml").read()
 
-    def test_it_is_replaced_rather_than_rolled(self):
-        # Rolling runs two Redises behind one Service, so workers divide
-        # between two sets of queues and jobs enqueued through one are
-        # invisible to the workers reading the other.
-        self.assertIn("type: Recreate", self.redis)
+    def test_only_one_of_it_runs_at_a_time(self):
+        # Two Redises behind one Service means workers divide between two sets
+        # of queues, and a job enqueued through one is invisible to the
+        # workers reading the other.
+        #
+        # Not `type: Recreate`: Kubernetes defaults `rollingUpdate` on an
+        # existing deployment and owns those defaults, so applying Recreate
+        # over one is rejected -- "may not be specified when strategy type is
+        # Recreate" -- and the whole upgrade fails. Found on the first real
+        # upgrade of an install that already had the chart.
+        self.assertIn("maxSurge: 0", self.redis)
+        # The comment above it explains why not Recreate, so this looks at
+        # the field rather than at the file.
+        self.assertNotIn("    type: Recreate", self.redis)
 
     def test_it_has_a_memory_ceiling(self):
         self.assertIn("--maxmemory", self.redis)

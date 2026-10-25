@@ -1,0 +1,758 @@
+{
+  "version": 1,
+  "bugs": [
+    {
+      "error_message": "Significant refactor of widgets.py",
+      "file": "sqldesk/handlers/widgets.py",
+      "root_cause": "12 lines replaced/restructured",
+      "fix": "Rewrote 24\u219229 lines (12 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-001",
+      "timestamp": "2026-10-03T14:21:31.561Z",
+      "last_seen": "2026-10-03T14:21:31.561Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/serializers/__init__.py",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 14\u21925 lines (9 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-002",
+      "timestamp": "2026-10-03T14:21:46.424Z",
+      "last_seen": "2026-10-03T14:21:46.424Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of dashboards.py",
+      "file": "sqldesk/handlers/dashboards.py",
+      "root_cause": "18 lines replaced/restructured",
+      "fix": "Rewrote 20\u21923 lines (18 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-003",
+      "timestamp": "2026-10-03T14:22:09.326Z",
+      "last_seen": "2026-10-03T14:22:09.326Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of test_kind_partition.py",
+      "file": "tests/handlers/test_kind_partition.py",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 11\u219215 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-004",
+      "timestamp": "2026-10-03T14:29:23.486Z",
+      "last_seen": "2026-10-03T14:29:23.486Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "CSS fix: key, href",
+      "file": "client/app/pages/queries-list/QueriesList.jsx",
+      "root_cause": "key: \"archive\", \u2192 \"archive\", title: \"Archived\", icon: () => <Sidebar.MenuIcon icon=\"fa fa-archive\" />; href: \"queries/archive\", \u2192 view.key === \"all\" ? base : `${base",
+      "fix": "Changed key: \"archive\", \u2192 \"archive\", title: \"Archived\", icon: () => <Sidebar.MenuIcon icon=\"fa fa-archive\" />; href: \"queries/archive\", \u2192 view.key === \"all\" ? base : `${base",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-005",
+      "timestamp": "2026-10-03T14:41:24.627Z",
+      "last_seen": "2026-10-03T14:41:24.627Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of QueriesList.jsx",
+      "file": "client/app/pages/queries-list/QueriesList.jsx",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 7\u219214 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-006",
+      "timestamp": "2026-10-03T14:41:34.772Z",
+      "last_seen": "2026-10-03T14:41:34.772Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of query.js",
+      "file": "client/app/services/query.js",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 6\u219220 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-007",
+      "timestamp": "2026-10-03T14:41:55.983Z",
+      "last_seen": "2026-10-03T14:41:55.983Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "CSS fix: render",
+      "file": "client/app/pages/streams/streams.routes.jsx",
+      "root_cause": "render: () => <Redirect to=\"admin/streams\" />, \u2192 () =>",
+      "fix": "Changed render: () => <Redirect to=\"admin/streams\" />, \u2192 () =>",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-008",
+      "timestamp": "2026-10-03T14:45:18.005Z",
+      "last_seen": "2026-10-03T14:45:18.005Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "A saved streaming query listed under Queries linked to /queries/<id>, the ordinary view page",
+      "file": "client/app/services/query.js",
+      "root_cause": "Query#getUrl built `queries/<id>` for every query. It had no way to know the query read a stream -- the serializer did not say -- so a streaming query in any list linked to a page that would enqueue a warehouse job against a broker. QuerySource carried code whose only job was to bounce the browser back out of it after the navigation.",
+      "fix": "serialize is_streaming on the query (one cached SELECT per request, not per row); getUrl returns streams/query/<id>, and ignores the `source` flag because a streaming query has only one page; QueryView redirects rather than mounting.",
+      "tags": [
+        "streams",
+        "routing",
+        "js",
+        "0.7"
+      ],
+      "status": "fixed",
+      "id": "bug-009"
+    },
+    {
+      "error_message": "QueryView had no streaming support at all -- no streams_only anywhere in it",
+      "file": "client/app/pages/queries/QueryView.jsx",
+      "root_cause": "The view page shows a stored result and offers to re-run it. A streaming query stores nothing, so there was nothing to show and the Execute path would have gone to the warehouse runner. Reachable because the list linked there.",
+      "fix": "A wrapper component redirects to the editor before QueryView's hooks run, so none of them -- including the one that executes -- ever runs for a stream.",
+      "tags": [
+        "streams",
+        "js",
+        "0.7"
+      ],
+      "status": "fixed",
+      "id": "bug-010"
+    },
+    {
+      "error_message": "The Add Widget picker offered streaming queries for an ordinary dashboard, and vice versa",
+      "file": "client/app/components/QuerySelector.jsx",
+      "root_cause": "QuerySelector searched through Query.query({q}) with no kind, while handlers/widgets.py refuses a panel that would mix streams with saved queries. Every such choice therefore ended in the server's refusal, after the person had chosen.",
+      "fix": "QuerySelector takes a `kind`; AddWidgetDialog passes the dashboard's. Recent queries are filtered client-side because api/queries/recent has no filter of its own.",
+      "tags": [
+        "streams",
+        "dashboards",
+        "js",
+        "0.7"
+      ],
+      "status": "fixed",
+      "id": "bug-011"
+    },
+    {
+      "error_message": "Every helm upgrade left its migration Job and pod behind (79 on a minikube upgraded 84 times)",
+      "file": "charts/sqldesk/templates/migrate-job.yaml",
+      "root_cause": "The Job's name carried .Release.Revision. hook-delete-policy before-hook-creation removes only the previous Job of the same name, so with a new name every time nothing was ever removed.",
+      "fix": "Fixed name `<fullname>-migrate`; the last migration's Job stays with its log, older ones are replaced. tests/test_chart.py asserts no revision in the name. Old revision-named Jobs need a one-off manual delete.",
+      "tags": [
+        "helm",
+        "chart",
+        "migrations",
+        "0.7.5"
+      ],
+      "status": "fixed",
+      "id": "bug-012"
+    },
+    {
+      "error_message": "Under Argo CD (helm template) the chart would generate a new secretKey on every sync",
+      "file": "charts/sqldesk/templates/_helpers.tpl",
+      "root_cause": "Generated secrets are kept by `lookup`, which returns nothing under helm template / client-side dry-run. Argo CD renders with helm template, so randAlphaNum runs every sync and resource-policy: keep is Helm-only.",
+      "fix": "Not fixable in-chart (a first install and helm template both see no Secret). Documented in examples/values-production.yaml and docs/guide/deploying.html: create the Secret (cookie-secret, secret-key, database-url) and set secrets.existingSecret. Proved by helm template | kubectl apply twice in a restricted namespace.",
+      "tags": [
+        "helm",
+        "argocd",
+        "secrets",
+        "docs",
+        "0.7.5"
+      ],
+      "status": "documented",
+      "id": "bug-013"
+    },
+    {
+      "error_message": "Backup command in the deploy guide failed: secret \"sqldesk\" not found",
+      "file": "docs/guide/deploying.html",
+      "root_cause": "The generated Secret is named `<fullname>-secrets` (sqldesk-secrets), not `sqldesk`.",
+      "fix": "Corrected in the guide and in examples/values-production.yaml.",
+      "tags": [
+        "docs",
+        "secrets",
+        "0.7.5"
+      ],
+      "status": "fixed",
+      "id": "bug-014"
+    },
+    {
+      "error_message": "Protobuf schemas with references failed: the registry has no /subjects/common/money.proto/versions/1",
+      "file": "sqldesk/streams/decode.py",
+      "root_cause": "A Protobuf reference's subject is usually its import path, with slashes. Put in the URL unquoted it is a different path.",
+      "fix": "quote(subject, safe='') when fetching /subjects/<subject>/versions/<n>. Found by Confluent's ProtobufSerializer against a fake registry.",
+      "tags": [
+        "streams",
+        "protobuf",
+        "schema-registry",
+        "0.7.6"
+      ],
+      "status": "fixed",
+      "id": "bug-015"
+    },
+    {
+      "error_message": "CERTIFICATE_VERIFY_FAILED: Missing Authority Key Identifier, for a registry on a private CA the brokers accept",
+      "file": "sqldesk/streams/decode.py",
+      "root_cause": "Python 3.13's ssl.create_default_context sets VERIFY_X509_STRICT, which refuses certificates without an AKI -- common from internal and self-signed CAs. librdkafka does not insist, so brokers connected and the registry beside them was refused.",
+      "fix": "Clear VERIFY_X509_STRICT on the registry's context; signatures, expiry and names still checked. test_over_tls_it_trusts_the_clusters_own_ca uses AKI-less certificates.",
+      "tags": [
+        "streams",
+        "tls",
+        "python-3.13",
+        "schema-registry",
+        "0.7.6"
+      ],
+      "status": "fixed",
+      "id": "bug-016"
+    },
+    {
+      "error_message": "kubectl apply -f examples/kafka-demo.yaml restarted Redpanda and stripped the producers' resource limits",
+      "file": "examples/kafka-demo.yaml",
+      "root_cause": "The running demo had resources patched in live that the file never carried; apply replaced the pod templates with the file's.",
+      "fix": "Resources put in the file (Redpanda 256Mi/768Mi, producers 64Mi/256Mi) and re-applied. Diff live ReplicaSet templates against the file before applying it to a cluster somebody uses.",
+      "tags": [
+        "minikube",
+        "demo",
+        "kubectl",
+        "0.7.6"
+      ],
+      "status": "fixed",
+      "id": "bug-017"
+    },
+    {
+      "error_message": "Significant refactor of index.jsx",
+      "file": "client/app/components/ApplicationArea/index.jsx",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 9\u219228 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-018",
+      "timestamp": "2026-10-24T09:53:40.720Z",
+      "last_seen": "2026-10-24T09:53:40.720Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong return value",
+      "file": "client/app/components/ApplicationArea/index.jsx",
+      "root_cause": "Was returning: <ErrorMessage error={unhandledError} />;",
+      "fix": "Now returns: <Router routes={routes.items} onRouteChange={setCu",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-019",
+      "timestamp": "2026-10-24T09:53:52.049Z",
+      "last_seen": "2026-10-24T09:53:52.049Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/mcp/__init__.py",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 5\u21927 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-020",
+      "timestamp": "2026-10-24T10:09:06.219Z",
+      "last_seen": "2026-10-24T10:09:06.219Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/mcp/__init__.py",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 16\u219248 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-021",
+      "timestamp": "2026-10-24T10:09:18.265Z",
+      "last_seen": "2026-10-24T10:09:18.265Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of prometheus.py",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "15 lines replaced/restructured",
+      "fix": "Rewrote 22\u219253 lines (15 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-022",
+      "timestamp": "2026-10-24T10:24:23.166Z",
+      "last_seen": "2026-10-24T10:24:23.166Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong return value",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "Was returning: datetime.now()",
+      "fix": "Now returns: datetime.now(timezone.utc)",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-023",
+      "timestamp": "2026-10-24T10:24:26.429Z",
+      "last_seen": "2026-10-24T10:24:26.429Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Missing error handling in prometheus.py",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-024",
+      "timestamp": "2026-10-24T10:24:32.538Z",
+      "last_seen": "2026-10-24T10:24:32.538Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Missing error handling in sample_value()",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-025",
+      "timestamp": "2026-10-24T10:27:46.241Z",
+      "last_seen": "2026-10-24T10:27:46.241Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Missing error handling in api_error()",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-026",
+      "timestamp": "2026-10-24T10:30:19.014Z",
+      "last_seen": "2026-10-24T10:30:19.014Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of prometheus.py",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 4\u21926 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-027",
+      "timestamp": "2026-10-24T10:30:26.664Z",
+      "last_seen": "2026-10-24T10:30:26.664Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong operator: == should be !=",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "Used \"==\" instead of \"!=\"",
+      "fix": "Changed operator == \u2192 !=",
+      "tags": [
+        "auto-detected",
+        "operator-fix",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-028",
+      "timestamp": "2026-10-24T10:30:39.036Z",
+      "last_seen": "2026-10-24T10:30:39.036Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of test_prometheus.py",
+      "file": "tests/query_runner/test_prometheus.py",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 7\u219230 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-029",
+      "timestamp": "2026-10-24T10:31:00.115Z",
+      "last_seen": "2026-10-24T10:31:00.115Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of prometheus.py",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 20\u219235 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-030",
+      "timestamp": "2026-10-24T10:32:56.556Z",
+      "last_seen": "2026-10-24T10:32:56.556Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Missing error handling in _timeout()",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-031",
+      "timestamp": "2026-10-24T10:33:09.652Z",
+      "last_seen": "2026-10-24T10:33:09.652Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M1: MCP refused every PromQL query on a Mimir source -- 'Only a read (SELECT, WITH, SHOW, DESCRIBE) can be run from here.'",
+      "file": "sqldesk/mcp/__init__.py",
+      "root_cause": "MCP decided a source's language from a hand-kept list of data source types. `mimir` was never added to it (nor yandex_metrika/yandex_appmetrika/yandex_disk/google_search_console), so PromQL was parsed as SQL.",
+      "fix": "Every runner declares `query_language` (sqldesk/query_runner/__init__.py), with READ_ONLY_LANGUAGES/UNCHECKABLE_LANGUAGES keyed by language. mcp's _language()/_by_language() read it. check_sql and explain_query refuse a non-SQL language outright via _not_sql_here().",
+      "tags": [
+        "mimir",
+        "promql",
+        "mcp",
+        "query_language",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-032",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M2: `a + b` reached Prometheus as `a   b` (400), and `web-[0-9]+` as `web-[0-9] `",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "The query body was read with urllib.parse.parse_qs, which reads a form submission: `+` decodes to a space, and every `&` splits -- including one inside a label value.",
+      "fix": "split_query_body(): split only before one of API_PARAMETERS, percent-decode with unquote (not unquote_plus).",
+      "tags": [
+        "mimir",
+        "promql",
+        "parse_qs",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-033",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M3: a refused Prometheus/Mimir query showed only '400 Client Error: Bad Request for url: ...'",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "response.raise_for_status() discarded the JSON body, which is where Prometheus names the problem (errorType/error).",
+      "fix": "api_error(response) reads the body's errorType/error, falls back to the text, then the status; run_query/get_schema/Mimir.test_connection use it.",
+      "tags": [
+        "mimir",
+        "error-message",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-034",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M4: a mistyped Mimir tenant read as the error 'query result is empty.' while the connection test passed",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "An empty result set was returned as an error, and Mimir.test_connection ran `query=1`, which Mimir answers without reading a series -- so any tenant string passed.",
+      "fix": "An empty result is now rows=[] with no error. test_connection asks /api/v1/label/__name__/values and fails, naming the tenant, when it holds no metrics.",
+      "tags": [
+        "mimir",
+        "tenant",
+        "x-scope-orgid",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-035",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M5: KeyError on 'value'/'metric' for scalar, string and native-histogram results, and for a range selector in an instant query",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "The result shape was inferred from the endpoint called rather than read from the answer's resultType; only vector and matrix were handled.",
+      "fix": "guess_result_type()/rows_for() dispatch on resultType (guessing from the shape when absent); get_scalar_rows() and histogram_fields() added; /api/v1/query answering a matrix is read as one.",
+      "tags": [
+        "mimir",
+        "promql",
+        "result-type",
+        "histogram",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-036",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M6: Grafana Cloud's /api/prom 404'd on every query; the Mimir API prefix could not be set",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "api_base_url read configuration['prometheus_prefix'] but configuration_schema never offered the field, so /prometheus was the only value it could have.",
+      "fix": "prometheus_prefix is in the Mimir schema (default /prometheus, in order and extra_options); an emptied value means the API is at the root.",
+      "tags": [
+        "mimir",
+        "grafana-cloud",
+        "configuration",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-037",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M7: start=now-1h raised, an RFC3339 offset was dropped, and start/end with no step ran as an instant query",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "convert_query_range() sent the value to dateutil (which raises on now-1h) and converted with time.mktime, which reads a datetime as the worker's local time; a range without a step fell through to /api/v1/query.",
+      "fix": "resolve_time()/epoch(): now and now-1h understood, a naive time read as UTC, an aware one keeping its offset; a start or end with no step returns a message asking for one; sample_time() returns UTC-aware datetimes.",
+      "tags": [
+        "mimir",
+        "timezone",
+        "time.mktime",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-038",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M8: labels only the first series carried became columns, and `value` was a string so charts got a category axis",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "Columns were built from result[0]['metric'].keys() and the value was passed through as the text the API sends.",
+      "fix": "columns_for() takes the union of the keys over every row; sample_value() converts to float (NaN/+Inf survive); the value column is TYPE_FLOAT, TYPE_STRING only for a string result.",
+      "tags": [
+        "mimir",
+        "columns",
+        "charts",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-039",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M9: a Prometheus that accepted the connection and never answered held a worker until the job's limit",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "No requests call passed a timeout, and get_schema runs from the scheduler, where there is no job limit to reach.",
+      "fix": "_timeout() with DEFAULT_TIMEOUT=30, a configurable `timeout` option, applied through _get_prometheus_kwargs so every request carries it.",
+      "tags": [
+        "mimir",
+        "timeout",
+        "reliability",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-040",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of Dockerfile",
+      "file": "Dockerfile",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 35\u2192140 lines (9 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "unknown"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-041",
+      "timestamp": "2026-10-25T10:16:27.921Z",
+      "last_seen": "2026-10-25T10:16:27.921Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "id": "bug-042",
+      "error_message": "helm upgrade failed: Deployment sqldesk-redis invalid -- spec.strategy.rollingUpdate: Forbidden: may not be specified when strategy `type` is 'Recreate'",
+      "root_cause": "The Redis deployment was given `strategy: type: Recreate` so that two Redises never run behind one Service during an upgrade. Kubernetes defaults `rollingUpdate` (maxSurge/maxUnavailable) on every RollingUpdate deployment and the API server owns those defaults, so a server-side apply that sets type=Recreate over an existing deployment does not clear them and the object is rejected. The whole `helm upgrade` fails -- not just that deployment -- for every install that has ever run this chart. A fresh install would have been fine, which is why nothing before the first real upgrade caught it.",
+      "fix": "Express it as RollingUpdate with maxSurge 0 and maxUnavailable 1. With one replica that is the same behaviour -- the old pod terminates before the new one starts -- and it applies cleanly over an existing deployment. charts/sqldesk/templates/redis.yaml; tests/test_chart.py asserts maxSurge 0 and the absence of 'type: Recreate'.",
+      "tags": [
+        "helm",
+        "kubernetes",
+        "upgrade",
+        "redis",
+        "server-side-apply"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    }
+  ],
+  "applied_observations": {
+    "38a95456-f559-4e29-88a3-e72ed8273b31": true,
+    "bd166722-558e-447a-8a30-aa883acaeded": true,
+    "e58b45e3-f465-4b95-aca7-9f3ba2c2b0b5": true,
+    "dd811c28-f43e-4392-ab03-d5734d6adb0d": true,
+    "152be237-24f2-4c0e-89f3-42f7528c45cd": true,
+    "bc09c25c-7ee1-4254-9e3c-3aec1f7c1c24": true,
+    "f1a9f5df-cb92-47cf-aa94-977f8c291d98": true,
+    "c4398d4c-ad9b-4f20-80dd-dbbce4cdb505": true,
+    "f749f70c-ace2-4fec-8711-8a0548ff8385": true,
+    "847a56b9-69dd-4d27-8cc0-c823d28490e3": true,
+    "d3849790-e545-488f-b353-58b46b96f220": true,
+    "1e9c4b12-1bea-418f-86af-0150502b9a9f": true,
+    "bb0e33ab-6f48-4e92-8acc-60723dc5c115": true,
+    "35b25ec5-717b-4ed1-b362-71840325b94a": true,
+    "e781d5fc-7a24-4bd0-960c-75cbe9e9ac77": true,
+    "886504d2-7726-48e1-a692-105c87f78223": true,
+    "f6ca451d-5d63-4062-a372-5d3aff3f7b02": true,
+    "f2f267d8-e756-4484-bc40-0625fdc843cd": true,
+    "7fe359e5-7f83-4077-8476-e102ba4efe67": true,
+    "fd79c25f-4e02-4bf1-beed-292227fcaa52": true,
+    "fb0be46b-ecbd-48a9-8c27-6e75795cef7a": true,
+    "f678aa72-2d25-4d68-9495-d4f7f2415faa": true,
+    "dfdd981a-446a-4a9d-bd1a-c5306c2e29e1": true
+  },
+  "next_id": 42
+}
