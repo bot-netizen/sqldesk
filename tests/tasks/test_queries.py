@@ -374,9 +374,17 @@ class QueryLockTests(BaseTestCase):
         redis_connection.delete(self.key)
         super().tearDown()
 
-    def run_with_lock_held(self, run_query_returns):
-        """Execute a query with the lock in place, noting when it is released."""
-        redis_connection.set(self.key, "a-job-id")
+    def run_with_lock_held(self, run_query_returns, lock_holder="this-job"):
+        """
+        Execute a query with the lock in place, noting when it is released.
+
+        The lock holds the *executing* job's id, because that is what
+        `enqueue_query` writes: it creates the job and records its id under
+        this key. A test that put some other value there would be describing
+        a different situation -- somebody else's lock -- which the last test
+        below covers deliberately.
+        """
+        redis_connection.set(self.key, lock_holder)
         seen = {}
         real_store = models.QueryResult.store_result.__func__
 
@@ -384,13 +392,18 @@ class QueryLockTests(BaseTestCase):
             seen["locked_while_storing"] = bool(redis_connection.exists(self.key))
             return real_store(cls, *args, **kwargs)
 
-        with patch.object(PostgreSQL, "run_query") as qr:
-            qr.return_value = run_query_returns
-            with patch.object(models.QueryResult, "store_result", classmethod(watching_store)):
-                # execute_query catches QueryExecutionError and hands it back
-                # as the result rather than raising, so a failure arrives here
-                # as a value.
-                seen["outcome"] = execute_query(self.query_text, self.factory.data_source.id, {})
+        running = Mock()
+        running.id = "this-job"
+        running.is_cancelled = False
+
+        with patch("sqldesk.tasks.queries.execution.get_current_job", return_value=running):
+            with patch.object(PostgreSQL, "run_query") as qr:
+                qr.return_value = run_query_returns
+                with patch.object(models.QueryResult, "store_result", classmethod(watching_store)):
+                    # execute_query catches QueryExecutionError and hands it
+                    # back as the result rather than raising, so a failure
+                    # arrives here as a value.
+                    seen["outcome"] = execute_query(self.query_text, self.factory.data_source.id, {})
         seen["locked_after"] = bool(redis_connection.exists(self.key))
         return seen
 
@@ -419,3 +432,15 @@ class QueryLockTests(BaseTestCase):
 
         self.assertIsInstance(seen["outcome"], QueryExecutionError)
         self.assertFalse(seen["locked_after"], "a failed query left its lock behind")
+
+    def test_but_it_does_not_release_a_lock_a_newer_job_has_taken(self, _):
+        """
+        The other half of the window. A job finishing just after a second one
+        has taken the lock used to delete it anyway -- so the next request for
+        that query started a third run of it, against the data source, while
+        the second was still going.
+        """
+        seen = self.run_with_lock_held(({"columns": [], "rows": []}, None), lock_holder="a-newer-job")
+
+        self.assertTrue(seen["locked_after"], "a finished job released somebody else's lock")
+        self.assertEqual("a-newer-job", redis_connection.get(self.key))
