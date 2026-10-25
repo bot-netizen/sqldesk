@@ -1,12 +1,13 @@
 # Where the project is
 
-Last true on **2026-10-20**. Update this in the same commit as whatever
+Last true on **2026-10-25**. Update this in the same commit as whatever
 changed it.
 
 ## Released
 
 | Version | Name | When | Notes |
 |---|---|---|---|
+| 0.7.7 | **Scale** | 25 Oct 2026 | Threaded web tier with ceilings, a worker of its own for the periodic queues, the image at 1.22 GB, an agent's exploration at 967 tokens, and a tag that cannot publish an untested image |
 | 0.7.6 | **Schemas** | 20 Oct 2026 | Streams read Avro and Protobuf: through a schema registry, or from uploaded `.avsc` / `.proto` |
 | 0.7.5 | **Kept Secrets** | 20 Oct 2026 | One migration Job instead of one per upgrade; with Argo CD, make the Secret yourself |
 | 0.7.4 | **Real Cluster** | 20 Oct 2026 | Restricted Pod Security, `examples/values-production.yaml`, Kafka TLS with your own certificates |

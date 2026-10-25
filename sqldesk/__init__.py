@@ -15,7 +15,7 @@ from sqldesk.app import create_app  # noqa
 from sqldesk.destinations import import_destinations
 from sqldesk.query_runner import import_query_runners
 
-__version__ = "0.7.6"
+__version__ = "0.7.7"
 
 
 if os.environ.get("REMOTE_DEBUG"):

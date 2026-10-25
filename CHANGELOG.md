@@ -1,5 +1,117 @@
 # Changelog
 
+## 0.7.7
+
+**The web tier serves more than four requests at a time.** gunicorn ran sync
+workers, so four processes meant four concurrent requests and a fifth waited
+behind a dashboard. It runs threaded now (`--worker-class gthread`,
+`SQLDESK_WEB_THREADS`, 8 by default). Connections from the web tier carry a
+30-second statement timeout, every connection is checked before it is handed
+out (`SQLALCHEMY_ENABLE_POOL_PRE_PING`, now on), and both tiers get an
+idle-in-transaction timeout. Workers deliberately get no statement timeout:
+storing a very large result is one long INSERT, and cancelling it would fail
+a query that had already run.
+
+**Scheduling, alerts and mail no longer wait behind two slow queries.** The
+periodic jobs had been sharing a worker with query execution. They have one
+of their own (`periodicWorker` in the chart, a second worker in compose), so
+a warehouse having a bad afternoon no longer stops alerts from firing.
+
+**Three defaults changed, each because the old value was "no limit".**
+`SQLDESK_ADHOC_QUERY_TIME_LIMIT` is 900 seconds, `SQLDESK_SCHEDULED_QUERY_TIME_LIMIT`
+1800, and `SQLDESK_MCP_WRITES_PER_DAY` 50. Each can be set back to no limit;
+the point is that the default is not.
+
+**Four indexes, a lock that cannot be stolen, and a pause that survives a
+restart.** The indexes cover the paths a dashboard view actually walks, and
+are created `CONCURRENTLY` so an install with large tables is not locked out
+while they build. The job lock is compare-and-delete, so a finishing job
+cannot release the lock a newer one has taken. A paused data source is
+recorded in Postgres rather than only in Redis, so a Redis restart does not
+quietly un-pause it.
+
+**The image is 1.22 GB, down from 1.59.** A two-stage build: the compiler,
+the headers and `uv` stay in the stage that needs them, and the runtime
+carries the drivers and nothing that built them. Verified by running it --
+75 of 75 runner types, every driver importing, and the suite running inside
+the image.
+
+**An agent is given the same answer for less than half the tokens.**
+`structuredContent` is gone: it was sent with no `outputSchema` declared, so
+no client could rely on it, and it repeated about 90% of each answer's bytes.
+Panels of one query collapse onto one line, four dashboards are described
+rather than eight and the rest are named, and the tool descriptions say what
+a tool does and when to reach for it instead of selling it. Measured against
+the same catalog: one exploration fell from 2,247 tokens to 967, and the tool
+list from 1,087 to 892. Nothing was taken from the catalog, the column
+meanings, the verified badges or the agreed measures -- they cost 153 tokens
+and they are why the rest can be short.
+
+**An agent can write back, and be held to it.** `save_query`,
+`update_query`, `propose_measure` and `update_table`, offered only to a
+personal API key whose owner may already do that by hand. Saved queries
+arrive as drafts, measures as proposals a curator agrees, writes are capped
+per day, and every call is audited with what it changed -- refusals
+included.
+
+**Grafana Mimir, and PromQL that arrives as it was written.** A Prometheus
+runner that can carry a credential, a tenant header, a configurable API
+prefix and a timeout; `a + b` no longer reaches the server as `a   b`;
+scalars, strings and native histograms are results rather than KeyErrors; and
+an empty answer is an empty answer rather than an error.
+
+### Security-shaped fixes
+
+- A dashboard subscription is not sent to somebody who cannot see every
+  widget on it.
+- A catalog curator sees only the data sources their groups can read.
+- A ClickHouse password stays out of URLs and logs, and a query that times
+  out is stopped on the server rather than left running.
+- A stream query cannot reach outside its own window.
+
+### Found by deploying it
+
+- `strategy: type: Recreate` on the bundled Redis made every `helm upgrade`
+  of an existing install fail, because Kubernetes owns the defaulted
+  `rollingUpdate` and will not take Recreate over it. It is `maxSurge: 0`.
+- Regenerating a query's API key answered without the key, so the dialog
+  blanked its own field and offered `?api_key=undefined` URLs.
+- A textbox widget posted without `visualization_id` was a 500. Absent means
+  a textbox, as the docstring already said.
+- Two tests left global state behind -- a MagicMock on `Alert.evaluate`, and
+  alembic's `fileConfig` switching off every logger in the process. The
+  second silenced `manage db upgrade` as well as the suite.
+
+### CI
+
+A tag cannot publish an image whose tests were never run: the build job reads
+the Tests run for that commit and refuses otherwise. The image is started and
+asked for `/ping` before it is pushed, every runner module is imported, and
+the chart is rendered three ways on every push.
+
+### Upgrading
+
+**Four migrations.** `catalog_provenance`, `indexes_for_the_hot_paths`,
+`pause_in_postgres` and `subscription_backoff`. The index migration creates
+its indexes `CONCURRENTLY` inside an autocommit block, so it does not lock
+the tables it is indexing -- but for the same reason it cannot be run inside
+a surrounding transaction, and on a large install it takes as long as it
+takes.
+
+**Helm:** the bundled Redis changes its update strategy, and a second worker
+appears for the periodic queues. Both apply cleanly over 0.7.6.
+`--reset-then-reuse-values`, not `--reuse-values`, or the new values come
+through empty.
+
+**Compose:** `compose.prod.yaml` gains the periodic worker. Pin the image,
+migrate, then start:
+
+    # .env
+    SQLDESK_IMAGE=ghcr.io/bot-netizen/sqldesk:0.7.7
+    docker compose -f compose.prod.yaml pull
+    docker compose -f compose.prod.yaml run --rm server manage db upgrade
+    docker compose -f compose.prod.yaml up -d
+
 ## 0.7.6
 
 **Streams read Avro and Protobuf, not only JSON.** A topic's message format is
