@@ -265,11 +265,14 @@ somebody already answered this".</p>
     fell off the end of that list.</dd>
 </dl>
 <div class="note">
-  <div class="note-h">Answers come back twice: as prose, and as data</div>
-  <p>These three, and <code>find_measures</code>, also return their answer as MCP
-  <code>structuredContent</code>. The text is written to be read and leaves things out that would be
-  noise in prose; the data says <code>null</code> where there is nothing, rather than leaving a client to
-  parse "none" and "?" out of a sentence meant for a person.</p>
+  <div class="note-h">One answer, written to be read</div>
+  <p>These used to come back twice &mdash; once as prose and again as MCP
+  <code>structuredContent</code> &mdash; so that a client would not have to parse "none" out of a
+  sentence meant for a person. Measured, the second copy was about 90% of the answer's bytes again,
+  and no tool here declares the <code>outputSchema</code> that would let a client depend on it, so
+  it was a question paid for twice. It is gone. If a typed answer is wanted it will come back with
+  the schema that makes it dependable, and the prose will shorten to a summary rather than repeat
+  it.</p>
 </div>
 
 <h3>Understand the data</h3>
