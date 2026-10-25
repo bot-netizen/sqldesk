@@ -13,7 +13,7 @@ import "./HelpTrigger.less";
 // `sqldesk.github.io/sqldesk/help/...` with paths inherited from the upstream
 // docs site -- a domain that is not ours and paths that never existed, so
 // all twenty-five of them answered 404.
-const DOMAIN = "https://bot-netizen.github.io/sqldesk";
+const DOMAIN = "https://sqldesk.org";
 const GUIDE = "/guide";
 
 export const TYPES = mapValues(

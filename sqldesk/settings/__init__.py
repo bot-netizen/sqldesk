@@ -105,7 +105,7 @@ SECRET_KEY = os.environ.get("SQLDESK_COOKIE_SECRET")
 
 if SECRET_KEY is None:
     raise Exception(
-        "You must set the SQLDESK_COOKIE_SECRET environment variable. See https://bot-netizen.github.io/sqldesk/guide/deploying.html#settings for more information."
+        "You must set the SQLDESK_COOKIE_SECRET environment variable. See https://sqldesk.org/guide/deploying.html#settings for more information."
     )
 
 # The secret key to use when encrypting data source options
@@ -291,14 +291,20 @@ UPLOAD_UNLOAD_AFTER_DAYS = int(os.environ.get("SQLDESK_UPLOAD_UNLOAD_AFTER_DAYS"
 #: no figures is a message nobody can act on.
 UPLOAD_QUOTA_MB = int(os.environ.get("SQLDESK_UPLOAD_QUOTA_MB", "5120"))
 # Time limit (in seconds) for scheduled queries. Set this to -1 to execute without a time limit.
-# Time limit (in seconds) for adhoc queries. Set this to -1 to execute without a time limit.
+# Time limit (in seconds) for adhoc queries. Set this to -1 to execute without
+# a time limit.
 #
-# Five minutes rather than no limit at all. A query with no time limit holds a
+# Fifteen minutes rather than no limit at all. A query with no limit holds a
 # worker for as long as the warehouse will keep the connection open -- hours,
 # in the cases that matter -- while passing every health probe, so an install
-# loses its capacity to something nobody is waiting for any more. Raise it
-# where a query legitimately takes longer, or set -1 for the old behaviour.
-ADHOC_QUERY_TIME_LIMIT = int(os.environ.get("SQLDESK_ADHOC_QUERY_TIME_LIMIT", 300))
+# loses its capacity to something nobody is waiting for any more.
+#
+# Fifteen rather than five because a real warehouse has real slow queries: an
+# unindexed join over a year of events, a first run against cold storage. The
+# number is high enough that an honest query finishes and low enough that a
+# runaway one is not still holding a worker after lunch. Raise it per install
+# with SQLDESK_ADHOC_QUERY_TIME_LIMIT, or set -1 for no limit at all.
+ADHOC_QUERY_TIME_LIMIT = int(os.environ.get("SQLDESK_ADHOC_QUERY_TIME_LIMIT", 900))
 
 #: And for a scheduled one, which nobody is sitting in front of: half an hour.
 #: Same reasoning, longer rope -- an overnight roll-up is allowed to be slow,
@@ -702,6 +708,14 @@ MCP_AUDIT_RETENTION_DAYS = int(os.environ.get("SQLDESK_MCP_AUDIT_RETENTION_DAYS"
 # Refused MCP calls recorded per address per minute. Past it they are still
 # refused, just not each written down.
 MCP_AUDIT_REFUSALS_PER_MINUTE = int(os.environ.get("SQLDESK_MCP_AUDIT_REFUSALS_PER_MINUTE", "60"))
+
+# How many things one person's key may write through MCP in a day.
+#
+# An agent told to describe a warehouse will describe the whole warehouse, and
+# a loop that is getting it wrong will do it just as fast. Fifty is enough for
+# somebody working through their catalog with help, and small enough that a
+# mistake is a morning's review rather than a restore. 0 means no limit.
+MCP_WRITES_PER_DAY = int(os.environ.get("SQLDESK_MCP_WRITES_PER_DAY", "50"))
 
 FEATURE_DISABLE_REFRESH_QUERIES = parse_boolean(os.environ.get("SQLDESK_FEATURE_DISABLE_REFRESH_QUERIES", "false"))
 FEATURE_SHOW_QUERY_RESULTS_COUNT = parse_boolean(os.environ.get("SQLDESK_FEATURE_SHOW_QUERY_RESULTS_COUNT", "true"))

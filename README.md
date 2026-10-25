@@ -4,7 +4,7 @@
   <p><strong>One place for everything you do with data.</strong></p>
   <p>Query 35+ data sources, build dashboards, and share what you find — self-hosted, no per-seat pricing.</p>
   <p>
-    <a href="https://bot-netizen.github.io/sqldesk/">Website</a> &middot;
+    <a href="https://sqldesk.org/">Website</a> &middot;
     <a href="CHANGELOG.md">Changelog</a> &middot;
     <a href="https://github.com/bot-netizen/sqldesk/discussions">Discussions</a>
   </p>
@@ -16,11 +16,11 @@
 </div>
 
 <div align="center">
-  <a href="https://bot-netizen.github.io/sqldesk/#demo">
+  <a href="https://sqldesk.org/#demo">
     <img src="docs/assets/live-dashboard.jpg" alt="A SQLDesk dashboard refreshing itself: a stat with a sparkline, a gauge, progress against target, and charts with goal lines" width="900">
   </a>
   <p><em>A live dashboard, refreshed on the server every 30 seconds — nobody is pressing refresh.<br>
-  <a href="https://bot-netizen.github.io/sqldesk/#demo">Watch the 15-second demo</a></em></p>
+  <a href="https://sqldesk.org/#demo">Watch the 15-second demo</a></em></p>
 </div>
 
 ---
@@ -44,7 +44,7 @@ charge you for them.
 - **Permissions** — groups, per-data-source access, view-only roles, shareable public links
 - **MCP** — an endpoint at `/mcp` with eight read-only tools over your schema and saved queries, run as the
   user whose API key it is and audited; off until `SQLDESK_FEATURE_AI=true`. See the
-  [MCP guide](https://bot-netizen.github.io/sqldesk/guide/mcp.html)
+  [MCP guide](https://sqldesk.org/guide/mcp.html)
 
 ## Running it
 
@@ -66,7 +66,7 @@ docker compose -f compose.prod.yaml up -d
 SQLDesk comes up on `http://localhost:5000`, and the first page makes your
 organization and administrator account. Set `SQLDESK_IMAGE` in `.env` to pin a
 different tag. MCP and the alert-picture renderer are add-ons, off by default:
-[Deploying](https://bot-netizen.github.io/sqldesk/guide/deploying.html#services)
+[Deploying](https://sqldesk.org/guide/deploying.html#services)
 says how to turn each on.
 
 On Kubernetes, the Helm chart in `charts/sqldesk` does the same:

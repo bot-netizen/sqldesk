@@ -23,7 +23,7 @@ The following is a set of guidelines for contributing to SQLDesk. These are guid
 ## Quick Links:
 
 - [Discussions](https://github.com/bot-netizen/sqldesk/discussions)
-- [Documentation](https://bot-netizen.github.io/sqldesk/)
+- [Documentation](https://sqldesk.org/)
 
 
 ---
@@ -84,7 +84,7 @@ After your pull request has been approved, a member of the core team will merge 
 
 ### Documentation
 
-The site at [bot-netizen.github.io/sqldesk](https://bot-netizen.github.io/sqldesk/) is built from the `docs/` directory in this repository and published by GitHub Pages on every push to `main`. Edit the HTML there and open a pull request; there is no separate docs repository and no build step.
+The site at [sqldesk.org](https://sqldesk.org/) is built from the `docs/` directory in this repository and published by GitHub Pages on every push to `main`. Edit the HTML there and open a pull request; there is no separate docs repository and no build step.
 
 ## Additional Notes
 

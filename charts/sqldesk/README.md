@@ -126,7 +126,7 @@ the ordinary worker takes `mcp` too, last, so the queue is never left
 unserved.
 
 Then point a client at `/mcp` with a SQLDesk API key. See
-[the MCP guide](https://bot-netizen.github.io/sqldesk/guide/mcp.html).
+[the MCP guide](https://sqldesk.org/guide/mcp.html).
 
 ## Pictures in alert emails
 

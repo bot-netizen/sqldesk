@@ -31,7 +31,7 @@ function DeprecatedEmbedFeatureAlert() {
         <>
           You have enabled <code>ALLOW_PARAMETERS_IN_EMBEDS</code>. This setting is now deprecated and should be turned
           off. Parameters in embeds are supported by default.{" "}
-          <Link href="https://bot-netizen.github.io/sqldesk" target="_blank" rel="noopener noreferrer">
+          <Link href="https://sqldesk.org" target="_blank" rel="noopener noreferrer">
             Read more
           </Link>
           .

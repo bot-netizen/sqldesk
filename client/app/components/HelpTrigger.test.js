@@ -5,7 +5,7 @@ import { helpTriggerWithTypes, TYPES } from "./HelpTrigger";
 // Built the way the application registers it. The drawer version took the
 // docs domain as the one it would frame, so a test without it would pass
 // against the drawer too.
-const HelpTrigger = helpTriggerWithTypes(TYPES, ["https://bot-netizen.github.io/sqldesk"]);
+const HelpTrigger = helpTriggerWithTypes(TYPES, ["https://sqldesk.org"]);
 
 /*
   The "?" opens the docs in a new tab. It used to frame the page in a 400px
@@ -17,7 +17,7 @@ describe("HelpTrigger", () => {
     const wrapper = mount(<HelpTrigger type="MCP_CONNECT" />);
     const link = wrapper.find("a.help-trigger");
 
-    expect(link.prop("href")).toBe("https://bot-netizen.github.io/sqldesk/guide/mcp.html#connecting");
+    expect(link.prop("href")).toBe("https://sqldesk.org/guide/mcp.html#connecting");
     expect(link.prop("target")).toBe("_blank");
     expect(link.prop("rel")).toContain("noopener");
   });
