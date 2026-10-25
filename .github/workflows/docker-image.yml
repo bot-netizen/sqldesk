@@ -15,6 +15,37 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # A tag publishes to a registry people pull from, and this workflow's tag
+  # trigger is independent of the Tests workflow -- so until now `git tag v…`
+  # published whatever was at that commit, green or red. This asks whether the
+  # Tests run for this exact commit succeeded, and stops the build if it did
+  # not.
+  #
+  # Only for tags: a push to main is already gated by the tests on the pull
+  # request, and a manual run is somebody deciding.
+  tested:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Did the tests pass on this commit?
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          conclusion=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$SHA&per_page=1" \
+            --jq '.workflow_runs[0].conclusion // "none"')
+          echo "Tests run for $SHA: $conclusion"
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::Refusing to publish $SHA: its Tests run is '$conclusion', not 'success'."
+            echo "Run the Tests workflow on this commit, or re-run the failed one, before tagging."
+            exit 1
+          fi
+
   # Each platform is built on a machine of its own architecture. Building arm64
   # on an amd64 runner meant emulating it, and under emulation installing the
   # Python dependencies took 22 minutes against 3, and the frontend 30 against
@@ -29,6 +60,11 @@ jobs:
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
+    # `always()` so a push to main or a manual run -- where `tested` is skipped
+    # -- still builds; a skipped job is not a failed one, but without this the
+    # dependency would make the whole build skip with it.
+    needs: tested
+    if: always() && (needs.tested.result == 'success' || needs.tested.result == 'skipped')
     permissions:
       contents: read
       # Needed to push to the GitHub Container Registry with the built-in token,
@@ -73,6 +109,80 @@ jobs:
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=${{ env.PLATFORM_PAIR }}
           cache-to: type=gha,scope=${{ env.PLATFORM_PAIR }},mode=max
+
+      # The image, run, before anybody can pull it.
+      #
+      # Everything above this proves the image *builds*. What breaks a release
+      # is an image that builds and then cannot start: a shared library left
+      # in the builder stage of a multi-stage Dockerfile, a console script
+      # that did not come across, a data source whose driver is quietly
+      # missing. None of that fails a build, and all of it fails a user. The
+      # layers are already in the cache, so loading the image for this costs
+      # seconds.
+      - name: Load the image onto this runner
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          build-args: install_groups=main,all_ds
+          load: true
+          tags: sqldesk:smoke
+          cache-from: type=gha,scope=${{ env.PLATFORM_PAIR }}
+
+      - name: Does it start, and are the data sources all there?
+        env:
+          SQLDESK_COOKIE_SECRET: smoke-test-only
+          SQLDESK_SECRET_KEY: smoke-test-only
+        run: |
+          set -euo pipefail
+          run() {
+            docker run --rm \
+              -e SQLDESK_COOKIE_SECRET -e SQLDESK_SECRET_KEY \
+              --entrypoint /app/bin/docker-entrypoint sqldesk:smoke "$@"
+          }
+
+          echo "::group::Query runners"
+          run manage ds list_types | tee types.txt
+          echo "::endgroup::"
+          count=$(grep -cE '^[a-z0-9_]+' types.txt)
+          echo "$count query runner types"
+          # Fewer than this means a driver did not make it into the image. The
+          # exact number differs by platform -- the ODBC drivers are amd64
+          # only -- so this is a floor, not an equality.
+          [ "$count" -ge 70 ] || { echo "::error::only $count runner types; a driver is missing"; exit 1; }
+
+          echo "::group::Every runner module imports"
+          docker run --rm -e SQLDESK_COOKIE_SECRET -e SQLDESK_SECRET_KEY \
+            --entrypoint python sqldesk:smoke -c '
+          import importlib, pkgutil, sys, sqldesk.query_runner as qr
+          broken = []
+          for module in pkgutil.iter_modules(qr.__path__):
+              try:
+                  importlib.import_module("sqldesk.query_runner." + module.name)
+              except Exception as error:
+                  broken.append((module.name, type(error).__name__, str(error)[:120]))
+          for name, kind, message in broken:
+              print("BROKEN", name, kind, message)
+          sys.exit(1 if broken else 0)'
+          echo "::endgroup::"
+
+          echo "::group::The server answers"
+          docker run -d --name smoke -p 5000:5000 \
+            -e SQLDESK_COOKIE_SECRET -e SQLDESK_SECRET_KEY sqldesk:smoke server
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://localhost:5000/ping >/dev/null 2>&1; then
+              echo "/ping answered after ${attempt}s"
+              docker logs smoke 2>&1 | tail -5
+              docker rm -f smoke >/dev/null
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::the server did not answer /ping within 30s"
+          docker logs smoke 2>&1 | tail -40
+          docker rm -f smoke >/dev/null
+          exit 1
+          echo "::endgroup::"
 
       - name: Keep the digest for the merge
         run: |
