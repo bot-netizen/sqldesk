@@ -23,9 +23,12 @@ class TestAQueryHasATimeLimit(BaseTestCase):
     matter, and the worker goes on answering its health probe the whole time.
     """
 
-    def test_an_ad_hoc_query_is_given_five_minutes(self):
-        self.assertEqual(300, settings.ADHOC_QUERY_TIME_LIMIT)
-        self.assertEqual(300, dynamic_settings.query_time_limit(False, 1, 1))
+    def test_an_ad_hoc_query_is_given_fifteen_minutes(self):
+        # Long enough for an unindexed join over a year of events or a first
+        # run against cold storage; short enough that a runaway query is not
+        # still holding a worker after lunch.
+        self.assertEqual(900, settings.ADHOC_QUERY_TIME_LIMIT)
+        self.assertEqual(900, dynamic_settings.query_time_limit(False, 1, 1))
 
     def test_a_scheduled_one_is_given_half_an_hour(self):
         # Nobody is sitting in front of it, so it may be slow -- but not

@@ -183,6 +183,33 @@ the cookie secret encrypts credentials too, and rotating it for sessions then lo
 not to break old installs. The application has always sent the token; API-key calls, MCP included, are not
 affected.</p>
 
+<h2 id="limits">Limits worth knowing about</h2>
+<p>Three defaults changed in 0.7.7, each because the old value was "no limit" and no limit is a way
+for one query to cost an install its capacity while every health check still passes.</p>
+<table>
+  <tr><th>Variable</th><th>Default</th><th>What it does</th></tr>
+  <tr>
+    <td><code>SQLDESK_ADHOC_QUERY_TIME_LIMIT</code></td><td>900</td>
+    <td>Seconds a query somebody is waiting for may run. Fifteen minutes is long enough for an
+      unindexed join over a year of events or a first read from cold storage, and short enough that
+      a runaway query is not still holding a worker after lunch. Raise it if your warehouse is
+      genuinely slower; <code>-1</code> is no limit, as before.</td>
+  </tr>
+  <tr>
+    <td><code>SQLDESK_SCHEDULED_QUERY_TIME_LIMIT</code></td><td>1800</td>
+    <td>The same for a scheduled run, which nobody is sitting in front of.</td>
+  </tr>
+  <tr>
+    <td><code>SQLDESK_MCP_WRITES_PER_DAY</code></td><td>50</td>
+    <td>How many catalog descriptions, measures or saved queries one person's API key may write
+      through MCP in a day. An agent told to describe a warehouse will describe the whole
+      warehouse; this keeps a mistake to a morning's review. <code>0</code> is no limit.</td>
+  </tr>
+</table>
+<p>A query stopped by its limit says so, and the limit is per install rather than per query &mdash; if
+one report legitimately takes an hour, schedule it rather than raising the ad-hoc limit for
+everybody.</p>
+
 <h2 id="mail">Mail</h2>
 <p>Invitations, password resets and alert emails need a mail server. In <code>.env</code>:</p>
 <pre><code>SQLDESK_MAIL_SERVER=smtp.example.com
