@@ -16,6 +16,8 @@ belongs here, where a rename cannot reach it.
 | [local-dev.md](local-dev.md) | The minikube cluster, the Kafka demo stack, and the traps that cost hours |
 | [scale.md](scale.md) | What breaks at 500 concurrent users, measured, and what it would cost to run |
 | [0.7-nav.md](0.7-nav.md) | The nav restructure: why there is no vendor name in the bar, and what `Streaming` means next to `Live` |
+| [0.7.7-plan.md](0.7.7-plan.md) | The release being prepared: scope, what is done, what is open |
+| [0.7.7-verification.md](0.7.7-verification.md) | What was exercised on the running install before it went out, and what it answered |
 | [0.8-plan.md](0.8-plan.md) | The next release: notebooks, and knowing what a query costs |
 | [open-questions.md](open-questions.md) | What is waiting on Iqbal |
 

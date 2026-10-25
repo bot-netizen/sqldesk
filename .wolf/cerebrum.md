@@ -39,6 +39,16 @@ budget_tokens: 2000
   `sqldesk-secrets`.
 - **[2026-10-20] Don't `rm` inside `kubectl exec ... sh -c`** -- the safety
   check blocks it. Pipe scripts in with `kubectl exec -i ... python - < file`.
+- **[2026-10-25] The session shell is zsh, which does not word-split an
+  unquoted `$VAR`.** `J="-b jar.txt -H Content-Type:application/json"; curl $J`
+  hands curl the whole string as one argument, so the cookie file is never
+  read and the request goes out unauthenticated -- which the API reports as
+  "The CSRF token is missing.", not as a 401. Write the flags out, or put the
+  commands in a `bash` script.
+- **[2026-10-25] A test that reads the database has not checked the
+  response.** Both bug-046 and bug-047 sat under tests that asserted on
+  `models.Query.query.get(...)` or on the status code alone. Assert on what
+  the endpoint actually answered.
 
 ## Decision Log
 
