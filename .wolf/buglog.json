@@ -940,6 +940,20 @@
       ],
       "status": "fixed",
       "found": "2026-10-25"
+    },
+    {
+      "id": "bug-056",
+      "error_message": "GET /api/config returns 500 on an install that has not been through /setup: AttributeError: 'NoneType' object has no attribute 'slug' at sqldesk/handlers/authentication.py:439",
+      "root_cause": "The handler reads current_org.slug unguarded, and before the first organization exists current_org is None. Inherited: the line is byte-identical in v0.7.6 and last changed in the fork commit, so it is not a 0.7.7 regression. Nobody normally meets it, because a fresh install is sent to /setup, which is server-rendered and answers 200 -- but anything that fetches /api/config first, including a client that has the SPA cached from a previous install, gets a 500 with a traceback rather than an answer saying the install is not set up yet.",
+      "fix": "Not fixed. Found by the 0.7.7 smoke test through compose.prod.yaml against a brand new database. Deliberately left for 0.7.8: it predates this release and the first-run path people actually take works. The fix is to answer with org_slug null (or the setup redirect the browser can act on) rather than dereferencing None.",
+      "tags": [
+        "api",
+        "first-run",
+        "inherited",
+        "found-by-smoke-test"
+      ],
+      "status": "open",
+      "found": "2026-10-25"
     }
   ],
   "applied_observations": {
