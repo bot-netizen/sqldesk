@@ -254,6 +254,15 @@ it writes where the others write.</p>
 permissions. It reads and writes its own Postgres and it enqueues jobs — but it <strong>does not run your
 queries</strong>. A request that would take four minutes against Trino would hold a web worker for four
 minutes, so it does not happen here.</p>
+<p>gunicorn runs <code>gthread</code>: four processes, eight threads each. Not every request is
+instantaneous even when it touches no warehouse — testing a data source's connection, asking MCP to run
+something, sharing to Slack, starting a stream — and with four single-threaded workers, four of those at
+once meant the fifth person got nothing. Including the health probe, which is how a busy install arranges
+its own restart.</p>
+<p>Its connections to Postgres carry a 30-second statement timeout. Nothing a request does should take
+longer; without it, one lock or one plan that went wrong after a table grew held a worker until gunicorn
+killed the worker outright, taking the other requests it was serving with it. The workers below
+deliberately have no such limit.</p>
 
 <h2>Postgres — the metadata database</h2>
 <p>SQLDesk's own. Not your warehouse, and not a copy of it. It holds:</p>
@@ -290,12 +299,29 @@ be a plain container with no persistence configured.</p>
 run the SQL, and write results back to Postgres. Everything slow happens here. Scale them when queries
 queue up; scale the server when pages are slow to load. Those are different problems and the fix is
 rarely the same one.</p>
+<p>There are two kinds, and the split is the point:</p>
+<dl>
+  <dt>The query worker — <code>queries</code>, <code>scheduled_queries</code>, <code>schemas</code></dt>
+  <dd>Somebody's SQL against somebody's warehouse. A job here can take minutes, and is expected to.</dd>
+  <dt>The periodic worker — <code>periodic</code>, <code>emails</code>, <code>default</code></dt>
+  <dd>Deciding what to refresh, evaluating alerts, sending mail, the clean-ups. None of it is heavy; it is
+    a few seconds of work a minute. What it needs is to be <em>running</em>.</dd>
+</dl>
+<p>They were one worker until 0.7.7, and two slow queries were enough to stop the second kind happening at
+all: nothing deciding what to refresh, no alerts evaluated, no mail sent — with every health check still
+passing, so the only symptom was staleness nobody could account for.</p>
+<p>A query a worker is running is cancellable, and bounded: fifteen minutes for a query somebody is
+waiting on, thirty for a scheduled one. Before 0.7.7 there was no limit at all, and a query against a
+warehouse that never answered held its worker until somebody noticed.</p>
 
 <h2>The scheduler</h2>
-<p>One process, and only one. It watches the clock and puts due work on the queue — scheduled query
-refreshes, live dashboards, schema and catalog refreshes, cleanup. Alerts are not on the clock: one is
-checked when its query's new result is stored. The scheduler runs nothing itself. Two schedulers would double-schedule
-everything, so this is the one component you do not scale horizontally.</p>
+<p>It watches the clock and puts due work on the queue — scheduled query refreshes, live dashboards,
+schema and catalog refreshes, cleanup. Alerts are not on the clock: one is checked when its query's new
+result is stored. The scheduler runs nothing itself.</p>
+<p>More than one is safe, though one is the default. rq-scheduler takes a lock in Redis before each pass
+and enqueues only while it holds it; the others log that the lock was taken and skip. So a second replica
+is a warm spare for the minutes between a node going away and the pod being rescheduled — minutes in
+which, with one, nothing is scheduled and nothing says so.</p>
 
 <h2>What happens when you open a dashboard</h2>
 <ol>
@@ -308,6 +334,12 @@ everything, so this is the one component you do not scale horizontally.</p>
 </ol>
 <p>Two widgets on the same query with the same parameters share a single fetch. A dashboard with five
 views of one query asks once.</p>
+<p>What the page sends back is one request, not one per tile. The browser batches the events it recorded
+over the last second and posts them together; the server turns that into a single job and a single
+transaction. Opening a dashboard of thirty widgets used to queue about seventy-five jobs, each with its
+own round trip to Redis, its own worker pick-up and its own transaction, for one small insert each. Two of
+the three events per tile are gone as well — the widget's own id and the visualization's, which nothing on
+any page or in any report ever read.</p>
 
 <h2 id="duckdb">DuckDB — the second database</h2>
 <p>SQLDesk runs a second database engine, inside itself, for two jobs that Postgres is the wrong shape
@@ -421,11 +453,25 @@ already read.</p>
       catalog</td><td>everything. Back this up.</td></tr>
     <tr><td>Redis</td><td>job queues, locks, the schema cache, who is watching what</td><td>in-flight
       jobs, and nothing else</td></tr>
+    <tr><td>Postgres, again</td><td>whether a data source is paused</td><td>nothing — it used to live only
+      in Redis, so a pause lasted until the next restart and then every scheduled query ran against the
+      warehouse somebody had deliberately taken out of service</td></tr>
     <tr><td>DuckDB files</td><td>uploaded files' views, stream windows</td><td>a window, which refills
       in minutes; uploads are the files themselves and survive</td></tr>
     <tr><td>Your warehouse</td><td>your data</td><td>SQLDesk never writes to it</td></tr>
   </tbody>
 </table>
+
+<h2 id="one-query-at-a-time">Why the same query does not run twice</h2>
+<p>Five people opening the same dashboard should cost the warehouse one query, not five. The lock that
+arranges this is a Redis key naming the data source and a hash of the SQL, holding the id of the job that
+owns it.</p>
+<p>Two details decide whether it works. It is held until the <em>result row is written</em>, not until the
+query returns: between those two moments there was nothing for a second request to join and no stored
+result to fall back on, so the sibling ran the whole query again. And it is released by compare-and-delete
+— a job that has finished removes the lock only if the lock is still its own. A plain delete let a
+finishing job release a lock a newer job had just taken, and the next request started a third run of the
+same query while the second was still going.</p>
 
 <div class="doc-next"><a class="btn btn-ghost" href="concepts.html">&larr; Concepts</a><a class="btn btn-primary" href="connectors.html">Data sources &rarr;</a></div>
   </main>

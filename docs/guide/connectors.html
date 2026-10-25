@@ -86,8 +86,41 @@ able to write new queries against the source.</p>
   <tr><td>Snowflake, Databricks</td><td>Account or host, warehouse, database, and a user or token.</td></tr>
   <tr><td>MongoDB, Elasticsearch</td><td>A connection string. These are not SQL — queries are JSON, and SQL-shaped features do not apply to them.</td></tr>
   <tr><td>Google Sheets</td><td>A service account key, and the sheet shared with that account's address.</td></tr>
+  <tr><td>Prometheus, Mimir</td><td>The base URL. Mimir also wants the tenant (<code>X-Scope-OrgID</code>) and, behind Grafana Cloud or a gateway, the API prefix &mdash; see below.</td></tr>
   <tr><td>Query Results</td><td>Not external at all: query the results of other queries, in SQLite. Useful for joining across sources.</td></tr>
 </table>
+
+<h3 id="promql">Prometheus and Mimir: what you write is PromQL</h3>
+<p>These are not SQL sources. What you type in the editor is a PromQL expression, and SQLDesk says so
+rather than trying to parse it as SQL &mdash; the optimizer panel and the MCP tools that check SQL both
+ask the data source what language it speaks and stand aside.</p>
+<p>The query body is the expression, optionally followed by the API's own parameters:</p>
+<pre><code>sum(rate(http_requests_total[5m])) by (job)&amp;start=now-6h&amp;end=now&amp;step=60</code></pre>
+<ul>
+  <li><strong>Times</strong> take <code>now</code>, <code>now-1h</code> (s, m, h, d, w, y), a Unix
+    timestamp, or an RFC 3339 time. A time with no zone is read as UTC rather than as whatever the worker
+    happens to be set to.</li>
+  <li><strong>A range needs a step.</strong> <code>start</code> and <code>end</code> without one used to
+    run quietly as an instant query and return a single point; now it says so.</li>
+  <li><strong>Encode a space as <code>%20</code></strong>, not as <code>+</code>. A <code>+</code> is an
+    addition operator, and treating it as a space turned <code>a + b</code> into a parse error and
+    <code>web-[0-9]+</code> into a regex that silently matched nothing.</li>
+</ul>
+<p>Scalars, strings, matrices and native histograms all come back as rows; the columns are the union of
+the labels across every series, so a label only the second series carries is still a column, and
+<code>value</code> is a number rather than text.</p>
+<h4>Mimir</h4>
+<ul>
+  <li><strong>Tenant.</strong> The connection test asks for the tenant's metric names, so a tenant that is
+    empty or misspelled fails the test and says which it was. It used to run <code>1</code>, which Mimir
+    answers for any tenant string at all, so the test passed and every real query came back
+    &ldquo;query result is empty&rdquo;.</li>
+  <li><strong>API prefix.</strong> <code>/prometheus</code> by default. Grafana Cloud serves
+    <code>/api/prom</code>; a gateway that already strips the prefix wants it cleared.</li>
+  <li><strong>Timeout.</strong> 30 seconds by default, configurable. No request waits for ever.</li>
+  <li>When the server refuses a query, you get <em>its</em> message &mdash; "parse error at char 8" or
+    "no org id" &mdash; rather than "400 Client Error", which is the one part you already knew.</li>
+</ul>
 
 <h2 id="streams">Kafka: a stream is a window</h2>
 <p>A topic is a data source like any other, but what you query is not the topic &mdash; it is the window

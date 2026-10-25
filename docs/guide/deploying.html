@@ -70,8 +70,9 @@ shown.</p>
 <table>
   <tr><th>Service</th><th>What it does</th><th>Core or add-on</th></tr>
   <tr><td><code>server</code></td><td>The web application and the API, including <code>/mcp</code> when MCP is on.</td><td>Core</td></tr>
-  <tr><td><code>worker</code></td><td>Runs queries, schema refreshes, alert checks and email. Also takes MCP's queue, last, so it is never left unserved.</td><td>Core</td></tr>
-  <tr><td><code>scheduler</code></td><td>Puts scheduled refreshes, clean-ups and the catalog harvest on the queue. Exactly one.</td><td>Core</td></tr>
+  <tr><td><code>worker</code></td><td>Runs queries and schema refreshes, and nothing else. Also takes MCP's queue, last, so it is never left unserved.</td><td>Core</td></tr>
+  <tr><td><code>periodic-worker</code></td><td>Everything that is not a query: deciding what to refresh, evaluating alerts, sending mail, the clean-ups. Separate since 0.7.7 &mdash; see below.</td><td>Core</td></tr>
+  <tr><td><code>scheduler</code></td><td>Puts scheduled refreshes, clean-ups and the catalog harvest on the queue. One is enough; more than one is safe.</td><td>Core</td></tr>
   <tr><td>Postgres</td><td>SQLDesk's own database: users, queries, dashboards, results, the catalog. Not your warehouse.</td><td>Core</td></tr>
   <tr><td>Redis</td><td>Queues, locks and a schema cache. Losing it costs in-flight jobs and nothing else.</td><td>Core</td></tr>
   <tr><td><code>mcp-worker</code></td><td>Takes only the queries a model asks for, so a model exploring cannot hold up a dashboard.</td><td>Add-on: <strong>MCP &amp; Catalog</strong></td></tr>
@@ -79,6 +80,17 @@ shown.</p>
   <tr><td><code>screenshots</code></td><td>A headless browser that draws dashboards and charts for alert emails. Holds no credentials and keeps no state.</td><td>Add-on: <strong>Rendering</strong></td></tr>
   <tr><td>Shared volume</td><td>Not a process. Uploaded files and stream windows: one process writes, another reads. Created when <strong>Uploads</strong> or <strong>Streams</strong> is on.</td><td>Add-on</td></tr>
 </table>
+
+<div class="note">
+  <div class="note-h">Why queries and housekeeping are on different workers</div>
+  <p>A query can hold a worker for minutes. With everything on one worker, two slow queries meant nothing
+  was deciding what to refresh, nothing was evaluating alerts and nothing was sending mail &mdash; while
+  every health check still passed, so the only symptom was staleness nobody could account for.</p>
+  <p>The housekeeping work is not heavy; it is a few seconds a minute. What it needs is to be
+  <em>running</em>, which is exactly what it was not. Set <code>periodicWorker.enabled=false</code> and its
+  queues go back to the ordinary worker rather than being stranded &mdash; no scheduling at all is a worse
+  failure than a slow query, because nothing reports it.</p>
+</div>
 
 <h3 id="defaults">What is on when you change nothing</h3>
 <p>Everything that costs something while nobody is using it is off. A default install is five deployments and
@@ -92,7 +104,8 @@ an image of its own is the renderer.</p>
   <tr><td>Rendering</td><td><code>rendering.enabled</code></td><td class="ok">off</td><td>A second image, several hundred MB of Chromium, and memory in spikes.</td></tr>
   <tr><td>Bundled Postgres</td><td><code>postgres.enabled</code></td><td>on</td><td>Turn it <em>off</em> and point <code>postgres.external</code> at a managed database for anything real.</td></tr>
   <tr><td>Bundled Redis</td><td><code>redis.enabled</code></td><td>on</td><td>No volume: it holds queues, locks and a cache.</td></tr>
-  <tr><td>Scheduler</td><td><code>scheduler.enabled</code></td><td>on</td><td>One process. Not a number to raise.</td></tr>
+  <tr><td>Periodic worker</td><td><code>periodicWorker.enabled</code></td><td>on</td><td>One small process. Off puts its queues back on the query worker.</td></tr>
+  <tr><td>Scheduler</td><td><code>scheduler.enabled</code></td><td>on</td><td>One process. <code>scheduler.replicas</code> may be raised &mdash; rq-scheduler enqueues only while holding a Redis lock, so a second is a warm spare rather than a second copy of every due job.</td></tr>
 </table>
 <div class="note">
   <div class="note-h">A permission nobody can use is worse than no permission</div>
@@ -536,8 +549,9 @@ headroom: a worker's memory grows with the size of the result it is holding, and
 one.</p>
 <table>
   <tr><th>Process</th><th>Idle</th><th>What makes it grow</th></tr>
-  <tr><td><code>server</code> pod, 4 web workers</td><td class="num">250 MB</td><td>Serializing results. One request holds one web worker for as long as it takes.</td></tr>
+  <tr><td><code>server</code> pod, 4 web workers</td><td class="num">250 MB</td><td>Serializing results. Each worker now serves 8 requests on threads, so waiting on something costs a thread rather than a process.</td></tr>
   <tr><td><code>worker</code> process</td><td class="num">200 MB</td><td>The result it is holding, in full, before it is written.</td></tr>
+  <tr><td><code>periodic-worker</code> process</td><td class="num">200 MB</td><td>Nothing much. It never holds a query result.</td></tr>
   <tr><td><code>stream-worker</code> process</td><td class="num">280 MB</td><td>Flat: it flushes to a file every second rather than accumulating.</td></tr>
   <tr><td><code>mcp-worker</code> process</td><td class="num">380 MB</td><td>As a worker, plus the catalog it answers from.</td></tr>
   <tr><td><code>scheduler</code></td><td class="num">190 MB</td><td>Nothing. It only enqueues.</td></tr>
@@ -580,14 +594,47 @@ at any moment:</p>
 <ul>
   <li><strong>Queries queueing</strong> — more workers.</li>
   <li><strong>Pages slow to load</strong> — more web workers, and the connection pool above has to move
-    with them.</li>
-  <li><strong>The scheduler is one process.</strong> Two would double-schedule everything.</li>
+    with them. Since 0.7.7 gunicorn runs <code>gthread</code> with
+    <code>SQLDESK_WEB_THREADS</code> (8) threads per worker: four sync workers meant four requests at a
+    time for the whole install, and several ordinary requests wait on something else for seconds — MCP's
+    <code>run_query</code>, Test connection, sharing to Slack, a stream query. Four slow ones and the
+    fifth person got nothing, the health probe included.</li>
+  <li><strong>The scheduler can have more than one replica</strong> (<code>scheduler.replicas</code>).
+    rq-scheduler takes a Redis lock and enqueues only while it holds it, so the others skip the pass: a
+    second pod is a warm spare, not a second copy of every due job. One is the default because that is
+    what every install has been running.</li>
+  <li><strong>Two or more <code>server</code> replicas get a PodDisruptionBudget</strong> that keeps one
+    through a node drain. With one replica there is none, deliberately: a budget insisting on keeping one
+    of one blocks the drain and makes a routine node upgrade somebody's problem.</li>
   <li>Give a slow data source its own queue so it cannot starve the others &mdash; see
     <a href="administration.html">Administration</a> for how, since there is no screen for it yet.</li>
   <li>A worker being stopped finishes the query it is running, for up to five minutes, before it exits.</li>
   <li><strong>Uploads pin the workers to one node</strong> unless the volume is ReadWriteMany. If you are
     spreading pods across nodes, that is the setting to check first.</li>
 </ul>
+
+<h3 id="database-connections">What a connection carries</h3>
+<p>Since 0.7.7 every connection SQLDesk makes to its own Postgres is checked before it is handed out
+(<code>SQLALCHEMY_ENABLE_POOL_PRE_PING</code>, on by default). A connection pooled across a Postgres
+restart, a failover or a proxy's idle timeout is dead in a way nothing notices until a request uses it,
+and then that request is a 500 for no reason anybody can see.</p>
+<p>Connections from the <em>web</em> tier also carry a statement timeout of 30 seconds
+(<code>SQLALCHEMY_STATEMENT_TIMEOUT_MS</code>). Nothing a request does should take that long — a query
+against a data source runs on a worker, not here — and without it one lock or one bad plan held a gunicorn
+worker until gunicorn killed the worker outright, taking every other request it was serving. Workers
+deliberately do not get one: storing a very large result is a single long <code>INSERT</code>, and
+cancelling that would fail a query that had already run. Both get an idle-in-transaction timeout
+(<code>SQLALCHEMY_IDLE_IN_TRANSACTION_TIMEOUT_MS</code>, 60 s), which is about holding locks rather than
+doing work.</p>
+
+<h3 id="redis-limits">The bundled Redis</h3>
+<p>It runs with a memory ceiling (<code>redis.maxmemory</code>, 768 MB) and <code>noeviction</code>.
+Without a ceiling Redis grows until the kernel kills it and every queued job goes with it. The usual
+<code>allkeys-lru</code> would be worse here than refusing: it would quietly evict queue entries and job
+records, so a query somebody submitted would simply never run and nothing would say so. Refusing is the
+honest failure — the enqueue reports an error and the person sees it.</p>
+<p>It is replaced rather than rolled on upgrade. Two Redises behind one Service means the workers divide
+between two sets of queues, and a job enqueued through one is invisible to a worker reading the other.</p>
 
 <h2 id="backups">Backups</h2>
 <p>Back up Postgres, and the uploads volume if people upload files &mdash; uploaded files live on disk, not

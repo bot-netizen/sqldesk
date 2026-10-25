@@ -102,9 +102,27 @@ for in a line or two under its tabs, so you are not guessing which of seven hold
     workers are not keeping up with the schedules people have set.</dd>
   <dt>MCP</dt>
   <dd>Who has connected over MCP, what they asked for, and every refused attempt — never the question
-    somebody put to their client and never the SQL that came back. Shown when MCP is on. See
-    <a href="mcp.html">MCP</a>.</dd>
+    somebody put to their client and never the SQL that came back. A write records what it changed, before
+    and after, because "update_table ok" does not answer the question anybody brings to an audit of an
+    agent's writes. Shown when MCP is on. See <a href="mcp.html">MCP</a>.</dd>
 </dl>
+
+<h3 id="catalog-review">Reviewing what an agent wrote</h3>
+<p>An agent pointed at the catalog can describe a warehouse in an afternoon — that is the point of letting
+it — and that is also why a badge here and there among three thousand tables is not a review.
+<strong>Catalog</strong> has a <em>Written by an agent</em> filter that answers exactly that question, and
+each description carries the name on the API key that wrote it, not merely the fact that a machine did.</p>
+<p>Two things an agent cannot do, deliberately:</p>
+<ul>
+  <li><strong>Hide a table.</strong> It decides what everybody is offered, there is no review step, and
+    nothing on a page would show it had happened. It is done here, with the table in front of you.</li>
+  <li><strong>Agree a measure.</strong> A proposal lands under <strong>Measures</strong> with Agree and
+    Deny; until somebody agrees it, no other agent is told it exists. A definition of revenue that is
+    merely plausible is worse than none.</li>
+</ul>
+<p>Every write is capped at fifty a day per person (<code>SQLDESK_MCP_WRITES_PER_DAY</code>). An agent
+told to describe a warehouse will describe the whole warehouse, and a loop getting it wrong will do it
+just as fast; fifty keeps a mistake to a morning's review rather than a restore.</p>
 <p><strong>Settings</strong> is its own menu in the top row rather than a gear on the right, and it holds
 different things for different people: an administrator sees data sources, users, groups, alert
 destinations and the organisation's settings; everybody else sees their snippets and their own account.</p>
