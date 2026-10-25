@@ -1,5 +1,5 @@
 ---
-title: An agent that knows who wrote it
+title: "SQLDesk: a context-aware MCP server"
 date: 2026-10-25
 summary: >-
   Connect an agent to a database and it gets column names. Connect it to SQLDesk and it gets the
