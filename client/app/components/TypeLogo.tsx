@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import classNames from "classnames";
 
+import isMissingLogo from "@/lib/logoAssets";
+
 import "./TypeLogo.less";
 
 // A logo is a file named after the type: /static/images/db-logos/<type>.png. Add a
@@ -12,6 +14,11 @@ import "./TypeLogo.less";
 // So a missing file degrades to a tile with the type's initials instead. It also
 // means a new data source type is complete the moment its runner is registered, and
 // a real logo becomes a file drop rather than a release blocker.
+//
+// Degrading on `onError` still means asking for the file and waiting for the 404,
+// which is a failed request logged on every page that lists the type. Where the
+// build can tell us the file is not there, we go straight to the tile instead and
+// never ask -- `onError` stays for the ones nobody could know about in advance.
 
 // Chosen to sit beside the app's own palette and to stay legible under white text.
 const TILE_COLOURS = ["#4b6cb7", "#2e8b7a", "#8a5fbf", "#b5651d", "#3c7d9e", "#9c4668", "#5c7a3f", "#7a5c3f"];
@@ -58,7 +65,7 @@ export default function TypeLogo({
 }: TypeLogoProps) {
   const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
 
-  if (src && brokenSrc !== src) {
+  if (src && brokenSrc !== src && !isMissingLogo(src)) {
     return (
       <img
         {...props}
