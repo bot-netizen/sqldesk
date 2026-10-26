@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import routes from "@/services/routes";
 import notification from "@/services/notification";
 import { isChunkLoadError } from "@/lib/lazyPage";
+import isBenignBrowserNoise from "@/lib/browserNoise";
 import Router from "./Router";
 import handleNavigationIntent from "./handleNavigationIntent";
 
@@ -48,6 +49,13 @@ export default function ApplicationArea() {
       // A chunk that failed to load is already being retried, and reloads the
       // page if it has gone for good. Saying so here would be noise.
       if (isChunkLoadError(event.error)) {
+        return;
+      }
+
+      // So would a warning about the layout settling, which is reported as an
+      // error, carries no `error` object, and describes nothing anybody can
+      // act on.
+      if (isBenignBrowserNoise(event)) {
         return;
       }
 

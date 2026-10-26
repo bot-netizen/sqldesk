@@ -100,6 +100,17 @@ describe("an uncaught error", () => {
     expect(notification.error).not.toHaveBeenCalled();
   });
 
+  test("the layout settling is not an error anybody is told about", () => {
+    show();
+
+    // How it really arrives: a message, and no `error` at all. Every
+    // visualization that scales itself to its widget can produce one, so this
+    // was announcing a fault on pages that were working.
+    raise(undefined, "ResizeObserver loop completed with undelivered notifications.");
+
+    expect(notification.error).not.toHaveBeenCalled();
+  });
+
   test("the handler is taken off again when the application unmounts", () => {
     // Dispatching an error event with nothing listening makes jsdom report it
     // and fail the test, so what is checked is that the same handler comes
