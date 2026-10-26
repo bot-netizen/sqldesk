@@ -13,7 +13,7 @@ import { UrlStateStorage } from "@/components/items-list/classes/StateStorage";
 import * as Sidebar from "@/components/items-list/components/Sidebar";
 import { Shell, Header, ViewTabs, TagChips } from "@/components/items-list/components/ListPage";
 import {
-  FilterControl,
+  SearchControl,
   ColumnsControl,
   useHiddenColumns,
   visibleColumns,
@@ -181,7 +181,7 @@ function DashboardList({ controller }) {
     <div className="page-dashboard-list">
       <Shell>
         <Header title={controller.params.pageTitle} subtitle={sourceSubtitle}>
-          <FilterControl
+          <SearchControl
             value={controller.searchTerm}
             onChange={controller.updateSearch}
             placeholder="Search dashboards…"

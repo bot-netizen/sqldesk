@@ -20,7 +20,7 @@ import { UrlStateStorage } from "@/components/items-list/classes/StateStorage";
 import * as Sidebar from "@/components/items-list/components/Sidebar";
 import { Shell, Header, ViewTabs, TagChips } from "@/components/items-list/components/ListPage";
 import {
-  FilterControl,
+  SearchControl,
   ColumnsControl,
   useHiddenColumns,
   visibleColumns,
@@ -273,7 +273,7 @@ function QueriesList({ controller }) {
             </React.Fragment>
           }
         >
-          <FilterControl
+          <SearchControl
             value={controller.searchTerm}
             onChange={updateSearch}
             placeholder="Search queries…"
