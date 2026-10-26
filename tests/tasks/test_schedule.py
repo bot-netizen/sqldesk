@@ -1,13 +1,15 @@
+from datetime import timedelta
 from unittest import TestCase
 
 from mock import patch
 from rq import Connection
 
-from sqldesk import rq_redis_connection
+from sqldesk import rq_redis_connection, settings
 from sqldesk.tasks import Queue, Worker
 from sqldesk.tasks.schedule import (
     HEARTBEAT_KEY,
     HEARTBEAT_TTL,
+    periodic_job_definitions,
     reschedule_missing_periodic_jobs,
     rq_scheduler,
     schedule_periodic_jobs,
@@ -74,6 +76,45 @@ class TestSchedule(TestCase):
         self.assertEqual(len(jobs), 1)
         self.assertTrue(jobs[0].func_name.endswith("foo"))
         self.assertEqual(jobs[0].meta["interval"], 60)
+
+
+class TestHowOftenSchemasAreRefreshed(TestCase):
+    """
+    Reading every schema on every pass is the most expensive periodic job here
+    -- minutes of work against a warehouse with thousands of tables -- and the
+    only reason it is affordable is that the interval is somebody's to set.
+
+    A hardcoded interval would pass every other test in this file.
+    """
+
+    def _interval_of(self, func_name):
+        for definition in periodic_job_definitions():
+            if definition["func"].__name__ == func_name:
+                return definition["interval"]
+        self.fail("{} is not scheduled at all".format(func_name))
+
+    def test_the_interval_is_the_configured_one(self):
+        with patch("sqldesk.settings.SCHEMAS_REFRESH_SCHEDULE", 180):
+            self.assertEqual(timedelta(minutes=180), self._interval_of("refresh_schemas"))
+
+        with patch("sqldesk.settings.SCHEMAS_REFRESH_SCHEDULE", 15):
+            self.assertEqual(timedelta(minutes=15), self._interval_of("refresh_schemas"))
+
+    def test_the_default_is_not_a_few_minutes(self):
+        # The number itself is somebody's to tune; what is pinned is that the
+        # shipped default is not the half-hourly one it used to be, which on an
+        # install with a few large sources meant the schemas queue was rarely
+        # idle. An hour is the floor, not a recommendation.
+        self.assertGreaterEqual(settings.SCHEMAS_REFRESH_SCHEDULE, 60)
+
+    def test_schemas_are_not_read_as_often_as_queries_are_run(self):
+        # The pairing is the point: refresh_queries has to be frequent because
+        # it decides what runs, and this does not.
+        schemas = self._interval_of("refresh_schemas")
+        queries = self._interval_of("refresh_queries")
+        as_seconds = queries if isinstance(queries, int) else queries.total_seconds()
+
+        self.assertGreater(schemas.total_seconds(), as_seconds)
 
 
 class TestPeriodicJobsStayScheduled(TestCase):

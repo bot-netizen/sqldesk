@@ -94,7 +94,27 @@ QUERY_RESULTS_EXPIRED_TTL_ENABLED = parse_boolean(os.environ.get("SQLDESK_QUERY_
 # default set query results expired ttl 86400 seconds
 QUERY_RESULTS_EXPIRED_TTL = int(os.environ.get("SQLDESK_QUERY_RESULTS_EXPIRED_TTL", "86400"))
 
-SCHEMAS_REFRESH_SCHEDULE = int(os.environ.get("SQLDESK_SCHEMAS_REFRESH_SCHEDULE", 30))
+# Minutes between background schema refreshes. Every data source is read on
+# every pass, and on a warehouse with thousands of tables one pass is minutes
+# of work -- so at the old default of 30 an install with a few large sources
+# spent much of its time rebuilding schemas nobody had asked about.
+#
+# Three hours instead. What that costs is bounded and recoverable rather than
+# nothing at all, so it is worth being plain about:
+#
+# * Autocomplete and the schema browser can be up to three hours behind. The
+#   browser's refresh button forces a live read of the one source in front of
+#   you, which is the cure for the case anybody actually notices.
+# * The catalog MCP answers from is harvested off this same cached copy (see
+#   tasks/catalog.py), so a table added since the last pass is invisible to an
+#   agent too, for up to this interval plus CATALOG_HARVEST_SCHEDULE.
+# * Running a query is unaffected. The cache is only ever a cache -- a miss
+#   reads the warehouse -- so nothing here decides whether SQL succeeds.
+#
+# Lower it where people add tables all day. Leaving one heavy source out
+# entirely is cheaper than shortening the interval for everything: see
+# `data_sources:schema:blacklist` in tasks/queries/maintenance.py.
+SCHEMAS_REFRESH_SCHEDULE = int(os.environ.get("SQLDESK_SCHEMAS_REFRESH_SCHEDULE", 180))
 SCHEMAS_REFRESH_TIMEOUT = int(os.environ.get("SQLDESK_SCHEMAS_REFRESH_TIMEOUT", 300))
 
 AUTH_TYPE = os.environ.get("SQLDESK_AUTH_TYPE", "api_key")
