@@ -225,7 +225,26 @@
       left: 0;
       background: var(--color-action-tint, #e4f4f7);
       border-radius: 3px;
-      transition: width 0.6s ease;
+      // `left` animates with the width because a bar that crosses zero
+      // between refreshes changes both, and moving only one walks the bar
+      // across the cell before it resizes.
+      transition:
+        width 0.6s ease,
+        left 0.6s ease;
+    }
+
+    /* Only where the column has values on both sides of zero: a line at the
+       middle is what makes the direction readable as a sign rather than as a
+       bar that happens to start somewhere. */
+    &.table-cell-databar-signed::before {
+      content: "";
+      position: absolute;
+      top: -2px;
+      bottom: -2px;
+      left: var(--databar-zero, 50%);
+      width: 1px;
+      background: var(--color-border, #e3dfd7);
+      z-index: 1;
     }
 
     > span {

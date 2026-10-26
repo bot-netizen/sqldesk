@@ -96,6 +96,27 @@ export default function CellFormatSection({ column, onChange }: Props) {
         </Section>
       )}
 
+      {numeric && f.dataBar && (
+        <Section>
+          <label className="value-options-help" htmlFor={`${prefix}.DataBarColor`}>
+            Where a column has values on both sides of zero, zero sits in the middle and the bar points, taking the
+            second colour below it
+          </label>
+          <ColorSelect
+            value={f.dataBarColor}
+            onChange={(dataBarColor) => update({ dataBarColor })}
+            data-test={`${prefix}.DataBarColor`}
+            aria-label="Data bar colour"
+          />
+          <ColorSelect
+            value={f.dataBarNegativeColor}
+            onChange={(dataBarNegativeColor) => update({ dataBarNegativeColor })}
+            data-test={`${prefix}.DataBarNegativeColor`}
+            aria-label="Data bar colour below zero"
+          />
+        </Section>
+      )}
+
       <Section>
         <Checkbox
           data-test={`${prefix}.ShowChange`}

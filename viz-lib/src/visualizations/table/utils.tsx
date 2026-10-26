@@ -3,7 +3,16 @@ import React from "react";
 import cx from "classnames";
 import Tooltip from "antd/lib/tooltip";
 import ColumnTypes from "../shared/columns";
-import { cellStyle, dataBarWidth, changeBetween, normalizeCellFormat, isFormatted, ColumnStats } from "./cellFormat";
+import {
+  cellStyle,
+  dataBarGeometry,
+  dataBarIsSigned,
+  changeBetween,
+  normalizeCellFormat,
+  isFormatted,
+  ColumnStats,
+} from "./cellFormat";
+import { washColor } from "../shared/valueOptions";
 
 export interface CellContext {
   /** Min and max per column, over every row -- not just the visible page. */
@@ -156,11 +165,23 @@ export function prepareColumns(
       }
 
       if (format.dataBar) {
-        const width = dataBarWidth(value, stats);
-        if (width !== null) {
+        const bar = dataBarGeometry(value, stats);
+        if (bar !== null) {
           children = (
-            <span className="table-cell-databar">
-              <i style={{ width: `${width}%` }} aria-hidden="true" />
+            <span
+              className={cx("table-cell-databar", { "table-cell-databar-signed": dataBarIsSigned(stats) })}
+              // Left as a percentage rather than a transform so the bar is
+              // laid out against the cell it is in, whatever width that is.
+              style={{ "--databar-zero": "50%" } as React.CSSProperties}
+            >
+              <i
+                style={{
+                  left: `${bar.offset}%`,
+                  width: `${bar.width}%`,
+                  background: washColor(bar.negative ? format.dataBarNegativeColor : format.dataBarColor),
+                }}
+                aria-hidden="true"
+              />
               <span>{children}</span>
             </span>
           );

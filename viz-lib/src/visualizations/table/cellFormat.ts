@@ -31,6 +31,9 @@ export interface CellFormat {
   /** The one colour a scale deepens from the column's minimum to its maximum. */
   scaleColor: string;
   dataBar: boolean;
+  /** The bar's colour, and the colour it takes below zero. */
+  dataBarColor: string;
+  dataBarNegativeColor: string;
   showChange: boolean;
 }
 
@@ -41,6 +44,10 @@ export const DEFAULT_CELL_FORMAT: CellFormat = {
   mappings: [],
   scaleColor: "accent",
   dataBar: false,
+  // The colours the bar has always been drawn in, named rather than assumed,
+  // so a column saved before this renders exactly as it did.
+  dataBarColor: "accent",
+  dataBarNegativeColor: "danger",
   showChange: false,
 };
 
@@ -124,14 +131,54 @@ export function cellStyle(
   return undefined;
 }
 
-/** How far a data bar reaches, 0-100, against the largest magnitude in the column. */
-export function dataBarWidth(value: unknown, stats: ColumnStats | null): number | null {
+export interface DataBar {
+  /** Percent across the cell where the bar starts. */
+  offset: number;
+  /** Percent of the cell the bar covers. */
+  width: number;
+  /** Which of the two colours it takes. */
+  negative: boolean;
+}
+
+/**
+ * Where a data bar sits in its cell, and which way it points.
+ *
+ * The bar used to be the magnitude alone, always growing from the left edge,
+ * so -90 and 90 drew the same bar. On a column of variances that is the one
+ * thing the reader needs and the only thing the bar did not say.
+ *
+ * Three cases, because a shared zero is worth the width it costs only when
+ * there is something on both sides of it:
+ *
+ *   all values >= 0   left edge to the right, the full cell for the range
+ *   all values <= 0   right edge to the left, the mirror of it
+ *   values of both    zero in the middle, and the sign is the direction
+ */
+export function dataBarGeometry(value: unknown, stats: ColumnStats | null): DataBar | null {
   const n = toNumber(value);
   if (n === null || !stats) {
     return null;
   }
   const extent = Math.max(Math.abs(stats.min), Math.abs(stats.max));
-  return extent === 0 ? 0 : (Math.abs(n) / extent) * 100;
+  if (extent === 0) {
+    // Every value is zero. No bar, but not "no number here" either.
+    return { offset: 0, width: 0, negative: false };
+  }
+  const share = (Math.abs(n) / extent) * 100;
+
+  if (stats.min >= 0) {
+    return { offset: 0, width: share, negative: false };
+  }
+  if (stats.max <= 0) {
+    return { offset: 100 - share, width: share, negative: true };
+  }
+  const half = share / 2;
+  return n < 0 ? { offset: 50 - half, width: half, negative: true } : { offset: 50, width: half, negative: false };
+}
+
+/** Whether a column needs the zero line drawn, which is where it has two sides. */
+export function dataBarIsSigned(stats: ColumnStats | null): boolean {
+  return !!stats && stats.min < 0 && stats.max > 0;
 }
 
 export type Change = "up" | "down" | "changed";
