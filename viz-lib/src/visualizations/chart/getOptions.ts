@@ -43,6 +43,15 @@ const DEFAULT_OPTIONS = {
   referenceBands: [],
   window: { mode: "all", points: 50, minutes: 60 },
   zoom: "none",
+
+  // 0.7.8: one breakpoint that recolours bars by their own value, so a
+  // shortfall reads as a shortfall. `value: 0` with a colour below it is the
+  // case this exists for -- on a horizontal bar chart of variances, the sign
+  // is the whole point and a single series colour hides it.
+  //
+  // Off until a colour is chosen. `below`/`above` left null keep the series
+  // colour, so setting one of the two is a complete and sensible state.
+  valueThreshold: { enabled: false, value: 0, below: null, above: null },
 };
 
 // Written as numeral format strings because that is what every saved chart

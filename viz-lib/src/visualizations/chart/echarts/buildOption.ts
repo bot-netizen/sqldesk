@@ -90,6 +90,38 @@ function seriesColor(options: any, name: string, index: number): string {
   return palette[index % palette.length];
 }
 
+/**
+ * A bar's colour from its own value, where a breakpoint has been set.
+ *
+ * Returns null when every bar should keep the series colour, so the caller can
+ * leave `data` as bare numbers. That matters: ECharts takes the batched path
+ * for a series of plain values (`large`, above), and wrapping every point in an
+ * object to colour none of them would give that up on every chart.
+ *
+ * `below`/`above` are independently optional -- "negatives in red, the rest as
+ * they were" is the common case, and needs only one of them.
+ */
+function thresholdColorer(options: any, seriesColour: string) {
+  const threshold = options.valueThreshold;
+  if (!threshold || !threshold.enabled || (!threshold.below && !threshold.above)) {
+    return null;
+  }
+  const at = cleanNumber(threshold.value);
+  if (isNil(at)) {
+    return null;
+  }
+  return (value: any) => {
+    const measure = cleanNumber(value);
+    if (isNil(measure)) {
+      return seriesColour;
+    }
+    // At the breakpoint exactly counts as above it, so a threshold of 0 colours
+    // negatives and leaves zero alone -- a zero bar has no height to colour and
+    // reading it as a shortfall would be wrong.
+    return (measure < at ? threshold.below : threshold.above) || seriesColour;
+  };
+}
+
 /** Collapse repeated x values, matching the aggregation the old renderer did. */
 function aggregate(points: any[], xAxisType: string, seriesType: string, missingValuesAsZero: boolean) {
   const byX = new Map<any, any>();
@@ -272,11 +304,24 @@ function buildCartesianSeries(
       extra === undefined ? (horizontal ? [b, a] : [a, b]) : horizontal ? [b, a, extra] : [a, b, extra];
 
     const byX = new Map(points.map((p: any) => [p.x, p.y]));
-    const data = isScatterLike
+    let data = isScatterLike
       ? map(points, (p: any) => pair(p.x, p.y, p.size))
       : xAxisType === "category"
         ? map(categories, (category) => (byX.has(category) ? byX.get(category) : null))
         : map(points, (p: any) => pair(p.x, p.y));
+
+    // Bars only. A threshold on a line would colour the markers and leave the
+    // line itself one colour, which says less than the goal line that is
+    // already available for this.
+    const colourBy = echartsType === "bar" ? thresholdColorer(options, color) : null;
+    if (colourBy) {
+      // On a category axis a datum is the measure itself; as a pair it is
+      // written in axis order, so on its side the measure comes first.
+      const measureOf = (datum: any) => (Array.isArray(datum) ? (horizontal ? datum[0] : datum[1]) : datum);
+      data = map(data, (datum: any) =>
+        isNil(measureOf(datum)) ? datum : { value: datum, itemStyle: { color: colourBy(measureOf(datum)) } }
+      );
+    }
 
     const built: any = {
       id: seriesId(series.name),
