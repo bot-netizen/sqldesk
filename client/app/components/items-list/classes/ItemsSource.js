@@ -68,6 +68,9 @@ export class ItemsSource {
     doRequest,
     processResults,
     isPlainList = false,
+    // How to tell whether one item answers a search term. Only meaningful for
+    // a plain list, whose endpoint takes no `q` -- see PlainListFetcher.
+    matches = undefined,
     sortByIteratees = undefined,
     ...defaultState
   }) {
@@ -76,7 +79,7 @@ export class ItemsSource {
     }
 
     this._fetcher = isPlainList
-      ? new PlainListFetcher({ getRequest, doRequest, processResults })
+      ? new PlainListFetcher({ getRequest, doRequest, processResults, matches })
       : new PaginatedListFetcher({ getRequest, doRequest, processResults });
 
     this.sortByIteratees = sortByIteratees;

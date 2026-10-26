@@ -11,6 +11,7 @@ import DynamicComponent from "@/components/DynamicComponent";
 
 import ItemsTable, { Columns } from "@/components/items-list/components/ItemsTable";
 import ListItemActions from "@/components/items-list/components/ListItemActions";
+import { SearchControl } from "@/components/items-list/components/ListPageControls";
 
 import Alert from "@/services/alert";
 import { currentUser } from "@/services/auth";
@@ -106,6 +107,12 @@ class AlertsList extends React.Component {
       <div className="page-alerts-list">
         <Shell>
           <Header title={controller.params.pageTitle} subtitle={subtitle}>
+            <SearchControl
+              value={controller.searchTerm}
+              onChange={controller.updateSearch}
+              placeholder="Search alerts…"
+              label="Search alerts"
+            />
             {currentUser.hasPermission("list_alerts") && (
               <Link.Button type="primary" href="alerts/new">
                 <i className="fa fa-plus m-r-5" aria-hidden="true" />
@@ -160,6 +167,14 @@ const AlertsListPage = itemsList(
       },
       getResource() {
         return Alert.query.bind(Alert);
+      },
+      // The endpoint takes no `q` and returns every alert the person can see,
+      // so the filtering happens in the browser over the whole list. The
+      // query's name is searched as well as the alert's: an alert is usually
+      // remembered by what it watches rather than by what somebody named it.
+      matches(alert, term) {
+        const fields = [alert.name, alert.query && alert.query.name];
+        return fields.some((field) => typeof field === "string" && field.toLowerCase().includes(term));
       },
     }),
   () => new StateStorage({ orderByField: "created_at", orderByReverse: true, itemsPerPage: 20 })
