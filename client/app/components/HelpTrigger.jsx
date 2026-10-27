@@ -39,7 +39,8 @@ export const TYPES = mapValues(
 
     ALERTS: ["/alerts.html", "Guide: Alerts"],
     ALERT_SETUP: ["/alerts.html", "Guide: Setting Up an Alert"],
-    ALERT_NOTIF_TEMPLATE_GUIDE: ["/alerts.html", "Guide: Custom Alert Notifications"],
+    ALERT_NOTIF_TEMPLATE_GUIDE: ["/alerts.html#templates", "Guide: Custom Alert Notifications"],
+    ALERT_SLACK_FORMATTING: ["/alerts.html#slack-formatting", "Guide: Formatting for Slack"],
 
     // One page per family rather than one per driver: what people need is
     // the shape of the form and what permission the credential wants, and

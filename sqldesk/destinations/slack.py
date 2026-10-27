@@ -35,13 +35,15 @@ class Slack(BaseDestination):
                 "value": "{host}/alerts/{alert_id}".format(host=host, alert_id=alert.id),
             },
         ]
-        if alert.custom_body:
-            fields.append({"title": "Description", "value": alert.custom_body})
+        # Unescaped, and rendered once. Slack is not HTML, so a result
+        # containing `&` should arrive as `&` rather than `&amp;` -- and
+        # filling a template in is a query result read and a render, not
+        # something to do twice to find out whether it is empty.
+        body = alert.body_for(escape=False)
+        if body:
+            fields.append({"title": "Description", "value": body})
         if new_state == "triggered":
-            if alert.custom_subject:
-                text = alert.custom_subject
-            else:
-                text = alert.name + " just triggered"
+            text = alert.subject_for(escape=False) or alert.name + " just triggered"
             color = "#c0392b"
         else:
             text = alert.name + " went back to normal"

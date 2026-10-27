@@ -1517,7 +1517,21 @@ class Alert(TimestampMixin, BelongsToOrgMixin, db.Model):
     def subscribers(self):
         return User.query.join(AlertSubscription).filter(AlertSubscription.alert == self)
 
-    def render_template(self, template):
+    def render_template(self, template, escape=True):
+        """
+        A notification template, filled in.
+
+        `escape` is about where the result is going. Mustache escapes the
+        values it interpolates, not the words around them, and for an HTML
+        email that is exactly right: a query result containing `<b>` is text,
+        not markup, and must not become markup on the way.
+
+        Slack is not HTML. The same escaping turns a value containing `&` into
+        `&amp;` in the message, and a result with a `<` in it reads as
+        `&lt;` -- so a destination that speaks its own markup asks for the
+        unescaped form. The template's own words are untouched either way,
+        which is why a hand-written `<url|label>` has always survived.
+        """
         if template is None:
             return ""
 
@@ -1537,9 +1551,15 @@ class Alert(TimestampMixin, BelongsToOrgMixin, db.Model):
             "ALERT_NAME": self.name,
             "ALERT_URL": "{host}/alerts/{alert_id}".format(host=host, alert_id=self.id),
             "ALERT_STATUS": self.state.upper(),
-            "ALERT_SELECTOR": self.options["selector"],
-            "ALERT_CONDITION": self.options["op"],
-            "ALERT_THRESHOLD": self.options["value"],
+            # Read with defaults, as `evaluate` reads them. `selector` was
+            # added after alerts already existed, and an alert saved without
+            # one raised here -- so an old alert with a custom template
+            # failed to notify at the moment it had something to say, which
+            # is the worst time for a notification to be the thing that
+            # breaks.
+            "ALERT_SELECTOR": self.options.get("selector", "first"),
+            "ALERT_CONDITION": self.options.get("op"),
+            "ALERT_THRESHOLD": self.options.get("value"),
             "QUERY_NAME": self.query_rel.name,
             "QUERY_URL": "{host}/queries/{query_id}".format(host=host, query_id=self.query_rel.id),
             "QUERY_RESULT_VALUE": result_value,
@@ -1547,17 +1567,25 @@ class Alert(TimestampMixin, BelongsToOrgMixin, db.Model):
             "QUERY_RESULT_COLS": data["columns"],
             "QUERY_RESULT_TABLE": result_table,
         }
-        return mustache_render_escape(template, context)
+        render = mustache_render_escape if escape else mustache_render
+        return render(template, context)
 
     @property
     def custom_body(self):
-        template = self.options.get("custom_body", self.options.get("template"))
-        return self.render_template(template)
+        return self.body_for()
 
     @property
     def custom_subject(self):
+        return self.subject_for()
+
+    def body_for(self, escape=True):
+        """The body, escaped for HTML or left as the author wrote it."""
+        template = self.options.get("custom_body", self.options.get("template"))
+        return self.render_template(template, escape=escape)
+
+    def subject_for(self, escape=True):
         template = self.options.get("custom_subject")
-        return self.render_template(template)
+        return self.render_template(template, escape=escape)
 
     @property
     def groups(self):

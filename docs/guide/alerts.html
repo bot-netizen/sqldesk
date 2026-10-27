@@ -141,6 +141,69 @@ webhook needs nothing but a URL, and this needs the app.</p>
 <p>A picture that will not upload never stops the alert &mdash; the threshold was still crossed and
 somebody still needs to know &mdash; but the message says which one is missing, because an alert about a
 chart arriving with no chart and no explanation reads as the alert being broken.</p>
+<h2 id="templates">Writing the message</h2>
+<p>An alert sends a default message unless you give it one. Under <strong>Notification template</strong>
+on the alert, a subject and a body, both <a href="https://mustache.github.io/mustache.5.html">Mustache</a>
+&mdash; <code>{{ VARIABLE }}</code> is filled in, everything else is sent as you typed it.</p>
+
+<h3 id="template-variables">What you can put in it</h3>
+<table>
+  <tr><th>Variable</th><th>What it is</th></tr>
+  <tr><td><code>{{ALERT_NAME}}</code></td><td>The alert&rsquo;s name.</td></tr>
+  <tr><td><code>{{ALERT_URL}}</code></td><td>A link to the alert.</td></tr>
+  <tr><td><code>{{ALERT_STATUS}}</code></td><td><code>TRIGGERED</code>, <code>OK</code> or <code>UNKNOWN</code>.</td></tr>
+  <tr><td><code>{{ALERT_CONDITION}}</code></td><td>The operator: <code>&gt;</code>, <code>&lt;</code>, <code>==</code>&hellip;</td></tr>
+  <tr><td><code>{{ALERT_THRESHOLD}}</code></td><td>The number it is compared against.</td></tr>
+  <tr><td><code>{{ALERT_SELECTOR}}</code></td><td>Which row is read: <code>first</code>, <code>min</code> or <code>max</code>.</td></tr>
+  <tr><td><code>{{QUERY_NAME}}</code></td><td>The query behind it.</td></tr>
+  <tr><td><code>{{QUERY_URL}}</code></td><td>A link to that query.</td></tr>
+  <tr><td><code>{{QUERY_RESULT_VALUE}}</code></td><td>The value that was tested &mdash; usually the one you want.</td></tr>
+  <tr><td><code>{{QUERY_RESULT_ROWS}}</code></td><td>Every row, for looping over.</td></tr>
+  <tr><td><code>{{QUERY_RESULT_COLS}}</code></td><td>The column definitions.</td></tr>
+  <tr><td><code>{{QUERY_RESULT_TABLE}}</code></td><td>The rows as an array of arrays, for building a table.</td></tr>
+</table>
+
+<h3 id="slack-formatting">Formatting for Slack</h3>
+<p>Slack does not use Markdown. It uses its own <a href="https://api.slack.com/reference/surfaces/formatting"><strong>mrkdwn</strong></a>,
+and the differences are the ones that bite:</p>
+<table>
+  <tr><th>You want</th><th>Slack wants</th><th>Not</th></tr>
+  <tr><td>A link</td><td><code>&lt;https://example.com|the dashboard&gt;</code></td><td><code>[the dashboard](https://example.com)</code></td></tr>
+  <tr><td>Bold</td><td><code>*bold*</code></td><td><code>**bold**</code></td></tr>
+  <tr><td>Italic</td><td><code>_italic_</code></td><td><code>*italic*</code></td></tr>
+  <tr><td>Strikethrough</td><td><code>~struck~</code></td><td><code>~~struck~~</code></td></tr>
+  <tr><td>Code</td><td><code>`code`</code></td><td>&mdash; the same</td></tr>
+  <tr><td>Mention a person</td><td><code>&lt;@U024BE7LH&gt;</code></td><td><code>@name</code></td></tr>
+  <tr><td>Mention a channel</td><td><code>&lt;!channel&gt;</code></td><td><code>@channel</code></td></tr>
+</table>
+<p><strong>A link is the thing worth getting right.</strong> It is the way to put a dashboard in an alert
+without a picture, and it works on every Slack destination including the webhook:</p>
+<pre><code>{{ALERT_NAME}} is at {{QUERY_RESULT_VALUE}}, past {{ALERT_THRESHOLD}}.
+
+&lt;{{QUERY_URL}}|Open the query&gt; · &lt;https://sqldesk.example.com/dashboards/12-orders|The orders board&gt;</code></pre>
+<p>The query&rsquo;s own link comes from a variable. A dashboard&rsquo;s does not &mdash; an alert belongs
+to a query, and does not know which dashboards you consider related &mdash; so paste the dashboard URL
+from your browser.</p>
+
+<h3>A table of the rows</h3>
+<p>Mustache loops, so a short result can be sent in full. Slack has no table, but a code block keeps
+columns under each other:</p>
+<pre><code>```
+{{#QUERY_RESULT_TABLE}}{{.}}
+{{/QUERY_RESULT_TABLE}}
+```</code></pre>
+<p>Keep it short. Slack truncates a message block at 3000 characters, and a hundred rows in a
+notification is a report somebody has to scroll rather than an alert they can act on.</p>
+
+<h3>What is escaped, and where</h3>
+<p>Values are escaped for where they are going; the words you type are never touched. In an HTML email a
+result containing <code>&amp;</code> or <code>&lt;</code> is escaped, because it is text rather than
+markup. For Slack it is sent as it is &mdash; otherwise a value with an <code>&amp;</code> in it would
+arrive reading <code>&amp;amp;</code>.</p>
+<p>So a <code>&lt;url|label&gt;</code> you type works on Slack, and the same template sent by email shows
+the angle brackets. <strong>A template written for Slack is written for Slack</strong>; if an alert goes
+to both, write it for the one that matters and accept the other reads plainly.</p>
+
 <div class="doc-next"><a class="btn btn-ghost" href="streams.html">&larr; Streams</a><a class="btn btn-primary" href="mcp.html">MCP &rarr;</a></div>
   </main>
 </div>

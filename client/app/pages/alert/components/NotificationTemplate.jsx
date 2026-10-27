@@ -101,6 +101,12 @@ function NotificationTemplate({ alert, query, columnNames, resultValues, subject
             <i className="fa fa-question-circle" aria-hidden="true" /> Formatting guide{" "}
             <span className="sr-only">(help)</span>
           </HelpTrigger>
+          {/* Its own link, because Slack is where a template most often goes
+              wrong: it is not Markdown, and a link is `<url|label>`. */}
+          <HelpTrigger type="ALERT_SLACK_FORMATTING" className="f-13 m-l-10">
+            <i className="fa fa-slack" aria-hidden="true" /> Formatting for Slack{" "}
+            <span className="sr-only">(help)</span>
+          </HelpTrigger>
         </div>
       )}
     </div>
