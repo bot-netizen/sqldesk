@@ -320,3 +320,54 @@ class TestQuerySnippet(BaseTestCase):
         models.db.session.commit()
         self.make_request("delete", "/api/query_snippets/1", user=self.factory.user)
         self.assertEqual(models.QuerySnippet.query.count(), 0)
+
+
+class TestConfigBeforeSetup(BaseTestCase):
+    """
+    `/api/config` on an install that has not been through `/setup`.
+
+    Nobody meets this on the path people take: a brand new install is sent to
+    `/setup`, which is server-rendered and answers fine. But a browser holding
+    the SPA from a previous install asks for this first, and it used to get a
+    500 with a traceback -- which a client can do nothing with.
+
+    Found by the 0.7.7 smoke test against a brand new database, and inherited
+    rather than introduced: the line was byte-identical in 0.7.6.
+    """
+
+    def no_organization(self):
+        # What `Organization.get_by_slug` really returns before setup. Patched
+        # rather than deleting the fixture's org, so the rest of the row stays
+        # consistent while the proxy resolves to None.
+        return patch("sqldesk.authentication.org_resolving.Organization.get_by_slug", return_value=None)
+
+    def test_it_answers_rather_than_raising(self):
+        with self.no_organization():
+            rv = self.client.get("/api/config")
+
+        self.assertEqual(200, rv.status_code)
+
+    def test_it_says_the_install_still_needs_setting_up(self):
+        with self.no_organization():
+            rv = self.client.get("/api/config")
+
+        self.assertIsNone(rv.json["org_slug"])
+        self.assertTrue(rv.json["setup_required"])
+
+    def test_the_client_config_is_still_usable(self):
+        # The browser boots from this, so an empty object would trade a 500 for
+        # a blank page. Settings fall back to the install's defaults, which is
+        # where an organization that has overridden nothing ends up anyway.
+        with self.no_organization():
+            config = self.client.get("/api/config").json["client_config"]
+
+        self.assertIn("dateFormat", config)
+        self.assertIn("pageSize", config)
+        self.assertFalse(config["slackConfigured"])
+
+    def test_an_install_that_is_set_up_is_unaffected(self):
+        rv = self.client.get("/api/config")
+
+        self.assertEqual(200, rv.status_code)
+        self.assertEqual(self.factory.org.slug, rv.json["org_slug"])
+        self.assertNotIn("setup_required", rv.json)

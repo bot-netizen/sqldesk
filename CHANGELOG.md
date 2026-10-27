@@ -30,6 +30,14 @@ click in the overlay closed it, so the field vanished as you reached for it.
 that listed it, to find out what the build already knew. Kafka did it before
 Mimir did.
 
+**`/api/config` met a brand new install with a traceback.** Everything that
+endpoint assembles reads settings off the current organization, and there is no
+organization until `/setup` has run — so the first thing a browser holding a
+cached SPA asks for answered 500. Nobody meets it on the path people take, since
+a new install is sent to `/setup`, which is server-rendered. It now answers with
+`org_slug` null and `setup_required`, which a client can act on. Inherited
+rather than introduced: the line was byte-identical in 0.7.6.
+
 ### Things that were missing
 
 **Bars can be coloured by their own value.** One breakpoint, a colour below it

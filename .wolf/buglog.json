@@ -945,15 +945,17 @@
       "id": "bug-056",
       "error_message": "GET /api/config returns 500 on an install that has not been through /setup: AttributeError: 'NoneType' object has no attribute 'slug' at sqldesk/handlers/authentication.py:439",
       "root_cause": "The handler reads current_org.slug unguarded, and before the first organization exists current_org is None. Inherited: the line is byte-identical in v0.7.6 and last changed in the fork commit, so it is not a 0.7.7 regression. Nobody normally meets it, because a fresh install is sent to /setup, which is server-rendered and answers 200 -- but anything that fetches /api/config first, including a client that has the SPA cached from a previous install, gets a 500 with a traceback rather than an answer saying the install is not set up yet.",
-      "fix": "Not fixed. Found by the 0.7.7 smoke test through compose.prod.yaml against a brand new database. Deliberately left for 0.7.8: it predates this release and the first-run path people actually take works. The fix is to answer with org_slug null (or the setup redirect the browser can act on) rather than dereferencing None.",
+      "fix": "Fixed in 0.7.8. Four guards, because the whole /api/config path reads the org, not just the one line in the bug report: _org_setting(key) falls back to the install defaults in settings/organization.py (where get_setting ends up anyway for an unset setting), _slack_is_connected() answers False with no org to have connected one, config() returns org_slug null plus setup_required True, and base_href() returns '/' under MULTI_ORG with no org -- the index route is org-scoped there, so there is no unscoped URL to build and url_for raised BuildError. get_login_url already answered that case the same way. base_href was NOT in the original diagnosis and was found by the test, because MULTI_ORG is on in the test environment. tests/test_handlers.py::TestConfigBeforeSetup, four tests, each guard mutation-tested.",
       "tags": [
         "api",
         "first-run",
         "inherited",
         "found-by-smoke-test"
       ],
-      "status": "open",
-      "found": "2026-10-25"
+      "status": "fixed",
+      "found": "2026-10-25",
+      "file": "sqldesk/handlers/authentication.py",
+      "last_seen": "2026-10-27T01:24:12.352948Z"
     },
     {
       "error_message": "Wrong condition in logic",
@@ -1359,6 +1361,78 @@
       "occurrences": 1,
       "related_bugs": [],
       "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk"
+    },
+    {
+      "error_message": "Significant refactor of test_data_sources.py",
+      "file": "tests/models/test_data_sources.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 4\u219212 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-079",
+      "timestamp": "2026-10-27T00:28:10.134Z",
+      "last_seen": "2026-10-27T00:28:10.134Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong return value",
+      "file": "sqldesk/handlers/authentication.py",
+      "root_cause": "Was returning: models.SlackWorkspace.query.filter(models.SlackWor",
+      "fix": "Now returns: False",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-080",
+      "timestamp": "2026-10-27T01:20:21.535Z",
+      "last_seen": "2026-10-27T01:20:21.535Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong return value",
+      "file": "sqldesk/handlers/authentication.py",
+      "root_cause": "Was returning: json_response({\"org_slug\": current_org.slug, \"clie",
+      "fix": "Now returns: json_response({\"org_slug\": None, \"setup_required\":",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-081",
+      "timestamp": "2026-10-27T01:20:27.208Z",
+      "last_seen": "2026-10-27T01:20:27.208Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong operator: != should be ==",
+      "file": "sqldesk/handlers/authentication.py",
+      "root_cause": "Used \"!=\" instead of \"==\"",
+      "fix": "Changed operator != \u2192 ==",
+      "tags": [
+        "auto-detected",
+        "operator-fix",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-082",
+      "timestamp": "2026-10-27T01:22:37.693Z",
+      "last_seen": "2026-10-27T01:22:37.693Z",
+      "occurrences": 1,
+      "related_bugs": []
     }
   ],
   "applied_observations": {
@@ -1408,7 +1482,11 @@
     "400d5fcf-55ef-4a8d-a50d-55f4a47b6665": true,
     "936fbf27-783a-4a27-b0c7-781490e34907": true,
     "9d2c0b83-fd11-442f-9274-629991df7ad9": true,
-    "5a20da0e-095f-4a5d-9a8d-3760f968ae58": true
+    "5a20da0e-095f-4a5d-9a8d-3760f968ae58": true,
+    "2edece27-101a-4940-810e-41ecb268bd91": true,
+    "b3136ba7-5677-44c7-a5ce-c582124702a4": true,
+    "80350ff5-2eb0-4cf9-927e-2f1a745840e3": true,
+    "ffa3249f-4e46-4585-8320-722887853b85": true
   },
-  "next_id": 74
+  "next_id": 83
 }
