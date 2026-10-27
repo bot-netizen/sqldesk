@@ -2193,6 +2193,13 @@ class TestDrawingAResultOverMcp(McpTestCase):
         self.assertTrue(several.options["legend"]["enabled"])
         self.assertEqual({"region": "x", "amount": "y", "tax": "y"}, several.options["columnMapping"])
 
+    def test_a_pie_always_gets_a_legend(self):
+        # On a pie the slices are the categories, so the legend is how anybody
+        # reads it -- unlike a single-series bar chart, where it is noise.
+        pie = self.draw(kind="chart", x="region", y=["amount"], chart_type="pie")
+
+        self.assertTrue(pie.options["legend"]["enabled"])
+
     def test_a_series_column_splits_the_chart(self):
         visualization = self.draw(kind="chart", x="region", y=["amount"], series="channel")
 

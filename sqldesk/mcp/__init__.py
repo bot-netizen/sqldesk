@@ -2190,15 +2190,19 @@ def tool_save_visualization(user, org, arguments):
             "swappedAxes": chart_type == "bar",
             "columnMapping": mapping,
             "seriesOptions": {},
-            "legend": {"enabled": len(ys) > 1 or bool(series)},
+            # A legend earns its space once there is more than one thing to
+            # tell apart -- except on a pie, where the slices *are* the
+            # categories and the legend is how you read them at all.
+            "legend": {"enabled": chart_type == "pie" or len(ys) > 1 or bool(series)},
         }
         default_name = "{} by {}".format(", ".join(ys), x)
     elif kind == "counter":
         column = (arguments.get("column") or "").strip()
         if not column:
             raise McpError(INVALID_PARAMS, "A counter needs `column`: the column to show.")
-        # Row 0 of that column. `counterColName` is what the counter reads;
-        # the editor writes the same pair for a single-number counter.
+        # `rowNumber` is 1-based and 1 is the counter's own registered
+        # default, so this is the first row -- the same options the browser
+        # writes for a single-number counter.
         options = {"counterColName": column, "rowNumber": 1, "counterLabel": ""}
         default_name = column
     else:
