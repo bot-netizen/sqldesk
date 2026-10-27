@@ -1,5 +1,84 @@
 # Changelog
 
+## 0.7.8
+
+Twelve things reported from using 0.7.7, worked through in order. Not a themed
+release: a list of what was wrong and what was missing.
+
+### Things that were wrong
+
+**"Something on this page did not work", on a page that worked.** ResizeObserver
+says "loop completed with undelivered notifications" whenever a resize callback
+resizes something itself, which is what `useElementSize` does for every
+visualization that scales its text to its widget. It arrives with no `error`
+object, so the chunk-error guard next to it never saw it and the handler went on
+to show a fault. Reloading appeared to fix it only because the warning does not
+fire twice on a settled layout.
+
+**Searching a list that is fetched whole did nothing at all** — alerts, groups,
+group members, outdated queries. `updateSearch` reports `{ search: true }` and
+the fetcher only went back to the server for tags or sorting, so the term was
+dropped and the same unfiltered rows were re-paged. The comment above that
+condition claimed otherwise. Alerts has a search box now too, which matches the
+query's name as well as the alert's.
+
+**Search on queries and dashboards was behind a funnel marked "Filter".** It is
+a box on the page now. A text field inside an antd Dropdown also fought it: a
+click in the overlay closed it, so the field vanished as you reached for it.
+
+**A data source type with no logo was asked for over the network** on every page
+that listed it, to find out what the build already knew. Kafka did it before
+Mimir did.
+
+### Things that were missing
+
+**Bars can be coloured by their own value.** One breakpoint, a colour below it
+and a colour at or above it, in the Colors tab. On a horizontal bar chart of
+variances the sign is the whole message and one colour hides it.
+
+**A table's data bars point, and take a colour.** The bar was the magnitude
+alone, always growing from the left, so -90 and 90 drew the same bar. Where a
+column has values on both sides of zero, zero is now the middle and a line is
+drawn on it.
+
+**An agent can draw a result and put it on a dashboard.** `save_visualization`
+draws a draft query as a chart, a counter or a table; `save_dashboard` puts
+visualizations on a draft dashboard. Fifteen MCP tools now: nine read-only and
+six that write, all of them capped, audited, and producing drafts a person
+publishes.
+
+### Things that turned out to be nothing
+
+**Chart palettes were not removed.** Four of them, in Colors &rarr; Color
+Scheme, for every chart type except pie and heatmap, which have their own colour
+panels.
+
+**There is no page-load regression from 0.7.6.** The bundle grew about 6 KB
+against a CI-enforced budget, `webpack.config.js` is byte-identical between the
+two tags, the initial payload is 0.50 MB of brotli served in about 44 ms, and
+the request path got faster rather than slower. `plan/0.7.8-plan.md` records
+what was measured, including the trap: probing with `Accept-Encoding: gzip`
+alone reports 2.38 MB uncompressed, because flask-compress will not gzip a
+streamed response and a static file is streamed.
+
+### Configuration
+
+**Schemas are refreshed every three hours, not every half hour**
+(`SQLDESK_SCHEMAS_REFRESH_SCHEDULE`, 180). Every source is read on every pass,
+which on a warehouse with thousands of tables is minutes of work. What that
+costs is bounded: the schema browser's refresh button forces a live read of the
+one source in front of you, and running a query never depends on the cache.
+
+**`SQLDESK_WORKERS_COUNT` is documented**, because it reads as a rate and is a
+concurrency. Two workers is two queries in flight — about twenty a second at
+100ms a query, two a minute at a minute a query — and the real ceiling is
+usually the warehouse's own connection limit.
+
+### Upgrading from 0.7.7
+
+Nothing to do. No migrations. If you had set `SQLDESK_SCHEMAS_REFRESH_SCHEDULE`
+yourself, your value is still used; only the default moved.
+
 ## 0.7.7
 
 **The web tier serves more than four requests at a time.** gunicorn ran sync

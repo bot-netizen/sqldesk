@@ -954,6 +954,411 @@
       ],
       "status": "open",
       "found": "2026-10-25"
+    },
+    {
+      "error_message": "Wrong condition in logic",
+      "file": "client/app/components/TypeLogo.tsx",
+      "root_cause": "Condition was: if (src && brokenSrc !== src)",
+      "fix": "Changed to: if (src && brokenSrc !== src && !isMissingLogo(src)",
+      "tags": [
+        "auto-detected",
+        "logic-fix",
+        "tsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-057",
+      "timestamp": "2026-10-26T23:09:29.680Z",
+      "last_seen": "2026-10-26T23:09:29.680Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/settings/__init__.py",
+      "root_cause": "7 lines replaced/restructured",
+      "fix": "Rewrote 9\u219215 lines (7 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-058",
+      "timestamp": "2026-10-26T23:12:15.900Z",
+      "last_seen": "2026-10-26T23:12:15.900Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Incorrect value in code",
+      "file": "client/app/components/items-list/components/ListPageControls.jsx",
+      "root_cause": "Had \"@ant-design/icons/FilterOutlined\"",
+      "fix": "Changed to \"@ant-design/icons/SearchOutlined\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-059",
+      "timestamp": "2026-10-26T23:17:14.691Z",
+      "last_seen": "2026-10-26T23:17:14.691Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "CSS fix: chrome",
+      "file": "client/app/components/items-list/components/ListPageControls.jsx",
+      "root_cause": "chrome: Filter holds the \u2192 search is server-side",
+      "fix": "Changed chrome: Filter holds the \u2192 search is server-side",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-060",
+      "timestamp": "2026-10-26T23:17:23.180Z",
+      "last_seen": "2026-10-26T23:17:23.180Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of ListPageControls.jsx",
+      "file": "client/app/components/items-list/components/ListPageControls.jsx",
+      "root_cause": "17 lines replaced/restructured",
+      "fix": "Rewrote 42\u219228 lines (17 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-061",
+      "timestamp": "2026-10-26T23:17:31.751Z",
+      "last_seen": "2026-10-26T23:17:31.751Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of ListPageControls.less",
+      "file": "client/app/components/items-list/components/ListPageControls.less",
+      "root_cause": "10 lines replaced/restructured",
+      "fix": "Rewrote 17\u219227 lines (10 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "less"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-062",
+      "timestamp": "2026-10-26T23:17:39.417Z",
+      "last_seen": "2026-10-26T23:17:39.417Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of ListPageControls.test.js",
+      "file": "client/app/components/items-list/components/ListPageControls.test.js",
+      "root_cause": "15 lines replaced/restructured",
+      "fix": "Rewrote 34\u219221 lines (15 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-063",
+      "timestamp": "2026-10-26T23:18:20.216Z",
+      "last_seen": "2026-10-26T23:18:20.216Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of ItemsFetcher.js",
+      "file": "client/app/components/items-list/classes/ItemsFetcher.js",
+      "root_cause": "17 lines replaced/restructured",
+      "fix": "Rewrote 42\u219262 lines (17 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-064",
+      "timestamp": "2026-10-26T23:21:16.906Z",
+      "last_seen": "2026-10-26T23:21:16.906Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/chart/getOptions.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-065",
+      "timestamp": "2026-10-26T23:40:06.108Z",
+      "last_seen": "2026-10-26T23:40:06.108Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/chart/echarts/buildOption.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-066",
+      "timestamp": "2026-10-26T23:40:20.007Z",
+      "last_seen": "2026-10-26T23:40:27.576Z",
+      "occurrences": 2,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/chart/echarts/buildOption.threshold.test.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-067",
+      "timestamp": "2026-10-26T23:41:49.399Z",
+      "last_seen": "2026-10-26T23:41:49.399Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of buildOption.threshold.test.ts",
+      "file": "viz-lib/src/visualizations/chart/echarts/buildOption.threshold.test.ts",
+      "root_cause": "10 lines replaced/restructured",
+      "fix": "Rewrote 13\u219239 lines (10 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-068",
+      "timestamp": "2026-10-26T23:43:09.138Z",
+      "last_seen": "2026-10-26T23:43:09.138Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/chart/Editor/ThresholdColorSettings.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-069",
+      "timestamp": "2026-10-26T23:45:32.881Z",
+      "last_seen": "2026-10-26T23:45:32.881Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/table/cellFormat.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-070",
+      "timestamp": "2026-10-26T23:48:56.651Z",
+      "last_seen": "2026-10-26T23:48:56.651Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of cellFormat.ts",
+      "file": "viz-lib/src/visualizations/table/cellFormat.ts",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 9\u219249 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-071",
+      "timestamp": "2026-10-26T23:49:07.662Z",
+      "last_seen": "2026-10-26T23:49:07.662Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/table/utils.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-072",
+      "timestamp": "2026-10-26T23:49:13.846Z",
+      "last_seen": "2026-10-26T23:52:34.111Z",
+      "occurrences": 2,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/table/cellFormat.test.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-073",
+      "timestamp": "2026-10-26T23:50:08.383Z",
+      "last_seen": "2026-10-26T23:51:11.163Z",
+      "occurrences": 2,
+      "related_bugs": []
+    },
+    {
+      "error_message": "ResizeObserver loop completed with undelivered notifications -- shown to the user as \"Something on this page did not work\"",
+      "file": "client/app/components/ApplicationArea/index.jsx",
+      "root_cause": "The global window.onerror handler skipped chunk-load errors and reported everything else. ResizeObserver's loop warning arrives as an ErrorEvent with a message and NO `error` object, so `isChunkLoadError(event.error)` never saw it and it fell through to notification.error. useElementSize triggers it on any visualization that scales to its widget. webpack.config.js already filtered the same message from the dev-server overlay, so the dev tooling knew and the app did not.",
+      "fix": "client/app/lib/browserNoise.js: isBenignBrowserNoise(event) reads event.error OR event.message, matched against the Chrome and Safari wordings. Guarded in the handler beside the chunk-error guard.",
+      "tags": [
+        "frontend",
+        "error-handling",
+        "resize-observer",
+        "false-alarm",
+        "0.7.8"
+      ],
+      "status": "fixed",
+      "id": "bug-074",
+      "timestamp": "2026-10-27T00:09:26.838605Z",
+      "last_seen": "2026-10-27T00:09:26.838605Z",
+      "occurrences": 1,
+      "related_bugs": [],
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk"
+    },
+    {
+      "error_message": "GET /static/images/db-logos/mimir.png 404 (NOT FOUND)",
+      "file": "client/app/components/TypeLogo.tsx",
+      "root_cause": "TypeLogo degraded a missing logo to an initials tile, but only via <img onError> -- so it requested the file and waited for the 404 on every page that listed the type. Cosmetic, but one failed request per logo per page, for every data source type without a file. Kafka did it before Mimir.",
+      "fix": "client/app/lib/logoAssets.js: isMissingLogo(src) checks the build-time listing webpack already produces for requireImages(), so a known-absent logo renders the tile with no request. Returns false when the listing is unavailable (jest, non-webpack builds), which is the old behaviour -- a needless 404 beats a tile covering a logo that is really there.",
+      "tags": [
+        "frontend",
+        "assets",
+        "404",
+        "webpack",
+        "0.7.8"
+      ],
+      "status": "fixed",
+      "id": "bug-075",
+      "timestamp": "2026-10-27T00:09:26.838605Z",
+      "last_seen": "2026-10-27T00:09:26.838605Z",
+      "occurrences": 1,
+      "related_bugs": [],
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk"
+    },
+    {
+      "error_message": "Typing in the search box on the alerts, groups, group members or outdated-queries list filtered nothing",
+      "file": "client/app/components/items-list/classes/ItemsFetcher.js",
+      "root_cause": "updateSearch reports `{ search: true }`, but PlainListFetcher.fetch only went back to the server for `changes.tags || changes.sorting`. A search change fell through to the branch that re-pages the items already held, unfiltered. The comment directly above that condition read \"only if tags or search changes\" -- the intent was written down and the code never matched it, which is presumably how it survived. Alerts additionally has no `q` on its endpoint and a getRequest that discarded the term.",
+      "fix": "A plain list whose endpoint takes `q` now refetches on a search change. One whose endpoint does not can pass `matches(item, term)` to ResourceItemsSource and is filtered in the browser over the whole list (not the page in front of you). AlertsList passes one that matches the alert's name and its query's name.",
+      "tags": [
+        "frontend",
+        "items-list",
+        "search",
+        "upstream-bug",
+        "0.7.8"
+      ],
+      "status": "fixed",
+      "id": "bug-076",
+      "timestamp": "2026-10-27T00:09:26.838605Z",
+      "last_seen": "2026-10-27T00:09:26.838605Z",
+      "occurrences": 1,
+      "related_bugs": [],
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk"
+    },
+    {
+      "error_message": "Chart palettes \"removed\" -- reported, not real",
+      "file": "viz-lib/src/visualizations/ColorPalette.ts",
+      "root_cause": "Nothing was removed. Four palettes (SQLDesk, Viridis, Tableau 10, D3 Category 10) are offered by the Color Scheme select in DefaultColorsSettings, which the Colors tab shows for every chart type except pie and heatmap -- those have their own colour panels. Recorded so the next report of this is answered from here.",
+      "fix": "No change. Verified in ColorPalette.ts:86 (AllColorPalettes) and DefaultColorsSettings.tsx:76 (the select).",
+      "tags": [
+        "viz-lib",
+        "not-a-bug",
+        "answered",
+        "0.7.8"
+      ],
+      "status": "not-a-bug",
+      "id": "bug-077",
+      "timestamp": "2026-10-27T00:09:26.838605Z",
+      "last_seen": "2026-10-27T00:09:26.838605Z",
+      "occurrences": 1,
+      "related_bugs": [],
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk"
+    },
+    {
+      "error_message": "Page loading slower than 0.7.6 -- investigated, no regression found",
+      "file": "webpack.config.js",
+      "root_cause": "No measurable regression. Bundle 528 KB gzipped against a CI-enforced budget of 560 (522 KB in September, so ~6 KB added); webpack.config.js byte-identical between v0.7.6 and v0.7.7; pages/index.js identical so nothing moved between the eager and lazy sets; initial payload 0.50 MB of brotli served in ~44 ms in-pod and 52 ms through a port-forward; handlers/base.py got FASTER (record_events batches ~75 jobs into 1); all queues empty; real traffic median 41 ms. Most likely what was felt: the ChunkLoadError in the same report -- a deploy renames every chunk, so a tab open across one refetches everything and reloads itself.",
+      "fix": "No change. TRAP recorded: probing with `Accept-Encoding: gzip` alone reports 2.38 MB and Content-Encoding: none, which looks exactly like broken compression. flask-compress will only use an algorithm it can compress incrementally on a STREAMED response and its streaming set is ('zstd','br','deflate') -- gzip is not in it, and a static file is streamed. See sqldesk/compression.py's docstring. Also: `duration` in the metrics log is MILLISECONDS.",
+      "tags": [
+        "performance",
+        "not-a-bug",
+        "measurement",
+        "compression",
+        "0.7.8"
+      ],
+      "status": "not-a-bug",
+      "id": "bug-078",
+      "timestamp": "2026-10-27T00:09:26.838605Z",
+      "last_seen": "2026-10-27T00:09:26.838605Z",
+      "occurrences": 1,
+      "related_bugs": [],
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk"
     }
   ],
   "applied_observations": {
@@ -983,7 +1388,27 @@
     "bcbd42d8-c4a0-4cd6-a14f-e74d6d0288d3": true,
     "d3d0bf0c-1a80-4b62-a9e0-312c6829c283": true,
     "714dbb60-2a4e-48c4-860f-92721d6fe2bd": true,
-    "120a39e6-991b-4d22-bfea-de78468169b5": true
+    "120a39e6-991b-4d22-bfea-de78468169b5": true,
+    "746cad58-9124-4a2e-970d-1ebf03fe1731": true,
+    "3e12ff8b-4204-4f7f-b2c7-2d7c2fe8b6b5": true,
+    "8a2fdfc7-a577-42ab-9936-80ba2de1b8be": true,
+    "fd677c13-36a9-4f9e-9686-52e7546a9bbc": true,
+    "47ba1c48-6675-46ba-80f2-78d846e200f0": true,
+    "bed6a27c-640f-4e9b-85ed-f779ab2563d1": true,
+    "aa598029-d57b-4177-ad6b-447b4347bca3": true,
+    "cc9372d3-7a5a-496d-b8aa-b4893417f40d": true,
+    "b54faffb-8f01-41ff-9b84-042c5d1c5866": true,
+    "82681bdf-33c8-47e8-b0dc-0ab58266d1b8": true,
+    "e6144004-c62d-4d38-8790-9dbdc965af4b": true,
+    "9015ca87-699f-42a1-9134-e7be8a4cd5ec": true,
+    "1f55ab04-a3fc-4785-ad79-081d4dd0b9fb": true,
+    "3d459bb1-1080-4314-b316-97a4e813b3ca": true,
+    "6c1288df-3813-4170-88ad-53bddf22ac53": true,
+    "69a588fd-8dc7-4ab5-be5b-009243dbb231": true,
+    "400d5fcf-55ef-4a8d-a50d-55f4a47b6665": true,
+    "936fbf27-783a-4a27-b0c7-781490e34907": true,
+    "9d2c0b83-fd11-442f-9274-629991df7ad9": true,
+    "5a20da0e-095f-4a5d-9a8d-3760f968ae58": true
   },
-  "next_id": 51
+  "next_id": 74
 }
