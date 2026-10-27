@@ -3,6 +3,7 @@ from unittest import mock
 from mock import ANY, MagicMock
 
 import sqldesk.tasks.alerts
+from sqldesk import models
 from sqldesk.models import Alert
 from sqldesk.tasks.alerts import check_alerts_for_query, notify_subscriptions
 from tests import BaseTestCase
@@ -121,3 +122,119 @@ class TestNotifySubscriptions(BaseTestCase):
 
         self.assertTrue(subscription.notify.called, "the alert must go out even when no picture can be drawn")
         self.assertEqual(subscription.notify.call_args[0][6]["screenshots"], [])
+
+
+class TestAnAlertKeepsItsHistory(BaseTestCase):
+    """
+    The alert row says where it is now and when it last moved. That answers
+    "is this firing" and nothing else, so an alert that has gone off four
+    times since breakfast looks exactly like one that went off once and
+    stayed there -- and which of those is happening is usually the question.
+    """
+
+    def evaluates_to(self, state):
+        patched = mock.patch.object(Alert, "evaluate", return_value=state)
+        patched.start()
+        self.addCleanup(patched.stop)
+
+    def nothing_is_notified(self):
+        patched = mock.patch.object(sqldesk.tasks.alerts, "notify_subscriptions")
+        notifier = patched.start()
+        self.addCleanup(patched.stop)
+        return notifier
+
+    def fires_of(self, alert):
+        return (
+            models.AlertFire.query.filter(models.AlertFire.alert_id == alert.id)
+            .order_by(models.AlertFire.created_at, models.AlertFire.id)
+            .all()
+        )
+
+    def test_a_state_change_is_written_down(self):
+        self.nothing_is_notified()
+        self.evaluates_to(Alert.TRIGGERED_STATE)
+        alert = self.factory.create_alert()
+
+        check_alerts_for_query(alert.query_id, metadata={"Scheduled": False})
+
+        (fire,) = self.fires_of(alert)
+        self.assertEqual(Alert.TRIGGERED_STATE, fire.state)
+        self.assertTrue(fire.notified)
+
+    def test_firing_four_times_leaves_four_lines(self):
+        # The whole point: a counter that says "four times today" needs four
+        # rows, not one row updated four times.
+        self.nothing_is_notified()
+        alert = self.factory.create_alert()
+
+        for state in (Alert.TRIGGERED_STATE, Alert.OK_STATE, Alert.TRIGGERED_STATE, Alert.OK_STATE):
+            with mock.patch.object(Alert, "evaluate", return_value=state):
+                check_alerts_for_query(alert.query_id, metadata={"Scheduled": False})
+
+        self.assertEqual(
+            [Alert.TRIGGERED_STATE, Alert.OK_STATE, Alert.TRIGGERED_STATE, Alert.OK_STATE],
+            [f.state for f in self.fires_of(alert)],
+        )
+
+    def test_a_state_that_did_not_change_writes_nothing(self):
+        self.nothing_is_notified()
+        self.evaluates_to(Alert.TRIGGERED_STATE)
+        alert = self.factory.create_alert()
+
+        check_alerts_for_query(alert.query_id, metadata={"Scheduled": False})
+        check_alerts_for_query(alert.query_id, metadata={"Scheduled": False})
+
+        self.assertEqual(1, len(self.fires_of(alert)), "a history of a thing that did not happen")
+
+    def test_a_muted_alert_is_recorded_but_marked_unsent(self):
+        # It still changed state, and the history should say so. What it must
+        # not say is that somebody was told.
+        self.nothing_is_notified()
+        self.evaluates_to(Alert.TRIGGERED_STATE)
+        alert = self.factory.create_alert(options={"muted": True, "op": "greater than", "value": 1, "column": "foo"})
+
+        check_alerts_for_query(alert.query_id, metadata={"Scheduled": False})
+
+        (fire,) = self.fires_of(alert)
+        self.assertEqual(Alert.TRIGGERED_STATE, fire.state)
+        self.assertFalse(fire.notified, "nothing was sent, so the history must not claim it was")
+
+    def test_settling_from_unknown_to_ok_is_recorded_but_unsent(self):
+        self.nothing_is_notified()
+        self.evaluates_to(Alert.OK_STATE)
+        alert = self.factory.create_alert()
+        alert.state = Alert.UNKNOWN_STATE
+        models.db.session.commit()
+
+        check_alerts_for_query(alert.query_id, metadata={"Scheduled": False})
+
+        (fire,) = self.fires_of(alert)
+        self.assertEqual(Alert.OK_STATE, fire.state)
+        self.assertFalse(fire.notified)
+
+    def test_the_value_it_fired_on_is_kept(self):
+        # "It fired" is a fact. "It fired at 412" is the one worth being woken
+        # for. Not patching evaluate here, so the real one runs and records.
+        self.nothing_is_notified()
+        alert = self.factory.create_alert(options={"op": "greater than", "value": 400, "column": "n"})
+        query_result = self.factory.create_query_result(data={"columns": [{"name": "n"}], "rows": [{"n": 412}]})
+        alert.query_rel.latest_query_data = query_result
+        models.db.session.commit()
+
+        check_alerts_for_query(alert.query_id, metadata={"Scheduled": False})
+
+        (fire,) = self.fires_of(alert)
+        self.assertEqual(Alert.TRIGGERED_STATE, fire.state)
+        self.assertEqual("412", fire.value)
+
+    def test_deleting_an_alert_takes_its_history_with_it(self):
+        self.nothing_is_notified()
+        self.evaluates_to(Alert.TRIGGERED_STATE)
+        alert = self.factory.create_alert()
+        check_alerts_for_query(alert.query_id, metadata={"Scheduled": False})
+        self.assertEqual(1, len(self.fires_of(alert)))
+
+        models.db.session.delete(alert)
+        models.db.session.commit()
+
+        self.assertEqual(0, models.AlertFire.query.count())

@@ -57,11 +57,29 @@ def check_alerts_for_query(query_id, metadata):
             logger.info("Alert %d new state: %s", alert.id, new_state)
             old_state = alert.state
 
+            # Whether anything will be sent, decided before the row is written
+            # rather than after: the two silent cases below are `continue`s,
+            # and a history that recorded them as notifications would have
+            # people looking for messages nobody sent.
+            settling = old_state == models.Alert.UNKNOWN_STATE and new_state == models.Alert.OK_STATE
+            will_notify = not settling and not alert.muted
+
             alert.state = new_state
             alert.last_triggered_at = utils.utcnow()
+            # `evaluated_value` is set by `evaluate` above. Absent when it is
+            # patched, which is how most of the tests drive this.
+            value = getattr(alert, "evaluated_value", None)
+            models.db.session.add(
+                models.AlertFire(
+                    alert=alert,
+                    state=new_state,
+                    value=None if value is None else str(value)[:255],
+                    notified=will_notify,
+                )
+            )
             models.db.session.commit()
 
-            if old_state == models.Alert.UNKNOWN_STATE and new_state == models.Alert.OK_STATE:
+            if settling:
                 logger.debug("Skipping notification (previous state was unknown and now it's ok).")
                 continue
 

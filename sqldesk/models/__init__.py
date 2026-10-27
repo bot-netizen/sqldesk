@@ -1424,6 +1424,16 @@ class Alert(TimestampMixin, BelongsToOrgMixin, db.Model):
         data = self.query_rel.latest_query_data.data if self.query_rel.latest_query_data else None
         new_state = self.UNKNOWN_STATE
 
+        # The number this decision was made on, kept for whoever reads the
+        # history later: "it fired" is a fact, "it fired at 412 against a
+        # threshold of 400" is the one worth being woken for.
+        #
+        # An attribute on the instance rather than a second return value,
+        # because `evaluate` is patched wholesale in the tests and changing
+        # what it returns would quietly change what they exercise. Absent is
+        # a fine answer -- the caller reads it with a default.
+        self.evaluated_value = None
+
         if data and data["rows"] and self.options["column"] in data["rows"][0]:
             op = OPERATORS.get(self.options["op"], lambda v, t: False)
 
@@ -1452,9 +1462,57 @@ class Alert(TimestampMixin, BelongsToOrgMixin, db.Model):
             threshold = self.options["value"]
 
             if value is not None:
+                self.evaluated_value = value
                 new_state = next_state(op, value, threshold)
 
         return new_state
+
+    #: The window the fire count covers. A day, but a rolling one.
+    #:
+    #: Not "today": there is no organization timezone, so today would have to
+    #: mean since UTC midnight -- and for anybody west of it an alert that
+    #: went off during the evening falls into tomorrow and the count reads
+    #: zero. A rolling 24 hours answers the same question ("is this thing
+    #: going off repeatedly?") and cannot be wrong about whose midnight.
+    FIRE_COUNT_WINDOW = datetime.timedelta(hours=24)
+
+    @classmethod
+    def fire_counts(cls, alert_ids, now=None):
+        """
+        How many times each of these alerts *fired* in the last 24 hours.
+
+        Fired, not changed: `ok -> triggered -> ok -> triggered` is two fires
+        and four state changes, and "it went off twice" is what somebody
+        means. The recoveries are still in the history, where they are worth
+        reading; they are not worth counting.
+
+        One grouped query for the whole list rather than one per row, because
+        the list already serializes a query and a user for every alert and
+        does not need a third round trip each.
+        """
+        if not alert_ids:
+            return {}
+        since = (now or utils.utcnow()) - cls.FIRE_COUNT_WINDOW
+        rows = (
+            db.session.query(AlertFire.alert_id, db.func.count(AlertFire.id))
+            .filter(
+                AlertFire.alert_id.in_(list(alert_ids)),
+                AlertFire.created_at >= since,
+                AlertFire.state == cls.TRIGGERED_STATE,
+            )
+            .group_by(AlertFire.alert_id)
+            .all()
+        )
+        return {alert_id: count for alert_id, count in rows}
+
+    def recent_fires(self, limit=20):
+        """This alert's history, newest first. Every state change, not only fires."""
+        return (
+            AlertFire.query.filter(AlertFire.alert_id == self.id)
+            .order_by(AlertFire.created_at.desc(), AlertFire.id.desc())
+            .limit(limit)
+            .all()
+        )
 
     def subscribers(self):
         return User.query.join(AlertSubscription).filter(AlertSubscription.alert == self)
@@ -2919,6 +2977,46 @@ class DashboardSubscription(TimestampMixin, BelongsToOrgMixin, db.Model):
 
 
 @generic_repr("id", "user_id", "destination_id", "alert_id")
+class AlertFire(db.Model):
+    """
+    One line in an alert's history: it changed to this state, then.
+
+    The alert row itself carries only `state` and `last_triggered_at` -- where
+    it is now and when it last moved. That answers "is this firing" and
+    nothing else, so an alert that has gone off four times since breakfast
+    looks exactly like one that went off once and stayed there. Which of those
+    two is happening is usually the whole question.
+
+    `value` is what the alert was evaluating when it moved. "It fired" is a
+    fact; "it fired at 412 against a threshold of 400" is the one worth being
+    woken for. Null where the query could not be read at all, which is the
+    same reason the state went unknown.
+
+    `notified` says whether anything was actually sent. A muted alert and the
+    first unknown-to-ok settle both change state in silence, and a history
+    that showed them as notifications would have people looking for messages
+    nobody sent.
+    """
+
+    id = primary_key("AlertFire")
+    alert_id = Column(key_type("Alert"), db.ForeignKey("alerts.id", ondelete="CASCADE"))
+    alert = db.relationship(Alert, backref=backref("fires", cascade="all, delete-orphan", passive_deletes=True))
+    state = Column(db.String(255))
+    value = Column(db.String(255), nullable=True)
+    notified = Column(db.Boolean, default=False, server_default="false", nullable=False)
+    created_at = Column(db.DateTime(True), default=db.func.now(), nullable=False)
+
+    __tablename__ = "alert_fires"
+    __table_args__ = (
+        # Every read of this table is "one alert, newest first", for the count
+        # on the list and the history on the page.
+        db.Index("alert_fires_alert_id_created_at", "alert_id", "created_at"),
+    )
+
+    def __str__(self):
+        return "{} {} at {}".format(self.alert_id, self.state, self.created_at)
+
+
 class AlertSubscription(TimestampMixin, db.Model):
     id = primary_key("AlertSubscription")
     user_id = Column(key_type("User"), db.ForeignKey("users.id"))

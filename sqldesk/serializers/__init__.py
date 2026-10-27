@@ -256,7 +256,16 @@ def serialize_widget(object):
     return d
 
 
-def serialize_alert(alert, full=True):
+def serialize_alert_fire(fire):
+    return {
+        "state": fire.state,
+        "value": fire.value,
+        "notified": fire.notified,
+        "created_at": fire.created_at,
+    }
+
+
+def serialize_alert(alert, full=True, fires_24h=None, with_history=False):
     d = {
         "id": alert.id,
         "name": alert.name,
@@ -267,6 +276,17 @@ def serialize_alert(alert, full=True):
         "created_at": alert.created_at,
         "rearm": alert.rearm,
     }
+
+    # Counted for the whole list in one query and handed in, rather than each
+    # alert asking for its own: the list already costs a query and a user per
+    # row without adding a third.
+    if fires_24h is not None:
+        d["fires_24h"] = fires_24h
+
+    # Only where somebody opened the alert. On the list it would be a query
+    # per row for something nobody is reading yet.
+    if with_history:
+        d["history"] = [serialize_alert_fire(fire) for fire in alert.recent_fires()]
 
     if full:
         d["query"] = serialize_query(alert.query_rel)
