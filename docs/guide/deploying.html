@@ -245,6 +245,54 @@ for one query to cost an install its capacity while every health check still pas
 one report legitimately takes an hour, schedule it rather than raising the ad-hoc limit for
 everybody.</p>
 
+<h2 id="scaling">Running more at once</h2>
+<p>Two numbers decide how much SQLDesk does at the same time, and the first one is read wrongly more
+often than not.</p>
+<table>
+  <tr><th>Variable</th><th>Default</th><th>What it does</th></tr>
+  <tr>
+    <td><code>SQLDESK_WORKERS_COUNT</code></td><td>2</td>
+    <td>How many queries run <em>at once</em>. This is concurrency, not a rate.</td>
+  </tr>
+  <tr>
+    <td><code>SQLDESK_WEB_WORKERS</code></td><td>4</td>
+    <td>Threads serving the API and the pages. Raise it for more people browsing, which is a
+      different pressure from more queries running.</td>
+  </tr>
+</table>
+<p><strong>Two workers is not two queries a second.</strong> It is two queries in flight. With a
+query that takes 100ms that is about twenty a second; with a query that takes a minute it is two a
+minute. So the number to raise is the number of queries you want running together, and the thing
+that tells you whether it is too low is queries sitting in the queue, not a rate.</p>
+<p>The ceiling is rarely this setting. Every running query holds a connection to its data source for
+as long as it runs, so <strong>the warehouse's own connection limit is the real limit</strong> &mdash;
+sixteen workers against a Postgres allowing ten connections gets you six failures, not six more
+queries. Raise them together, and remember the scheduled runs are in the same pool.</p>
+<p>Since 0.7.7 the housekeeping queues &mdash; scheduling, alerts, mail, the cleanups &mdash; belong
+to a worker of their own, so slow queries can no longer starve them. On Kubernetes that is
+<code>periodicWorker</code> in the chart; it needs very little and should stay at one replica.</p>
+<pre><code>SQLDESK_WORKERS_COUNT=8
+SQLDESK_WEB_WORKERS=8</code></pre>
+<p>Schema refreshes are the other periodic cost, and the one most worth turning down. Every data
+source is read on every pass, so on a warehouse with thousands of tables one pass is minutes of
+work.</p>
+<table>
+  <tr><th>Variable</th><th>Default</th><th>What it does</th></tr>
+  <tr>
+    <td><code>SQLDESK_SCHEMAS_REFRESH_SCHEDULE</code></td><td>180</td>
+    <td>Minutes between background schema refreshes. Three hours since 0.7.8, half an hour before
+      it.</td>
+  </tr>
+</table>
+<p>What being stale costs is bounded: autocomplete and the schema browser can be that far behind,
+and the catalog MCP answers from is harvested off the same cached copy. Running a query is
+unaffected &mdash; the cache is only ever a cache, and a miss reads the warehouse. The cure for "I
+have just added a table" is the <strong>refresh button in the schema browser</strong>, which forces
+a live read of the one source in front of you.</p>
+<p>Where one source is much heavier than the rest, leave it out altogether rather than shortening the
+interval for everything. Its id goes in the Redis set
+<code>data_sources:schema:blacklist</code>.</p>
+
 <h2 id="mail">Mail</h2>
 <p>Invitations, password resets and alert emails need a mail server. In <code>.env</code>:</p>
 <pre><code>SQLDESK_MAIL_SERVER=smtp.example.com
