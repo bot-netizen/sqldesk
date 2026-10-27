@@ -346,12 +346,29 @@ trust.</p>
   <dd>Changes a draft the caller could edit in the browser, and records a version, so the query's
     history shows what the agent changed and when. A published query is read by other people's
     dashboards and alerts: it is refused, with the suggestion to open it in SQLDesk.</dd>
+  <dt><code>save_visualization(query_id, kind, &hellip;)</code></dt>
+  <dd>Draws a draft query's result: <code>chart</code> (with <code>x</code>, <code>y</code>, and
+    optionally <code>series</code> and a <code>chart_type</code> of column, bar, line, area, pie or
+    scatter), <code>counter</code> (with <code>column</code>) or <code>table</code>. Same rule as
+    editing: a draft the caller could edit in the browser. A published query's page is read by other
+    people, and a chart appearing on it that nobody added is the same surprise as its SQL changing.</dd>
+  <dt><code>save_dashboard(name, visualizations)</code></dt>
+  <dd>Makes a <strong>draft</strong> dashboard from visualization ids, two to a row in the order
+    given. Needs the same permission as creating a dashboard in the browser &mdash; separate from
+    writing queries, because being allowed to do the two things is separate. Every visualization has
+    to be on a query whose data source the caller can read, so a dashboard cannot be used to show
+    somebody a result they could not have run themselves. A bad id refuses the whole call rather
+    than leaving half a dashboard behind.</dd>
   <dt><code>propose_measure(name, table, kind, column)</code></dt>
   <dd>Proposes a number and what it means, for a curator to agree or deny under Admin &rarr; Catalog
     &rarr; Measures. A proposed measure reaches no other agent until somebody signs it off: a definition
     of revenue that is merely plausible is worse than none. A measure already agreed is not proposed
     over; a denied one goes back on the list rather than quietly becoming true.</dd>
 </dl>
+<p>The three together are the point: <code>save_query</code> keeps the SQL,
+<code>save_visualization</code> gives it a shape, <code>save_dashboard</code> puts it somewhere
+somebody will look. All three produce drafts, so what an agent builds is waiting for a person rather
+than already in front of everybody.</p>
 <p>Every write is capped at <strong>fifty a day per person</strong>
 (<code>SQLDESK_MCP_WRITES_PER_DAY</code>, 0 for no limit). An agent told to describe a warehouse will
 describe the whole warehouse, and a loop getting it wrong will do it just as fast; fifty keeps a mistake

@@ -2129,6 +2129,155 @@ class TestSavingAQueryOverMcp(McpTestCase):
         self.assertIn("mcp:read", rv.json["error"]["message"])
 
 
+class TestDrawingAResultOverMcp(McpTestCase):
+    """
+    `save_visualization` and `save_dashboard`.
+
+    An agent that can write SQL and not show it has done half a job: the
+    answer to "how are orders doing" is a chart somebody can put on a wall,
+    not a result set in a transcript. The same rule as everything else it
+    writes applies -- what comes out is a draft, and publishing stays with a
+    person.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.author = self.factory.user
+        self.query = self.factory.create_query(
+            query_text="SELECT region, amount FROM orders", is_draft=True, user=self.author
+        )
+        models.db.session.commit()
+
+    def call(self, tool, arguments, user=None, api_key=None):
+        return self.post(rpc("tools/call", {"name": tool, "arguments": arguments}), user=user, api_key=api_key)
+
+    def listed(self, user=None, api_key=None):
+        rv = self.post(rpc("tools/list"), user=user, api_key=api_key)
+        return [tool["name"] for tool in rv.json["result"]["tools"]]
+
+    def draw(self, **arguments):
+        arguments.setdefault("query_id", self.query.id)
+        rv = self.call("save_visualization", arguments)
+        self.assertNotIn("error", rv.json, rv.json.get("error"))
+        self.assertFalse(rv.json["result"].get("isError"), rv.json["result"])
+        return models.Visualization.query.order_by(models.Visualization.id.desc()).first()
+
+    def test_both_are_offered_to_somebody_who_may_make_them(self):
+        offered = self.listed(user=self.author)
+
+        self.assertIn("save_visualization", offered)
+        self.assertIn("save_dashboard", offered)
+
+    def test_a_chart_is_mapped_so_it_renders(self):
+        # columnMapping is what getChartData reads; without it the chart draws
+        # nothing and the failure is silent.
+        visualization = self.draw(kind="chart", x="region", y=["amount"], chart_type="column")
+
+        self.assertEqual("CHART", visualization.type)
+        self.assertEqual("column", visualization.options["globalSeriesType"])
+        self.assertEqual({"region": "x", "amount": "y"}, visualization.options["columnMapping"])
+        self.assertEqual(self.query.id, visualization.query_id)
+
+    def test_a_bar_chart_is_a_column_chart_on_its_side(self):
+        # `bar` is not a type of its own in the renderer.
+        visualization = self.draw(kind="chart", x="region", y=["amount"], chart_type="bar")
+
+        self.assertEqual("column", visualization.options["globalSeriesType"])
+        self.assertTrue(visualization.options["swappedAxes"])
+
+    def test_more_than_one_measure_gets_a_legend(self):
+        alone = self.draw(kind="chart", x="region", y=["amount"])
+        self.assertFalse(alone.options["legend"]["enabled"])
+
+        several = self.draw(kind="chart", x="region", y=["amount", "tax"])
+        self.assertTrue(several.options["legend"]["enabled"])
+        self.assertEqual({"region": "x", "amount": "y", "tax": "y"}, several.options["columnMapping"])
+
+    def test_a_series_column_splits_the_chart(self):
+        visualization = self.draw(kind="chart", x="region", y=["amount"], series="channel")
+
+        self.assertEqual("series", visualization.options["columnMapping"]["channel"])
+
+    def test_a_counter_and_a_table_need_no_columns_mapping(self):
+        counter = self.draw(kind="counter", column="amount")
+        self.assertEqual("COUNTER", counter.type)
+        self.assertEqual("amount", counter.options["counterColName"])
+
+        table = self.draw(kind="table")
+        self.assertEqual("TABLE", table.type)
+
+    def test_a_chart_without_its_columns_is_refused(self):
+        rv = self.call("save_visualization", {"query_id": self.query.id, "kind": "chart"})
+
+        self.assertIn("error", rv.json)
+        self.assertEqual(0, models.Visualization.query.count())
+
+    def test_it_will_not_draw_a_published_query(self):
+        # Its page is read by other people: a chart nobody added appearing on
+        # it is the same surprise as its SQL changing.
+        published = self.factory.create_query(is_draft=False, user=self.author)
+        models.db.session.commit()
+
+        rv = self.call("save_visualization", {"query_id": published.id, "kind": "table"})
+
+        self.assertIn("error", rv.json)
+        self.assertIn("published", rv.json["error"]["message"])
+
+    def test_a_dashboard_is_a_draft_with_its_widgets_laid_out(self):
+        first = self.draw(kind="counter", column="amount")
+        second = self.draw(kind="table")
+        third = self.draw(kind="chart", x="region", y=["amount"])
+
+        rv = self.call(
+            "save_dashboard",
+            {"name": "Orders", "visualizations": [first.id, second.id, third.id]},
+        )
+        self.assertNotIn("error", rv.json, rv.json.get("error"))
+
+        dashboard = models.Dashboard.query.filter(models.Dashboard.name == "Orders").one()
+        self.assertTrue(dashboard.is_draft)
+        self.assertEqual(self.author.id, dashboard.user_id)
+
+        # Two to a row, in the order given. Without a position every widget
+        # sits at the origin, stacked on top of the others.
+        placed = {widget.visualization_id: widget.options["position"] for widget in dashboard.widgets}  # noqa: B020
+        self.assertEqual({"col": 0, "row": 0}, {k: placed[first.id][k] for k in ("col", "row")})
+        self.assertEqual({"col": 12, "row": 0}, {k: placed[second.id][k] for k in ("col", "row")})
+        self.assertEqual({"col": 0, "row": 6}, {k: placed[third.id][k] for k in ("col", "row")})
+
+    def test_the_reply_says_where_to_find_the_dashboard(self):
+        visualization = self.draw(kind="table")
+
+        rv = self.call("save_dashboard", {"name": "Orders", "visualizations": [visualization.id]})
+        dashboard = models.Dashboard.query.filter(models.Dashboard.name == "Orders").one()
+
+        self.assertIn("dashboards/{}".format(dashboard.id), rv.json["result"]["content"][0]["text"])
+
+    def test_a_bad_id_leaves_no_half_a_dashboard_behind(self):
+        visualization = self.draw(kind="table")
+
+        rv = self.call("save_dashboard", {"name": "Orders", "visualizations": [visualization.id, 99999]})
+
+        self.assertIn("error", rv.json)
+        self.assertEqual(0, models.Dashboard.query.filter(models.Dashboard.name == "Orders").count())
+
+    def test_it_will_not_show_a_result_the_caller_could_not_have_run(self):
+        other = self.factory.create_data_source(group=self.factory.create_group())
+        theirs = self.factory.create_query(data_source=other, is_draft=True)
+        hidden = self.factory.create_visualization(query_rel=theirs)
+        models.db.session.commit()
+
+        rv = self.call("save_dashboard", {"name": "Sneak", "visualizations": [hidden.id]})
+
+        self.assertIn("error", rv.json)
+        self.assertEqual(0, models.Dashboard.query.filter(models.Dashboard.name == "Sneak").count())
+
+    def test_an_empty_dashboard_is_refused(self):
+        rv = self.call("save_dashboard", {"name": "Nothing", "visualizations": []})
+
+        self.assertIn("error", rv.json)
+
+
 class TestProposingAMeasureOverMcp(McpTestCase):
     def setUp(self):
         super().setUp()

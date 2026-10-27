@@ -274,7 +274,14 @@ def take_write_note():
 
 #: The tools that change something. Capped per person per day, and audited
 #: with their before and after.
-WRITE_TOOLS = ("update_table", "save_query", "update_query", "propose_measure")
+WRITE_TOOLS = (
+    "update_table",
+    "save_query",
+    "update_query",
+    "save_visualization",
+    "save_dashboard",
+    "propose_measure",
+)
 
 
 def _writes_today(user, org):
@@ -1881,10 +1888,76 @@ PROPOSE_MEASURE = {
     "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True},
 }
 
+SAVE_VISUALIZATION = {
+    "name": "save_visualization",
+    "title": "Add a chart to a draft query",
+    "description": (
+        "Draw the result of a draft query you can edit: a chart, a table or a single number. The "
+        "query keeps its own result; this adds a way of reading it, which save_dashboard can then "
+        "put on a dashboard."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "query_id": {"type": "integer", "description": "The draft query to draw."},
+            "kind": {
+                "type": "string",
+                "enum": ["chart", "table", "counter"],
+                "description": "chart needs x and y; counter needs column; table needs neither.",
+            },
+            "name": {"type": "string", "description": "What it is called on the query page."},
+            "chart_type": {
+                "type": "string",
+                "enum": ["column", "bar", "line", "area", "pie", "scatter"],
+                "description": "For a chart. `bar` is a column chart on its side. Default column.",
+            },
+            "x": {"type": "string", "description": "For a chart: the column along the bottom."},
+            "y": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "For a chart: the column or columns measured.",
+            },
+            "series": {"type": "string", "description": "For a chart: a column to split the series by."},
+            "column": {"type": "string", "description": "For a counter: the column to show."},
+            "description": {"type": "string", "description": "What it shows, if the name does not say it."},
+        },
+        "required": ["query_id", "kind"],
+    },
+    "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False},
+}
+
+SAVE_DASHBOARD = {
+    "name": "save_dashboard",
+    "title": "Put visualizations on a draft dashboard",
+    "description": (
+        "Make a draft dashboard from visualizations that already exist, two to a row in the order "
+        "given. It is a draft: it reaches nobody's list until a person opens it and publishes it. "
+        "Use save_visualization first to get the ids."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "What the dashboard is for, as a person would say it."},
+            "visualizations": {
+                "type": "array",
+                "items": {"type": "integer"},
+                "description": "Visualization ids, in the order they should be read.",
+            },
+            "tags": {"type": "array", "items": {"type": "string"}, "description": "Tags, if the install uses them."},
+        },
+        "required": ["name", "visualizations"],
+    },
+    "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False},
+}
+
 #: Offered to a personal API key whose owner may write queries. Not tied to
 #: MANAGE_CATALOG: saving a draft query is something any analyst does, and the
 #: permission that governs it is the one that governs it in the browser.
-WRITE_QUERY_TOOLS = (SAVE_QUERY, UPDATE_QUERY)
+WRITE_QUERY_TOOLS = (SAVE_QUERY, UPDATE_QUERY, SAVE_VISUALIZATION)
+
+#: Separate from the above because it is a different browser permission:
+#: somebody may be allowed to write queries and not to make dashboards.
+WRITE_DASHBOARD_TOOLS = (SAVE_DASHBOARD,)
 
 
 def may_write_queries(user, by_api_key):
@@ -2042,6 +2115,221 @@ def tool_update_query(user, org, arguments):
     return _text("Query {} updated: {}. Its history shows the change.".format(query.id, "; ".join(said)))
 
 
+def may_write_dashboards(user, by_api_key):
+    """
+    Whether this caller is offered save_dashboard.
+
+    Same shape as may_write_queries -- a personal API key, and the permission
+    the browser checks -- but a different permission: making dashboards and
+    writing queries are separate things to be allowed to do.
+    """
+    return bool(by_api_key) and user.has_permission("create_dashboard")
+
+
+#: Two to a row on the 24-column grid, at the size the browser gives a new
+#: widget. Laid out rather than guessed at: a widget with no position is
+#: placed at the origin, so a dashboard of five would be five widgets stacked
+#: exactly on top of each other.
+GRID_COLUMNS = 24
+WIDGET_WIDTH = 12
+WIDGET_HEIGHT = 6
+
+#: Enough to build something, few enough that a runaway agent cannot bury a
+#: dashboard list. The daily cap counts each of these calls as one write.
+MAX_WIDGETS = 20
+
+
+def _drawable_query(user, org, query_id):
+    """
+    The query this caller may add a visualization to.
+
+    The same rule as editing one: a draft they could edit in the browser. A
+    published query's page is read by other people, and a chart appearing on
+    it that nobody added is the same surprise as its SQL changing.
+    """
+    return _editable_query(user, org, query_id)
+
+
+def tool_save_visualization(user, org, arguments):
+    arguments = arguments or {}
+    query_id = arguments.get("query_id")
+    if not isinstance(query_id, int):
+        raise McpError(INVALID_PARAMS, "`query_id` is required: the draft query to draw.")
+    kind = (arguments.get("kind") or "").strip().lower()
+    if kind not in ("chart", "table", "counter"):
+        raise McpError(INVALID_PARAMS, "`kind` is chart, table or counter.")
+
+    query = _drawable_query(user, org, query_id)
+
+    if kind == "chart":
+        x = (arguments.get("x") or "").strip()
+        ys = arguments.get("y") or []
+        if isinstance(ys, str):
+            ys = [ys]
+        if not isinstance(ys, list) or any(not isinstance(column, str) for column in ys):
+            raise McpError(INVALID_PARAMS, "`y` is a column name or a list of them.")
+        ys = [column.strip() for column in ys if column.strip()]
+        if not x or not ys:
+            raise McpError(INVALID_PARAMS, "A chart needs `x` and at least one `y`.")
+
+        chart_type = (arguments.get("chart_type") or "column").strip().lower()
+        if chart_type not in ("column", "bar", "line", "area", "pie", "scatter"):
+            raise McpError(INVALID_PARAMS, "`chart_type` is column, bar, line, area, pie or scatter.")
+
+        mapping = {x: "x"}
+        for column in ys:
+            mapping[column] = "y"
+        series = (arguments.get("series") or "").strip()
+        if series:
+            mapping[series] = "series"
+
+        options = {
+            # `bar` is not a type of its own: it is a column chart with the
+            # axes swapped, which is what the editor's own Horizontal does.
+            "globalSeriesType": "column" if chart_type == "bar" else chart_type,
+            "swappedAxes": chart_type == "bar",
+            "columnMapping": mapping,
+            "seriesOptions": {},
+            "legend": {"enabled": len(ys) > 1 or bool(series)},
+        }
+        default_name = "{} by {}".format(", ".join(ys), x)
+    elif kind == "counter":
+        column = (arguments.get("column") or "").strip()
+        if not column:
+            raise McpError(INVALID_PARAMS, "A counter needs `column`: the column to show.")
+        # Row 0 of that column. `counterColName` is what the counter reads;
+        # the editor writes the same pair for a single-number counter.
+        options = {"counterColName": column, "rowNumber": 1, "counterLabel": ""}
+        default_name = column
+    else:
+        options = {}
+        default_name = "Table"
+
+    _within_the_daily_cap(user, org, "save_visualization")
+
+    name = (arguments.get("name") or "").strip() or default_name
+    visualization = models.Visualization(
+        query_rel=query,
+        # CHART, TABLE, COUNTER: the strings the renderers register under.
+        type=kind.upper(),
+        name=name[:255],
+        description=(arguments.get("description") or "").strip() or None,
+        options=options,
+    )
+    models.db.session.add(visualization)
+    models.db.session.commit()
+
+    note_write("visualization {} {!r} ({}) on query {}".format(visualization.id, _short(name, 60), kind, query.id))
+
+    from flask import has_request_context
+
+    from sqldesk.handlers.base import record_event
+
+    if has_request_context():
+        record_event(
+            org,
+            user,
+            {"action": "create", "object_id": visualization.id, "object_type": "visualization", "via": "mcp"},
+        )
+
+    return _text(
+        "Added visualization {} to draft query {}, at queries/{}. save_dashboard takes that id.".format(
+            visualization.id, query.id, query.id
+        )
+    )
+
+
+def tool_save_dashboard(user, org, arguments):
+    arguments = arguments or {}
+    name = (arguments.get("name") or "").strip()
+    if not name:
+        raise McpError(INVALID_PARAMS, "`name` is required: what the dashboard is for.")
+    ids = arguments.get("visualizations")
+    if not isinstance(ids, list) or not ids or any(not isinstance(one, int) for one in ids):
+        raise McpError(INVALID_PARAMS, "`visualizations` is a non-empty list of visualization ids.")
+    if len(ids) > MAX_WIDGETS:
+        raise McpError(INVALID_PARAMS, "{} widgets is the most one dashboard takes from here.".format(MAX_WIDGETS))
+
+    tags = arguments.get("tags")
+    if tags is not None and (not isinstance(tags, list) or any(not isinstance(tag, str) for tag in tags)):
+        raise McpError(INVALID_PARAMS, "`tags` is a list of strings.")
+
+    # Resolved before anything is written, so a bad id does not leave half a
+    # dashboard behind. Each one has to be on a query whose data source this
+    # caller can read, which is what stops a dashboard being used to show
+    # somebody a result they could not have run.
+    readable = {source.id for source in _readable_sources(user, org)}
+    found = []
+    for one in ids:
+        visualization = (
+            models.Visualization.query.join(models.Query)
+            .filter(models.Visualization.id == one, models.Query.org == org)
+            .first()
+        )
+        if visualization is None or visualization.query_rel.data_source_id not in readable:
+            raise McpError(INVALID_PARAMS, "No visualization {} that you can see.".format(one))
+        found.append(visualization)
+
+    _within_the_daily_cap(user, org, "save_dashboard")
+
+    dashboard = models.Dashboard(
+        name=name[:100],
+        org=org,
+        user=user,
+        # A draft, for the same reason a saved query is: nobody's list and
+        # nobody's screen until a person has looked at it.
+        is_draft=True,
+        tags=[tag.strip() for tag in (tags or []) if tag.strip()] or None,
+        kind="saved",
+    )
+    models.db.session.add(dashboard)
+    models.db.session.flush()
+
+    for index, visualization in enumerate(found):
+        models.db.session.add(
+            models.Widget(
+                dashboard=dashboard,
+                visualization=visualization,
+                # width is vestigial on the model but not nullable in practice;
+                # the browser writes 1 and reads `options.position`.
+                width=1,
+                options={
+                    "position": {
+                        "col": (index % 2) * WIDGET_WIDTH,
+                        "row": (index // 2) * WIDGET_HEIGHT,
+                        "sizeX": WIDGET_WIDTH,
+                        "sizeY": WIDGET_HEIGHT,
+                        "autoHeight": False,
+                    },
+                    "parameterMappings": {},
+                },
+            )
+        )
+    models.db.session.commit()
+
+    note_write(
+        "dashboard {} {!r} with {} widget(s): {}".format(
+            dashboard.id, _short(name, 60), len(found), ", ".join(str(one.id) for one in found)
+        )
+    )
+
+    from flask import has_request_context
+
+    from sqldesk.handlers.base import record_event
+
+    if has_request_context():
+        record_event(
+            org, user, {"action": "create", "object_id": dashboard.id, "object_type": "dashboard", "via": "mcp"}
+        )
+
+    return _text(
+        "Saved as draft dashboard {}, at dashboards/{}-{}, with {} widget(s) two to a row. It is a draft: open "
+        "it in SQLDesk and publish it to put it on the Dashboards list.".format(
+            dashboard.id, dashboard.id, dashboard.slug, len(found)
+        )
+    )
+
+
 def tool_propose_measure(user, org, arguments):
     arguments = arguments or {}
     name = (arguments.get("name") or "").strip()
@@ -2151,6 +2439,8 @@ HANDLERS = {
     "update_table": tool_update_table,
     "save_query": tool_save_query,
     "update_query": tool_update_query,
+    "save_visualization": tool_save_visualization,
+    "save_dashboard": tool_save_dashboard,
     "propose_measure": tool_propose_measure,
 }
 
@@ -2176,6 +2466,32 @@ def _may_call(name, user, by_api_key):
             "{} saves a query, so it needs a personal API key from somebody who may create queries. "
             "OAuth sessions are read-only (mcp:read).".format(name),
         )
+    if name in (tool["name"] for tool in WRITE_DASHBOARD_TOOLS) and not may_write_dashboards(user, by_api_key):
+        raise McpError(
+            INVALID_PARAMS,
+            "{} makes a dashboard, so it needs a personal API key from somebody who may create "
+            "dashboards. OAuth sessions are read-only (mcp:read).".format(name),
+        )
+
+
+def _offered_tools(user, by_api_key):
+    """
+    The tools this caller is shown.
+
+    A tool is listed only to somebody who may call it, so an agent working for
+    a reader never sees a way to write and never tries one. The permissions are
+    separate because being allowed to do these things is separate: curating the
+    catalog, saving queries and making dashboards are three decisions.
+    """
+    offered = list(TOOLS)
+    if may_curate(user, by_api_key):
+        offered.append(UPDATE_TABLE)
+        offered.append(PROPOSE_MEASURE)
+    if may_write_queries(user, by_api_key):
+        offered.extend(WRITE_QUERY_TOOLS)
+    if may_write_dashboards(user, by_api_key):
+        offered.extend(WRITE_DASHBOARD_TOOLS)
+    return offered
 
 
 def handle(message, user, org, by_api_key=False):
@@ -2204,17 +2520,7 @@ def handle(message, user, org, by_api_key=False):
     if method == "ping":
         return {}
     if method == "tools/list":
-        # A tool is listed only to somebody who may call it, so an agent working
-        # for a reader never sees a way to write and never tries one.
-        # A tool is listed only to somebody who may call it, so an agent
-        # working for a reader never sees a way to write and never tries one.
-        offered = list(TOOLS)
-        if may_curate(user, by_api_key):
-            offered.append(UPDATE_TABLE)
-            offered.append(PROPOSE_MEASURE)
-        if may_write_queries(user, by_api_key):
-            offered.extend(WRITE_QUERY_TOOLS)
-        return {"tools": offered}
+        return {"tools": _offered_tools(user, by_api_key)}
     if method == "tools/call":
         params = message.get("params") or {}
         if not isinstance(params, dict):
