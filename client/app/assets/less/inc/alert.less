@@ -47,3 +47,77 @@
     margin-right: 0 !important;
   }
 }
+
+// What the alert has been doing, beside what it is configured to do.
+.alert-history {
+  margin-bottom: 20px;
+
+  .alert-history-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .alert-history-count {
+    margin-bottom: 10px;
+    color: @headings-color;
+  }
+
+  .alert-history-empty {
+    color: var(--color-text-muted, #6f6b66);
+    font-size: 13px;
+  }
+
+  .alert-history-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    // Long enough to show a flap, short enough not to take the column over.
+    max-height: 260px;
+    overflow-y: auto;
+  }
+
+  .alert-history-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid @input-border;
+    font-size: 13px;
+
+    &:last-child {
+      border-bottom: 0;
+    }
+  }
+
+  .alert-history-state {
+    text-transform: uppercase;
+    font-size: 11px;
+    flex: 0 0 auto;
+  }
+
+  // The number pushed away from the state label and kept monospaced, because
+  // a column of figures is read by comparing them to each other.
+  .alert-history-value {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: @headings-color;
+  }
+
+  .alert-history-when {
+    margin-left: auto;
+    color: var(--color-text-muted, #6f6b66);
+    white-space: nowrap;
+  }
+
+  .alert-history-silent {
+    color: var(--color-text-muted, #6f6b66);
+    flex: 0 0 auto;
+  }
+}
+
+// The count on the list: a link, because the thing you want next is the
+// history behind it.
+.alert-fires {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}

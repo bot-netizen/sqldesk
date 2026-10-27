@@ -73,6 +73,29 @@ class AlertsList extends React.Component {
         className: "text-nowrap",
       }
     ),
+    // An alert that went off six times reads very differently from one that
+    // went off once and stayed there, and the state label cannot tell them
+    // apart. Blank rather than "0" where it has been quiet: a column of
+    // zeroes is noise, and the ones worth seeing should be the ones with ink.
+    Columns.custom.sortable(
+      (text, alert) =>
+        alert.fires_24h > 0 ? (
+          <Link
+            className="alert-fires"
+            href={"alerts/" + alert.id}
+            title={`Fired ${alert.fires_24h} ${alert.fires_24h === 1 ? "time" : "times"} in the last 24 hours`}
+          >
+            {alert.fires_24h}
+            <span className="sr-only"> {alert.fires_24h === 1 ? "time" : "times"} in the last 24 hours</span>
+          </Link>
+        ) : null,
+      {
+        title: "Fires (24h)",
+        field: "fires_24h",
+        width: "1%",
+        className: "text-nowrap",
+      }
+    ),
     Columns.timeAgo.sortable({ title: "Last Updated At", field: "updated_at", width: "1%" }),
     Columns.dateTime.sortable({ title: "Created At", field: "created_at", width: "1%" }),
     // No permissions entry: ACLs exist for queries and dashboards only
