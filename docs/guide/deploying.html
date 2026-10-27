@@ -359,7 +359,7 @@ to the release it was written for.</p>
 which address the login throttle and the audit log see.</p>
 
 <h2 id="upgrading">Upgrading</h2>
-<pre><code># .env: SQLDESK_IMAGE=ghcr.io/bot-netizen/sqldesk:0.7.7
+<pre><code># .env: SQLDESK_IMAGE=ghcr.io/bot-netizen/sqldesk:0.7.8
 docker compose -f compose.prod.yaml pull
 docker compose -f compose.prod.yaml run --rm server manage db upgrade
 docker compose -f compose.prod.yaml up -d</code></pre>
@@ -371,7 +371,7 @@ rather than adding to it. The chart does this itself, as a hook that runs before
 
 <p><strong>Docker Compose.</strong> Pin the image, migrate, then start:</p>
 <pre><code># .env
-SQLDESK_IMAGE=ghcr.io/bot-netizen/sqldesk:0.7.7
+SQLDESK_IMAGE=ghcr.io/bot-netizen/sqldesk:0.7.8
 
 docker compose -f compose.prod.yaml pull
 docker compose -f compose.prod.yaml run --rm server manage db upgrade
@@ -379,7 +379,7 @@ docker compose -f compose.prod.yaml up -d</code></pre>
 
 <p><strong>Helm.</strong> The chart migrates itself, in a hook that runs before anything else changes:</p>
 <pre><code>helm upgrade sqldesk ./charts/sqldesk --reuse-values \
-  --set image.tag=0.7.7</code></pre>
+  --set image.tag=0.7.8</code></pre>
 <p>The last migration stays as the Job <code>sqldesk-migrate</code>, with its log, until the next
 upgrade replaces it. Before 0.7.5 every upgrade left a Job of its own behind, named with the
 revision; remove those once:</p>
@@ -397,7 +397,7 @@ revision; remove those once:</p>
   <code>--set uploads.enabled=true</code> brings it back exactly as it was. Add it to the upgrade if
   anyone uses uploads:</p>
   <pre><code>helm upgrade sqldesk ./charts/sqldesk --reuse-values \
-  --set image.tag=0.7.7 \
+  --set image.tag=0.7.8 \
   --set uploads.enabled=true</code></pre>
 </div>
 
@@ -424,7 +424,7 @@ kind from the widgets again, as it did before.</p>
 <p>Each add-on is off so that an install pays for nothing it does not use. To see all of them at once
 &mdash; on a laptop, with nothing real attached &mdash; turn them all on together:</p>
 <pre><code>helm upgrade --install sqldesk ./charts/sqldesk \
-  --set image.tag=0.7.7 \
+  --set image.tag=0.7.8 \
   --set streams.enabled=true \
   --set mcp.enabled=true \
   --set uploads.enabled=true \

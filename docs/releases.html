@@ -305,6 +305,17 @@ footer a{color:var(--muted)}
        including what to do when you upgrade.</p>
     <div class="items">
       <div class="item">
+        <div class="item-h"><h3>0.7.8 &mdash; Second Look</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">27 October 2026</p>
+        <ul class="points">
+          <li>Twelve things reported from using 0.7.7. Three turned out to be nothing &mdash; chart palettes were never removed, and there is no page-load regression &mdash; and saying so is part of the release.</li>
+          <li>Searching a list works. On queries and dashboards it is a box on the page rather than a dropdown called Filter; alerts has one at all; and on any list fetched whole it did nothing before this.</li>
+          <li>Numbers can be read by their value: one breakpoint colours a bar chart either side of it, and a table's data bars now point, taking a second colour below zero.</li>
+          <li>An agent can draw as well as read &mdash; a chart, a counter or a table on a draft query, and a draft dashboard to put them on. Fifteen MCP tools now, nine read-only.</li>
+          <li>A page that worked no longer reports a fault, a brand new install gets an answer from <code>/api/config</code> rather than a traceback, and schemas refresh every three hours instead of every thirty minutes.</li>
+        </ul>
+      </div>
+      <div class="item">
         <div class="item-h"><h3>0.7.7 &mdash; Scale, and a smaller image</h3><span class="st st-shipped">Shipped</span></div>
         <p class="sub">25 October 2026</p>
         <ul class="points">
