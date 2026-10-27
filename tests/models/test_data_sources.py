@@ -1,6 +1,9 @@
+import datetime
+
 import mock
 from mock import patch
 
+from sqldesk import settings
 from sqldesk.models import DataSource, Query, QueryResult
 from sqldesk.utils.configuration import ConfigurationContainer
 from tests import BaseTestCase
@@ -88,8 +91,14 @@ class DataSourceTest(BaseTestCase):
 
     @patch("sqldesk.redis_connection.set")
     def test_expires_schema(self, mock_redis):
-        # default of 30min + 7 days
-        expected_ttl = 606600
+        # The refresh interval plus a week. The periodic refresh is what keeps
+        # this cache warm; the week is the grace for an install where it is not
+        # running, so the schema browser still has something to show.
+        #
+        # Derived rather than written out as a number. It was `606600` -- 30
+        # minutes and seven days -- and moving the default to 180 minutes in
+        # 0.7.8 therefore failed a test that is not about the default at all.
+        expected_ttl = int(datetime.timedelta(minutes=settings.SCHEMAS_REFRESH_SCHEDULE, days=7).total_seconds())
 
         with mock.patch("sqldesk.query_runner.pg.PostgreSQL.get_schema") as patched_get_schema:
             patched_get_schema.return_value = None
