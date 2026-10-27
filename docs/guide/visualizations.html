@@ -186,6 +186,35 @@ changes what is shown and never what was fetched.</p>
 <p>Thousands and decimal separators follow the organization's setting, so the same format string reads
 correctly for everyone.</p>
 
+<h2 id="by-value">Colouring by the value itself</h2>
+<p>A series colour says which measure a bar is. It cannot say whether the number is any good, and on a
+chart of variances that is the only thing anybody wants from it.</p>
+
+<h3>Bars on a chart</h3>
+<p>In the visualization editor, <strong>Colors &rarr; Color bars by value</strong>. Set a breakpoint and
+a colour for bars below it; optionally a second colour for the rest. The common setting is a breakpoint
+of <code>0</code> with one colour below it &mdash; negatives in red, everything else as it was.</p>
+<p>A bar exactly at the breakpoint counts as <em>above</em> it, so a breakpoint of zero colours
+negatives and leaves a zero bar alone: it has no height to colour, and reading it as a shortfall would
+be wrong.</p>
+<p>Bars only. A threshold on a line would colour its markers and leave the line itself one colour,
+which says less than the goal lines under <strong>Lines &amp; Zoom</strong> &mdash; use those instead.</p>
+
+<h3>Bars inside table cells</h3>
+<p>On a number column, <strong>Data bar behind the number</strong> draws each value as a bar across its
+cell, scaled against the largest magnitude in the column. Two colours sit below it: the bar's colour,
+and the colour it takes below zero.</p>
+<p>Which way a bar points depends on the column, not on a setting:</p>
+<table>
+  <tr><th>The column holds</th><th>The bars</th></tr>
+  <tr><td>Only values at or above zero</td><td>Grow from the left edge, using the full width</td></tr>
+  <tr><td>Only values at or below zero</td><td>Grow from the right edge &mdash; the mirror of it</td></tr>
+  <tr><td>Values on both sides</td><td>Zero sits in the middle, with a line drawn on it, and the sign is
+    the direction</td></tr>
+</table>
+<p>A shared zero is only worth the width it costs when there is something on both sides of it, which is
+why an all-positive column still gets the whole cell.</p>
+
 <h2>Dates and times</h2>
 <p>Times are stored as the warehouse returned them and displayed in the organization's configured format.
 If a chart's x axis looks wrong by exactly some number of hours, the column is almost certainly a
