@@ -2,7 +2,7 @@ import datetime
 import json
 from unittest import mock
 
-from sqldesk import models, settings
+from sqldesk import mcp, models, settings
 from sqldesk.handlers.mcp import MyMcpResource
 from tests import BaseTestCase
 
@@ -563,12 +563,54 @@ class TestExplainAndRun(McpTestCase):
         self.assertIn("Seq Scan", body["result"]["content"][0]["text"])
         self.assertTrue(worker.call_args[0][2].startswith("EXPLAIN "))
 
-    def test_rows_are_truncated_for_reading_not_silently(self):
+    def test_every_row_the_query_was_allowed_to_return_is_returned(self):
+        # The SQL is rewritten to ask for no more than ROW_LIMIT, so anything
+        # under it has already been fetched and paid for. Rendering fewer only
+        # hid rows somebody had already waited on.
         many = {"columns": [{"name": "n"}], "rows": [{"n": i} for i in range(500)]}
         with mock.patch("sqldesk.mcp._on_a_worker", return_value=(many, None)):
             body = self.call("run_query", {"sql": "SELECT 1", "data_source": self.factory.data_source.name})
         text = body["result"]["content"][0]["text"]
-        self.assertIn("450 more rows returned", text)
+
+        self.assertNotIn("more rows returned", text)
+        self.assertIn("499", text)
+        self.assertEqual(501, len(text.splitlines()), "a header and 500 rows")
+
+    def test_rows_past_the_ceiling_are_truncated_for_reading_not_silently(self):
+        over = {"columns": [{"name": "n"}], "rows": [{"n": i} for i in range(mcp.ROW_LIMIT + 20)]}
+        with mock.patch("sqldesk.mcp._on_a_worker", return_value=(over, None)):
+            body = self.call("run_query", {"sql": "SELECT 1", "data_source": self.factory.data_source.name})
+        text = body["result"]["content"][0]["text"]
+
+        self.assertIn("20 more rows returned", text)
+
+    def test_what_the_tool_promises_is_what_it_hands_back(self):
+        """
+        The description said "up to 1000 rows" while the rendering stopped at
+        fifty, because the promise, the SQL rewrite and the rendering were
+        three separate numbers and only two of them agreed.
+        """
+        tool = next(t for t in mcp.TOOLS if t["name"] == "run_query")
+        self.assertIn(str(mcp.ROW_LIMIT), tool["description"])
+
+        rows = {"columns": [{"name": "n"}], "rows": [{"n": i} for i in range(mcp.ROW_LIMIT)]}
+        with mock.patch("sqldesk.mcp._on_a_worker", return_value=(rows, None)):
+            body = self.call("run_query", {"sql": "SELECT 1", "data_source": self.factory.data_source.name})
+        text = body["result"]["content"][0]["text"]
+
+        self.assertNotIn("more rows returned", text)
+        self.assertEqual(mcp.ROW_LIMIT + 1, len(text.splitlines()))
+
+    def test_rows_are_tab_separated_rather_than_json(self):
+        # The same rows cost two to three times as much when every key is
+        # repeated on every row, and a thousand of them is where that tells.
+        rows = {"columns": [{"name": "region"}, {"name": "n"}], "rows": [{"region": "EMEA", "n": 7}]}
+        with mock.patch("sqldesk.mcp._on_a_worker", return_value=(rows, None)):
+            body = self.call("run_query", {"sql": "SELECT 1", "data_source": self.factory.data_source.name})
+        text = body["result"]["content"][0]["text"]
+
+        self.assertEqual("region\tn", text.splitlines()[0])
+        self.assertEqual("EMEA\t7", text.splitlines()[1])
 
     def test_the_new_tools_are_advertised(self):
         names = {t["name"] for t in json.loads(self.post(rpc("tools/list")).data)["result"]["tools"]}

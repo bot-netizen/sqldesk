@@ -49,6 +49,12 @@ from sqldesk.query_runner import (
 
 #: The editor's own ceiling, reused rather than invented. A model exploring
 #: should not be able to ask for more than a person clicking Execute can.
+#:
+#: One number, used in three places that have to agree: what `run_query`'s
+#: description promises, what the SQL is rewritten to ask for, and how many
+#: rows are actually rendered back. They were three separate numbers, and two
+#: of them were 1000 while the rendering stopped at 50 -- so the tool said
+#: "up to 1000 rows" and handed back fifty.
 ROW_LIMIT = 1000
 #: How long a tool call waits for a worker. Past this the query is still
 #: running -- it is the waiting that stops, not the work. Both are capped again
@@ -570,13 +576,9 @@ LANGUAGE_CHECKS = {
 }
 
 
-#: What `run_query` returns at most, whatever the SQL asks for.
-ROW_CAP = 1000
-
-
 def _capped(sql, source):
     """
-    The SQL with its outermost query limited to `ROW_CAP` rows, or None.
+    The SQL with its outermost query limited to `ROW_LIMIT` rows, or None.
 
     On the outermost query rather than by wrapping it: SQL Server refuses an
     ORDER BY inside a derived table, and the runners' own `apply_auto_limit`
@@ -599,12 +601,12 @@ def _capped(sql, source):
     limit = tree.args.get("limit")
     if limit is not None:
         try:
-            if int(limit.expression.name) <= ROW_CAP:
+            if int(limit.expression.name) <= ROW_LIMIT:
                 return sql
         except (AttributeError, TypeError, ValueError):
             pass
     try:
-        return tree.limit(ROW_CAP, copy=True).sql(dialect=dialect)
+        return tree.limit(ROW_LIMIT, copy=True).sql(dialect=dialect)
     except Exception:
         return None
 
@@ -1641,7 +1643,12 @@ def tool_run_query(user, org, arguments):
     result, error = _on_a_worker(user, source, limited, timeout=RUN_TIMEOUT)
     if error:
         return {"content": [{"type": "text", "text": error[0]}], "isError": True}
-    return _text(_rows_as_text(result))
+    # Every row the query was allowed to return. The SQL is already rewritten
+    # to ask for no more than this, so rendering fewer only hid rows that had
+    # been fetched and paid for -- and the tool's own description promised
+    # them. Tab separated rather than JSON: the same rows cost two to three
+    # times as much when every key is repeated on every row.
+    return _text(_rows_as_text(result, limit=ROW_LIMIT))
 
 
 #: The one tool that writes, and the only one not offered to everybody.
