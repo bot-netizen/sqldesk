@@ -1,5 +1,75 @@
 # Changelog
 
+## 0.7.9
+
+Mostly alerts, and mostly things that said one thing while doing another.
+
+### An alert says how often, not just whether
+
+**An alert remembers when it fired.** The alert row carried only where it is
+now and when it last moved, so one that had gone off six times since breakfast
+looked exactly like one that went off once and stayed there. There is a row per
+state change now, keeping the value the decision was made on — "it fired at 412
+against a threshold of 400" is the line worth being woken for — and whether
+anything was actually sent.
+
+**The list counts them and the alert shows them.** A Fires (24h) column, blank
+where an alert has been quiet, and the history beside the alert's settings. The
+count is fires only: `ok → triggered → ok → triggered` is two fires and four
+transitions, and "it went off twice" is what people mean. The recoveries stay
+in the history, where they show the shape of a flap.
+
+**Counted over a rolling 24 hours, not "today".** There is no organization
+timezone, so today would have to mean since UTC midnight — and for anybody west
+of it an alert that went off during the evening falls into tomorrow and the
+count reads zero.
+
+### Slack
+
+**A template is escaped for where it is going.** Mustache escapes the values it
+interpolates, and every destination got the same escaping. Right for an HTML
+email, where a result containing `<b>` is text rather than markup. Slack is not
+HTML, so a value with an `&` in it arrived reading `&amp;`. The two Slack
+destinations ask for the unescaped form now; the other eleven are unchanged.
+
+**The guide says how to write one.** All twelve template variables, and the
+mrkdwn differences that actually bite: a link is `<url|label>` rather than
+`[label](url)`, bold is `*bold*` rather than `**bold**`. That link is how a
+dashboard goes into an alert without a picture. The template editor links
+straight to it.
+
+**An alert saved before `selector` existed could not notify.** `evaluate`
+defaults a missing selector; the template renderer read it unguarded, so an
+older alert with a custom template raised at the moment it had something to
+say. Read with defaults now.
+
+### Avatars stay on your machines
+
+**Nothing is fetched from gravatar.com.** Every avatar used to be a URL built
+from an MD5 of the email address. Offline it drew a broken image beside every
+query and logged a failed request for each; online it told gravatar.com the
+MD5 of every address in the organization on every page load, from a tool whose
+point is that it runs on your own machines. And almost nobody has a gravatar,
+so what usually came back was the identicon — an abstract pattern no more
+recognisable than initials, a round trip more expensive.
+
+**Initials instead**, in a colour worked out from the name, drawn locally and
+the same every time, so a face in a list is findable by its colour before it
+is read. A picture somebody set is still used, and the disabled-account image
+still wins, because that one is saying something.
+
+### MCP
+
+**`run_query` hands back every row it promised.** Its description said "up to
+1000 rows" and it rendered fifty. The rest had already been fetched — the cap
+is applied to the SQL before it runs — so the smaller number saved nothing and
+hid what somebody had waited for. One constant now, where there were three
+numbers that had to agree and two did.
+
+### Upgrading from 0.7.8
+
+**One migration**, creating `alert_fires`. Nothing else to do.
+
 ## 0.7.8
 
 Twelve things reported from using 0.7.7, worked through in order. Not a themed

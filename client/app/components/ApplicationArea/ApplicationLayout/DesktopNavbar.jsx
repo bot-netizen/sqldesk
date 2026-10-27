@@ -6,6 +6,7 @@ import Dropdown from "antd/lib/dropdown";
 import Menu from "antd/lib/menu";
 import Link from "@/components/Link";
 import PlainButton from "@/components/PlainButton";
+import UserAvatar from "@/components/UserAvatar";
 import HelpTrigger from "@/components/HelpTrigger";
 import CreateDashboardDialog from "@/components/dashboards/CreateDashboardDialog";
 import { useCurrentRoute } from "@/components/ApplicationArea/Router";
@@ -400,7 +401,7 @@ export default function DesktopNavbar() {
 
       <Dropdown overlay={profileMenu} trigger={["click"]} placement="bottomRight">
         <PlainButton className="desktop-navbar-profile-button" data-test="ProfileDropdown" aria-label="Account menu">
-          <img className="profile__image_thumb" src={currentUser.profile_image_url} alt="" />
+          <UserAvatar user={currentUser} size={24} />
           <i className="fa fa-angle-down desktop-navbar-caret" aria-hidden="true" />
         </PlainButton>
       </Dropdown>

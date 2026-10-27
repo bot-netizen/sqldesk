@@ -4,6 +4,7 @@ import { get } from "lodash";
 
 import routeWithUserSession from "@/components/ApplicationArea/routeWithUserSession";
 import Link from "@/components/Link";
+import UserAvatar from "@/components/UserAvatar";
 import Paginator from "@/components/Paginator";
 import DynamicComponent from "@/components/DynamicComponent";
 import { QueryTagsControl } from "@/components/tags-control/TagsControl";
@@ -145,7 +146,7 @@ function getListColumns(dataSourceNames, controllerRef) {
     Columns.custom(
       (text, item) => (
         <span className="list-page-owner">
-          <img src={item.user.profile_image_url} alt="" />
+          <UserAvatar user={item.user} size={20} />
           {item.user.name}
         </span>
       ),

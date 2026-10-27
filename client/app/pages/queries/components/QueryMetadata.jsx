@@ -7,6 +7,7 @@ import TimeAgo from "@/components/TimeAgo";
 import SchedulePhrase from "@/components/queries/SchedulePhrase";
 import { IMG_ROOT } from "@/services/data-source";
 import TypeLogo from "@/components/TypeLogo";
+import UserAvatar from "@/components/UserAvatar";
 
 import "./QueryMetadata.less";
 
@@ -14,7 +15,7 @@ export default function QueryMetadata({ query, dataSource, layout, onEditSchedul
   return (
     <div className={`query-metadata query-metadata-${layout}`}>
       <div className="query-metadata-item">
-        <img className="profile__image_thumb" src={query.user.profile_image_url} alt="Avatar" />
+        <UserAvatar user={query.user} size={20} className="profile__image_thumb" />
         <div className="query-metadata-property">
           <strong className={cx("query-metadata-label", { "text-muted": query.user.is_disabled })}>
             {query.user.name}
@@ -28,7 +29,7 @@ export default function QueryMetadata({ query, dataSource, layout, onEditSchedul
         </div>
       </div>
       <div className="query-metadata-item">
-        <img className="profile__image_thumb" src={query.last_modified_by.profile_image_url} alt="Avatar" />
+        <UserAvatar user={query.last_modified_by} size={20} className="profile__image_thumb" />
         <div className="query-metadata-property">
           <strong className={cx("query-metadata-label", { "text-muted": query.last_modified_by.is_disabled })}>
             {query.last_modified_by.name}
@@ -80,12 +81,12 @@ QueryMetadata.propTypes = {
     updated_at: PropTypes.oneOfType([PropTypes.string, Moment]).isRequired,
     user: PropTypes.shape({
       name: PropTypes.string.isRequired,
-      profile_image_url: PropTypes.string.isRequired,
+      profile_image_url: PropTypes.string,
       is_disabled: PropTypes.bool,
     }).isRequired,
     last_modified_by: PropTypes.shape({
       name: PropTypes.string.isRequired,
-      profile_image_url: PropTypes.string.isRequired,
+      profile_image_url: PropTypes.string,
       is_disabled: PropTypes.bool,
     }).isRequired,
     schedule: PropTypes.object,

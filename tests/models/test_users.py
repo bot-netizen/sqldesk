@@ -1,7 +1,7 @@
 from sqldesk import redis_connection
 from sqldesk.models import ApiUser, User, db
 from sqldesk.models.users import LAST_ACTIVE_KEY, sync_last_active_at
-from sqldesk.utils import dt_from_timestamp
+from sqldesk.utils import dt_from_timestamp, json_dumps
 from tests import BaseTestCase, authenticated_user
 
 
@@ -116,3 +116,46 @@ class TestUserGetActualUser(BaseTestCase):
         user = self.factory.create_user(email=user_email)
         api_user = ApiUser(user.api_key, user.org, user.group_ids)
         self.assertEqual(api_user.get_actual_user(), repr(api_user))
+
+
+class TestWhatAProfilePictureIs(BaseTestCase):
+    """
+    It used to be a gravatar URL built from an MD5 of the email address.
+
+    Offline that drew a broken image beside every query and logged a failed
+    request for each. Online it told gravatar.com the MD5 of every address
+    here, on every page load, from a tool whose point is running on your own
+    machines. And almost nobody has one, so what came back was the identicon:
+    an abstract pattern no more recognisable than initials, a round trip more
+    expensive.
+    """
+
+    def test_nobody_is_given_a_picture_they_did_not_set(self):
+        user = self.factory.create_user()
+
+        self.assertIsNone(user.profile_image_url)
+
+    def test_the_email_address_does_not_leave_the_install(self):
+        user = self.factory.create_user(email="someone@example.com")
+
+        self.assertNotIn("gravatar", str(user.profile_image_url or ""))
+        self.assertNotIn("gravatar", json_dumps(user.to_dict()))
+
+    def test_a_picture_somebody_set_is_kept(self):
+        user = self.factory.create_user()
+        user._profile_image_url = "https://example.com/me.png"
+        db.session.commit()
+
+        self.assertEqual("https://example.com/me.png", user.profile_image_url)
+        self.assertEqual("https://example.com/me.png", user.to_dict()["profile_image_url"])
+
+    def test_a_disabled_account_still_says_so_in_its_picture(self):
+        # That image is making a statement, and it outranks both of the above.
+        user = self.factory.create_user()
+        user.disable()
+        db.session.commit()
+
+        # A request context because that path is built with `url_for`, which
+        # is how it has always been -- the point here is which image wins.
+        with self.app.test_request_context():
+            self.assertIn("avatar", user.to_dict()["profile_image_url"])

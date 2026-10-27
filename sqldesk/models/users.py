@@ -173,11 +173,25 @@ class User(TimestampMixin, db.Model, BelongsToOrgMixin, UserMixin, PermissionsCh
 
     @property
     def profile_image_url(self):
-        if self._profile_image_url:
-            return self._profile_image_url
+        """
+        A picture, or None for the browser to draw initials instead.
 
-        email_md5 = hashlib.md5(self.email.lower().encode(), usedforsecurity=False).hexdigest()
-        return "https://www.gravatar.com/avatar/{}?s=40&d=identicon".format(email_md5)
+        This used to return a gravatar URL built from an MD5 of the email
+        address. Three things wrong with that, in increasing order:
+
+        * It does not work offline. An air-gapped install drew a broken image
+          beside every query and logged a failed request for each one.
+        * It told gravatar.com the MD5 of every email address here, on every
+          page load, which is a disclosure nobody asked for from a tool whose
+          whole point is running on your own machines.
+        * Almost nobody has a gravatar, so what usually came back was the
+          identicon -- an abstract pattern no more recognisable than initials
+          and a round trip more expensive.
+
+        None rather than a placeholder URL, because the one thing the server
+        should not do is invent an address for a picture that is not there.
+        """
+        return self._profile_image_url or None
 
     @property
     def permissions(self):

@@ -1,6 +1,7 @@
 import { isFunction, map, filter, extend, omit, identity, range, isEmpty } from "lodash";
 import React from "react";
 import PropTypes from "prop-types";
+import UserAvatar from "@/components/UserAvatar";
 import classNames from "classnames";
 import Table from "antd/lib/table";
 import Skeleton from "antd/lib/skeleton";
@@ -29,14 +30,7 @@ export const Columns = {
     return extend(
       {
         width: "1%",
-        render: (user, item) => (
-          <img
-            src={item.user.profile_image_url}
-            className="profile__image_thumb"
-            alt={formatTitle(user.name, item)}
-            title={formatTitle(user.name, item)}
-          />
-        ),
+        render: (user, item) => <UserAvatar user={item.user} size={20} className="profile__image_thumb" />,
       },
       overrides
     );

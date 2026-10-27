@@ -1,6 +1,7 @@
 import { isFunction, isString, filter, map } from "lodash";
 import React, { useState, useCallback, useEffect } from "react";
 import PropTypes from "prop-types";
+import UserAvatar from "@/components/UserAvatar";
 import Input from "antd/lib/input";
 import AntdMenu from "antd/lib/menu";
 import Link from "@/components/Link";
@@ -123,10 +124,9 @@ MenuIcon.propTypes = {
  */
 
 export function ProfileImage({ user }) {
-  if (!isString(user.profile_image_url) || user.profile_image_url === "") {
-    return null;
-  }
-  return <img src={user.profile_image_url} className="profile__image--sidebar m-r-5" width="13" alt={user.name} />;
+  // It used to draw nothing without a URL, which is why a sidebar entry for
+  // somebody with no gravatar had a gap where a face belongs.
+  return <UserAvatar user={user} size={13} className="profile__image--sidebar m-r-5" />;
 }
 
 ProfileImage.propTypes = {
