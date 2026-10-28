@@ -45,10 +45,23 @@ lead-in** on each bullet, and always three closing sections: **Images**,
 
 ## Pushing
 
-**Name the remote.** `git push` with no remote resolves to `origin`, which is
-the abandoned `bot-netizen/redash` fork — and on a branch that has never been
-pushed there it *succeeds*, creating a stray branch and starting its
-workflows.
+**There is one repository: `bot-netizen/sqldesk`.** It holds every branch,
+every tag, every release, the Pages site at sqldesk.org and the
+`ghcr.io/bot-netizen/sqldesk` packages. `origin` points at it and `gh`'s
+default repo is set to it.
+
+This used to be a trap and is written down because it caught somebody. The
+clone's `origin` pointed at `bot-netizen/redash`, the abandoned fork this
+project started from, while every release was actually cut on `sqldesk` — and
+pushing a branch that had never existed on the fork *succeeded*, creating a
+stray branch and starting its workflows, which then failed in confusing ways
+for reasons that had nothing to do with the code. On 2026-10-28 a whole
+release went to it before anybody noticed, and the fork was deleted the same
+day.
+
+**The check, before pushing anything to a repository you have not pushed to
+in this session: `gh release list`.** The right repository has every release
+on it. The wrong one has none, and that is the fastest question to ask.
 
 ## Tests
 
