@@ -200,6 +200,13 @@ be wrong.</p>
 <p>Bars only. A threshold on a line would colour its markers and leave the line itself one colour,
 which says less than the goal lines under <strong>Lines &amp; Zoom</strong> &mdash; use those instead.</p>
 
+<h3 id="line-type">Telling two lines apart</h3>
+<p>Under <strong>Series</strong>, a line or area series has a <strong>Line</strong> setting: solid, dashed,
+dotted, fine dots, long dash or dash-dot. Use it when two series are the same measure at different times
+&mdash; this week against the same hour last week. Giving the comparison its own colour says it is a
+different thing; giving it its own pattern says it is the same thing, earlier, which is usually what the
+reader needs. The picker draws each pattern rather than naming it.</p>
+
 <h3>Bars inside table cells</h3>
 <p>On a number column, <strong>Data bar behind the number</strong> draws each value as a bar across its
 cell, scaled against the largest magnitude in the column. Two colours sit below it: the bar's colour,
@@ -214,6 +221,20 @@ and the colour it takes below zero.</p>
 </table>
 <p>A shared zero is only worth the width it costs when there is something on both sides of it, which is
 why an all-positive column still gets the whole cell.</p>
+
+<p>Four more settings decide how it looks:</p>
+<table>
+  <tr><th>Setting</th><th>What it does</th></tr>
+  <tr><td><strong>Bar</strong></td><td><em>Solid</em> paints the colour as chosen and restates the number
+    over the bar in whichever of black or white can be read on it. <em>Tinted</em> is the older, paler
+    wash &mdash; readable behind text, but a weak mark on its own.</td></tr>
+  <tr><td><strong>Column width</strong></td><td>A floor for the column, because a table sizes a column to
+    its widest number and a bar in that much space says nothing.</td></tr>
+  <tr><td><strong>Show the number on the bar</strong></td><td>Turn it off to read the column as shapes.
+    The number stays in the page for anyone using a screen reader.</td></tr>
+  <tr><td><strong>Fill</strong> (under Colour the &rarr; Cell background)</td><td>The same choice for a
+    coloured cell: tinted keeps the text dark, solid paints the cell and flips the text to suit.</td></tr>
+</table>
 
 <h2>Dates and times</h2>
 <p>Times are stored as the warehouse returned them and displayed in the organization's configured format.

@@ -305,6 +305,19 @@ footer a{color:var(--muted)}
        including what to do when you upgrade.</p>
     <div class="items">
       <div class="item">
+        <div class="item-h"><h3>0.7.9 &mdash; Alerts that say how often, tables you can read</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">28 October 2026</p>
+        <ul class="points">
+          <li>An alert remembers every time it fired, with the value the decision was made on, so one that went off six times before breakfast no longer looks like one that went off once. A Fires (24h) column on the list, the history beside the alert.</li>
+          <li>Slack templates are escaped for Slack rather than for HTML, so a value containing <code>&amp;</code> arrives as <code>&amp;</code>; the guide documents all twelve variables and the mrkdwn that differs from Markdown.</li>
+          <li>Table headers are marked by weight and a rule instead of a fill nobody could see &mdash; 1.10:1 against the rows it labelled &mdash; and the header text no longer fails AA at 3.33:1.</li>
+          <li>Data bars below zero had no colour at all: the default named a colour that does not exist, so the browser discarded it. Bars are solid now, with the number restated over the bar in an ink measured against the fill.</li>
+          <li>A line can say which line it is: six dash patterns per series, so this week and last week can share a colour.</li>
+          <li>Downloading a dashboard as an image no longer refuses at thirteen widgets. A picture has no pages; only the PDF does.</li>
+          <li>Avatars are drawn from initials on your own machines. Nothing is sent to gravatar.com, which previously learned the MD5 of every address in the organization on every page load.</li>
+        </ul>
+      </div>
+      <div class="item">
         <div class="item-h"><h3>0.7.8 &mdash; Second Look</h3><span class="st st-shipped">Shipped</span></div>
         <p class="sub">27 October 2026</p>
         <ul class="points">

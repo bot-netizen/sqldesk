@@ -1594,6 +1594,23 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-10-28T09:01:45.480657+00:00"
+    },
+    {
+      "id": "bug-092",
+      "file": "viz-lib/src/visualizations/table/cellFormat.ts",
+      "error_message": "Table data bars below zero rendered with no fill; reported as 'very light color'",
+      "root_cause": "DEFAULT_CELL_FORMAT.dataBarNegativeColor was \"danger\". The semantic colour set is good/warning/serious/critical/neutral/accent -- \"danger\" is in none of them, and it is not a CSS colour either. washColor() therefore fell to its non-semantic branch and produced `color-mix(in srgb, danger 16%, transparent)`, which is invalid CSS, so the browser dropped the whole background declaration. The negative bar had no fill at all. The string appeared exactly once in the codebase, as that default, so nothing else ever exercised it.",
+      "fix": "Default is \"critical\". Separately the bar's fill moved from a 16% wash to solid (dataBarFill, default solid even for columns saved earlier, since those are the unreadable ones), with the number restated in a measured contrast ink clipped to the bar's rectangle. Tests in cellFormat.test.tsx under 'a bar you can actually see'; mutation-checked by restoring the default, which fails four tests.",
+      "tags": [
+        "viz-lib",
+        "table",
+        "data-bar",
+        "css",
+        "color-mix",
+        "found-by-user"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-28T11:16:29.655415+00:00"
     }
   ],
   "applied_observations": {

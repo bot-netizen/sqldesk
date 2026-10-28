@@ -66,9 +66,66 @@ is applied to the SQL before it runs — so the smaller number saved nothing and
 hid what somebody had waited for. One constant now, where there were three
 numbers that had to agree and two did.
 
+### Tables you can read
+
+**The header was marked by nothing.** It was painted `@n-100`, which is also
+`--color-surface-sunken` — the colour of a recessed area, sitting on top of a
+white card. Against the rows it labelled that is 1.10:1, and a fill has to
+reach about 1.25:1 before the eye reads it as a band. On a dashboard it was
+three near-identical warm off-whites stacked: page, card, header.
+
+**And its text failed AA.** `@table-header-color` was `@n-600`, which the
+palette's own note records at 3.3–3.7:1 across our surfaces. It measured
+3.33:1 on the header it was paired with — every table in the application.
+
+**So the fill goes.** The header is white with `@n-900` at 17.2:1 and a 2px
+rule beneath it, marked by weight rather than by a wash. A list page's columns
+keep their upper-case micro-label; a result table's keep sentence case,
+because those names come from the query and upper case would widen
+`customer_lifetime_value` and read worse.
+
+**The bar below zero had no colour at all.** Reported as "very light", it was
+absent: the default negative colour was `danger`, which is not one of the six
+colour names and not a CSS colour, so the browser discarded the whole
+declaration. The name appeared once in the codebase, as that default.
+
+**Data bars are solid now**, including on columns saved earlier — those are
+the ones whose bars could not be seen, so the new default is the fix. The
+number is restated over the bar in an ink measured against the fill, clipped
+to the bar's own rectangle, because a single colour cannot work when the
+number spans the cell and the bar covers part of it. The number can also be
+hidden so a column is read as shapes, and the column can be given a width,
+because a bar in a column sized to its widest number says nothing. Cell
+backgrounds take the same solid option. Tinted stays for anybody who liked it.
+
+### Charts
+
+**A line can say which line it is.** Series settings offered a label, an axis,
+a type and an order, so two lines of the same measure — this week and the same
+hour last week — could only be told apart by colour. A second colour says "a
+different thing"; a second pattern says "the same thing, earlier".
+
+Six patterns, drawn in the picker rather than named, because "dash-dot" and
+"long dash" are hard to tell apart as words. The lengths are fixed rather than
+ECharts' own, which scale with the stroke: at 2px its built-in dotted has a
+gap shorter than its dot and reads as a textured solid line.
+
+### Exporting
+
+**A picture of a dashboard has no pages.** Downloading one as an image refused
+at thirteen widgets, saying "Export makes a one-page report". It is not a
+report — the canvas is sized to the dashboard, not to A4. Both renderers
+shared one size check, so the PDF's rule reached the image. A PDF keeps the
+rule exactly; an image is asked only whether the browser will allocate the
+canvas, which at 1440 wide means a dashboard about 44,000 pixels tall.
+
 ### Upgrading from 0.7.8
 
 **One migration**, creating `alert_fires`. Nothing else to do.
+
+**Data bars and table headers change appearance** without anything being
+reconfigured. Both were doing less than they looked like they were doing: a
+header fill at 1.10:1 and a negative bar with no fill at all.
 
 ## 0.7.8
 
