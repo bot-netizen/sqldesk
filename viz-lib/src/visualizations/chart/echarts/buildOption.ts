@@ -10,6 +10,7 @@ import { buildBoxSeries } from "./boxplot";
 import { BAR_LAYOUT, barCentreOffset, buildErrorBarSeries } from "./errorBars";
 import { applyWindow, addReferences, zoomComponents } from "./references";
 import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
+import { dashPattern } from "../lineDash";
 
 /** What ECharts asks for on a value axis when nobody tells it otherwise. */
 const ECHARTS_SPLIT_NUMBER = 5;
@@ -353,6 +354,10 @@ function buildCartesianSeries(
     }
     if (echartsType === "line") {
       built.showSymbol = points.length <= 200;
+      // Stated always, like `smooth` and `step` below and for the same
+      // reason: a series that stops asking for a dash must go back to solid
+      // rather than keep the one the previous option left on it.
+      built.lineStyle = { type: dashPattern(overrides.dash) };
       // Both properties, always, whatever the shape. Options go into a live
       // chart with `notMerge: false` whenever the data's shape has not
       // changed -- which is every time somebody only changes this dropdown --
