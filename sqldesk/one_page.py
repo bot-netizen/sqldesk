@@ -15,6 +15,10 @@ rendered grid; this one works from the stored layout, because there is no
 browser here. They have to agree, and `tests/test_one_page.py` pins the
 numbers against the file that holds them so a change to either is a failing
 test rather than a surprise in somebody's email.
+
+The rule is about a *page*, so it governs a PDF and a subscription and not an
+image. Downloading a dashboard as a picture sizes the canvas to the dashboard
+and has no page to overflow; its only limit is what the browser will allocate.
 """
 
 import math

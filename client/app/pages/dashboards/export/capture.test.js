@@ -1,4 +1,4 @@
-import { MAX_WIDGETS, captureScale, foreignImageCount, stripXmlIllegal, tooBigToExport } from "./index";
+import { MAX_WIDGETS, PNG, captureScale, foreignImageCount, stripXmlIllegal, tooBigToExport } from "./index";
 
 jest.mock("html-to-image", () => ({ toPng: jest.fn() }));
 jest.mock("@sqldesk/viz/lib/services/offscreen", () => ({ revealAllCharts: jest.fn() }));
@@ -93,9 +93,9 @@ describe("stripXmlIllegal", () => {
 
 describe("tooBigToExport", () => {
   /*
-    Export is a one-page report. Past one page, or past a dozen widgets, the
-    answer is "too big" at once rather than a long wait for a file nobody
-    will read.
+    A PDF export is a one-page report. Past one page, or past a dozen
+    widgets, the answer is "too big" at once rather than a long wait for a
+    file nobody will read.
   */
   test("a short dashboard of a few charts exports", () => {
     expect(tooBigToExport({ width: 1440, height: 900, widgets: 6 })).toBeNull();
@@ -120,5 +120,42 @@ describe("tooBigToExport", () => {
 
   test("exactly the limit is allowed", () => {
     expect(tooBigToExport({ width: 1440, height: 600, widgets: MAX_WIDGETS })).toBeNull();
+  });
+
+  test("the refusal points at the image, which has no page to fit on", () => {
+    const reason = tooBigToExport({ width: 1440, height: 600, widgets: MAX_WIDGETS + 1 });
+
+    expect(reason).toMatch(/as an image/);
+  });
+
+  /*
+    A picture is not a report and never was. It has no pages, and
+    composeExportCanvas sizes the canvas to the dashboard rather than to A4,
+    so the page rule had no business being asked here -- it was, and
+    "download an image" refused dashboards it could draw.
+  */
+  describe("as an image", () => {
+    test("more widgets than a report holds is fine", () => {
+      expect(tooBigToExport({ width: 1440, height: 600, widgets: 40, format: PNG })).toBeNull();
+    });
+
+    test("taller than a page is fine, which is the whole point of a picture", () => {
+      // The "Every visualization" demo dashboard: eleven pages as a PDF.
+      expect(tooBigToExport({ width: 1440, height: 10615, widgets: 10, format: PNG })).toBeNull();
+    });
+
+    test("both at once is still fine", () => {
+      expect(tooBigToExport({ width: 1440, height: 10615, widgets: 40, format: PNG })).toBeNull();
+    });
+
+    test("refuses only what the browser will not allocate even shrunk", () => {
+      // 1440 x 60,000 is 21.6M pixels at the 0.5x a capture falls back to.
+      const reason = tooBigToExport({ width: 1440, height: 60000, widgets: 40, format: PNG });
+
+      expect(reason).toMatch(/larger than any image/);
+      // Neither the page rule nor the widget limit is why this failed, so
+      // neither should be what the refusal blames.
+      expect(reason).not.toMatch(/one-page|\d+ widgets/);
+    });
   });
 });

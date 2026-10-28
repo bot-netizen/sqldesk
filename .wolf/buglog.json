@@ -1433,6 +1433,167 @@
       "last_seen": "2026-10-27T01:22:37.693Z",
       "occurrences": 1,
       "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of test_mcp.py",
+      "file": "tests/handlers/test_mcp.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 6\u219248 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-083",
+      "timestamp": "2026-10-27T12:07:24.136Z",
+      "last_seen": "2026-10-27T12:07:24.136Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong return value",
+      "file": "sqldesk/models/__init__.py",
+      "root_cause": "Was returning: User.query.join(AlertSubscription).filter(AlertSub",
+      "fix": "Now returns: {}",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-084",
+      "timestamp": "2026-10-27T12:30:13.320Z",
+      "last_seen": "2026-10-27T12:30:13.320Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/models/__init__.py",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 27\u219237 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-085",
+      "timestamp": "2026-10-27T12:31:00.472Z",
+      "last_seen": "2026-10-27T12:31:00.472Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong return value",
+      "file": "sqldesk/handlers/alerts.py",
+      "root_cause": "Was returning: [serialize_alert(alert) for alert in models.Alert.",
+      "fix": "Now returns: [serialize_alert(alert, fires_24h=fires.get(alert.",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-086",
+      "timestamp": "2026-10-27T12:31:28.628Z",
+      "last_seen": "2026-10-27T12:31:28.628Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of slack.py",
+      "file": "sqldesk/destinations/slack.py",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 11\u219213 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-087",
+      "timestamp": "2026-10-27T12:59:34.566Z",
+      "last_seen": "2026-10-27T12:59:34.566Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/models/__init__.py",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 3\u21929 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-088",
+      "timestamp": "2026-10-27T13:00:42.170Z",
+      "last_seen": "2026-10-27T13:00:42.170Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Incorrect value in code",
+      "file": "client/app/components/HelpTrigger.jsx",
+      "root_cause": "Had \"/alerts.html\"",
+      "fix": "Changed to \"/alerts.html#templates\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-089",
+      "timestamp": "2026-10-27T13:02:52.158Z",
+      "last_seen": "2026-10-27T13:02:52.158Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of users.py",
+      "file": "sqldesk/models/users.py",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 7\u219221 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-090",
+      "timestamp": "2026-10-27T13:20:51.175Z",
+      "last_seen": "2026-10-27T13:20:51.175Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "id": "bug-091",
+      "file": "client/app/pages/dashboards/export/index.js",
+      "error_message": "Too big to export: \"This dashboard has 13 widgets\" when downloading a dashboard as an image",
+      "root_cause": "capturePage() is shared by renderDashboardToPng and renderDashboardToPdf, and called checkSize() unconditionally. checkSize enforced the one-page report rule -- at most MAX_WIDGETS (12) widgets, and no taller than one A4 landscape page plus 30%. Both halves of that rule exist because a PDF is paginated. A PNG is not: composeExportCanvas sizes its canvas to the dashboard, not to A4, and captureScale already answers an oversized canvas by drawing smaller rather than refusing. So every image download inherited a constraint that only the PDF has, and refused dashboards it could have drawn, citing a page size for a file with no pages.",
+      "fix": "tooBigToExport takes a format. PNG is checked only against MAX_CANVAS_PIXELS at MIN_CAPTURE_SCALE -- what the browser will actually allocate; PDF keeps the one-page rule unchanged, so tests/test_one_page.py's pin on MAX_WIDGETS still holds. exportSizeProblem/checkSize/capturePage thread the format through, and ShareDashboardButton asks per format. Four tests in capture.test.js cover the image path; mutation-checked by restoring the shared rule, which fails all four and leaves the five PDF tests passing.",
+      "tags": [
+        "dashboards",
+        "export",
+        "screenshot",
+        "png",
+        "pdf",
+        "found-by-user"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-28T09:01:45.480657+00:00"
     }
   ],
   "applied_observations": {
@@ -1486,7 +1647,15 @@
     "2edece27-101a-4940-810e-41ecb268bd91": true,
     "b3136ba7-5677-44c7-a5ce-c582124702a4": true,
     "80350ff5-2eb0-4cf9-927e-2f1a745840e3": true,
-    "ffa3249f-4e46-4585-8320-722887853b85": true
+    "ffa3249f-4e46-4585-8320-722887853b85": true,
+    "c2eedb5d-8636-49d2-8a57-aa754a34fd29": true,
+    "4d64562b-533d-4ef6-b894-ce0160801553": true,
+    "b548d8c7-89c6-459d-a7fe-90f36ead5164": true,
+    "ecc4f756-26ee-488a-9362-1eb9ace7d0e3": true,
+    "3d96a546-95c1-4138-b481-cec7cbf1d056": true,
+    "4be1fd31-6299-4f3e-8d4c-5372782a2741": true,
+    "707af710-c711-4741-a511-96b216bc6b9c": true,
+    "34c33fc6-5124-4dc1-827c-fadfadb09e54": true
   },
-  "next_id": 83
+  "next_id": 91
 }

@@ -42,7 +42,10 @@ export default function ShareDashboardButton({ dashboard, getExportTarget, onSho
       // Asked before anything starts, and answered where the person is
       // looking. As a corner notice after a spinner, the answer took 100ms
       // to arrive and 3s to vanish, and read as the button being broken.
-      const tooBig = exportSizeProblem(element);
+      //
+      // Asked per format, because the two have different limits: the PDF is
+      // a one-page report and the image is as tall as the dashboard.
+      const tooBig = exportSizeProblem(element, kind);
       if (tooBig) {
         Modal.warning({ title: "Too big to export", content: tooBig, okText: "OK" });
         return;
