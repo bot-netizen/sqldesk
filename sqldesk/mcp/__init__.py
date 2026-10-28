@@ -34,7 +34,7 @@ from sqlalchemy.orm import load_only
 from sqlglot import exp
 from sqlglot.tokens import TokenType
 
-from sqldesk import __version__, features, models, settings
+from sqldesk import __version__, features, models, settings, utils
 from sqldesk.ai.catalog.harvest import rebuild_card
 from sqldesk.ai.catalog.retrieve import context_for
 from sqldesk.ai.optimizer import analyze, dialect_for
@@ -184,6 +184,35 @@ TOOLS = [
             "type": "object",
             "properties": {"question": {"type": "string"}},
             "required": ["question"],
+        },
+    },
+    {
+        "name": "find_alerts",
+        "title": "Alerts, and how often they have gone off",
+        "description": (
+            "Search alerts by name and by the query behind them. Each one comes back with its "
+            "condition in words, where it stands now, and how many times it fired in the last 24 "
+            "hours -- which is what separates a threshold that is working from one that is too "
+            "tight."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"question": {"type": "string"}},
+            "required": ["question"],
+        },
+    },
+    {
+        "name": "explain_alert",
+        "title": "Why an alert is where it is",
+        "description": (
+            "One alert in full: its condition, the value its query last returned and when, its "
+            "recent history with the value on each line, and who gets told. Use this to answer why "
+            "it fired, why it did not, or whether it is flapping."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"id": {"type": "integer", "description": "The alert's id, from find_alerts."}},
+            "required": ["id"],
         },
     },
     {
@@ -2437,11 +2466,252 @@ def tool_propose_measure(user, org, arguments):
     )
 
 
+#: How many alerts a search answers with, and how much history one alert
+#: shows. The history cap is the lesson from 0.7.7's token work: an alert that
+#: has flapped for a month should not be able to fill a context window, and
+#: twenty lines is enough to see a shape.
+MAX_ALERTS_SHOWN = 20
+MAX_ALERT_HISTORY = 20
+
+#: Past this, the value an alert last saw is reported as stale rather than as
+#: the current one. A threshold checked against a result three days old is
+#: worse than saying the query has not run -- the first reads as an answer.
+ALERT_VALUE_STALE_AFTER = datetime.timedelta(hours=24)
+
+#: The operators as somebody says them. The model stores both these and the
+#: spelled-out forms it accepted years ago, and a condition is worth more as
+#: `orders < 100` than as three option keys.
+OP_WORDS = {
+    "greater than": ">",
+    "less than": "<",
+    "equals": "==",
+}
+
+
+def _alert_condition(alert):
+    """
+    An alert's condition on one line, as somebody would say it.
+
+    `{"column": "orders", "op": "<", "value": 100}` is three keys that have to
+    be read together before they mean anything. `orders < 100` is the same
+    fact, already assembled.
+    """
+    options = alert.options or {}
+    column = options.get("column")
+    op = options.get("op")
+    value = options.get("value")
+    if not column or op is None:
+        return "no condition set"
+    # `selector` arrived after alerts already existed, so a missing one means
+    # the first row -- the same default `evaluate` applies.
+    selector = options.get("selector", "first")
+    measured = column if selector == "first" else "{}({})".format(selector, column)
+    return "{} {} {}".format(measured, OP_WORDS.get(op, op), value)
+
+
+def _visible_alerts(user, org):
+    """
+    The alerts this caller may see.
+
+    `Alert.all` is the alerts list's own rule -- an alert sits on a query, and
+    whoever cannot read that query's data source has no business reading the
+    alert on it. Scoped to the organisation as well, through the query, since
+    group ids are only meaningful inside one.
+    """
+    return models.Alert.all(user.group_ids).filter(models.Query.org_id == org.id)
+
+
+def _alert_age(alert, counts, now):
+    """The three things a list row says about where an alert stands."""
+    where = alert.state or models.Alert.UNKNOWN_STATE
+    fired = counts.get(alert.id, 0)
+    last = alert.last_triggered_at
+    parts = [where]
+    if fired:
+        parts.append("{} fire{} in 24h".format(fired, "" if fired == 1 else "s"))
+    if last is not None:
+        parts.append("last fired {}".format(_when(last, now)))
+    if (alert.options or {}).get("muted"):
+        # Worth saying on every line that has it: an alert that is evaluating
+        # and telling nobody looks identical to one that is quiet.
+        parts.append("MUTED")
+    return ", ".join(parts)
+
+
+def _when(moment, now=None):
+    """`3 hours ago`, for a timestamp a model has to weigh rather than parse."""
+    if moment is None:
+        return "never"
+    seconds = ((now or utils.utcnow()) - moment).total_seconds()
+    if seconds < 0:
+        return "just now"
+    for size, unit in ((86400, "day"), (3600, "hour"), (60, "minute")):
+        if seconds >= size:
+            count = int(seconds // size)
+            return "{} {}{} ago".format(count, unit, "" if count == 1 else "s")
+    return "under a minute ago"
+
+
+def tool_find_alerts(user, org, arguments):
+    question = ((arguments or {}).get("question") or "").strip()
+    if not question:
+        raise McpError(INVALID_PARAMS, "`question` is required.")
+    terms = _terms(question)
+
+    alerts = _visible_alerts(user, org)
+    if terms:
+        # The query's name as well as the alert's. Alerts are often named for
+        # the threshold ("orders below 100") while the thing somebody is
+        # asking about is the subject, which is in the query's name.
+        alerts = alerts.filter(
+            or_(
+                *[
+                    or_(
+                        models.Alert.name.ilike("%{}%".format(term)),
+                        models.Query.name.ilike("%{}%".format(term)),
+                    )
+                    for term in terms
+                ]
+            )
+        )
+    alerts = alerts.order_by(models.Alert.id.desc()).limit(MAX_ALERTS_SHOWN + 1).all()
+
+    if not alerts:
+        return _text("No alerts match that. list_data_sources shows what this key can read at all.")
+
+    more = len(alerts) > MAX_ALERTS_SHOWN
+    alerts = alerts[:MAX_ALERTS_SHOWN]
+
+    now = utils.utcnow()
+    counts = models.Alert.fire_counts([alert.id for alert in alerts], now=now)
+    lines = []
+    for alert in alerts:
+        lines.append(
+            "#{} {} -- {} ({}), on query #{} {}".format(
+                alert.id,
+                alert.name or "untitled",
+                _alert_condition(alert),
+                _alert_age(alert, counts, now),
+                alert.query_rel.id,
+                alert.query_rel.name,
+            )
+        )
+    if more:
+        lines.append("More than {} match; ask something narrower.".format(MAX_ALERTS_SHOWN))
+    lines.append("explain_alert(id) gives one of these in full, with its history.")
+    return _text("\n".join(lines))
+
+
+def tool_explain_alert(user, org, arguments):
+    alert_id = (arguments or {}).get("id")
+    if alert_id is None:
+        raise McpError(INVALID_PARAMS, "`id` is required -- find_alerts gives it.")
+
+    alert = _visible_alerts(user, org).filter(models.Alert.id == alert_id).first()
+    if alert is None:
+        # The same answer whether it does not exist or this key may not read
+        # the data source behind it. Saying which would confirm an alert
+        # exists to somebody who cannot see it.
+        raise McpError(INVALID_PARAMS, "No alert #{} that this key can read.".format(alert_id))
+
+    now = utils.utcnow()
+    query = alert.query_rel
+    lines = [
+        "#{} {}".format(alert.id, alert.name or "untitled"),
+        "Condition: {}".format(_alert_condition(alert)),
+        "State: {}".format(_alert_age(alert, models.Alert.fire_counts([alert.id], now=now), now)),
+    ]
+
+    if alert.rearm:
+        lines.append(
+            "Rearm: {} seconds -- it will not fire again until that has passed, so a gap in the "
+            "history below may be the rearm rather than the condition clearing.".format(alert.rearm)
+        )
+
+    lines.append("Query: #{} {}".format(query.id, query.name))
+    lines.extend(_alert_value_lines(alert, query, now))
+    lines.extend(_alert_history_lines(alert, now))
+    lines.extend(_alert_destination_lines(alert))
+    return _text("\n".join(lines))
+
+
+def _alert_value_lines(alert, query, now):
+    """
+    What the query last returned, and whether that is worth trusting.
+
+    The value is the whole point of the question "why did it not fire", and it
+    is also the easiest thing to be wrong about: a result from three days ago
+    presented as the current value reads as an answer, and sends somebody
+    looking at the threshold when the real fault is that nothing has run.
+    """
+    result = query.latest_query_data
+    if result is None:
+        return ["Value: the query has never run, so there is nothing to check the condition against."]
+
+    column = (alert.options or {}).get("column")
+    rows = (result.data or {}).get("rows") or []
+    retrieved = result.retrieved_at
+    age = _when(retrieved, now)
+
+    if not rows:
+        found = "the query returned no rows"
+    elif column not in rows[0]:
+        found = "the query no longer returns a column called {} -- the alert cannot evaluate".format(column)
+    else:
+        found = "{} = {}".format(column, rows[0][column])
+
+    if retrieved is not None and (now - retrieved) > ALERT_VALUE_STALE_AFTER:
+        return [
+            "Value: {}, but from {} -- too old to read as the current value. "
+            "Whatever this alert is doing, it is doing it on this result.".format(found, age)
+        ]
+    return ["Value: {} (from the run {})".format(found, age)]
+
+
+def _alert_history_lines(alert, now):
+    """The recent changes, newest first, with the value each was decided on."""
+    fires = alert.recent_fires(limit=MAX_ALERT_HISTORY)
+    if not fires:
+        return [
+            "History: nothing recorded. Alerts have kept a history since 0.7.9; before that only the current state was stored."
+        ]
+
+    lines = ["History, newest first:"]
+    for fire in fires:
+        said = "  {} {}".format(_when(fire.created_at, now), fire.state)
+        if fire.value is not None:
+            said += " at {}".format(fire.value)
+        if not fire.notified:
+            # Worth saying: a state change nobody was told about is the
+            # difference between "we missed it" and "nothing was sent".
+            said += " (nobody notified)"
+        lines.append(said)
+    if len(fires) == MAX_ALERT_HISTORY:
+        lines.append("  (the most recent {}; there may be more)".format(MAX_ALERT_HISTORY))
+    return lines
+
+
+def _alert_destination_lines(alert):
+    """Where it notifies, which answers "was anybody actually told"."""
+    subscriptions = models.AlertSubscription.all(alert.id).all()
+    if not subscriptions:
+        return ["Notifies: nobody is subscribed, so it changes state in silence."]
+    where = []
+    for subscription in subscriptions:
+        if subscription.destination:
+            where.append("{} ({})".format(subscription.destination.name, subscription.destination.type))
+        else:
+            where.append("email to {}".format(subscription.user.email))
+    return ["Notifies: {}".format(", ".join(where))]
+
+
 HANDLERS = {
     "find_context": tool_find_context,
     "find_measures": tool_find_measures,
     "find_queries": tool_find_queries,
     "find_dashboards": tool_find_dashboards,
+    "find_alerts": tool_find_alerts,
+    "explain_alert": tool_explain_alert,
     "explain_query": tool_explain_query,
     "run_query": tool_run_query,
     "expand_table": tool_expand_table,

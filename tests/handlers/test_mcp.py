@@ -2,7 +2,7 @@ import datetime
 import json
 from unittest import mock
 
-from sqldesk import mcp, models, settings
+from sqldesk import mcp, models, settings, utils
 from sqldesk.handlers.mcp import MyMcpResource
 from tests import BaseTestCase
 
@@ -2751,3 +2751,236 @@ class TestWhichDashboardsAreDescribed(McpTestCase):
         self.assertIn("completed orders only", found)
         line = next(one for one in found.splitlines() if "completed orders only" in one)
         self.assertIn("counter", line.lower(), "the description belongs to the counter, so the line is the counter's")
+
+
+class TestAlertsOverMcp(McpTestCase):
+    """
+    Debugging an alert is almost always one of four questions: why did it
+    fire, is it flapping, why did it *not* fire, and was anybody told. Before
+    0.7.9 an alert kept only its current state, so a tool here could have
+    answered "it is triggered" and almost nothing else. The fire history is
+    what makes the other three answerable, and this is what reads it.
+    """
+
+    def call(self, name, arguments=None, user=None):
+        body = rpc("tools/call", {"name": name, "arguments": arguments or {}})
+        return json.loads(self.post(body, user=user).data)
+
+    def text(self, name, arguments=None, user=None):
+        return self.call(name, arguments, user=user)["result"]["content"][0]["text"]
+
+    def an_alert(self, **kwargs):
+        options = {"column": "orders", "op": "<", "value": 100}
+        options.update(kwargs.pop("options", {}))
+        query = kwargs.pop("query", None) or self.factory.create_query(
+            name="Orders per hour", data_source=self.factory.data_source
+        )
+        alert = self.factory.create_alert(query_rel=query, options=options, **kwargs)
+        models.db.session.commit()
+        return alert
+
+    def fire(self, alert, state, value=None, notified=True, minutes_ago=0):
+        row = models.AlertFire(
+            alert_id=alert.id,
+            state=state,
+            value=None if value is None else str(value),
+            notified=notified,
+            created_at=utils.utcnow() - datetime.timedelta(minutes=minutes_ago),
+        )
+        models.db.session.add(row)
+        models.db.session.commit()
+        return row
+
+    def with_result(self, query, rows, retrieved_at=None):
+        result = self.factory.create_query_result(
+            data={"columns": [{"name": "orders"}], "rows": rows},
+            retrieved_at=retrieved_at or utils.utcnow(),
+            data_source=query.data_source,
+        )
+        query.latest_query_data = result
+        models.db.session.add(query)
+        models.db.session.commit()
+        return result
+
+    # --- find_alerts -----------------------------------------------------
+
+    def test_an_alert_is_found_by_its_name(self):
+        self.an_alert(name="Orders have dried up")
+
+        self.assertIn("Orders have dried up", self.text("find_alerts", {"question": "dried up"}))
+
+    def test_and_by_the_name_of_the_query_behind_it(self):
+        # Alerts are often named for the threshold while the subject somebody
+        # asks about is in the query's name.
+        self.an_alert(name="Below 100")
+
+        self.assertIn("Below 100", self.text("find_alerts", {"question": "orders per hour"}))
+
+    def test_the_condition_comes_back_as_words_rather_than_option_keys(self):
+        self.an_alert(name="Quiet", options={"column": "orders", "op": "<", "value": 100})
+
+        found = self.text("find_alerts", {"question": "quiet"})
+
+        self.assertIn("orders < 100", found)
+
+    def test_a_selector_is_shown_because_it_changes_what_is_measured(self):
+        self.an_alert(name="Peak", options={"column": "latency", "op": ">", "value": 2, "selector": "max"})
+
+        self.assertIn("max(latency) > 2", self.text("find_alerts", {"question": "peak"}))
+
+    def test_a_spelled_out_operator_reads_as_a_symbol(self):
+        # The model has accepted both forms for years; only one of them reads.
+        self.an_alert(name="Legacy", options={"column": "orders", "op": "less than", "value": 100})
+
+        self.assertIn("orders < 100", self.text("find_alerts", {"question": "legacy"}))
+
+    def test_the_fire_count_is_the_point_of_the_line(self):
+        alert = self.an_alert(name="Flapper")
+        for minutes in (10, 40, 70):
+            self.fire(alert, models.Alert.TRIGGERED_STATE, value=412, minutes_ago=minutes)
+
+        self.assertIn("3 fires in 24h", self.text("find_alerts", {"question": "flapper"}))
+
+    def test_a_fire_older_than_the_window_is_not_counted(self):
+        alert = self.an_alert(name="Quiet lately")
+        self.fire(alert, models.Alert.TRIGGERED_STATE, value=1, minutes_ago=60 * 25)
+
+        self.assertNotIn("fire in 24h", self.text("find_alerts", {"question": "quiet lately"}))
+
+    def test_muted_is_said_on_the_line(self):
+        # An alert evaluating and telling nobody looks identical to a quiet
+        # one, which is exactly the confusion worth spending a word on.
+        self.an_alert(name="Hushed", options={"column": "orders", "op": "<", "value": 1, "muted": True})
+
+        self.assertIn("MUTED", self.text("find_alerts", {"question": "hushed"}))
+
+    def test_an_alert_on_a_source_this_key_cannot_read_is_not_found(self):
+        other = self.factory.create_data_source(name="locked", group=self.factory.create_group(name="Locked"))
+        self.an_alert(name="Secret threshold", query=self.factory.create_query(name="Private", data_source=other))
+
+        self.assertIn("No alerts match", self.text("find_alerts", {"question": "secret threshold"}))
+
+    def test_nothing_matching_says_so_rather_than_answering_emptily(self):
+        self.assertIn("No alerts match", self.text("find_alerts", {"question": "payroll"}))
+
+    # --- explain_alert ---------------------------------------------------
+
+    def test_explain_gives_the_condition_and_the_query(self):
+        alert = self.an_alert(name="Orders low")
+
+        said = self.text("explain_alert", {"id": alert.id})
+
+        self.assertIn("Condition: orders < 100", said)
+        self.assertIn("Orders per hour", said)
+
+    def test_the_history_carries_the_value_each_change_was_decided_on(self):
+        alert = self.an_alert(name="Orders low")
+        self.fire(alert, models.Alert.TRIGGERED_STATE, value=412, minutes_ago=30)
+
+        said = self.text("explain_alert", {"id": alert.id})
+
+        self.assertIn("triggered at 412", said)
+
+    def test_a_change_nobody_was_told_about_says_so(self):
+        # The difference between "we missed the message" and "no message was
+        # ever sent", which is the first thing somebody asks.
+        alert = self.an_alert(name="Silent")
+        self.fire(alert, models.Alert.TRIGGERED_STATE, value=7, notified=False, minutes_ago=5)
+
+        self.assertIn("nobody notified", self.text("explain_alert", {"id": alert.id}))
+
+    def test_the_history_is_capped_so_a_month_of_flapping_cannot_fill_a_window(self):
+        alert = self.an_alert(name="Noisy")
+        for minute in range(30):
+            self.fire(alert, models.Alert.TRIGGERED_STATE, value=minute, minutes_ago=minute)
+
+        said = self.text("explain_alert", {"id": alert.id})
+
+        # Twenty lines of history, and a line saying there is more.
+        self.assertEqual(20, said.count("triggered at"))
+        self.assertIn("there may be more", said)
+
+    def test_the_current_value_comes_from_the_querys_last_run(self):
+        alert = self.an_alert(name="Orders low")
+        self.with_result(alert.query_rel, [{"orders": 412}])
+
+        self.assertIn("orders = 412", self.text("explain_alert", {"id": alert.id}))
+
+    def test_a_stale_result_is_refused_as_the_current_value(self):
+        # A threshold checked against a result three days old reads as an
+        # answer and sends somebody to the threshold when the real fault is
+        # that nothing has run.
+        alert = self.an_alert(name="Orders low")
+        self.with_result(alert.query_rel, [{"orders": 412}], retrieved_at=utils.utcnow() - datetime.timedelta(days=3))
+
+        said = self.text("explain_alert", {"id": alert.id})
+
+        self.assertIn("too old to read as the current value", said)
+        self.assertIn("3 days ago", said)
+
+    def test_a_query_that_has_never_run_says_so(self):
+        alert = self.an_alert(name="Brand new")
+
+        self.assertIn("never run", self.text("explain_alert", {"id": alert.id}))
+
+    def test_a_column_the_query_no_longer_returns_is_named(self):
+        # The alert cannot evaluate at all, and the reason is in the query's
+        # columns rather than in the threshold.
+        alert = self.an_alert(name="Renamed")
+        self.with_result(alert.query_rel, [{"order_count": 412}])
+
+        self.assertIn("no longer returns a column called orders", self.text("explain_alert", {"id": alert.id}))
+
+    def test_nobody_subscribed_is_worth_saying(self):
+        alert = self.an_alert(name="Shouting into a void")
+
+        self.assertIn("nobody is subscribed", self.text("explain_alert", {"id": alert.id}))
+
+    def test_a_destination_is_named_with_the_kind_it_is(self):
+        # "Slack" and "email" are different answers to "was anybody told",
+        # because one of them wakes a channel up.
+        alert = self.an_alert(name="Orders low")
+        self.factory.create_alert_subscription(alert=alert, user=self.factory.user)
+        models.db.session.commit()
+
+        self.assertIn("(slack)", self.text("explain_alert", {"id": alert.id}))
+
+    def test_a_subscription_with_no_destination_is_mail_to_that_person(self):
+        alert = self.an_alert(name="Orders low")
+        self.factory.create_alert_subscription(alert=alert, user=self.factory.user, destination=None)
+        models.db.session.commit()
+
+        said = self.text("explain_alert", {"id": alert.id})
+
+        self.assertIn("email to {}".format(self.factory.user.email), said)
+
+    def test_rearm_is_explained_because_it_looks_like_the_condition_clearing(self):
+        alert = self.an_alert(name="Throttled")
+        alert.rearm = 3600
+        models.db.session.add(alert)
+        models.db.session.commit()
+
+        self.assertIn("Rearm: 3600", self.text("explain_alert", {"id": alert.id}))
+
+    def test_an_alert_this_key_cannot_read_is_refused_without_confirming_it_exists(self):
+        other = self.factory.create_data_source(name="locked", group=self.factory.create_group(name="Locked"))
+        alert = self.an_alert(query=self.factory.create_query(name="Private", data_source=other))
+
+        said = self.call("explain_alert", {"id": alert.id})
+
+        # The same answer as for an id that does not exist: saying which would
+        # confirm an alert exists to somebody who may not see it.
+        self.assertIn("No alert #{}".format(alert.id), said["error"]["message"])
+
+    def test_an_id_that_does_not_exist_is_refused_the_same_way(self):
+        said = self.call("explain_alert", {"id": 999999})
+
+        self.assertIn("No alert #999999", said["error"]["message"])
+
+    def test_both_tools_are_offered_without_any_write_permission(self):
+        # They read; they join the nine that an OAuth session may call.
+        offered = json.loads(self.post(rpc("tools/list")).data)["result"]["tools"]
+        names = [tool["name"] for tool in offered]
+
+        self.assertIn("find_alerts", names)
+        self.assertIn("explain_alert", names)
