@@ -12,7 +12,7 @@ import {
   isFormatted,
   ColumnStats,
 } from "./cellFormat";
-import { washColor } from "../shared/valueOptions";
+import { fillColor, contrastInk } from "../shared/valueOptions";
 
 export interface CellContext {
   /** Min and max per column, over every row -- not just the visible page. */
@@ -167,6 +167,8 @@ export function prepareColumns(
       if (format.dataBar) {
         const bar = dataBarGeometry(value, stats);
         if (bar !== null) {
+          const color = bar.negative ? format.dataBarNegativeColor : format.dataBarColor;
+          const solid = format.dataBarFill === "solid";
           children = (
             <span
               className={cx("table-cell-databar", { "table-cell-databar-signed": dataBarIsSigned(stats) })}
@@ -175,14 +177,33 @@ export function prepareColumns(
               style={{ "--databar-zero": "50%" } as React.CSSProperties}
             >
               <i
-                style={{
-                  left: `${bar.offset}%`,
-                  width: `${bar.width}%`,
-                  background: washColor(bar.negative ? format.dataBarNegativeColor : format.dataBarColor),
-                }}
+                style={{ left: `${bar.offset}%`, width: `${bar.width}%`, background: fillColor(color, solid) }}
                 aria-hidden="true"
               />
-              <span>{children}</span>
+              {/*
+                The number is drawn twice over a solid bar: once in the cell's
+                own ink, and once in the readable ink clipped to exactly the
+                bar's rectangle. A single colour cannot work, because the
+                number spans the whole cell while the bar covers part of it --
+                dark text vanishes on the filled half, white text vanishes on
+                the empty one. The clipped copy is hidden from assistive
+                technology so the value is still announced once.
+              */}
+              <span className={cx("table-cell-databar-value", { "is-hidden": !format.dataBarShowValue })}>
+                {children}
+              </span>
+              {solid && format.dataBarShowValue && bar.width > 0 && (
+                <span
+                  className="table-cell-databar-value table-cell-databar-over"
+                  style={{
+                    clipPath: `inset(0 ${100 - bar.offset - bar.width}% 0 ${bar.offset}%)`,
+                    color: contrastInk(color),
+                  }}
+                  aria-hidden="true"
+                >
+                  {children}
+                </span>
+              )}
             </span>
           );
         }
@@ -192,7 +213,12 @@ export function prepareColumns(
         children,
         props: {
           className: `display-as-${column.displayAs}`,
-          style: cellStyle(value, format, stats),
+          style: {
+            ...cellStyle(value, format, stats),
+            // A bar in a narrow column says nothing, and the column is sized
+            // by its widest number rather than by what the bar needs.
+            ...(format.dataBar && format.dataBarMinWidth ? { minWidth: format.dataBarMinWidth } : null),
+          },
         },
       };
     };

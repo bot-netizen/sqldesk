@@ -239,12 +239,17 @@ describe("Visualizations -> Table -> renderer", () => {
     w.update();
 
     const cell = ordersCell(w, "EMEA");
-    expect(cell.find(".table-cell-changed")).toHaveLength(1);
     expect(cell.find(".table-cell-databar i").prop("style")).toMatchObject({ left: "0%", width: "50%" });
     // The bar is the outer element: inside the highlight its percentage would
     // be of the number's width, not the cell's.
     expect(cell.find(".table-cell-changed .table-cell-databar")).toHaveLength(0);
-    expect(cell.find(".table-cell-databar .table-cell-changed")).toHaveLength(1);
+    expect(cell.find(".table-cell-databar .table-cell-changed").length).toBeGreaterThan(0);
+    // Twice, because a solid bar restates the number in a readable ink over
+    // the filled part, and the two copies carry identical markup so they line
+    // up. The second is decorative: hidden from assistive technology, and its
+    // highlight is switched off in CSS so the cell flashes once.
+    expect(cell.find(".table-cell-changed")).toHaveLength(2);
+    expect(cell.find(".table-cell-databar-over").prop("aria-hidden")).toBe("true");
   });
 
   test("a column with negatives points its bars, and colours them apart", () => {
@@ -272,6 +277,88 @@ describe("Visualizations -> Table -> renderer", () => {
 
     // And the zero line is drawn, because this column has two sides.
     expect(ordersCell(w, "EMEA").find(".table-cell-databar-signed")).toHaveLength(1);
+  });
+
+  /*
+    The bar below zero used to be drawn with no fill at all. Its default
+    colour was "danger", which is not one of the six names here and not a CSS
+    colour either, so `color-mix(in srgb, danger 16%, transparent)` was
+    invalid and the browser threw the whole declaration away. It read as "the
+    negative colour is very faint". It was nothing.
+  */
+  describe("a bar you can actually see", () => {
+    const signed = [
+      { region: "EMEA", orders: 30, trend: "" },
+      { region: "APAC", orders: -30, trend: "" },
+    ];
+
+    function signedTable(cellFormat: any) {
+      const o = getOptions({}, { columns, rows: signed });
+      o.columns = o.columns.map((c: any) => (c.name === "orders" ? { ...c, cellFormat } : c));
+      return enzyme.mount(<Renderer data={{ columns, rows: signed }} options={o} />);
+    }
+
+    test("a negative bar defaults to a colour that exists", () => {
+      const w = signedTable({ dataBar: true });
+      const background = (ordersCell(w, "APAC").find(".table-cell-databar i").prop("style") as any).background;
+
+      expect(background).toBeTruthy();
+      expect(background).not.toContain("danger");
+      expect(background).toBe("var(--color-critical, #b4342c)");
+    });
+
+    test("and a column saved before any of this gets the solid fill, not the old wash", () => {
+      const w = signedTable({ dataBar: true });
+      const positive = (ordersCell(w, "EMEA").find(".table-cell-databar i").prop("style") as any).background;
+
+      expect(positive).toBe("var(--color-action, #0a7c93)");
+    });
+
+    test("tinted is still there for anybody who liked it", () => {
+      const w = signedTable({ dataBar: true, dataBarFill: "soft" });
+      const positive = (ordersCell(w, "EMEA").find(".table-cell-databar i").prop("style") as any).background;
+
+      expect(positive).toBe("var(--color-accent-wash, #e4f4f7)");
+    });
+
+    test("the number is restated over the bar in an ink that can be read on it", () => {
+      const w = signedTable({ dataBar: true });
+      const over = ordersCell(w, "EMEA").find(".table-cell-databar-over");
+
+      expect(over).toHaveLength(1);
+      // Clipped to the bar's own rectangle: the bar runs from the middle to
+      // the right edge, so the ink does too.
+      expect((over.prop("style") as any).clipPath).toBe("inset(0 0% 0 50%)");
+      expect((over.prop("style") as any).color).toBe("#ffffff");
+    });
+
+    test("a tinted bar gets no second copy, because the cell's own ink reads fine on it", () => {
+      const w = signedTable({ dataBar: true, dataBarFill: "soft" });
+
+      expect(ordersCell(w, "EMEA").find(".table-cell-databar-over")).toHaveLength(0);
+    });
+
+    test("bars only: the number stays for a screen reader and goes quiet on screen", () => {
+      const w = signedTable({ dataBar: true, dataBarShowValue: false });
+      const cell = ordersCell(w, "EMEA");
+
+      expect(cell.find(".table-cell-databar-value.is-hidden")).toHaveLength(1);
+      expect(cell.find(".table-cell-databar-over")).toHaveLength(0);
+      // Still in the DOM, so the value is announced and the row keeps height.
+      expect(cell.text()).toContain("30");
+    });
+
+    test("a column can be given a floor, because a bar in a narrow column says nothing", () => {
+      const w = signedTable({ dataBar: true, dataBarMinWidth: 200 });
+
+      expect((ordersCell(w, "EMEA").prop("style") as any).minWidth).toBe(200);
+    });
+
+    test("and is left alone when it has not been given one", () => {
+      const w = signedTable({ dataBar: true });
+
+      expect((ordersCell(w, "EMEA").prop("style") as any).minWidth).toBeUndefined();
+    });
   });
 
   test("an all-positive column gets no zero line, so it keeps the whole width", () => {

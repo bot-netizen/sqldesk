@@ -1,7 +1,8 @@
+import { map } from "lodash";
 import React from "react";
 import { Section, Select, Checkbox } from "@/components/visualizations/editor";
 import { ThresholdsSection, ValueMappingsSection, ColorSelect } from "../../shared/valueOptions/editor";
-import { normalizeCellFormat, CellFormat } from "../cellFormat";
+import { normalizeCellFormat, CellFormat, DATA_BAR_WIDTHS } from "../cellFormat";
 
 type Props = {
   column: any;
@@ -47,6 +48,24 @@ export default function CellFormatSection({ column, onChange }: Props) {
           >
             <Select.Option value="background">Cell background</Select.Option>
             <Select.Option value="text">Text</Select.Option>
+          </Select>
+        </Section>
+      )}
+
+      {f.color !== "none" && f.colorTarget === "background" && (
+        <Section>
+          <Select
+            label="Fill"
+            value={f.fillStrength}
+            data-test={`${prefix}.FillStrength`}
+            onChange={(fillStrength: any) => update({ fillStrength })}
+          >
+            <Select.Option value="soft" data-test={`${prefix}.FillStrength.soft`}>
+              Tinted &mdash; text stays dark
+            </Select.Option>
+            <Select.Option value="solid" data-test={`${prefix}.FillStrength.solid`}>
+              Solid &mdash; text flips to suit
+            </Select.Option>
           </Select>
         </Section>
       )}
@@ -114,6 +133,53 @@ export default function CellFormatSection({ column, onChange }: Props) {
             data-test={`${prefix}.DataBarNegativeColor`}
             aria-label="Data bar colour below zero"
           />
+        </Section>
+      )}
+
+      {numeric && f.dataBar && (
+        <Section>
+          <Select
+            label="Bar"
+            value={f.dataBarFill}
+            data-test={`${prefix}.DataBarFill`}
+            onChange={(dataBarFill: any) => update({ dataBarFill })}
+          >
+            <Select.Option value="solid" data-test={`${prefix}.DataBarFill.solid`}>
+              Solid
+            </Select.Option>
+            <Select.Option value="soft" data-test={`${prefix}.DataBarFill.soft`}>
+              Tinted
+            </Select.Option>
+          </Select>
+        </Section>
+      )}
+
+      {numeric && f.dataBar && (
+        <Section>
+          <Select
+            label="Column width"
+            value={f.dataBarMinWidth}
+            data-test={`${prefix}.DataBarMinWidth`}
+            onChange={(dataBarMinWidth: any) => update({ dataBarMinWidth })}
+          >
+            {map(DATA_BAR_WIDTHS, (width) => (
+              <Select.Option key={width} value={width} data-test={`${prefix}.DataBarMinWidth.${width}`}>
+                {width === 0 ? "Fit the number" : `At least ${width}px`}
+              </Select.Option>
+            ))}
+          </Select>
+        </Section>
+      )}
+
+      {numeric && f.dataBar && (
+        <Section>
+          <Checkbox
+            data-test={`${prefix}.DataBarShowValue`}
+            checked={f.dataBarShowValue}
+            onChange={(event: any) => update({ dataBarShowValue: event.target.checked })}
+          >
+            Show the number on the bar
+          </Checkbox>
         </Section>
       )}
 
