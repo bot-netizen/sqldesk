@@ -401,7 +401,7 @@ export default function DesktopNavbar() {
 
       <Dropdown overlay={profileMenu} trigger={["click"]} placement="bottomRight">
         <PlainButton className="desktop-navbar-profile-button" data-test="ProfileDropdown" aria-label="Account menu">
-          <UserAvatar user={currentUser} size={24} />
+          <UserAvatar user={currentUser} size={28} />
           <i className="fa fa-angle-down desktop-navbar-caret" aria-hidden="true" />
         </PlainButton>
       </Dropdown>
