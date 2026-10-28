@@ -113,9 +113,13 @@
        first row of data. */
     text-transform: uppercase;
     font-size: var(--fs-micro);
-    font-weight: 500;
+    font-weight: 600;
     letter-spacing: 0.06em;
     color: var(--color-text-muted);
+    /* What separates the header from the rows now that no fill does. The
+       subtle token is the divider colour -- it is documented as not a text
+       colour, which is exactly what a rule wants. */
+    border-bottom: 2px solid var(--color-text-subtle);
   }
 
   /*
