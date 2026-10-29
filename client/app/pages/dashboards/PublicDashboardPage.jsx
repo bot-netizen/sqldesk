@@ -101,11 +101,11 @@ class PublicDashboardPage extends React.Component {
         )}
         <div id="footer">
           <div className="text-center">
-            <Link href="https://bot-netizen.github.io/sqldesk">
+            <Link href="https://sqldesk.org">
               <img alt="SQLDesk" src={logoUrl} width="38" />
             </Link>
           </div>
-          Powered by <Link href="https://bot-netizen.github.io/sqldesk">SQLDesk</Link>
+          Powered by <Link href="https://sqldesk.org">SQLDesk</Link>
         </div>
       </div>
     );

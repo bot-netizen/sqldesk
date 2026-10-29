@@ -22,7 +22,7 @@ from flask_restful import abort
 
 from sqldesk import features, models, settings
 from sqldesk.handlers.base import BaseResource, get_object_or_404
-from sqldesk.permissions import require_access, require_admin, view_only
+from sqldesk.permissions import has_access, require_access, require_admin, view_only
 from sqldesk.query_runner.kafka_stream import table_name
 from sqldesk.streams import activity, decode, rollup, slots, watching, window
 from sqldesk.streams.store import Store
@@ -30,14 +30,32 @@ from sqldesk.streams.store import Store
 logger = logging.getLogger(__name__)
 
 
-def _stream(data_source_id, org, user):
+def _stream(data_source_id, org, user, stream_id=None):
+    """
+    One topic on a cluster, by its id.
+
+    A Kafka data source is a cluster with many topics. This used to take the
+    cluster's first stream, in no particular order -- written when a data
+    source was one topic -- so on a cluster with two or more enabled topics the
+    admin page's Pin and budgets changed whichever row Postgres returned first
+    while saying "Saved" for the one somebody clicked, and the rollup chart
+    could show another topic's buckets. Without an id it still answers for a
+    cluster with exactly one topic, and refuses to guess otherwise.
+    """
     source = get_object_or_404(models.DataSource.get_by_id_and_org, data_source_id, org)
     # The data source's own permission, not a new one: a stream is a data
     # source, and who may read it is already decided.
     require_access(source, user, view_only)
-    stream = models.Stream.query.filter(models.Stream.data_source_id == source.id).first()
+    streams = models.Stream.query.filter(models.Stream.data_source_id == source.id)
+    if stream_id is not None:
+        stream = streams.filter(models.Stream.id == stream_id).first()
+    else:
+        found = streams.limit(2).all()
+        if len(found) > 1:
+            abort(400, message="This cluster has several topics; say which by its stream id.")
+        stream = found[0] if found else None
     if stream is None:
-        abort(404, message="That data source is not a stream.")
+        abort(404, message="No such stream on that data source.")
     return stream
 
 
@@ -209,7 +227,7 @@ class StreamListResource(BaseResource):
 
 
 class StreamResource(BaseResource):
-    def get(self, data_source_id):
+    def get(self, data_source_id, stream_id=None):
         """
         What the stream is doing, for its page.
 
@@ -218,7 +236,7 @@ class StreamResource(BaseResource):
         consumer stopped with an error, or the topic genuinely has nothing on it
         -- and only one of them is a problem.
         """
-        stream = _stream(data_source_id, self.current_org, self.current_user)
+        stream = _stream(data_source_id, self.current_org, self.current_user, stream_id)
         return {
             "id": stream.id,
             "data_source_id": stream.data_source_id,
@@ -247,7 +265,7 @@ class StreamResource(BaseResource):
         }
 
     @require_admin
-    def post(self, data_source_id):
+    def post(self, data_source_id, stream_id=None):
         """
         Change what only an administrator may change.
 
@@ -255,7 +273,7 @@ class StreamResource(BaseResource):
         it is saved, because the alternative is a definition that looks accepted
         and then fails in a worker once a minute with nobody reading the log.
         """
-        stream = _stream(data_source_id, self.current_org, self.current_user)
+        stream = _stream(data_source_id, self.current_org, self.current_user, stream_id)
         body = request.get_json(silent=True) or {}
 
         if "pinned" in body:
@@ -293,7 +311,7 @@ class StreamResource(BaseResource):
         if reread:
             restart_window(stream)
         self.record_event({"action": "edit", "object_id": stream.id, "object_type": "stream"})
-        return self.get(data_source_id)
+        return self.get(data_source_id, stream.id)
 
     def _columns(self, stream):
         """
@@ -317,7 +335,7 @@ class StreamResource(BaseResource):
 
 
 class StreamRollupResource(BaseResource):
-    def get(self, data_source_id):
+    def get(self, data_source_id, stream_id=None):
         """
         The per-minute buckets, for a chart asking about more than the window.
 
@@ -325,7 +343,7 @@ class StreamRollupResource(BaseResource):
         hid the capped tail or quietly multiplied a sampled count would be
         wrong while looking right.
         """
-        stream = _stream(data_source_id, self.current_org, self.current_user)
+        stream = _stream(data_source_id, self.current_org, self.current_user, stream_id)
         minutes = min(int(request.args.get("minutes", 180)), 60 * 48)
         rows = (
             stream.rollups.filter(
@@ -594,23 +612,32 @@ class RunningStreamsResource(BaseResource):
     """
     What is consuming right now, and how much room is left.
 
-    Everybody may read it: "all the slots are in use" is only actionable if you
-    can see what is using them and who to ask. Stopping one is for its owner or
-    an administrator.
+    Everybody may read it for the clusters they can read: "all the slots are in
+    use" is only actionable if you can see what is using them and who to ask.
+    Not for clusters they cannot -- a topic's name, columns and errors are the
+    cluster's data, and the page that lists a cluster's topics is behind a
+    permission for exactly that reason. The slot count stays whole, since the
+    slots are shared. Stopping one is for its owner or an administrator.
     """
 
     def get(self):
-        streams = models.Stream.query.filter(models.Stream.org == self.current_org).order_by(models.Stream.topic).all()
-        names = dict(
-            models.db.session.query(models.DataSource.id, models.DataSource.name).filter(
-                models.DataSource.org == self.current_org
+        sources = models.DataSource.query.filter(models.DataSource.org == self.current_org).all()
+        readable = {source.id: source.name for source in sources if has_access(source, self.current_user, view_only)}
+        streams = (
+            models.Stream.query.filter(
+                models.Stream.org == self.current_org, models.Stream.data_source_id.in_(list(readable) or [0])
             )
+            .order_by(models.Stream.topic)
+            .all()
         )
-        running = [_stream_dict(stream, names.get(stream.data_source_id)) for stream in streams]
-        return {
-            "streams": [one for one in running if one["state"] != watching.COLD],
-            "slots": _slots(),
-        }
+        # The cold ones are left out before any is described: describing reads
+        # who started it and asks Redis twice, for every stream on every poll.
+        running = [
+            _stream_dict(stream, readable.get(stream.data_source_id))
+            for stream in streams
+            if watching.state(stream) != watching.COLD
+        ]
+        return {"streams": running, "slots": _slots()}
 
 
 class StreamWatchResource(BaseResource):
@@ -787,10 +814,12 @@ class StreamQueryResource(BaseResource):
 
         import json
 
+        # The runner already stopped at its own ceiling and says whether it
+        # did; this slice only matters if the two are ever set differently.
         parsed = json.loads(data)
         rows = parsed.get("rows") or []
         return {
             "columns": parsed.get("columns") or [],
             "rows": rows[: self.MAX_ROWS],
-            "truncated": len(rows) > self.MAX_ROWS,
+            "truncated": bool(parsed.get("truncated")) or len(rows) > self.MAX_ROWS,
         }

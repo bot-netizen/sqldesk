@@ -1,5 +1,6 @@
 import React from "react";
 import { mount } from "enzyme";
+import Modal from "antd/lib/modal";
 
 import { Unwrapped as QueryHistoryDialog } from "./index";
 import { axios } from "@/services/axios";
@@ -131,6 +132,32 @@ describe("the History dialog", () => {
 
     expect(post).toHaveBeenCalledWith("api/queries/7/versions/102/restore");
     expect(closing.close).toHaveBeenCalledWith(expect.objectContaining({ query: "select 2" }));
+  });
+
+  test("with unsaved changes in the editor, restoring asks first and posts only on yes", async () => {
+    const post = jest.spyOn(axios, "post").mockResolvedValue({ id: 7, query: "select 2" });
+    const confirm = jest.spyOn(Modal, "confirm").mockImplementation(() => {});
+    const shown = await render([version(2), version(1)], { canRestore: true, unsaved: true });
+
+    shown.find('[data-test="RestoreVersion"]').first().simulate("click");
+
+    expect(confirm).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Restore version 2?", okText: "Restore and discard my changes" })
+    );
+    expect(post).not.toHaveBeenCalled();
+
+    confirm.mock.calls[0][0].onOk();
+    expect(post).toHaveBeenCalledWith("api/queries/7/versions/102/restore");
+  });
+
+  test("with nothing unsaved, restoring does not ask", async () => {
+    jest.spyOn(axios, "post").mockResolvedValue({ id: 7, query: "select 2" });
+    const confirm = jest.spyOn(Modal, "confirm").mockImplementation(() => {});
+    const shown = await render([version(2), version(1)], { canRestore: true });
+
+    shown.find('[data-test="RestoreVersion"]').first().simulate("click");
+
+    expect(confirm).not.toHaveBeenCalled();
   });
 
   test("a query with nothing recorded says what records a version", async () => {

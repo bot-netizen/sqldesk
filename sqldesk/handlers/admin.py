@@ -10,12 +10,14 @@ from rq.exceptions import NoSuchJobError
 from sqldesk import features, models, redis_connection, rq_redis_connection, settings
 from sqldesk import uploads as sqldesk_uploads
 from sqldesk.ai.catalog.freshness import in_days, stale_sources
+from sqldesk.ai.catalog.harvest import rebuild_card
 from sqldesk.ai.catalog.semantic import catalog_documents
 from sqldesk.authentication import current_org
 from sqldesk.handlers import routes
 from sqldesk.handlers.base import json_response, record_event
 from sqldesk.monitor import get_db_sizes, get_overview, get_running_queries, rq_status
 from sqldesk.permissions import (
+    has_access,
     require_access,
     require_feature,
     require_super_admin,
@@ -248,6 +250,29 @@ def storage_overview():
 LIMIT = 200
 
 
+def _curatable_source_ids():
+    """
+    The data sources whose catalog this person may see and change.
+
+    Every one for an administrator, who can manage every data source anyway.
+    For anybody else, only those their groups can read: the curation feature
+    can be granted to a group that is not in every data source's groups, and
+    until 0.7.7 such a curator could list another source's tables and
+    columns, download the SQL of its verified queries, and write the
+    descriptions its users' models are then fed.
+    """
+    user = current_user._get_current_object()
+    sources = models.DataSource.query.filter(models.DataSource.org == current_org).all()
+    if user.has_permission("admin"):
+        return [source.id for source in sources]
+    return [source.id for source in sources if has_access(source, user, view_only)]
+
+
+def _curatable_or_404(data_source_id):
+    if data_source_id not in _curatable_source_ids():
+        abort(404)
+
+
 @routes.route("/api/catalog", methods=["GET"])
 @login_required
 @require_feature(features.MANAGE_CATALOG)
@@ -262,7 +287,10 @@ def catalog_tables():
     an end.
     """
     source_id = request.args.get("data_source_id", type=int)
-    tables = models.CatalogTable.query.filter(models.CatalogTable.org == current_org)
+    tables = models.CatalogTable.query.filter(
+        models.CatalogTable.org == current_org,
+        models.CatalogTable.data_source_id.in_(_curatable_source_ids() or [0]),
+    )
     if source_id:
         tables = tables.filter(models.CatalogTable.data_source_id == source_id)
 
@@ -276,6 +304,12 @@ def catalog_tables():
         tables = tables.filter(models.CatalogTable.description.is_(None))
     elif request.args.get("described"):
         tables = tables.filter(models.CatalogTable.description.isnot(None))
+    elif request.args.get("source") == "mcp":
+        # The reviewing question: what has an agent written? An agent can
+        # describe a thousand tables in an afternoon, which is the point of
+        # letting it -- and the reason somebody needs a list of exactly those
+        # rather than the whole catalog with a badge here and there.
+        tables = tables.filter(models.CatalogTable.description_source == "mcp")
 
     # On the server, over every table. The page shows the first 200 by usage,
     # and a search that only looked at those 200 would never find the 201st
@@ -316,6 +350,11 @@ def catalog_tables():
                     "usage_count": table.usage_count,
                     "description": table.description,
                     "description_source": table.description_source,
+                    # Whose key wrote it. "via MCP" says a machine typed the
+                    # sentence; the first question about a wrong one is whose
+                    # machine, and the answer belongs beside the badge.
+                    "described_by": table.described_by.name if table.described_by else None,
+                    "described_at": table.described_at,
                     "column_count": counts.get(table.id, 0),
                     "card": table.card,
                     "harvested_at": table.harvested_at,
@@ -447,6 +486,7 @@ def describe_catalog_table(table_id):
     ).first()
     if table is None:
         abort(404)
+    _curatable_or_404(table.data_source_id)
 
     body = request.get_json(force=True, silent=True)
     if not isinstance(body, dict):
@@ -462,6 +502,12 @@ def describe_catalog_table(table_id):
         # nothing to protect, the source goes back to unset so the engine may
         # fill it.
         table.description_source = "human" if description else None
+        table.described_by = current_user._get_current_object() if description else None
+        table.described_at = models.db.func.now() if description else None
+        # The card is what any agent is actually given. Written only by the
+        # harvest, this sentence would not have reached one for a day, or at
+        # all on a paused source.
+        rebuild_card(table)
     if "hidden" in body:
         table.hidden = bool(body["hidden"])
     models.db.session.commit()
@@ -481,6 +527,8 @@ def describe_catalog_table(table_id):
             "id": table.id,
             "description": table.description,
             "description_source": table.description_source,
+            "described_by": table.described_by.name if table.described_by else None,
+            "described_at": table.described_at,
             "hidden": table.hidden,
         }
     )
@@ -497,7 +545,10 @@ def catalog_measures():
     from one somebody tried once, which is what the count is for.
     """
     source_id = request.args.get("data_source_id", type=int)
-    measures = models.CatalogMeasure.query.filter(models.CatalogMeasure.org == current_org)
+    measures = models.CatalogMeasure.query.filter(
+        models.CatalogMeasure.org == current_org,
+        models.CatalogMeasure.data_source_id.in_(_curatable_source_ids() or [0]),
+    )
     if source_id:
         measures = measures.filter(models.CatalogMeasure.data_source_id == source_id)
     if request.args.get("pending"):
@@ -545,6 +596,7 @@ def review_catalog_measure(measure_id):
     ).first()
     if measure is None:
         abort(404)
+    _curatable_or_404(measure.data_source_id)
 
     body = request.get_json(force=True, silent=True)
     if not isinstance(body, dict):
@@ -584,7 +636,11 @@ def catalog_verified_queries():
     show it, re-confirming never happens.
     """
     rows = (
-        models.CatalogVerifiedQuery.query.filter(models.CatalogVerifiedQuery.org == current_org)
+        models.CatalogVerifiedQuery.query.join(models.Query, models.Query.id == models.CatalogVerifiedQuery.query_id)
+        .filter(
+            models.CatalogVerifiedQuery.org == current_org,
+            models.Query.data_source_id.in_(_curatable_source_ids() or [0]),
+        )
         .order_by(models.CatalogVerifiedQuery.verified_at.desc())
         .limit(200)
         .all()
@@ -735,19 +791,25 @@ def download_catalog():
     Built in memory: the whole thing is a few kilobytes of YAML per table,
     and writing it to disk first would mean cleaning it up afterwards.
     """
-    source = None
+    readable = _curatable_source_ids()
+    sources = models.DataSource.query.filter(
+        models.DataSource.org == current_org, models.DataSource.id.in_(readable or [0])
+    )
     source_id = request.args.get("data_source_id", type=int)
     if source_id:
-        source = models.DataSource.query.filter(
-            models.DataSource.id == source_id, models.DataSource.org == current_org
-        ).first()
-        if source is None:
-            abort(404)
+        sources = sources.filter(models.DataSource.id == source_id)
+    sources = sources.order_by(models.DataSource.name).all()
+    if source_id and not sources:
+        abort(404)
 
+    # One source at a time, and only the ones this person can read: the
+    # export carries the SQL of every verified query, which is the source's
+    # data as much as its tables are.
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-        for path, text in catalog_documents(current_org, data_source=source):
-            archive.writestr(path, text)
+        for source in sources:
+            for path, text in catalog_documents(current_org, data_source=source):
+                archive.writestr(path, text)
     buffer.seek(0)
 
     record_event(

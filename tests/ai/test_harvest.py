@@ -3,7 +3,7 @@ from unittest import mock
 
 from sqldesk import settings
 from sqldesk.ai.catalog.harvest import build_card, harvest_data_source
-from sqldesk.ai.catalog.retrieve import context_for, find_tables
+from sqldesk.ai.catalog.retrieve import _terms, context_for, find_tables
 from sqldesk.models import (
     MEASURE_APPROVED,
     MEASURE_DENIED,
@@ -174,6 +174,135 @@ class TestRetrieval(BaseTestCase):
         source = self._catalogued()
         context = context_for(self.factory.org, "orders", data_source=source)
         self.assertEqual("orders", context["tables"][0]["card"])
+
+
+class TestAColumnThatWentAway(HarvestHelpers):
+    """
+    A renamed column stayed in the catalog beside its replacement, and the
+    card is built from what is stored -- so a model was offered a column the
+    warehouse no longer has, in a document that looks authoritative.
+    """
+
+    def _harvest(self, schema):
+        source = getattr(self, "source", None) or self.factory.create_data_source()
+        self.source = source
+        with mock.patch.object(type(source), "get_schema", return_value=schema):
+            harvest_data_source(source)
+        return source
+
+    def _columns(self, source):
+        table = CatalogTable.query.filter(
+            CatalogTable.data_source_id == source.id, CatalogTable.name == "orders"
+        ).one()
+        return table, {column.name for column in table.columns}
+
+    def test_it_leaves_with_the_rename(self):
+        source = self._harvest([{"name": "orders", "columns": [{"name": "total", "type": "decimal"}]}])
+        source = self._harvest([{"name": "orders", "columns": [{"name": "amount", "type": "decimal"}]}])
+
+        _table, columns = self._columns(source)
+        self.assertEqual({"amount"}, columns)
+
+    def test_and_off_the_card_with_it(self):
+        source = self._harvest([{"name": "orders", "columns": [{"name": "total", "type": "decimal"}]}])
+        source = self._harvest([{"name": "orders", "columns": [{"name": "amount", "type": "decimal"}]}])
+
+        table, _columns = self._columns(source)
+        self.assertNotIn("total", table.card)
+        self.assertIn("amount", table.card)
+
+    def test_but_a_listing_that_came_back_empty_drops_nothing(self):
+        """
+        A source that would not answer is stale, not empty. Emptying the
+        catalog on the strength of a failed listing is worse than keeping
+        yesterday's columns.
+        """
+        source = self._harvest([{"name": "orders", "columns": [{"name": "amount", "type": "decimal"}]}])
+        source = self._harvest([{"name": "orders", "columns": []}])
+
+        _table, columns = self._columns(source)
+        self.assertEqual({"amount"}, columns)
+
+
+class TestHowAQuestionIsBrokenIntoWords(BaseTestCase):
+    """
+    A question is typed, not composed: it ends in a question mark, it is full
+    of grammar, and it says "orders" where the warehouse says "order". Each of
+    those used to cost a match.
+    """
+
+    def test_punctuation_is_not_part_of_the_word(self):
+        # "revenue by region last quarter?" searched for `quarter?`, which
+        # matches nothing anywhere -- and it was the word that said what the
+        # question was about.
+        self.assertIn("quarter", _terms("revenue by region last quarter?"))
+
+    def test_grammar_is_left_out_but_schema_words_are_not(self):
+        terms = _terms("What is the status of each order?")
+
+        self.assertNotIn("what", terms)
+        self.assertNotIn("the", terms)
+        self.assertIn("status", terms)
+
+    def test_a_plural_also_looks_for_the_singular(self):
+        # A question about "orders" should find a table called `order`.
+        terms = _terms("orders by region")
+
+        self.assertIn("orders", terms)
+        self.assertIn("order", terms)
+
+    def test_but_a_word_that_merely_ends_in_s_is_not_cut_in_half(self):
+        self.assertNotIn("addres", _terms("address"))
+        self.assertIn("gross", _terms("gross revenue"))
+
+    def test_the_same_word_twice_is_one_search(self):
+        self.assertEqual(["revenue"], _terms("revenue, revenue, revenue"))
+
+    def test_a_question_of_nothing_but_grammar_asks_for_nothing(self):
+        self.assertEqual([], _terms("What about all of these?"))
+
+
+class TestTwoWarehousesWithTheSameTableName(BaseTestCase):
+    """
+    `users` exists in both warehouses. The context was keyed by name alone, so
+    the second one replaced the first: a question that matched both was
+    answered about one of them, with nothing to say which.
+    """
+
+    def _two_sources(self):
+        first = self.factory.create_data_source(name="Billing")
+        second = self.factory.create_data_source(name="Product")
+        for source, uses in ((first, 20), (second, 5)):
+            db.session.add(
+                CatalogTable(
+                    org=self.factory.org,
+                    data_source=source,
+                    name="users",
+                    usage_count=uses,
+                    card="users -- from {}".format(source.name),
+                )
+            )
+        db.session.commit()
+        return first, second
+
+    def test_both_are_returned(self):
+        first, second = self._two_sources()
+        context = context_for(self.factory.org, "users", data_source_ids=[first.id, second.id])
+
+        self.assertEqual(2, len(context["tables"]))
+        self.assertEqual({"users"}, {table["name"] for table in context["tables"]})
+
+    def test_and_each_says_which_warehouse_it_is_from(self):
+        first, second = self._two_sources()
+        context = context_for(self.factory.org, "users", data_source_ids=[first.id, second.id])
+
+        self.assertEqual({"Billing", "Product"}, {table["data_source"] for table in context["tables"]})
+
+    def test_the_busier_one_is_first(self):
+        first, second = self._two_sources()
+        context = context_for(self.factory.org, "users", data_source_ids=[first.id, second.id])
+
+        self.assertEqual("Billing", context["tables"][0]["data_source"])
 
 
 class TestRankingOnRealShapes(BaseTestCase):

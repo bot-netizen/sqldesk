@@ -4,7 +4,7 @@ from flask import request
 from flask_restful import abort
 from user_agents import parse as parse_ua
 
-from sqldesk.handlers.base import BaseResource, paginate
+from sqldesk.handlers.base import BaseResource, paginate, record_events
 from sqldesk.permissions import require_admin
 
 
@@ -57,14 +57,24 @@ def serialize_event(event):
     return d
 
 
+#: The most events one request may carry.
+#:
+#: There was no limit: a list of ten thousand became ten thousand jobs, from
+#: an endpoint any signed-in session can post to. A page sends its events for
+#: the last second, which is a handful even on a large dashboard.
+MAX_EVENTS = 50
+
+
 class EventsResource(BaseResource):
     def post(self):
         events_list = request.get_json(force=True)
         if not isinstance(events_list, list):
             abort(400, message="A list of events is expected.")
-        for event in events_list:
-            if isinstance(event, dict):
-                self.record_event(event)
+        if len(events_list) > MAX_EVENTS:
+            abort(400, message="At most {} events per request.".format(MAX_EVENTS))
+        # One job for the batch. A dashboard of thirty widgets queued about
+        # seventy-five of them, each with its own transaction.
+        record_events(self.current_org, self.current_user, [event for event in events_list if isinstance(event, dict)])
 
     @require_admin
     def get(self):

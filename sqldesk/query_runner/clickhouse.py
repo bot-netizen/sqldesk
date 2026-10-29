@@ -12,6 +12,8 @@ from sqldesk.query_runner import (
     TYPE_INTEGER,
     TYPE_STRING,
     BaseSQLQueryRunner,
+    InterruptException,
+    JobTimeoutException,
     register,
     split_sql_statements,
 )
@@ -102,11 +104,20 @@ class ClickHouse(BaseSQLQueryRunner):
         url = self.configuration.get("url", "http://127.0.0.1:8123")
         timeout = self.configuration.get("timeout", 30)
 
+        # Credentials as basic auth, never in the query string. In the URL they
+        # rode along into every requests exception, and the error path chained
+        # that exception into a log line -- so a connection error could write
+        # the password to the log.
+        auth = (self.configuration.get("user", "default"), self.configuration.get("password", ""))
+        # Named, so a query that outlives the timeout or is cancelled can be
+        # stopped on the server too. ClickHouse answers only when the result
+        # is ready, so a client that gives up does not by itself stop it.
+        query_id = "sqldesk_{}".format(uuid4().hex)
+        self._running = query_id
         params = {
-            "user": self.configuration.get("user", "default"),
-            "password": self.configuration.get("password", ""),
             "database": self.configuration["dbname"],
             "default_format": "JSON",
+            "query_id": query_id,
         }
 
         if session_id:
@@ -114,36 +125,64 @@ class ClickHouse(BaseSQLQueryRunner):
             params["session_check"] = "1" if session_check else "0"
             params["session_timeout"] = timeout
 
+        verify = self.configuration.get("verify", True)
         try:
-            verify = self.configuration.get("verify", True)
             r = requests.post(
                 url,
                 data=data.encode("utf-8", "ignore"),
                 stream=False,
                 timeout=timeout,
                 params=params,
+                auth=auth,
                 verify=verify,
             )
-
-            if not r.ok:
-                raise Exception(r.text)
-
-            # In certain situations the response body can be empty even if the query was successful, for example
-            # when creating temporary tables.
-            if not r.text:
-                return {}
-
-            response = r.json()
-            if "exception" in response:
-                raise Exception(response["exception"])
-
-            return response
+        except requests.Timeout:
+            self._stop(query_id)
+            raise Exception(
+                "ClickHouse did not answer within {} seconds, and the query was asked to stop. For longer "
+                "queries, raise Request Timeout in this data source's settings.".format(timeout)
+            ) from None
         except requests.RequestException as e:
-            if e.response:
+            if e.response is not None:
                 details = "({}, Status Code: {})".format(e.__class__.__name__, e.response.status_code)
             else:
                 details = "({})".format(e.__class__.__name__)
-            raise Exception("Connection error to: {} {}.".format(url, details))
+            raise Exception("Connection error to: {} {}.".format(url, details)) from None
+        finally:
+            self._running = None
+
+        if not r.ok:
+            raise Exception(r.text)
+
+        # In certain situations the response body can be empty even if the query was successful, for example
+        # when creating temporary tables.
+        if not r.text:
+            return {}
+
+        response = r.json()
+        if "exception" in response:
+            raise Exception(response["exception"])
+
+        return response
+
+    def _stop(self, query_id):
+        """
+        Ask the server to stop a query, best effort.
+
+        A read-only account may not be allowed to KILL; then this is a no-op
+        and the query runs to its own end, as it always did.
+        """
+        try:
+            requests.post(
+                self.configuration.get("url", "http://127.0.0.1:8123"),
+                data="KILL QUERY WHERE query_id = '{}' ASYNC".format(query_id).encode(),
+                params={"database": self.configuration["dbname"]},
+                auth=(self.configuration.get("user", "default"), self.configuration.get("password", "")),
+                verify=self.configuration.get("verify", True),
+                timeout=10,
+            )
+        except Exception:
+            logger.warning("could not ask ClickHouse to stop query %s", query_id)
 
     @staticmethod
     def _define_column_type(column):
@@ -224,9 +263,15 @@ class ClickHouse(BaseSQLQueryRunner):
                     data = self._clickhouse_query(query, session_id, session_check=True)
 
             error = None
+        except (InterruptException, JobTimeoutException):
+            # Cancelled from SQLDesk or out of time: stop it on the server too,
+            # or it goes on running there with nobody waiting for it.
+            if getattr(self, "_running", None):
+                self._stop(self._running)
+            raise
         except Exception as e:
             data = None
-            logging.exception(e)
+            logger.warning("ClickHouse query failed: %s", e)
             error = str(e)
         return data, error
 

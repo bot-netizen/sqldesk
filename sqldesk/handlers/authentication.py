@@ -21,6 +21,7 @@ from sqldesk.authentication.account import (
 from sqldesk.handlers import routes
 from sqldesk.handlers.base import json_response, org_scoped_rule
 from sqldesk.security import csrf
+from sqldesk.settings.organization import settings as org_settings
 from sqldesk.version_check import get_latest_version
 
 logger = logging.getLogger(__name__)
@@ -310,19 +311,51 @@ def logout(org_slug=None):
     return redirect(get_login_url(next=None))
 
 
+def _org_setting(key):
+    """
+    An organization's setting, or the install's default where there is no
+    organization yet.
+
+    Everything `/api/config` assembles reads settings off `current_org`, which
+    is a proxy that resolves to None until `/setup` has created the first
+    organization. Reading a setting off it raised, so the first thing a browser
+    asks for on a brand new install answered 500 with a traceback rather than
+    something it could act on. Nobody meets it on the path people take --
+    a fresh install is sent to `/setup`, which is server-rendered -- but a
+    client holding the SPA from a previous install asks for this first.
+
+    `== None` rather than `is None`: the proxy is never identical to None.
+    `login()` and `/setup` compare it the same way, for the same reason.
+
+    The fallback is where `Organization.get_setting` ends up anyway when an
+    organization has not overridden a setting, so an install before setup and
+    one that has changed nothing answer alike.
+    """
+    if current_org == None:  # noqa: E711
+        return org_settings.get(key)
+    return current_org.get_setting(key)
+
+
 def base_href():
     if settings.MULTI_ORG:
-        base_href = url_for("sqldesk.index", _external=True, org_slug=current_org.slug)
-    else:
-        base_href = url_for("sqldesk.index", _external=True)
+        # Under multi-org the index route is org-scoped, so with no
+        # organization resolved there is no URL to build -- not even an
+        # unscoped one, because that rule does not exist here. The root is
+        # where the browser is going anyway, and `get_login_url` answers the
+        # same case the same way. Reading `.slug` off nothing used to raise,
+        # which is most of why `/api/config` met a new install with a
+        # traceback.
+        if current_org == None:  # noqa: E711
+            return "/"
+        return url_for("sqldesk.index", _external=True, org_slug=current_org.slug)
 
-    return base_href
+    return url_for("sqldesk.index", _external=True)
 
 
 def date_time_format_config():
-    date_format = current_org.get_setting("date_format")
+    date_format = _org_setting("date_format")
     date_format_list = set(["DD/MM/YY", "MM/DD/YY", "YYYY-MM-DD", settings.DATE_FORMAT])
-    time_format = current_org.get_setting("time_format")
+    time_format = _org_setting("time_format")
     time_format_list = set(["HH:mm", "HH:mm:ss", "HH:mm:ss.SSS", settings.TIME_FORMAT])
     return {
         "dateFormat": date_format,
@@ -334,16 +367,16 @@ def date_time_format_config():
 
 def number_format_config():
     return {
-        "integerFormat": current_org.get_setting("integer_format"),
-        "floatFormat": current_org.get_setting("float_format"),
-        "thousandsSeparator": current_org.get_setting("thousands_separator"),
-        "decimalSeparator": current_org.get_setting("decimal_separator"),
+        "integerFormat": _org_setting("integer_format"),
+        "floatFormat": _org_setting("float_format"),
+        "thousandsSeparator": _org_setting("thousands_separator"),
+        "decimalSeparator": _org_setting("decimal_separator"),
     }
 
 
 def null_value_config():
     return {
-        "nullValue": current_org.get_setting("null_value"),
+        "nullValue": _org_setting("null_value"),
     }
 
 
@@ -356,6 +389,9 @@ def _slack_is_connected():
     here needs the token, and a config endpoint is the last place it should be
     able to reach.
     """
+    if current_org == None:  # noqa: E711
+        # No organization yet, so nobody can have connected a workspace to it.
+        return False
     return models.SlackWorkspace.query.filter(models.SlackWorkspace.org_id == current_org.id).count() > 0
 
 
@@ -371,17 +407,13 @@ def client_config():
     # Only worth asking when there is a version-check endpoint to send the
     # counts to. With none configured -- the default -- the setting governs
     # nothing, so the prompt would be asking about something that cannot happen.
-    if (
-        settings.VERSION_CHECK_URL
-        and current_user.has_permission("admin")
-        and current_org.get_setting("beacon_consent") is None
-    ):
+    if settings.VERSION_CHECK_URL and current_user.has_permission("admin") and _org_setting("beacon_consent") is None:
         client_config["showBeaconConsentMessage"] = True
 
     defaults = {
-        "showPermissionsControl": current_org.get_setting("feature_show_permissions_control"),
-        "disablePublicUrls": current_org.get_setting("disable_public_urls"),
-        "multiByteSearchEnabled": current_org.get_setting("multi_byte_search_enabled"),
+        "showPermissionsControl": _org_setting("feature_show_permissions_control"),
+        "disablePublicUrls": _org_setting("disable_public_urls"),
+        "multiByteSearchEnabled": _org_setting("multi_byte_search_enabled"),
         "autoPublishNamedQueries": settings.FEATURE_AUTO_PUBLISH_NAMED_QUERIES,
         # Both halves: the flag, and somewhere to send the request. Without a
         # renderer there is nothing to turn on, so the editor should not offer it.
@@ -436,6 +468,11 @@ def messages():
 
 @routes.route("/api/config", methods=["GET"])
 def config(org_slug=None):
+    # `setup_required` rather than a 500: this is the first thing a browser
+    # holding a cached SPA asks for, and on a brand new install it used to get
+    # a traceback. A client can act on a flag; it can do nothing with a 500.
+    if current_org == None:  # noqa: E711
+        return json_response({"org_slug": None, "setup_required": True, "client_config": client_config()})
     return json_response({"org_slug": current_org.slug, "client_config": client_config()})
 
 

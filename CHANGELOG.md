@@ -1,5 +1,401 @@
 # Changelog
 
+## 0.7.10
+
+Charts that can hold more than one idea, and an agent that can reach alerts.
+
+### Reading several things at once
+
+**Stacked panels.** A chart can be split into up to four plots sharing one x
+axis, one legend and one cursor — for series whose scales are too different to
+share an axis. Spend at ~1,400, a percent change at ~20 and a rate at ~5 have
+no single scale on which all three are readable; a second y axis handles two
+of them and a column of dashboard widgets shares no cursor. Each series picks
+its panel. Two settings and no more: per-panel titles and heights were built
+and cut for being more editor than the feature was worth.
+
+**One widget, several views.** A dashboard widget can offer any of its query's
+visualizations behind small buttons — revenue by region, by channel, by
+product, on one panel. Every view draws the result the widget already has, so
+the query is run once however many views it carries, where three separate
+widgets fetch and parse it three times. Views must belong to the widget's own
+query, which is what keeps that true and keeps a second query's rows from
+appearing behind a widget whose access was checked against the first.
+
+### Rows that share an x
+
+**The roll-up has a name and a choice.** Plotting a query keyed on more
+columns than the chart draws has always collapsed the repeats by adding them
+up, silently. That is right for money and wrong for a rate — the average of
+four conversion rates is a conversion rate, their sum is nothing at all. Sum,
+average, lowest, highest or a count of rows now, said out loud in the editor.
+`sum` stays the default, so no saved chart changes the numbers it draws.
+
+**An average divides by the rows that had a number**, not by the rows, and an
+x with no readings is a gap rather than a zero. A zero is a claim about the
+measure. `count` is the exception: an order with no total is still an order.
+
+### Alerts over MCP
+
+**An agent can read an alert.** `find_alerts` matches on the alert's name and
+the query's, and gives the condition in words, the state, how often it fired
+in the last 24 hours and whether it is muted. `explain_alert` adds the value
+the query last returned and when, the recent history with the value on each
+line and whether anybody was told, and the destinations.
+
+**And build one, which wakes nobody.** `save_alert` creates it muted with no
+subscribers. An alert is not a draft — it starts evaluating at once and one
+with a destination starts waking people — and muted is the same safety in the
+vocabulary alerts already have. It also buys a trial run: leave it muted a day
+and `explain_alert` says how often it would have fired.
+
+**Two refusals**, both about alerts that look like they work: a column the
+query does not return, named along with the ones it does, and a query that has
+never run.
+
+### More of the editor reachable from MCP
+
+**Box plots, bubble charts and heatmaps.** `save_visualization` wrote six
+chart types where the editor offered nine. A heatmap with no `value` draws a
+full grid at the bottom of its colour ramp and says nothing; a bubble chart
+with no `size` is a scatter chart with a misleading name. Both are refused by
+name rather than drawn.
+
+### Fixes
+
+**The table header is white.** 0.7.9 removed the header fill in two places and
+it stayed cream, because a third rule painted it — the sticky-header rule in
+the table visualization, with `!important`, which nothing the variables said
+could reach. It was verified on a rendered specimen, and a specimen has
+nothing to scroll, so it has no sticky header and the rule never applied.
+
+
+## 0.7.9
+
+Mostly alerts, and mostly things that said one thing while doing another.
+
+### An alert says how often, not just whether
+
+**An alert remembers when it fired.** The alert row carried only where it is
+now and when it last moved, so one that had gone off six times since breakfast
+looked exactly like one that went off once and stayed there. There is a row per
+state change now, keeping the value the decision was made on — "it fired at 412
+against a threshold of 400" is the line worth being woken for — and whether
+anything was actually sent.
+
+**The list counts them and the alert shows them.** A Fires (24h) column, blank
+where an alert has been quiet, and the history beside the alert's settings. The
+count is fires only: `ok → triggered → ok → triggered` is two fires and four
+transitions, and "it went off twice" is what people mean. The recoveries stay
+in the history, where they show the shape of a flap.
+
+**Counted over a rolling 24 hours, not "today".** There is no organization
+timezone, so today would have to mean since UTC midnight — and for anybody west
+of it an alert that went off during the evening falls into tomorrow and the
+count reads zero.
+
+### Slack
+
+**A template is escaped for where it is going.** Mustache escapes the values it
+interpolates, and every destination got the same escaping. Right for an HTML
+email, where a result containing `<b>` is text rather than markup. Slack is not
+HTML, so a value with an `&` in it arrived reading `&amp;`. The two Slack
+destinations ask for the unescaped form now; the other eleven are unchanged.
+
+**The guide says how to write one.** All twelve template variables, and the
+mrkdwn differences that actually bite: a link is `<url|label>` rather than
+`[label](url)`, bold is `*bold*` rather than `**bold**`. That link is how a
+dashboard goes into an alert without a picture. The template editor links
+straight to it.
+
+**An alert saved before `selector` existed could not notify.** `evaluate`
+defaults a missing selector; the template renderer read it unguarded, so an
+older alert with a custom template raised at the moment it had something to
+say. Read with defaults now.
+
+### Avatars stay on your machines
+
+**Nothing is fetched from gravatar.com.** Every avatar used to be a URL built
+from an MD5 of the email address. Offline it drew a broken image beside every
+query and logged a failed request for each; online it told gravatar.com the
+MD5 of every address in the organization on every page load, from a tool whose
+point is that it runs on your own machines. And almost nobody has a gravatar,
+so what usually came back was the identicon — an abstract pattern no more
+recognisable than initials, a round trip more expensive.
+
+**Initials instead**, in a colour worked out from the name, drawn locally and
+the same every time, so a face in a list is findable by its colour before it
+is read. A picture somebody set is still used, and the disabled-account image
+still wins, because that one is saying something.
+
+### MCP
+
+**`run_query` hands back every row it promised.** Its description said "up to
+1000 rows" and it rendered fifty. The rest had already been fetched — the cap
+is applied to the SQL before it runs — so the smaller number saved nothing and
+hid what somebody had waited for. One constant now, where there were three
+numbers that had to agree and two did.
+
+### Tables you can read
+
+**The header was marked by nothing.** It was painted `@n-100`, which is also
+`--color-surface-sunken` — the colour of a recessed area, sitting on top of a
+white card. Against the rows it labelled that is 1.10:1, and a fill has to
+reach about 1.25:1 before the eye reads it as a band. On a dashboard it was
+three near-identical warm off-whites stacked: page, card, header.
+
+**And its text failed AA.** `@table-header-color` was `@n-600`, which the
+palette's own note records at 3.3–3.7:1 across our surfaces. It measured
+3.33:1 on the header it was paired with — every table in the application.
+
+**So the fill goes.** The header is white with `@n-900` at 17.2:1 and a 2px
+rule beneath it, marked by weight rather than by a wash. A list page's columns
+keep their upper-case micro-label; a result table's keep sentence case,
+because those names come from the query and upper case would widen
+`customer_lifetime_value` and read worse.
+
+**The bar below zero had no colour at all.** Reported as "very light", it was
+absent: the default negative colour was `danger`, which is not one of the six
+colour names and not a CSS colour, so the browser discarded the whole
+declaration. The name appeared once in the codebase, as that default.
+
+**Data bars are solid now**, including on columns saved earlier — those are
+the ones whose bars could not be seen, so the new default is the fix. The
+number is restated over the bar in an ink measured against the fill, clipped
+to the bar's own rectangle, because a single colour cannot work when the
+number spans the cell and the bar covers part of it. The number can also be
+hidden so a column is read as shapes, and the column can be given a width,
+because a bar in a column sized to its widest number says nothing. Cell
+backgrounds take the same solid option. Tinted stays for anybody who liked it.
+
+### Charts
+
+**A line can say which line it is.** Series settings offered a label, an axis,
+a type and an order, so two lines of the same measure — this week and the same
+hour last week — could only be told apart by colour. A second colour says "a
+different thing"; a second pattern says "the same thing, earlier".
+
+Six patterns, drawn in the picker rather than named, because "dash-dot" and
+"long dash" are hard to tell apart as words. The lengths are fixed rather than
+ECharts' own, which scale with the stroke: at 2px its built-in dotted has a
+gap shorter than its dot and reads as a textured solid line.
+
+### Exporting
+
+**A picture of a dashboard has no pages.** Downloading one as an image refused
+at thirteen widgets, saying "Export makes a one-page report". It is not a
+report — the canvas is sized to the dashboard, not to A4. Both renderers
+shared one size check, so the PDF's rule reached the image. A PDF keeps the
+rule exactly; an image is asked only whether the browser will allocate the
+canvas, which at 1440 wide means a dashboard about 44,000 pixels tall.
+
+### Upgrading from 0.7.8
+
+**One migration**, creating `alert_fires`. Nothing else to do.
+
+**Data bars and table headers change appearance** without anything being
+reconfigured. Both were doing less than they looked like they were doing: a
+header fill at 1.10:1 and a negative bar with no fill at all.
+
+## 0.7.8
+
+Twelve things reported from using 0.7.7, worked through in order. Not a themed
+release: a list of what was wrong and what was missing.
+
+### Things that were wrong
+
+**"Something on this page did not work", on a page that worked.** ResizeObserver
+says "loop completed with undelivered notifications" whenever a resize callback
+resizes something itself, which is what `useElementSize` does for every
+visualization that scales its text to its widget. It arrives with no `error`
+object, so the chunk-error guard next to it never saw it and the handler went on
+to show a fault. Reloading appeared to fix it only because the warning does not
+fire twice on a settled layout.
+
+**Searching a list that is fetched whole did nothing at all** — alerts, groups,
+group members, outdated queries. `updateSearch` reports `{ search: true }` and
+the fetcher only went back to the server for tags or sorting, so the term was
+dropped and the same unfiltered rows were re-paged. The comment above that
+condition claimed otherwise. Alerts has a search box now too, which matches the
+query's name as well as the alert's.
+
+**Search on queries and dashboards was behind a funnel marked "Filter".** It is
+a box on the page now. A text field inside an antd Dropdown also fought it: a
+click in the overlay closed it, so the field vanished as you reached for it.
+
+**A data source type with no logo was asked for over the network** on every page
+that listed it, to find out what the build already knew. Kafka did it before
+Mimir did.
+
+**`/api/config` met a brand new install with a traceback.** Everything that
+endpoint assembles reads settings off the current organization, and there is no
+organization until `/setup` has run — so the first thing a browser holding a
+cached SPA asks for answered 500. Nobody meets it on the path people take, since
+a new install is sent to `/setup`, which is server-rendered. It now answers with
+`org_slug` null and `setup_required`, which a client can act on. Inherited
+rather than introduced: the line was byte-identical in 0.7.6.
+
+### Things that were missing
+
+**Bars can be coloured by their own value.** One breakpoint, a colour below it
+and a colour at or above it, in the Colors tab. On a horizontal bar chart of
+variances the sign is the whole message and one colour hides it.
+
+**A table's data bars point, and take a colour.** The bar was the magnitude
+alone, always growing from the left, so -90 and 90 drew the same bar. Where a
+column has values on both sides of zero, zero is now the middle and a line is
+drawn on it.
+
+**An agent can draw a result and put it on a dashboard.** `save_visualization`
+draws a draft query as a chart, a counter or a table; `save_dashboard` puts
+visualizations on a draft dashboard. Fifteen MCP tools now: nine read-only and
+six that write, all of them capped, audited, and producing drafts a person
+publishes.
+
+### Things that turned out to be nothing
+
+**Chart palettes were not removed.** Four of them, in Colors &rarr; Color
+Scheme, for every chart type except pie and heatmap, which have their own colour
+panels.
+
+**There is no page-load regression from 0.7.6.** The bundle grew about 6 KB
+against a CI-enforced budget, `webpack.config.js` is byte-identical between the
+two tags, the initial payload is 0.50 MB of brotli served in about 44 ms, and
+the request path got faster rather than slower. `plan/0.7.8-plan.md` records
+what was measured, including the trap: probing with `Accept-Encoding: gzip`
+alone reports 2.38 MB uncompressed, because flask-compress will not gzip a
+streamed response and a static file is streamed.
+
+### Configuration
+
+**Schemas are refreshed every three hours, not every half hour**
+(`SQLDESK_SCHEMAS_REFRESH_SCHEDULE`, 180). Every source is read on every pass,
+which on a warehouse with thousands of tables is minutes of work. What that
+costs is bounded: the schema browser's refresh button forces a live read of the
+one source in front of you, and running a query never depends on the cache.
+
+**`SQLDESK_WORKERS_COUNT` is documented**, because it reads as a rate and is a
+concurrency. Two workers is two queries in flight — about twenty a second at
+100ms a query, two a minute at a minute a query — and the real ceiling is
+usually the warehouse's own connection limit.
+
+### Upgrading from 0.7.7
+
+Nothing to do. No migrations. If you had set `SQLDESK_SCHEMAS_REFRESH_SCHEDULE`
+yourself, your value is still used; only the default moved.
+
+## 0.7.7
+
+**The web tier serves more than four requests at a time.** gunicorn ran sync
+workers, so four processes meant four concurrent requests and a fifth waited
+behind a dashboard. It runs threaded now (`--worker-class gthread`,
+`SQLDESK_WEB_THREADS`, 8 by default). Connections from the web tier carry a
+30-second statement timeout, every connection is checked before it is handed
+out (`SQLALCHEMY_ENABLE_POOL_PRE_PING`, now on), and both tiers get an
+idle-in-transaction timeout. Workers deliberately get no statement timeout:
+storing a very large result is one long INSERT, and cancelling it would fail
+a query that had already run.
+
+**Scheduling, alerts and mail no longer wait behind two slow queries.** The
+periodic jobs had been sharing a worker with query execution. They have one
+of their own (`periodicWorker` in the chart, a second worker in compose), so
+a warehouse having a bad afternoon no longer stops alerts from firing.
+
+**Three defaults changed, each because the old value was "no limit".**
+`SQLDESK_ADHOC_QUERY_TIME_LIMIT` is 900 seconds, `SQLDESK_SCHEDULED_QUERY_TIME_LIMIT`
+1800, and `SQLDESK_MCP_WRITES_PER_DAY` 50. Each can be set back to no limit;
+the point is that the default is not.
+
+**Four indexes, a lock that cannot be stolen, and a pause that survives a
+restart.** The indexes cover the paths a dashboard view actually walks, and
+are created `CONCURRENTLY` so an install with large tables is not locked out
+while they build. The job lock is compare-and-delete, so a finishing job
+cannot release the lock a newer one has taken. A paused data source is
+recorded in Postgres rather than only in Redis, so a Redis restart does not
+quietly un-pause it.
+
+**The image is 1.22 GB, down from 1.59.** A two-stage build: the compiler,
+the headers and `uv` stay in the stage that needs them, and the runtime
+carries the drivers and nothing that built them. Verified by running it --
+75 of 75 runner types, every driver importing, and the suite running inside
+the image.
+
+**An agent is given the same answer for less than half the tokens.**
+`structuredContent` is gone: it was sent with no `outputSchema` declared, so
+no client could rely on it, and it repeated about 90% of each answer's bytes.
+Panels of one query collapse onto one line, four dashboards are described
+rather than eight and the rest are named, and the tool descriptions say what
+a tool does and when to reach for it instead of selling it. Measured against
+the same catalog: one exploration fell from 2,247 tokens to 967, and the tool
+list from 1,087 to 892. Nothing was taken from the catalog, the column
+meanings, the verified badges or the agreed measures -- they cost 153 tokens
+and they are why the rest can be short.
+
+**An agent can write back, and be held to it.** `save_query`,
+`update_query`, `propose_measure` and `update_table`, offered only to a
+personal API key whose owner may already do that by hand. Saved queries
+arrive as drafts, measures as proposals a curator agrees, writes are capped
+per day, and every call is audited with what it changed -- refusals
+included.
+
+**Grafana Mimir, and PromQL that arrives as it was written.** A Prometheus
+runner that can carry a credential, a tenant header, a configurable API
+prefix and a timeout; `a + b` no longer reaches the server as `a   b`;
+scalars, strings and native histograms are results rather than KeyErrors; and
+an empty answer is an empty answer rather than an error.
+
+### Security-shaped fixes
+
+- A dashboard subscription is not sent to somebody who cannot see every
+  widget on it.
+- A catalog curator sees only the data sources their groups can read.
+- A ClickHouse password stays out of URLs and logs, and a query that times
+  out is stopped on the server rather than left running.
+- A stream query cannot reach outside its own window.
+
+### Found by deploying it
+
+- `strategy: type: Recreate` on the bundled Redis made every `helm upgrade`
+  of an existing install fail, because Kubernetes owns the defaulted
+  `rollingUpdate` and will not take Recreate over it. It is `maxSurge: 0`.
+- Regenerating a query's API key answered without the key, so the dialog
+  blanked its own field and offered `?api_key=undefined` URLs.
+- A textbox widget posted without `visualization_id` was a 500. Absent means
+  a textbox, as the docstring already said.
+- Two tests left global state behind -- a MagicMock on `Alert.evaluate`, and
+  alembic's `fileConfig` switching off every logger in the process. The
+  second silenced `manage db upgrade` as well as the suite.
+
+### CI
+
+A tag cannot publish an image whose tests were never run: the build job reads
+the Tests run for that commit and refuses otherwise. The image is started and
+asked for `/ping` before it is pushed, every runner module is imported, and
+the chart is rendered three ways on every push.
+
+### Upgrading
+
+**Four migrations.** `catalog_provenance`, `indexes_for_the_hot_paths`,
+`pause_in_postgres` and `subscription_backoff`. The index migration creates
+its indexes `CONCURRENTLY` inside an autocommit block, so it does not lock
+the tables it is indexing -- but for the same reason it cannot be run inside
+a surrounding transaction, and on a large install it takes as long as it
+takes.
+
+**Helm:** the bundled Redis changes its update strategy, and a second worker
+appears for the periodic queues. Both apply cleanly over 0.7.6.
+`--reset-then-reuse-values`, not `--reuse-values`, or the new values come
+through empty.
+
+**Compose:** `compose.prod.yaml` gains the periodic worker. Pin the image,
+migrate, then start:
+
+    # .env
+    SQLDESK_IMAGE=ghcr.io/bot-netizen/sqldesk:0.7.7
+    docker compose -f compose.prod.yaml pull
+    docker compose -f compose.prod.yaml run --rm server manage db upgrade
+    docker compose -f compose.prod.yaml up -d
+
 ## 0.7.6
 
 **Streams read Avro and Protobuf, not only JSON.** A topic's message format is

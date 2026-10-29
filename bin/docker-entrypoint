@@ -18,6 +18,7 @@ worker() {
 
   export WORKERS_COUNT=${WORKERS_COUNT:-2}
   export QUEUES=${QUEUES:-}
+  export SQLDESK_PROCESS_ROLE=worker
 
   exec supervisord -c bin/worker.conf
 }
@@ -99,7 +100,29 @@ server() {
   MAX_REQUESTS_JITTER=${MAX_REQUESTS_JITTER:-100}
   TIMEOUT=${SQLDESK_GUNICORN_TIMEOUT:-60}
   BIND_ADDRESS=${SQLDESK_GUNICORN_BIND:-[::]:5000}
-  exec /usr/local/bin/gunicorn -b "$BIND_ADDRESS" --name sqldesk -w${SQLDESK_WEB_WORKERS:-4} sqldesk.wsgi:app --max-requests $MAX_REQUESTS --max-requests-jitter $MAX_REQUESTS_JITTER --timeout $TIMEOUT --limit-request-line ${SQLDESK_GUNICORN_LIMIT_REQUEST_LINE:-0}
+
+  # Threads, not processes alone.
+  #
+  # Four sync workers means four requests at a time for the whole install, and
+  # several ordinary requests hold a worker for seconds while waiting on
+  # something else: MCP's run_query, Test connection, sharing to Slack, a
+  # stream query. Four slow ones and the fifth person gets nothing -- the
+  # health probe included, which is how a busy install gets itself restarted.
+  # gthread serves each request on a thread, so waiting costs a thread rather
+  # than a process. 4 x 8 by default; SQLDESK_WEB_WORKERS still sizes the
+  # processes, so an install that set it keeps the capacity it asked for.
+  WORKER_CLASS=${SQLDESK_GUNICORN_WORKER_CLASS:-gthread}
+  THREADS=${SQLDESK_WEB_THREADS:-8}
+
+  # Which process this is, read by models/base.py to decide whether to put a
+  # statement timeout on its database connections. The web tier gets one; a
+  # worker storing a large result must not.
+  export SQLDESK_PROCESS_ROLE=server
+
+  exec /usr/local/bin/gunicorn -b "$BIND_ADDRESS" --name sqldesk -w${SQLDESK_WEB_WORKERS:-4} \
+    --worker-class "$WORKER_CLASS" --threads "$THREADS" \
+    sqldesk.wsgi:app --max-requests $MAX_REQUESTS --max-requests-jitter $MAX_REQUESTS_JITTER \
+    --timeout $TIMEOUT --limit-request-line ${SQLDESK_GUNICORN_LIMIT_REQUEST_LINE:-0}
 }
 
 create_db() {

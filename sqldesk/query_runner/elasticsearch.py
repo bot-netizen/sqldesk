@@ -50,6 +50,7 @@ PYTHON_TYPES_MAPPING = {
 
 
 class BaseElasticSearch(BaseQueryRunner):
+    query_language = "elasticsearch"
     should_annotate_query = False
     DEBUG_ENABLED = False
     deprecated = True

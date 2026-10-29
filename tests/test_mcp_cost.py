@@ -292,3 +292,34 @@ class TestWhatTheRefusalSays(CostTestCase):
 
     def test_small_byte_counts_are_not_abbreviated_into_nonsense(self):
         self.assertIn("500 bytes scanned", self.refusal(500, "bytes", 100))
+
+
+class TestWhatTheWorkerReallyHandsBack(CostTestCase):
+    """
+    `run` is `_on_a_worker`, which returns the QueryResult row the worker
+    stored -- not the dict the fakes above return. Until 0.7.7 `_plan_cost`
+    called `.get` on that row, the AttributeError was logged as "could not
+    estimate", and every query on Postgres or Redshift ran however dear it was.
+    """
+
+    def stored(self, source, total_cost):
+        return self.factory.create_query_result(data_source=source, data=plan(total_cost)[0])
+
+    def test_an_expensive_plan_from_a_stored_result_is_over(self):
+        source = self.source("pg")
+        stored = self.stored(source, 5000)
+
+        with mock.patch("sqldesk.settings.MCP_MAX_QUERY_COST", 1000):
+            estimate = cost.estimate(source, "SELECT * FROM big", lambda statement: (stored, None))
+
+        self.assertIsNotNone(estimate)
+        self.assertTrue(estimate.over)
+
+    def test_and_a_cheap_one_is_not(self):
+        source = self.source("pg")
+        stored = self.stored(source, 10)
+
+        with mock.patch("sqldesk.settings.MCP_MAX_QUERY_COST", 1000):
+            estimate = cost.estimate(source, "SELECT 1", lambda statement: (stored, None))
+
+        self.assertFalse(estimate.over)

@@ -166,7 +166,40 @@ class TestOneStream(StreamHandlerTestCase):
         )
 
         self.assertEqual(404, response.status_code)
-        self.assertIn("not a stream", response.json["message"])
+        self.assertIn("No such stream", response.json["message"])
+
+    def test_on_a_cluster_with_several_topics_the_one_named_is_the_one_changed(self):
+        """
+        It took the cluster's first stream, so Pin on `payments` pinned
+        whichever row Postgres returned first and said "Saved" for payments.
+        """
+        orders = self.stream(topic="orders")
+        payments = models.Stream(org=self.factory.org, data_source=orders.data_source, topic="payments")
+        db.session.add(payments)
+        db.session.commit()
+
+        rv = self.make_request(
+            "post",
+            "/api/data_sources/{}/stream/{}".format(orders.data_source_id, payments.id),
+            data={"pinned": True},
+            user=self.factory.create_admin(),
+        )
+
+        self.assertEqual(200, rv.status_code)
+        db.session.refresh(orders)
+        db.session.refresh(payments)
+        self.assertEqual((False, True), (orders.pinned, payments.pinned))
+
+    def test_and_without_saying_which_it_refuses_to_guess(self):
+        orders = self.stream(topic="orders")
+        db.session.add(models.Stream(org=self.factory.org, data_source=orders.data_source, topic="payments"))
+        db.session.commit()
+
+        rv = self.post(orders, pinned=True)
+
+        self.assertEqual(400, rv.status_code)
+        db.session.refresh(orders)
+        self.assertFalse(orders.pinned)
 
     def test_pinning_it(self):
         stream = self.stream()

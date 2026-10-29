@@ -1,0 +1,142 @@
+---
+description: learned preferences, project conventions, and Do-Not-Repeat rules
+budget_tokens: 2000
+---
+# Cerebrum
+
+> OpenWolf's learning memory. Updated automatically as the AI learns from interactions.
+> Do not edit manually unless correcting an error.
+> Last updated: 2026-10-03
+
+## User Preferences
+
+<!-- How the user likes things done. Code style, tools, patterns, communication. -->
+
+- Release notes and long answers in **headings and bullets**, never paragraphs.
+- Releases are named `SQLDesk 0.7.0 - Kafka Streams`: the product name stays in
+  the release name.
+- Asks for **two options and a recommendation** on design questions, and
+  expects the recommendation to be argued rather than hedged.
+
+- **Selected state is a colour flip, not an underline.** Asked for on
+  2026-10-29 for the widget view buttons: small pills, the selected one filled
+  with `--color-action` and its text flipped to `--color-action-on`, back to
+  plain when another is picked. Not antd Tabs.
+- **Controls use the panel's own font.** No uppercase micro-labels with
+  letter-spacing inside a widget -- they read as a second heading competing
+  with the widget's title.
+
+## Key Learnings
+
+- **Project:** sqldesk-client
+- **Description:** The frontend part of SQLDesk.
+
+## Do-Not-Repeat
+
+<!-- Mistakes made and corrected. Each entry prevents the same mistake recurring. -->
+<!-- Format: [YYYY-MM-DD] Description of what went wrong and what to do instead. -->
+
+- **[2026-10-29] A unit test cannot see CSS, so verify a UI change by
+  rendering it.** Three times now the same shape of bug shipped or nearly
+  shipped: the table header stayed cream because a third rule painted it with
+  `!important`; stacked-panel titles clipped off the canvas because
+  `containLabel` reserves room for tick labels and not for an axis name; and a
+  widget's button strip was painted *underneath* the chart because a
+  visualization inside a widget is absolutely positioned over the whole
+  scrollbox. All three were present in the DOM and correct in every assertion.
+  Compile the application's own `.less` against a specimen, or render the real
+  page -- and remember a specimen has nothing to scroll, so it never exercises
+  a sticky rule.
+- **[2026-10-29] Offer the cut-down version of a UI feature before building
+  the full one.** Stacked panels were built with per-panel titles and heights;
+  Iqbal's reaction was "It looks complex" and the two settings that went were
+  also the ones carrying a rendering bug. Same again with the widget views:
+  the tab strip became small buttons. Both cut versions were better. Default
+  to the smallest thing that does the job nothing else can.
+- **[2026-10-29] Do not label a status report with a clock time.** During the
+  0.7.10 release the reports carried times like "12:46pm" that were estimates,
+  not a clock; the only real timestamps were UTC in CI logs. Report by event.
+- **[2026-10-29] Verify the newest CI run for a commit, not a run id you
+  happen to hold.** A commit can have two `Tests` runs. The publish guard
+  checks `per_page=1` -- the newest -- so tagging after confirming the other
+  one got the image build refused with "its Tests run is 'none'".
+- **[2026-10-20] A Helm hook Job's name must not carry `.Release.Revision`.**
+  `before-hook-creation` deletes only a Job of the same name; with the
+  revision in it every upgrade leaves one behind for ever.
+- **[2026-10-20] Never rely on `lookup` alone to keep a generated secret.**
+  It returns nothing under `helm template`, which is how Argo CD renders, so
+  `randAlphaNum` runs every sync. Document `existingSecret` for GitOps.
+- **[2026-10-20] Check a resource's real name before putting a kubectl
+  command in docs.** The backup command named `sqldesk`; the Secret is
+  `sqldesk-secrets`.
+- **[2026-10-20] Don't `rm` inside `kubectl exec ... sh -c`** -- the safety
+  check blocks it. Pipe scripts in with `kubectl exec -i ... python - < file`.
+- **[2026-10-25] The session shell is zsh, which does not word-split an
+  unquoted `$VAR`.** `J="-b jar.txt -H Content-Type:application/json"; curl $J`
+  hands curl the whole string as one argument, so the cookie file is never
+  read and the request goes out unauthenticated -- which the API reports as
+  "The CSRF token is missing.", not as a 401. Write the flags out, or put the
+  commands in a `bash` script.
+- **[2026-10-25] A test that reads the database has not checked the
+  response.** Both bug-046 and bug-047 sat under tests that asserted on
+  `models.Query.query.get(...)` or on the status code alone. Assert on what
+  the endpoint actually answered.
+- **[2026-10-25] `docs/tools/chrome.py` rebuilds each guide page's sidebar
+  from its own `PAGES` list.** A link added to a page by hand is deleted the
+  next time the generator runs, silently -- that is how the Streams guide
+  left the sidebar of ten pages. Add the page to `PAGES`, never to the HTML.
+- **[2026-10-25] An animation that hides content must be gated on scripting
+  being present.** `.reveal{opacity:0}` undone by JavaScript means the
+  content is gone for anybody without it. Hang the hiding rule on a `js`
+  class the head sets, so the default state is visible.
+- **[2026-10-25] Firing an alert with `notify_subscriptions(alert, STATE, {})`
+  leaves the email saying `STATUS: UNKNOWN`.** The template reads
+  `alert.state`, and the real path sets and commits it before notifying. Set
+  `alert.state` first, or the message looks broken when it is the harness.
+
+## Decision Log
+
+<!-- Significant technical decisions with rationale. Why X was chosen over Y. -->
+
+- **[2026-10-03] No vendor name in the UI.** `Streaming`, never `Kafka`.
+  `streaming_source_types()` is asked of the registered runners, so a second
+  broker needs no new nav and no new list.
+- **[2026-10-03] `Streaming` is the kind; `Live` is the state.** `LiveBadge`
+  has said "Live, every 30 seconds" about *ordinary* dashboards since 0.4.0 and
+  `live` is a column on `dashboards`. Do not use "Live" for stream-fed things.
+- **[2026-10-03] Streaming and saved are a partition, not two filters.**
+  Nothing appears in both halves of the Queries or Dashboards lists. Two
+  deliberate exceptions: a folder (a place, not a type) and searching by name.
+  The add-widget picker is *not* an exception -- the server refuses the wrong
+  kind, so offering it offers a refusal.
+- **[2026-10-03] A dashboard's kind is a column**, declared at creation, not
+  derived from its widgets: a dashboard with no widgets cannot answer, so a new
+  one moved between the two lists when its first widget landed.
+- **[2026-10-18] Lint after the last commit, not before it.** 0.7.2 went red in
+  CI because one more fix landed after black/ruff ran. Run them immediately
+  before every push.
+- **[2026-10-18] Never name a TestCase helper `run`.** It shadows
+  `unittest.TestCase.run` and every test in the class errors with
+  "unexpected keyword argument 'result'".
+- **[2026-10-18] `has_access()` is for objects with data-source groups**
+  (queries, data sources). A dashboard has none -- it is org-visible and
+  restricted widget by widget -- so `has_access(dashboard, ...)` raises for a
+  non-admin.
+- **[2026-10-18] A second FK from a table to `users` breaks every bare
+  `db.relationship(User)` on it.** Pin `foreign_keys=[...]` when adding one.
+- **[2026-10-18] An edit endpoint must change only the fields it was sent.**
+  The catalog edit set `description` from any body, so a hide request would
+  have wiped it.
+
+## Parallel agents in one worktree (2026-10-24)
+- Two sessions ran in this worktree at once. Two rules came out of it:
+  - **Never snapshot-and-restore a shared file** for a mutation test while
+    another agent may be editing it (`cp file.bak file` silently reverted the
+    other agent's work twice). Mutate and restore with a targeted
+    string replace instead, or only touch files nobody else holds.
+  - **The test database is shared and dropped in setUp.** `docker compose run
+    --rm server tests` pins `postgresql://postgres@postgres/tests`, and
+    `BaseTestCase.setUp` does `drop_all()`, so two concurrent runs destroy
+    each other's schema. Run with
+    `-e SQLDESK_DATABASE_URL=postgresql://postgres@postgres/<own-db>` and
+    `pytest` instead of the `tests` entrypoint.

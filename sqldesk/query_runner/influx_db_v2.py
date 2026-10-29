@@ -40,6 +40,7 @@ class InfluxDBv2(BaseQueryRunner):
     Query runner for influxdb version 2.
     """
 
+    query_language = "flux"
     should_annotate_query = False
 
     def _get_influx_kwargs(self) -> Dict:

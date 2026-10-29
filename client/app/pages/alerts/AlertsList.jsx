@@ -11,6 +11,7 @@ import DynamicComponent from "@/components/DynamicComponent";
 
 import ItemsTable, { Columns } from "@/components/items-list/components/ItemsTable";
 import ListItemActions from "@/components/items-list/components/ListItemActions";
+import { SearchControl } from "@/components/items-list/components/ListPageControls";
 
 import Alert from "@/services/alert";
 import { currentUser } from "@/services/auth";
@@ -72,6 +73,29 @@ class AlertsList extends React.Component {
         className: "text-nowrap",
       }
     ),
+    // An alert that went off six times reads very differently from one that
+    // went off once and stayed there, and the state label cannot tell them
+    // apart. Blank rather than "0" where it has been quiet: a column of
+    // zeroes is noise, and the ones worth seeing should be the ones with ink.
+    Columns.custom.sortable(
+      (text, alert) =>
+        alert.fires_24h > 0 ? (
+          <Link
+            className="alert-fires"
+            href={"alerts/" + alert.id}
+            title={`Fired ${alert.fires_24h} ${alert.fires_24h === 1 ? "time" : "times"} in the last 24 hours`}
+          >
+            {alert.fires_24h}
+            <span className="sr-only"> {alert.fires_24h === 1 ? "time" : "times"} in the last 24 hours</span>
+          </Link>
+        ) : null,
+      {
+        title: "Fires (24h)",
+        field: "fires_24h",
+        width: "1%",
+        className: "text-nowrap",
+      }
+    ),
     Columns.timeAgo.sortable({ title: "Last Updated At", field: "updated_at", width: "1%" }),
     Columns.dateTime.sortable({ title: "Created At", field: "created_at", width: "1%" }),
     // No permissions entry: ACLs exist for queries and dashboards only
@@ -106,6 +130,12 @@ class AlertsList extends React.Component {
       <div className="page-alerts-list">
         <Shell>
           <Header title={controller.params.pageTitle} subtitle={subtitle}>
+            <SearchControl
+              value={controller.searchTerm}
+              onChange={controller.updateSearch}
+              placeholder="Search alerts…"
+              label="Search alerts"
+            />
             {currentUser.hasPermission("list_alerts") && (
               <Link.Button type="primary" href="alerts/new">
                 <i className="fa fa-plus m-r-5" aria-hidden="true" />
@@ -160,6 +190,14 @@ const AlertsListPage = itemsList(
       },
       getResource() {
         return Alert.query.bind(Alert);
+      },
+      // The endpoint takes no `q` and returns every alert the person can see,
+      // so the filtering happens in the browser over the whole list. The
+      // query's name is searched as well as the alert's: an alert is usually
+      // remembered by what it watches rather than by what somebody named it.
+      matches(alert, term) {
+        const fields = [alert.name, alert.query && alert.query.name];
+        return fields.some((field) => typeof field === "string" && field.toLowerCase().includes(term));
       },
     }),
   () => new StateStorage({ orderByField: "created_at", orderByReverse: true, itemsPerPage: 20 })

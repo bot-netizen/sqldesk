@@ -49,3 +49,21 @@
   border: 1px solid var(--color-border-subtle, #f1efec);
   border-radius: var(--radius-control, 8px);
 }
+
+// The dash picker draws each pattern rather than naming it: "dash-dot" and
+// "long dash" are hard to tell apart as words and obvious as pictures.
+.series-settings-dash {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  svg {
+    flex: 0 0 auto;
+    // Matches the line the chart draws, so the swatch is the thing itself.
+    color: var(--color-text-secondary, #34302b);
+  }
+}
+
+.series-settings-dash-none {
+  color: var(--color-text-subtle, #b5afa6);
+}

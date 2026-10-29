@@ -54,6 +54,76 @@ def _refuse_to_mix(dashboard, visualization):
     abort(400, message=message)
 
 
+#: How many visualizations one widget will offer as tabs, the widget's own
+#: included. Past half a dozen a tab strip stops being a way to choose and
+#: starts being a thing to read.
+MAX_WIDGET_TABS = 6
+
+
+def clean_tabs(visualization, options):
+    """
+    The sibling visualizations this widget offers as tabs, checked.
+
+    Every tab has to be a visualization of the **same query** as the widget's
+    own, and that is not a tidiness rule. It is what makes the feature worth
+    having and what makes it safe:
+
+    The whole point is that a dashboard fetches the query once and draws it
+    several ways. Three widgets on one query fetch and parse that query three
+    times; one widget with three tabs fetches it once. A tab belonging to some
+    other query would have to fetch and that promise would be gone.
+
+    And because every tab draws the result the viewer is already being shown,
+    a tab adds no data they could not already see. Allowing a tab from another
+    query would put a second query's results behind a widget whose access was
+    checked against the first -- a permission hole wearing a tab strip.
+
+    Returns the ids to store. Anything that is not a visualization of this
+    widget's query is dropped rather than refused: the list is cosmetic, the
+    widget still draws, and a dashboard that will not save because one stale
+    id is in a options blob helps nobody.
+    """
+    if visualization is None:
+        return []
+
+    wanted = (options or {}).get("tabs")
+    if not isinstance(wanted, list):
+        return []
+
+    # The widget's own visualization is always the first tab, so naming it
+    # here would draw it twice.
+    ids = []
+    for one in wanted:
+        if isinstance(one, bool) or not isinstance(one, int):
+            continue
+        if one == visualization.id or one in ids:
+            continue
+        ids.append(one)
+
+    if not ids:
+        return []
+
+    siblings = {
+        row.id
+        for row in models.Visualization.query.filter(
+            models.Visualization.id.in_(ids),
+            models.Visualization.query_id == visualization.query_id,
+        )
+    }
+    return [one for one in ids if one in siblings][: MAX_WIDGET_TABS - 1]
+
+
+def apply_tabs(widget, options):
+    """Store the cleaned tab list on the widget's options, or remove the key."""
+    options = dict(options or {})
+    tabs = clean_tabs(widget.visualization, options)
+    if tabs:
+        options["tabs"] = tabs
+    else:
+        options.pop("tabs", None)
+    return options
+
+
 class WidgetListResource(BaseResource):
     @require_permission("edit_dashboard")
     def post(self):
@@ -74,7 +144,10 @@ class WidgetListResource(BaseResource):
 
         widget_properties.pop("id", None)
 
-        visualization_id = widget_properties.pop("visualization_id")
+        # Absent, not just null: the browser always sends the key, an API
+        # client writing a textbox has no reason to, and a KeyError here is a
+        # 500 with a traceback for what is a perfectly good request.
+        visualization_id = widget_properties.pop("visualization_id", None)
         if visualization_id:
             visualization = models.Visualization.get_by_id_and_org(visualization_id, self.current_org)
             require_access(visualization.query_rel, self.current_user, view_only)
@@ -86,6 +159,7 @@ class WidgetListResource(BaseResource):
         widget_properties["visualization"] = visualization
 
         widget = models.Widget(**widget_properties)
+        widget.options = apply_tabs(widget, widget.options)
         models.db.session.add(widget)
 
         models.db.session.commit()
@@ -107,7 +181,7 @@ class WidgetResource(BaseResource):
         require_object_modify_permission(widget.dashboard, self.current_user)
         widget_properties = request.get_json(force=True)
         widget.text = widget_properties["text"]
-        widget.options = widget_properties["options"]
+        widget.options = apply_tabs(widget, widget_properties["options"])
         models.db.session.commit()
         return serialize_widget(widget)
 

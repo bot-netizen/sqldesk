@@ -81,3 +81,106 @@ class TestTheRestrictedPodSecurityStandard(unittest.TestCase):
         self.assertIn("type: RuntimeDefault", pod)
         self.assertIn("allowPrivilegeEscalation: false", container)
         self.assertIn('drop: ["ALL"]', container)
+
+
+class TestWhatRunsTheHousekeeping(unittest.TestCase):
+    """
+    Scheduling, alerts, mail and the cleanups sat on the same worker as
+    queries. A query can hold a worker for minutes, so two slow ones meant
+    nothing was deciding what to refresh, nothing was evaluating alerts and
+    nothing was sending mail -- while every probe still passed.
+    """
+
+    def setUp(self):
+        self.worker = template("worker.yaml")
+        self.values = open("charts/sqldesk/values.yaml").read()
+
+    def test_the_query_worker_takes_only_query_queues(self):
+        queues = re.search(r'^  queues: "([^"]+)"', self.values, re.M).group(1)
+
+        self.assertEqual("queries,scheduled_queries,schemas", queues)
+
+    def test_there_is_a_deployment_for_the_rest(self):
+        self.assertIn("component: periodic-worker", self.worker)
+        self.assertIn(".Values.periodicWorker.queues", self.worker)
+
+    def test_and_its_queues_are_not_stranded_when_it_is_switched_off(self):
+        # No scheduling, no alerts and no mail is a worse failure than a slow
+        # query, because nothing reports it.
+        self.assertIn("{{- if not .Values.periodicWorker.enabled }}", self.worker)
+
+    def test_it_is_on_by_default(self):
+        self.assertRegex(self.values, r"periodicWorker:\n  enabled: true")
+
+    def test_it_is_not_given_a_five_minute_grace_period(self):
+        # The query worker needs one: somebody's four-minute query. A job
+        # here is seconds.
+        periodic = self.worker.split("component: periodic-worker", 1)[1]
+        self.assertIn("terminationGracePeriodSeconds: 60", periodic)
+
+
+class TestWhatAClusterMayTakeAway(unittest.TestCase):
+    """
+    A node drain or a cluster upgrade is allowed to evict every pod of a
+    deployment at once -- nothing is unhealthy, so nothing stops it -- and the
+    install is then simply down until the replacements start.
+    """
+
+    def test_there_is_a_budget_for_the_web_pods(self):
+        pdb = template("pdb.yaml")
+
+        self.assertIn("kind: PodDisruptionBudget", pdb)
+        self.assertIn("minAvailable: 1", pdb)
+
+    def test_but_only_above_one_replica(self):
+        # Insisting on keeping one of one blocks the drain outright, which
+        # turns a routine node upgrade into something somebody has to
+        # override by hand.
+        self.assertIn("{{- if gt (int .Values.server.replicas) 1 }}", template("pdb.yaml"))
+
+
+class TestTheBundledRedis(unittest.TestCase):
+    """
+    Redis holds the queues. Two things about it decide whether a query
+    somebody submitted actually runs.
+    """
+
+    def setUp(self):
+        self.redis = template("redis.yaml")
+        self.values = open("charts/sqldesk/values.yaml").read()
+
+    def test_only_one_of_it_runs_at_a_time(self):
+        # Two Redises behind one Service means workers divide between two sets
+        # of queues, and a job enqueued through one is invisible to the
+        # workers reading the other.
+        #
+        # Not `type: Recreate`: Kubernetes defaults `rollingUpdate` on an
+        # existing deployment and owns those defaults, so applying Recreate
+        # over one is rejected -- "may not be specified when strategy type is
+        # Recreate" -- and the whole upgrade fails. Found on the first real
+        # upgrade of an install that already had the chart.
+        self.assertIn("maxSurge: 0", self.redis)
+        # The comment above it explains why not Recreate, so this looks at
+        # the field rather than at the file.
+        self.assertNotIn("    type: Recreate", self.redis)
+
+    def test_it_has_a_memory_ceiling(self):
+        self.assertIn("--maxmemory", self.redis)
+        self.assertRegex(self.values, r'maxmemory: "\d+[a-z]+"')
+
+    def test_and_refuses_writes_rather_than_evicting_queued_work(self):
+        # allkeys-lru would quietly evict queue entries and job records: the
+        # query never runs and nothing says so. Refusing is the honest
+        # failure -- the enqueue reports it.
+        self.assertIn('- "noeviction"', self.redis)
+        self.assertNotIn('- "allkeys-lru"', self.redis)
+
+    def test_it_asks_for_resources(self):
+        self.assertIn(".Values.redis.resources", self.redis)
+
+
+class TestTheScheduler(unittest.TestCase):
+    def test_its_replicas_can_be_raised(self):
+        # rq-scheduler enqueues only while holding a Redis lock, so a second
+        # pod is a warm spare rather than a second copy of every due job.
+        self.assertIn("replicas: {{ .Values.scheduler.replicas }}", template("worker.yaml"))

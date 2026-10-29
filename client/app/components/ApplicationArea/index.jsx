@@ -1,12 +1,32 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import routes from "@/services/routes";
+import notification from "@/services/notification";
+import { isChunkLoadError } from "@/lib/lazyPage";
+import isBenignBrowserNoise from "@/lib/browserNoise";
 import Router from "./Router";
 import handleNavigationIntent from "./handleNavigationIntent";
-import ErrorMessage from "./ErrorMessage";
+
+/*
+  An error nobody caught used to replace the entire application with an error
+  page -- navigation, menus and all -- for as long as the tab lived, because
+  the router it replaced was what listened for the next navigation. One stray
+  error in a timer or a third-party script and the only way out was a reload,
+  which a wall screen never gets.
+
+  A render that throws is a different thing, and is still handled where it
+  happens: the error boundary in `Router` shows the error in place of the
+  page, inside the layout, and resets on the next navigation. What reaches
+  the handler below is asynchronous -- a callback, an event handler, a script
+  tag -- so the page it came from is usually still usable. It is reported and
+  logged, and the application stays up.
+*/
+
+/** One report a minute, so a failing timer cannot bury the screen. */
+export const REPORT_EVERY = 60 * 1000;
 
 export default function ApplicationArea() {
   const [currentRoute, setCurrentRoute] = useState(null);
-  const [unhandledError, setUnhandledError] = useState(null);
+  const lastReportRef = useRef(null);
 
   useEffect(() => {
     if (currentRoute && currentRoute.title) {
@@ -24,7 +44,30 @@ export default function ApplicationArea() {
           `[Uncaught SyntaxError: Unexpected token '<'] usually means that a fallback html file was returned from server rather than the expected script. Check that the server is properly serving the file ${event.filename}.`
         );
       }
-      setUnhandledError(event.error);
+      console.error(event.error || event.message);
+
+      // A chunk that failed to load is already being retried, and reloads the
+      // page if it has gone for good. Saying so here would be noise.
+      if (isChunkLoadError(event.error)) {
+        return;
+      }
+
+      // So would a warning about the layout settling, which is reported as an
+      // error, carries no `error` object, and describes nothing anybody can
+      // act on.
+      if (isBenignBrowserNoise(event)) {
+        return;
+      }
+
+      const now = Date.now();
+      if (lastReportRef.current !== null && now - lastReportRef.current < REPORT_EVERY) {
+        return;
+      }
+      lastReportRef.current = now;
+      notification.error(
+        "Something on this page did not work",
+        "The details are in the browser console. Reloading the page usually clears it."
+      );
     }
 
     document.body.addEventListener("click", handleNavigationIntent, false);
@@ -35,10 +78,6 @@ export default function ApplicationArea() {
       window.removeEventListener("error", globalErrorHandler, false);
     };
   }, []);
-
-  if (unhandledError) {
-    return <ErrorMessage error={unhandledError} />;
-  }
 
   return <Router routes={routes.items} onRouteChange={setCurrentRoute} />;
 }

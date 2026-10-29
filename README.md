@@ -4,23 +4,23 @@
   <p><strong>One place for everything you do with data.</strong></p>
   <p>Query 35+ data sources, build dashboards, and share what you find — self-hosted, no per-seat pricing.</p>
   <p>
-    <a href="https://bot-netizen.github.io/sqldesk/">Website</a> &middot;
+    <a href="https://sqldesk.org/">Website</a> &middot;
     <a href="CHANGELOG.md">Changelog</a> &middot;
     <a href="https://github.com/bot-netizen/sqldesk/discussions">Discussions</a>
   </p>
   <p>
     <a href="https://github.com/bot-netizen/sqldesk/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/bot-netizen/sqldesk/actions/workflows/ci.yml/badge.svg"></a>
     <a href="LICENSE"><img alt="Licence" src="https://img.shields.io/badge/licence-Apache%202.0-blue"></a>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.7.6-teal">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.7.10-teal">
   </p>
 </div>
 
 <div align="center">
-  <a href="https://bot-netizen.github.io/sqldesk/#demo">
+  <a href="https://sqldesk.org/#demo">
     <img src="docs/assets/live-dashboard.jpg" alt="A SQLDesk dashboard refreshing itself: a stat with a sparkline, a gauge, progress against target, and charts with goal lines" width="900">
   </a>
   <p><em>A live dashboard, refreshed on the server every 30 seconds — nobody is pressing refresh.<br>
-  <a href="https://bot-netizen.github.io/sqldesk/#demo">Watch the 15-second demo</a></em></p>
+  <a href="https://sqldesk.org/#demo">Watch the 15-second demo</a></em></p>
 </div>
 
 ---
@@ -42,9 +42,10 @@ charge you for them.
 - **Dashboards** — arrange visualizations, filter across them, export a one-page report as PDF or image
 - **Alerts** — trigger on a query result and notify Slack, email, PagerDuty, webhooks and more
 - **Permissions** — groups, per-data-source access, view-only roles, shareable public links
-- **MCP** — an endpoint at `/mcp` with eight read-only tools over your schema and saved queries, run as the
-  user whose API key it is and audited; off until `SQLDESK_FEATURE_AI=true`. See the
-  [MCP guide](https://bot-netizen.github.io/sqldesk/guide/mcp.html)
+- **MCP** — an endpoint at `/mcp` with fifteen tools over your catalog, saved queries and dashboards:
+  nine read-only, and six that write back as drafts and proposals a person approves. Everything runs as
+  the user whose key it is, capped per day and audited with what it changed; off until
+  `SQLDESK_FEATURE_AI=true`. See the [MCP guide](https://sqldesk.org/guide/mcp.html)
 
 ## Running it
 
@@ -66,7 +67,7 @@ docker compose -f compose.prod.yaml up -d
 SQLDesk comes up on `http://localhost:5000`, and the first page makes your
 organization and administrator account. Set `SQLDESK_IMAGE` in `.env` to pin a
 different tag. MCP and the alert-picture renderer are add-ons, off by default:
-[Deploying](https://bot-netizen.github.io/sqldesk/guide/deploying.html#services)
+[Deploying](https://sqldesk.org/guide/deploying.html#services)
 says how to turn each on.
 
 On Kubernetes, the Helm chart in `charts/sqldesk` does the same:
@@ -106,9 +107,9 @@ pnpm start             # webpack dev server + viz-lib watch
 
 ## Configuration
 
-SQLDesk reads `SQLDESK_*` environment variables. If you are migrating an existing
-Redash deployment, your `REDASH_*` variables are still honoured as a fallback — an
-explicitly set `SQLDESK_*` always wins.
+SQLDesk reads `SQLDESK_*` environment variables. On an install that predates the
+rename, `TEALDASH_*` variables are still honoured as a fallback — an explicitly
+set `SQLDESK_*` always wins.
 
 SQLDesk does not phone home. Version checking is off unless you set
 `SQLDESK_VERSION_CHECK_URL` to an endpoint you control.

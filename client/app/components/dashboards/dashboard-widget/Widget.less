@@ -361,3 +361,94 @@
     }
   }
 }
+
+/*
+  A widget showing more than one of its query's visualizations.
+
+  The layout matters more than the paint. Inside a widget a visualization is
+  absolutely positioned to fill its nearest positioned ancestor -- see
+  `.visualization-fills-its-box()` -- which is the scrollbox. A strip added as
+  a plain sibling would therefore be drawn under the chart. So the tabbed
+  widget becomes a flex column and the chart gets a positioned box of its own
+  that begins below the strip.
+
+  Only `.widget-has-tabs`, which only a widget with tabs is given, so no
+  existing widget's layout moves.
+*/
+.widget-has-tabs {
+  display: flex;
+  flex-direction: column;
+
+  .widget-tabs {
+    flex: 0 0 auto;
+  }
+
+  .widget-visualization-area {
+    flex: 1 1 auto;
+    /* The containing block the chart fills, and `min-height: 0` so a flex
+       item is allowed to be shorter than its content instead of pushing the
+       strip off the top. */
+    position: relative;
+    min-height: 0;
+  }
+}
+
+/*
+  The buttons that choose which breakdown is shown.
+
+  Small pills at the top right of the widget, not a tab strip: the selected
+  one fills with the action colour and its text flips to the ink that colour
+  carries, and it goes back to plain when another is picked. A filled pill
+  says "this one" from across a room in a way an underline does not.
+
+  The widget's own font, at the size the rest of the panel uses. An uppercase
+  micro-label was tried and read as a second heading competing with the
+  widget's title.
+*/
+.widget-tabs {
+  display: flex;
+  /* Right, away from the title and the parameters, which both start left. */
+  justify-content: flex-end;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 2px 8px 6px;
+
+  .widget-tab {
+    padding: 2px 10px 3px;
+    font-size: var(--fs-small, 13px);
+    font-weight: 500;
+    line-height: 1.6;
+    border-radius: 999px;
+    color: var(--color-text-muted, #6f6b66);
+    background: var(--color-surface-sunken, #f6f4f1);
+    border: 1px solid transparent;
+    white-space: nowrap;
+    max-width: 16ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition:
+      background-color 0.12s ease,
+      color 0.12s ease;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--color-text, #1c1b1a);
+      border-color: var(--color-border, #d8d3cc);
+    }
+
+    /* The flip. `--color-action-on` is the ink that colour is defined to
+       carry, so the pair is the application's own and stays legible when a
+       theme moves the accent. */
+    &.active {
+      background: var(--color-action, #1f6f83);
+      color: var(--color-action-on, #ffffff);
+      border-color: transparent;
+
+      &:hover,
+      &:focus-visible {
+        background: var(--color-action-hover, #175565);
+        color: var(--color-action-on, #ffffff);
+      }
+    }
+  }
+}

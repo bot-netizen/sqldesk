@@ -141,7 +141,13 @@ def _plan_cost(source, sql, run):
         logger.debug("no plan cost for %s: %s", source.name, error)
         return None
     try:
-        rows = (result or {}).get("rows") or []
+        # `run` hands back a QueryResult row, not the dict this once expected:
+        # `.get` on it raised AttributeError, the caller logged "could not
+        # estimate", and every query went through uncapped.
+        data = getattr(result, "data", result)
+        if isinstance(data, str):
+            data = json.loads(data)
+        rows = (data or {}).get("rows") or []
         if not rows:
             # An EXPLAIN that came back with no plan at all. Said quietly and
             # on purpose: it is an answer we cannot use, not a fault of ours,
@@ -155,7 +161,7 @@ def _plan_cost(source, sql, run):
         if isinstance(plan, list):
             plan = plan[0]
         return float(plan["Plan"]["Total Cost"])
-    except (KeyError, IndexError, TypeError, ValueError):
+    except (AttributeError, KeyError, IndexError, TypeError, ValueError):
         # A plan we cannot read is not a plan we should refuse on.
         logger.warning("could not read a plan cost from %s", source.name, exc_info=True)
         return None

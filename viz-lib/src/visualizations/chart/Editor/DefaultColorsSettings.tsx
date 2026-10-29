@@ -6,6 +6,7 @@ import { EditorPropTypes } from "@/visualizations/prop-types";
 import { AllColorPalettes } from "@/visualizations/ColorPalette";
 import getChartData from "../getChartData";
 import { Section, Select } from "@/components/visualizations/editor";
+import ThresholdColorSettings, { hasBars } from "./ThresholdColorSettings";
 
 export default function DefaultColorsSettings({ options, data, onOptionsChange }: any) {
   const colors = useMemo(
@@ -85,6 +86,9 @@ export default function DefaultColorsSettings({ options, data, onOptionsChange }
         </Select>
       </Section>
       <Table showHeader={false} dataSource={series} columns={columns} pagination={false} />
+      {/* Bars only: a threshold on a line colours its markers and leaves the
+          line one colour, which says less than the goal line already here. */}
+      {hasBars(options) && <ThresholdColorSettings options={options} onOptionsChange={onOptionsChange} />}
     </React.Fragment>
   );
 }

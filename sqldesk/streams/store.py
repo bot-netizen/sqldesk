@@ -58,6 +58,8 @@ class Store:
         self.path = path
         self.read_only = read_only
         self._connection = None
+        #: Whether the window's table is known to exist -- see `_has_table`.
+        self._table_exists = False
 
     # --- the connection -----------------------------------------------------
 
@@ -249,38 +251,63 @@ class Store:
         quoted = path.replace("'", "''")
         reader = "read_json_auto('{}', format='newline_delimited', ignore_errors=true)".format(quoted)
 
+        # Parsed once, into a temporary table the three statements below then
+        # read.
+        #
+        # They used to name the reader directly, so the flush file was opened,
+        # inferred and parsed three times over: once to describe its columns,
+        # once for the INSERT, and once to count the lines that came back all
+        # null. On a topic flushing a few megabytes a second that is two
+        # parses of everything for nothing -- and the most expensive thing
+        # this path does.
+        self.connection.execute("CREATE OR REPLACE TEMP TABLE flushed AS SELECT * FROM {}".format(reader))
+
         if not self._has_table():
             self.connection.execute(
-                "CREATE TABLE events AS SELECT now() AS {}, * FROM {} LIMIT 0".format(RECEIVED, reader)
+                "CREATE TABLE events AS SELECT now() AS {}, * FROM flushed LIMIT 0".format(RECEIVED)
             )
+            self._table_exists = True
 
         # The columns *this flush* has, not the table's. A producer that drops
         # a field leaves the table with a column the reader knows nothing
         # about, and naming it here is a binder error rather than a null.
-        arriving = [row[0] for row in self.connection.execute("DESCRIBE SELECT * FROM {}".format(reader)).fetchall()]
+        arriving = [row[0] for row in self.connection.execute("DESCRIBE flushed").fetchall()]
         arriving = [name for name in arriving if name not in RESERVED]
         if not arriving:
             # Nothing inferred at all, which means the flush held nothing a
             # reader could make columns out of.
             return 0, 0
 
-        empty = " AND ".join('"{}" IS NULL'.format(name) for name in arriving)
+        empty = " AND ".join("{} IS NULL".format(_quoted(name)) for name in arriving)
 
         # One expression per column the table has: the flush's value where it
         # sent one, NULL where it did not. Explicit rather than `*` so neither
         # a dropped field nor an added one is a binder error.
-        wanted = [name for name, _kind in self.columns() if name not in RESERVED]
-        chosen = ", ".join('"{}"'.format(name) if name in arriving else 'NULL AS "{}"'.format(name) for name in wanted)
-
-        before = self.rows()
-        self.connection.execute(
-            "INSERT INTO events BY NAME SELECT now() AS {}, {} FROM {} WHERE NOT ({})".format(
-                RECEIVED, chosen, reader, empty
-            )
+        #
+        # Cast to the table's type with TRY_CAST: the columns were fixed by
+        # the first flush, and one message sending `"id": "a-17"` where the
+        # first sent `"id": 1` made this flush's column VARCHAR, the INSERT a
+        # conversion error, and the consumer die -- again on every restart
+        # while that message was in the window. Now that value is NULL and the
+        # rest of the row is kept.
+        kinds = {name: kind for name, kind in self.columns() if name not in RESERVED}
+        chosen = ", ".join(
+            "TRY_CAST({0} AS {1}) AS {0}".format(_quoted(name), kinds[name])
+            if name in arriving
+            else "NULL AS {}".format(_quoted(name))
+            for name in kinds
         )
-        added = self.rows() - before
 
-        unparseable = self.connection.execute("SELECT count(*) FROM {} WHERE {}".format(reader, empty)).fetchone()[0]
+        # DuckDB answers an INSERT with the number of rows it wrote, which is
+        # what two counts of the whole window were being used to work out.
+        inserted = self.connection.execute(
+            "INSERT INTO events BY NAME SELECT now() AS {}, {} FROM flushed WHERE NOT ({})".format(
+                RECEIVED, chosen, empty
+            )
+        ).fetchone()
+        added = int((inserted or [0])[0] or 0)
+
+        unparseable = self.connection.execute("SELECT count(*) FROM flushed WHERE {}".format(empty)).fetchone()[0]
         return added, int(unparseable or 0)
 
     def reset(self):
@@ -290,12 +317,24 @@ class Store:
         """
         if self._has_table():
             self.connection.execute("DROP TABLE events")
+            self._table_exists = False
 
     def _has_table(self):
+        """
+        Whether the window's table exists yet.
+
+        Remembered once it does. This is asked four or five times a flush --
+        by `rows`, by `columns`, by `truncate`, by `_load` -- and each ask was
+        a query against information_schema. The table is only ever created
+        here and dropped by `reset`, both of which update the answer.
+        """
+        if self._table_exists:
+            return True
         found = self.connection.execute(
             "SELECT count(*) FROM information_schema.tables WHERE table_name = 'events'"
         ).fetchone()
-        return bool(found and found[0])
+        self._table_exists = bool(found and found[0])
+        return self._table_exists
 
     # --- reading and trimming ----------------------------------------------
 
@@ -352,6 +391,11 @@ class Store:
             "SELECT count(*) FROM events WHERE {} >= now() - INTERVAL '{} seconds'".format(RECEIVED, int(over_seconds))
         ).fetchone()
         return (counted[0] or 0) / float(over_seconds)
+
+
+def _quoted(name):
+    """A column name as a DuckDB identifier, whatever characters the producer put in it."""
+    return '"{}"'.format(name.replace('"', '""'))
 
 
 def _objects_only(raw_messages):

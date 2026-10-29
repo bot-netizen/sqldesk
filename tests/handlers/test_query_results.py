@@ -485,11 +485,25 @@ class TestJobResource(BaseTestCase):
         job = self.make_request("get", f"/api/jobs/{job_id}").json["job"]
         self.assertNotIn("cancelled", job["error"])
 
-    def test_another_user_cannot_read_it(self):
+    def test_a_colleague_who_can_read_the_source_may_follow_it(self):
+        """
+        Two people asking for the same query share one job, which carries the
+        first one's user id. Reading it by ownership gave everybody else 403
+        and "failed communicating with server" for a query running fine.
+        """
         job_id = self._start_a_job()
-        someone_else = self.factory.create_user()
+        colleague = self.factory.create_user()
 
-        rv = self.make_request("get", f"/api/jobs/{job_id}", user=someone_else)
+        rv = self.make_request("get", f"/api/jobs/{job_id}", user=colleague)
+
+        self.assertEqual(rv.status_code, 200)
+
+    def test_but_not_somebody_who_cannot_read_the_source(self):
+        job_id = self._start_a_job()
+        group = self.factory.create_group(name="Elsewhere")
+        outsider = self.factory.create_user(group_ids=[group.id])
+
+        rv = self.make_request("get", f"/api/jobs/{job_id}", user=outsider)
 
         self.assertEqual(rv.status_code, 403)
 

@@ -75,6 +75,7 @@ export default function QueryPageHeader({
   tagsExtra,
   onChange,
   onSaved,
+  isDirty,
 }) {
   const isDesktop = useMedia({ minWidth: 768 });
   const queryFlags = useQueryFlags(query, dataSource);
@@ -89,7 +90,7 @@ export default function QueryPageHeader({
   const verifying = useVerifyQuery(query);
   // `onSaved` rather than `onChange`: a restore has already been written, so
   // the editor's idea of what is saved has to move with it.
-  const openHistoryDialog = useQueryHistoryDialog(query, queryFlags.canEdit, onSaved || onChange);
+  const openHistoryDialog = useQueryHistoryDialog(query, queryFlags.canEdit, onSaved || onChange, isDirty);
 
   const moreActionsMenu = useMemo(
     () =>
@@ -291,6 +292,7 @@ QueryPageHeader.propTypes = {
   // was already written -- a restore. Falls back to `onChange` for the pages
   // with no editor to keep in step.
   onSaved: PropTypes.func,
+  isDirty: PropTypes.bool,
 };
 
 QueryPageHeader.defaultProps = {
@@ -300,4 +302,5 @@ QueryPageHeader.defaultProps = {
   headerExtra: null,
   tagsExtra: null,
   onChange: () => {},
+  isDirty: false,
 };

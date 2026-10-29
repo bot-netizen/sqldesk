@@ -25,7 +25,37 @@ class SQLDeskSQLAlchemy(SQLAlchemy):
             options["poolclass"] = NullPool
             # Remove options NullPool does not support:
             options.pop("max_overflow", None)
+        options.setdefault("connect_args", {}).setdefault("options", statement_timeouts())
         return options
+
+
+def statement_timeouts():
+    """
+    The two timeouts every connection from this process carries.
+
+    Set on the connection rather than per query because the point is to have
+    no unbounded statement anywhere: a lock nobody expected, or a plan that
+    went wrong after a table grew, otherwise holds a gunicorn worker until
+    gunicorn kills the worker outright -- and that takes the requests it was
+    serving with it. Postgres cancelling one statement costs one request.
+
+    The idle-in-transaction timeout applies everywhere, because a transaction
+    left open while something slow happens elsewhere holds its row locks and
+    blocks VACUUM from cleaning up behind it, whichever process did it.
+
+    Empty where both are off, so an install that wants the old behaviour
+    changes nothing about how connections are made.
+    """
+    parts = []
+    # The web tier only: a worker storing a very large result is one long
+    # INSERT, and cancelling that would fail a query that had already run.
+    if settings.PROCESS_ROLE == "server" and settings.SQLALCHEMY_STATEMENT_TIMEOUT_MS > 0:
+        parts.append("-c statement_timeout={}".format(settings.SQLALCHEMY_STATEMENT_TIMEOUT_MS))
+    if settings.SQLALCHEMY_IDLE_IN_TRANSACTION_TIMEOUT_MS > 0:
+        parts.append(
+            "-c idle_in_transaction_session_timeout={}".format(settings.SQLALCHEMY_IDLE_IN_TRANSACTION_TIMEOUT_MS)
+        )
+    return " ".join(parts)
 
 
 db = SQLDeskSQLAlchemy(

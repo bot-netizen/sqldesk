@@ -16,6 +16,7 @@
 #
 #   --profile mcp         a worker of MCP's own (set SQLDESK_MCP_QUEUE=mcp)
 #   --profile rendering   the browser that draws pictures for alert emails
+#   --profile streams     Kafka stream consumers (set SQLDESK_STREAMS_ENABLED=true)
 #
 #   docker compose -f compose.prod.yaml --profile mcp --profile rendering up -d
 #
@@ -25,7 +26,7 @@
 # matching SQLDESK_HOST) in .env, or turn AirPlay Receiver off.
 
 x-sqldesk-service: &sqldesk-service
-  image: ${SQLDESK_IMAGE:-ghcr.io/bot-netizen/sqldesk:0.7.6}
+  image: ${SQLDESK_IMAGE:-ghcr.io/bot-netizen/sqldesk:0.7.10}
   depends_on:
     postgres:
       condition: service_healthy
@@ -71,6 +72,10 @@ x-sqldesk-environment: &sqldesk-environment
   # the variable never reaches the container, and setting it in the shell
   # appears to do nothing.
   SQLDESK_FEATURE_AI: ${SQLDESK_FEATURE_AI:-false}
+  # Off unless the streams profile runs: on, with nothing taking from the
+  # `streams` queue, the Streams menu appeared, its pages never filled, and a
+  # consumer job per watched stream piled up in Redis every minute.
+  SQLDESK_STREAMS_ENABLED: ${SQLDESK_STREAMS_ENABLED:-false}
   # Upstream leaves CSRF checks off so as not to break old installs. There
   # are none to break here, and the application has sent the token all
   # along. API-key calls, MCP included, are not affected.
@@ -95,6 +100,14 @@ services:
       <<: *sqldesk-environment
       SQLDESK_WEB_WORKERS: ${SQLDESK_WEB_WORKERS:-4}
 
+  # Queries, and nothing else.
+  #
+  # The housekeeping queues moved to a worker of their own below. A query can
+  # hold a worker for minutes; with everything on one worker, two slow queries
+  # meant nothing was deciding what to refresh, nothing was evaluating alerts
+  # and nothing was sending mail -- so an install under load stopped doing the
+  # things that make it an install rather than a SQL console, and the only
+  # symptom was staleness nobody could explain.
   worker:
     <<: *sqldesk-service
     command: worker
@@ -103,11 +116,25 @@ services:
       # `mcp` last: taken only when everything else is empty, and never
       # stranded -- with SQLDESK_MCP_QUEUE=mcp and no mcp profile running,
       # a model's query would otherwise wait for a worker that is not there.
-      QUEUES: "queries,scheduled_queries,schemas,periodic,emails,default,mcp"
+      QUEUES: "queries,scheduled_queries,schemas,mcp"
       WORKERS_COUNT: ${SQLDESK_WORKERS_COUNT:-2}
     # Time to finish the query it is running before `down` or an upgrade
     # kills it. Docker's default is ten seconds.
     stop_grace_period: 5m
+
+  # Scheduling, alerts, mail, cleanups: everything that is not a query.
+  #
+  # One process, because none of this is heavy -- it is a few seconds of work
+  # a minute. What it needs is to be *running*, which is exactly what it was
+  # not while the query workers were busy.
+  periodic-worker:
+    <<: *sqldesk-service
+    command: worker
+    environment:
+      <<: *sqldesk-environment
+      QUEUES: "periodic,emails,default"
+      WORKERS_COUNT: ${SQLDESK_PERIODIC_WORKERS_COUNT:-1}
+    stop_grace_period: 2m
 
   # MCP's own worker, for when a model asking questions should never hold up
   # a dashboard. Only useful with SQLDESK_MCP_QUEUE=mcp in .env, which is
@@ -121,6 +148,20 @@ services:
       QUEUES: "mcp"
       WORKERS_COUNT: ${SQLDESK_MCP_WORKERS_COUNT:-1}
     stop_grace_period: 5m
+
+  # Kafka stream consumers. Each process consumes one topic at a time and
+  # holds it for minutes, so they are not the ordinary worker's to run: a
+  # stream would otherwise take a worker from the dashboards people are
+  # loading. Needs SQLDESK_STREAMS_ENABLED=true in .env.
+  stream-worker:
+    <<: *sqldesk-service
+    profiles: ["streams"]
+    command: worker
+    environment:
+      <<: *sqldesk-environment
+      QUEUES: "streams"
+      WORKERS_COUNT: ${SQLDESK_STREAM_WORKERS_COUNT:-2}
+    stop_grace_period: 2m
 
   scheduler:
     <<: *sqldesk-service
@@ -170,7 +211,7 @@ services:
   # Start it with --profile rendering, and put the three lines from the
   # "Pictures in alert emails" part of .env.example into .env.
   screenshots:
-    image: ${SQLDESK_SCREENSHOTS_IMAGE:-ghcr.io/bot-netizen/sqldesk-screenshots:0.7.6}
+    image: ${SQLDESK_SCREENSHOTS_IMAGE:-ghcr.io/bot-netizen/sqldesk-screenshots:0.7.10}
     profiles: ["rendering"]
     restart: unless-stopped
     # Chromium wants more than Docker's default 64MB of shared memory, and

@@ -250,6 +250,7 @@ class DataSourcePauseResource(BaseResource):
             reason = request.args.get("reason")
 
         data_source.pause(reason)
+        models.db.session.commit()
 
         self.record_event(
             {
@@ -264,6 +265,7 @@ class DataSourcePauseResource(BaseResource):
     def delete(self, data_source_id):
         data_source = get_object_or_404(models.DataSource.get_by_id_and_org, data_source_id, self.current_org)
         data_source.resume()
+        models.db.session.commit()
 
         self.record_event(
             {

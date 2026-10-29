@@ -2,6 +2,7 @@ import errno
 import os
 import signal
 import sys
+import threading
 
 from rq import Queue as BaseQueue
 from rq.job import Job as BaseJob
@@ -13,7 +14,18 @@ from rq.worker import (
     Worker,
 )
 
-from sqldesk import statsd_client
+from sqldesk import settings, statsd_client
+
+#: Set in a work horse when the worker has been told to stop. A long job that
+#: can stop early -- a stream consumer, between flushes -- asks this rather
+#: than waiting to be killed.
+_shutdown = threading.Event()
+
+
+def shutting_down():
+    """Whether this worker has been told to stop."""
+    return _shutdown.is_set()
+
 
 # HerokuWorker does not work on macOS: its fork handling assumes Linux signals.
 if sys.platform == "darwin":
@@ -57,6 +69,19 @@ class StatsdRecordingWorker(BaseWorker):
     """
     RQ Worker Mixin that overrides `execute_job` to increment/modify metrics via Statsd
     """
+
+    #: How long a running job is given after the worker is told to stop.
+    #: HerokuWorker's own default is 6 seconds: every deploy, scale-down or
+    #: node drain failed every running query 6 seconds in, while the grace
+    #: periods around it -- supervisord 290 s, the pod 300 s -- and the docs
+    #: all promised five minutes.
+    imminent_shutdown_delay = settings.WORKER_SHUTDOWN_SECONDS
+
+    def request_stop_sigrtmin(self, signum, frame):
+        # In the work horse. Marked first, so a job that can stop early sees it
+        # on its next check rather than running to the deadline.
+        _shutdown.set()
+        super().request_stop_sigrtmin(signum, frame)
 
     def execute_job(self, job, queue):
         statsd_client.incr("rq.jobs.running.{}".format(queue.name))

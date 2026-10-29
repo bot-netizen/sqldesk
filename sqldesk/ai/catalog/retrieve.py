@@ -7,6 +7,8 @@ eval set can say they earned their dependency. Usage frequency does most of
 the work, which is why the harvester comes first.
 """
 
+import re
+
 from sqlalchemy import or_
 
 from sqldesk.models import (
@@ -28,9 +30,46 @@ DEFAULT_LIMIT = 8
 #: the query is a way to keep a web worker busy.
 MAX_TERMS = 12
 
+#: Words a question is made of rather than words a warehouse is made of.
+#: Kept short on purpose: every word dropped here is a word that can no
+#: longer match a column, and `status`, `type` and `value` are all real
+#: column names. These are the ones that are only ever grammar.
+STOPWORDS = frozenset(
+    """
+    the and for with from that this these those
+    what which who whom whose where when why how
+    show list give tell find many much any all
+    are was were been being have has had does did
+    our their your its about into over per each
+    please need want
+    """.split()
+)
+
+#: Splitting on whitespace alone kept the punctuation: "revenue by region last
+#: quarter?" searched for `quarter?`, which matches no column name anywhere, so
+#: the one word that said what the question was about was the one word thrown
+#: away. The final word of a sentence is the most likely to carry it.
+_WORD = re.compile(r"[a-z0-9_]+")
+
 
 def _terms(question):
-    return [word.strip().lower() for word in (question or "").split() if len(word.strip()) > 2][:MAX_TERMS]
+    """
+    The words of a question, as things that might appear in a schema.
+
+    Plurals are stemmed as *extra* terms rather than replacements: a question
+    about "orders" should find a table called `order`, and one about "order"
+    should still find `orders` -- ILIKE on a substring already does the
+    second, so only the first needs help.
+    """
+    words = []
+    for word in _WORD.findall((question or "").lower()):
+        if len(word) <= 2 or word in STOPWORDS or word in words:
+            continue
+        words.append(word)
+        stem = word[:-1] if len(word) > 3 and word.endswith("s") and not word.endswith("ss") else None
+        if stem and stem not in words:
+            words.append(stem)
+    return words[:MAX_TERMS]
 
 
 def find_tables(org, question, data_source=None, limit=DEFAULT_LIMIT, data_source_ids=None):
@@ -131,19 +170,23 @@ def context_for(org, question, data_source=None, limit=DEFAULT_LIMIT, data_sourc
     # A neighbour is looked up in its own table's data source, so it is
     # never from a source the match itself was not.
     tables = find_tables(org, question, data_source=data_source, limit=limit, data_source_ids=data_source_ids)
-    chosen = {table.name: table for table in tables}
+    # Keyed by source as well as name: two warehouses both have `users`, and
+    # keying on the name alone meant the second one replaced the first -- so a
+    # question that matched both was answered about one of them, with nothing
+    # on the card to say which.
+    chosen = {(table.data_source_id, table.name): table for table in tables}
 
     # Looked up once and kept: the first version asked for a table's
     # neighbours while expanding and again while building the response, which
     # is two queries per table for the same answer.
-    edges = {table.name: neighbours_of(table) for table in tables}
+    edges = {(table.data_source_id, table.name): neighbours_of(table) for table in tables}
 
     wanted = []
     for table in tables:
-        for edge in edges[table.name]:
+        for edge in edges[(table.data_source_id, table.name)]:
             if len(chosen) + len(wanted) >= limit:
                 break
-            if edge["table"] not in chosen:
+            if (table.data_source_id, edge["table"]) not in chosen:
                 wanted.append((table.data_source_id, edge["table"]))
 
     if wanted:
@@ -153,8 +196,8 @@ def context_for(org, question, data_source=None, limit=DEFAULT_LIMIT, data_sourc
             CatalogTable.name.in_(names),
             CatalogTable.hidden.is_(False),
         ):
-            chosen.setdefault(neighbour.name, neighbour)
-            edges.setdefault(neighbour.name, neighbours_of(neighbour))
+            chosen.setdefault((neighbour.data_source_id, neighbour.name), neighbour)
+            edges.setdefault((neighbour.data_source_id, neighbour.name), neighbours_of(neighbour))
 
     ordered = sorted(chosen.values(), key=lambda table: -(table.usage_count or 0))
     return {
@@ -163,7 +206,12 @@ def context_for(org, question, data_source=None, limit=DEFAULT_LIMIT, data_sourc
                 "name": table.name,
                 "card": table.card,
                 "usage_count": table.usage_count,
-                "joins": edges.get(table.name, []),
+                "joins": edges.get((table.data_source_id, table.name), []),
+                # Which warehouse this is from. The caller decides whether to
+                # say so -- it is noise when the question named one source and
+                # the answer when it did not.
+                "data_source_id": table.data_source_id,
+                "data_source": table.data_source.name,
             }
             for table in ordered
         ],

@@ -5,11 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Administration — SQLDesk docs</title>
 <meta name="description" content="Users, groups, the admin pages, and keeping an instance healthy.">
+<meta property="og:title" content="Administration — SQLDesk docs">
+<meta property="og:description" content="Users, groups, the admin pages, and keeping an instance healthy.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://sqldesk.org/guide/administration.html">
+<meta property="og:image" content="https://sqldesk.org/assets/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SQLDesk: one place for everything you do with data">
+<meta property="og:site_name" content="SQLDesk">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sqldesk.org/assets/social-card.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
+<script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
 
@@ -28,12 +40,22 @@
     </a>
     <nav>
       <a href="../index.html">Overview</a>
-      <a href="../why.html">Why SQLDesk</a>
-      <a href="../performance.html" class="hide-sm">Performance</a>
-      <a href="../roadmap.html">Roadmap</a>
-      <a href="../blog/index.html">Blog</a>
       <a href="../guide/overview.html" aria-current="page">Docs</a>
+      <a href="../blog/index.html">Blog</a>
+      <a href="../releases.html">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+      <button class="theme-toggle" type="button" data-theme-toggle
+              aria-label="Switch to dark mode" title="Switch to dark mode">
+        <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.7 5.7 0 1 0 7.1 7.1Z"/>
+        </svg>
+        <svg class="sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="3.1"/>
+          <path d="M8 1v1.6M8 13.4V15M15 8h-1.6M2.6 8H1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1M12.9 12.9l-1.1-1.1M4.2 4.2 3.1 3.1"/>
+        </svg>
+      </button>
     </nav>
   </div>
 </header>
@@ -57,7 +79,7 @@
       <a href="administration.html" aria-current="page">Administration</a>
       <a href="deploying.html">Deploying</a>
       <h4>Reference</h4>
-      <a href="../roadmap.html">Releases &amp; roadmap</a>
+      <a href="../releases.html">Releases</a>
   </nav>
   <main class="doc-body">
 <h1>Administration</h1>
@@ -102,9 +124,27 @@ for in a line or two under its tabs, so you are not guessing which of seven hold
     workers are not keeping up with the schedules people have set.</dd>
   <dt>MCP</dt>
   <dd>Who has connected over MCP, what they asked for, and every refused attempt — never the question
-    somebody put to their client and never the SQL that came back. Shown when MCP is on. See
-    <a href="mcp.html">MCP</a>.</dd>
+    somebody put to their client and never the SQL that came back. A write records what it changed, before
+    and after, because "update_table ok" does not answer the question anybody brings to an audit of an
+    agent's writes. Shown when MCP is on. See <a href="mcp.html">MCP</a>.</dd>
 </dl>
+
+<h3 id="catalog-review">Reviewing what an agent wrote</h3>
+<p>An agent pointed at the catalog can describe a warehouse in an afternoon — that is the point of letting
+it — and that is also why a badge here and there among three thousand tables is not a review.
+<strong>Catalog</strong> has a <em>Written by an agent</em> filter that answers exactly that question, and
+each description carries the name on the API key that wrote it, not merely the fact that a machine did.</p>
+<p>Two things an agent cannot do, deliberately:</p>
+<ul>
+  <li><strong>Hide a table.</strong> It decides what everybody is offered, there is no review step, and
+    nothing on a page would show it had happened. It is done here, with the table in front of you.</li>
+  <li><strong>Agree a measure.</strong> A proposal lands under <strong>Measures</strong> with Agree and
+    Deny; until somebody agrees it, no other agent is told it exists. A definition of revenue that is
+    merely plausible is worse than none.</li>
+</ul>
+<p>Every write is capped at fifty a day per person (<code>SQLDESK_MCP_WRITES_PER_DAY</code>). An agent
+told to describe a warehouse will describe the whole warehouse, and a loop getting it wrong will do it
+just as fast; fifty keeps a mistake to a morning's review rather than a restore.</p>
 <p><strong>Settings</strong> is its own menu in the top row rather than a gear on the right, and it holds
 different things for different people: an administrator sees data sources, users, groups, alert
 destinations and the organisation's settings; everybody else sees their snippets and their own account.</p>
@@ -205,11 +245,12 @@ they are small by construction and are the part that has to survive a restart.</
 <footer>
   <div class="wrap">
     <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
-       <a href="../roadmap.html">Releases</a> &nbsp;&middot;&nbsp;
+       <a href="../releases.html">Releases</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
   </div>
 </footer>
 
+<script src="../assets/theme.js" defer></script>
 </body>
 </html>

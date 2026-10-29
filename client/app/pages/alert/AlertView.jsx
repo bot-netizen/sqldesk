@@ -19,6 +19,7 @@ import Query from "./components/Query";
 import AlertDestinations from "./components/AlertDestinations";
 import HorizontalFormItem from "./components/HorizontalFormItem";
 import AlertAttachments from "./components/AlertAttachments";
+import AlertHistory from "./components/AlertHistory";
 import { clientConfig } from "@/services/auth";
 import { STATE_CLASS } from "../alerts/AlertsList";
 import DynamicComponent from "@/components/DynamicComponent";
@@ -123,6 +124,7 @@ export default class AlertView extends React.Component {
               </Form>
             </Grid.Col>
             <Grid.Col xs={24} md={8}>
+              <AlertHistory history={alert.history} fires24h={alert.fires_24h} />
               {options.muted && (
                 <AntAlert
                   className="m-b-20"

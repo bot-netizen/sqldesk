@@ -5,11 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MCP — SQLDesk docs</title>
 <meta name="description" content="Connecting an MCP client to SQLDesk, the tools it gets, and the audit of what it did.">
+<meta property="og:title" content="MCP — SQLDesk docs">
+<meta property="og:description" content="Connecting an MCP client to SQLDesk, the tools it gets, and the audit of what it did.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://sqldesk.org/guide/mcp.html">
+<meta property="og:image" content="https://sqldesk.org/assets/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SQLDesk: one place for everything you do with data">
+<meta property="og:site_name" content="SQLDesk">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sqldesk.org/assets/social-card.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
+<script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
 
@@ -28,12 +40,22 @@
     </a>
     <nav>
       <a href="../index.html">Overview</a>
-      <a href="../why.html">Why SQLDesk</a>
-      <a href="../performance.html" class="hide-sm">Performance</a>
-      <a href="../roadmap.html">Roadmap</a>
-      <a href="../blog/index.html">Blog</a>
       <a href="../guide/overview.html" aria-current="page">Docs</a>
+      <a href="../blog/index.html">Blog</a>
+      <a href="../releases.html">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+      <button class="theme-toggle" type="button" data-theme-toggle
+              aria-label="Switch to dark mode" title="Switch to dark mode">
+        <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.7 5.7 0 1 0 7.1 7.1Z"/>
+        </svg>
+        <svg class="sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="3.1"/>
+          <path d="M8 1v1.6M8 13.4V15M15 8h-1.6M2.6 8H1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1M12.9 12.9l-1.1-1.1M4.2 4.2 3.1 3.1"/>
+        </svg>
+      </button>
     </nav>
   </div>
 </header>
@@ -57,7 +79,7 @@
       <a href="administration.html">Administration</a>
       <a href="deploying.html">Deploying</a>
       <h4>Reference</h4>
-      <a href="../roadmap.html">Releases &amp; roadmap</a>
+      <a href="../releases.html">Releases</a>
   </nav>
   <main class="doc-body">
 <h1>MCP</h1>
@@ -240,13 +262,30 @@ somebody already answered this".</p>
 <h3>Look for work that already exists</h3>
 <dl>
   <dt><code>find_queries(question)</code></dt>
-  <dd>Saved queries matching, with their descriptions. A saved query carries its author's
-    understanding of the data &mdash; which join is the right one, what a status means &mdash; and no
-    amount of schema carries that.</dd>
+  <dd>Saved queries matching, <strong>with their SQL</strong>, their description, who wrote it and who
+    last changed it. A saved query carries its author's understanding of the data &mdash; which join is
+    the right one, what a status means &mdash; and no amount of schema carries that. Until 0.7.7 this
+    returned everything about a query except the query, which made it a way to discover that the answer
+    existed and no way to use it: an agent found a verified query and then wrote its own SQL anyway. The
+    SQL comes back under the same rule the editor uses &mdash; only for data sources the caller may read.
+    Drafts are left out, including the caller's own: this answers "has somebody worked this out", and a
+    draft has not.</dd>
   <dt><code>find_dashboards(question)</code></dt>
-  <dd>Dashboards matching, with their addresses. Often the useful answer is a page that already
-    exists rather than a new query.</dd>
+  <dd>Dashboards matching, with their addresses, their owner, and whether a person has verified one.
+    Every dashboard the caller can see is searched, not the two hundred most recently updated &mdash; the
+    page somebody wants is often the one nobody has touched for a year, which is exactly the one that
+    fell off the end of that list.</dd>
 </dl>
+<div class="note">
+  <div class="note-h">One answer, written to be read</div>
+  <p>These used to come back twice &mdash; once as prose and again as MCP
+  <code>structuredContent</code> &mdash; so that a client would not have to parse "none" out of a
+  sentence meant for a person. Measured, the second copy was about 90% of the answer's bytes again,
+  and no tool here declares the <code>outputSchema</code> that would let a client depend on it, so
+  it was a question paid for twice. It is gone. If a typed answer is wanted it will come back with
+  the schema that makes it dependable, and the prose will shorten to a summary rather than repeat
+  it.</p>
+</div>
 
 <h3>Understand the data</h3>
 <dl>
@@ -285,6 +324,56 @@ somebody already answered this".</p>
   and no way to configure one &mdash; a tool server with more access than its user is a way to
   launder permissions.</p>
 </div>
+
+<h3 id="writing">What an agent may write</h3>
+<p>Four tools change something, and they are offered only to a <strong>personal API key</strong> &mdash;
+never to a client signed in over OAuth, which carries <code>mcp:read</code>. Each one lands somewhere a
+person reviews, because a tool that could publish, verify or approve would be a tool that hands out
+trust.</p>
+<dl>
+  <dt><code>update_table(name, description)</code></dt>
+  <dd>Writes what a table is for. Needs <strong>Manage catalog</strong>. It will not replace a
+    description a person wrote unless <code>overwrite</code> is set, the catalog page marks what it wrote
+    <em>via MCP</em> with the name on the key that wrote it, and the card an agent reads next is rebuilt
+    at once rather than at the next harvest. Hiding a table is <em>not</em> here: that decides what
+    everybody is offered, so it stays in Admin &rarr; Catalog with the table in front of you.</dd>
+  <dt><code>save_query(name, sql, data_source)</code></dt>
+  <dd>Saves SQL worth keeping as a <strong>draft</strong> query, owned by the key's user. A draft is off
+    the Queries list and out of the dashboard picker until a person opens it and publishes it. Needs the
+    same permission as creating a query in the browser, full access to the data source, and the SQL must
+    be a single read &mdash; what is saved is what somebody will press Run on.</dd>
+  <dt><code>update_query(id, sql | name | description)</code></dt>
+  <dd>Changes a draft the caller could edit in the browser, and records a version, so the query's
+    history shows what the agent changed and when. A published query is read by other people's
+    dashboards and alerts: it is refused, with the suggestion to open it in SQLDesk.</dd>
+  <dt><code>save_visualization(query_id, kind, &hellip;)</code></dt>
+  <dd>Draws a draft query's result: <code>chart</code> (with <code>x</code>, <code>y</code>, and
+    optionally <code>series</code> and a <code>chart_type</code> of column, bar, line, area, pie or
+    scatter), <code>counter</code> (with <code>column</code>) or <code>table</code>. Same rule as
+    editing: a draft the caller could edit in the browser. A published query's page is read by other
+    people, and a chart appearing on it that nobody added is the same surprise as its SQL changing.</dd>
+  <dt><code>save_dashboard(name, visualizations)</code></dt>
+  <dd>Makes a <strong>draft</strong> dashboard from visualization ids, two to a row in the order
+    given. Needs the same permission as creating a dashboard in the browser &mdash; separate from
+    writing queries, because being allowed to do the two things is separate. Every visualization has
+    to be on a query whose data source the caller can read, so a dashboard cannot be used to show
+    somebody a result they could not have run themselves. A bad id refuses the whole call rather
+    than leaving half a dashboard behind.</dd>
+  <dt><code>propose_measure(name, table, kind, column)</code></dt>
+  <dd>Proposes a number and what it means, for a curator to agree or deny under Admin &rarr; Catalog
+    &rarr; Measures. A proposed measure reaches no other agent until somebody signs it off: a definition
+    of revenue that is merely plausible is worse than none. A measure already agreed is not proposed
+    over; a denied one goes back on the list rather than quietly becoming true.</dd>
+</dl>
+<p>The three together are the point: <code>save_query</code> keeps the SQL,
+<code>save_visualization</code> gives it a shape, <code>save_dashboard</code> puts it somewhere
+somebody will look. All three produce drafts, so what an agent builds is waiting for a person rather
+than already in front of everybody.</p>
+<p>Every write is capped at <strong>fifty a day per person</strong>
+(<code>SQLDESK_MCP_WRITES_PER_DAY</code>, 0 for no limit). An agent told to describe a warehouse will
+describe the whole warehouse, and a loop getting it wrong will do it just as fast; fifty keeps a mistake
+to a morning's review. The audit records each write's <em>before and after</em>, and Admin &rarr; Catalog
+has a filter for exactly what an agent wrote.</p>
 
 <h3 id="reads-only">Only reads</h3>
 <p><code>run_query</code> and <code>explain_query</code> refuse anything but a single read: a write,
@@ -344,7 +433,10 @@ Administrators reach the same page under <strong>Admin</strong>, where it also c
 <p>Admin &rarr; MCP. Every request leaves a row, <em>including the refused ones</em> — a key that does not
 work, tried repeatedly, is exactly what an audit is for. Each row records who, when, which method, which
 tool, the outcome, how long it took, and where it came from.</p>
-<p>Arguments are summarised rather than stored: the question is worth keeping, a megabyte of SQL is not.</p>
+<p>Arguments are summarised rather than stored: the question is worth keeping, a megabyte of SQL is not.
+A write records what it changed instead &mdash; the table and its description before and after, or the
+query it saved &mdash; because "update_table ok" does not answer the question anybody brings to an audit
+of an agent's writes.</p>
 <p>The page also shows <strong>active sessions</strong> — clients seen in the last fifteen minutes. This
 transport holds no connection open, so "connected" can only honestly mean "recently active", and the
 page says so rather than showing a light that implies otherwise.</p>
@@ -379,11 +471,12 @@ profile (see <a href="deploying.html#mcp-catalog">Deploying</a>). Either way the
 <footer>
   <div class="wrap">
     <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
-       <a href="../roadmap.html">Releases</a> &nbsp;&middot;&nbsp;
+       <a href="../releases.html">Releases</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
   </div>
 </footer>
 
+<script src="../assets/theme.js" defer></script>
 </body>
 </html>

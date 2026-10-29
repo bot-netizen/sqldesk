@@ -69,7 +69,9 @@ class Sqlite(BaseSQLQueryRunner):
                 error = "Query completed but it returned no data."
                 data = None
         except (KeyboardInterrupt, JobTimeoutException):
-            connection.cancel()
+            # `interrupt`, the method sqlite3 has. `cancel` does not exist, so
+            # the AttributeError replaced the timeout and nothing was stopped.
+            connection.interrupt()
             raise
         finally:
             connection.close()

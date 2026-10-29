@@ -102,14 +102,14 @@ class SlackApp(BaseDestination):
 
     def _text(self, alert, query, new_state, host):
         if new_state == "triggered":
-            headline = alert.custom_subject or "{} just triggered".format(alert.name)
+            headline = alert.subject_for(escape=False) or "{} just triggered".format(alert.name)
         else:
             headline = "{} went back to normal".format(alert.name)
 
         lines = ["*{}*".format(headline)]
-        if alert.custom_body:
+        if alert.body_for(escape=False):
             # Exactly as written. A custom body is not ours to append to.
-            lines.append(alert.custom_body[:MAX_TEXT])
+            lines.append(alert.body_for(escape=False)[:MAX_TEXT])
         lines.append("<{}/alerts/{}|the alert> · <{}/queries/{}|the query>".format(host, alert.id, host, query.id))
         return "\n".join(lines)
 

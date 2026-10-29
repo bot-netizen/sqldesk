@@ -12,6 +12,7 @@ from sqldesk.query_runner import (
     TYPE_STRING,
     BaseSQLQueryRunner,
     NotSupported,
+    has_odbc_driver,
     register,
     split_sql_statements,
 )
@@ -55,7 +56,7 @@ class Databricks(BaseSQLQueryRunner):
 
     @classmethod
     def enabled(cls):
-        return enabled
+        return enabled and has_odbc_driver("Simba")
 
     @classmethod
     def configuration_schema(cls):

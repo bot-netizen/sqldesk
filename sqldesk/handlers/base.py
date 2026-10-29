@@ -55,7 +55,8 @@ class BaseResource(Resource):
             setattr(model, k, v)
 
 
-def record_event(org, user, options):
+def _attributed(org, user, options):
+    """One event, with who did it and from where filled in."""
     if user.is_api_user():
         options.update({"api_key": user.name, "org_id": org.id})
     else:
@@ -65,8 +66,25 @@ def record_event(org, user, options):
 
     if "timestamp" not in options:
         options["timestamp"] = int(time.time())
+    return options
 
-    record_event_task.delay(options)
+
+def record_event(org, user, options):
+    record_event_task.delay(_attributed(org, user, options))
+
+
+def record_events(org, user, events):
+    """
+    A page's worth of events as one job.
+
+    The browser batches what happened in the last second and posts it in one
+    request; each event then became a job of its own, which on a dashboard of
+    thirty widgets was about seventy-five jobs for seventy-five small
+    inserts.
+    """
+    if not events:
+        return
+    record_event_task.delay([_attributed(org, user, event) for event in events])
 
 
 def require_fields(req, fields):

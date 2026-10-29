@@ -45,14 +45,42 @@ export class TooBigToExport extends Error {
   }
 }
 
+export const PDF = "pdf";
+export const PNG = "png";
+
 /*
   Why a grid of this size cannot be exported, or null if it can.
   `width` and `height` are the grid's, in CSS pixels.
+
+  **The one-page rule is the PDF's, and only the PDF's.** A PDF is A4
+  landscape, so a dashboard past one page of it is the eleven-page document
+  nobody opens, and the widget count is what keeps a report quick to make.
+
+  A picture has no pages. `composeExportCanvas` sizes its canvas to whatever
+  the dashboard turns out to be, and the only ceiling is the one the browser
+  puts on a canvas -- which `captureScale` answers by drawing smaller rather
+  than refusing. Asking the picture to obey the report's rule is what made
+  "download an image" refuse a thirteen-widget dashboard it could have drawn
+  perfectly well, and the refusal named a page size for a file that has none.
 */
-export function tooBigToExport({ width, height, widgets }) {
+export function tooBigToExport({ width, height, widgets, format = PDF }) {
   const pageWidth = width + PAGE_FURNITURE.width;
-  const pageHeight = pageWidth * (A4_LANDSCAPE.height / A4_LANDSCAPE.width);
   const needed = height + PAGE_FURNITURE.height;
+
+  if (format === PNG) {
+    // One question only: at the smallest scale a capture will fall back to,
+    // will the browser allocate the canvas? Below that there is no picture
+    // to be had, however patient anybody is.
+    if (pageWidth * needed * MIN_CAPTURE_SCALE * MIN_CAPTURE_SCALE <= MAX_CANVAS_PIXELS) {
+      return null;
+    }
+    return (
+      `This dashboard is ${Math.round(width)}\u00d7${Math.round(height)} pixels, which is larger than any image ` +
+      "the browser will make. Put the widgets that matter on a dashboard of their own, or share its link."
+    );
+  }
+
+  const pageHeight = pageWidth * (A4_LANDSCAPE.height / A4_LANDSCAPE.width);
   const pages = Math.ceil(needed / pageHeight);
 
   if (widgets <= MAX_WIDGETS && needed <= pageHeight * ONE_PAGE_STRETCH) {
@@ -61,23 +89,24 @@ export function tooBigToExport({ width, height, widgets }) {
   const size =
     widgets > MAX_WIDGETS ? `This dashboard has ${widgets} widgets` : `This dashboard would need ${pages} pages`;
   return (
-    `Export makes a one-page report: up to ${MAX_WIDGETS} widgets, one page tall. ${size}. ` +
-    "Share its link instead, or put the widgets that matter on a dashboard of their own."
+    `A PDF is a one-page report: up to ${MAX_WIDGETS} widgets, one page tall. ${size}. ` +
+    "Download it as an image instead, which has no page to fit on, or share its link."
   );
 }
 
 // The same question about a dashboard on the page. Exported so the button
 // can ask it before it starts anything, and answer at once.
-export function exportSizeProblem(element) {
+export function exportSizeProblem(element, format = PDF) {
   return tooBigToExport({
     width: element.scrollWidth,
     height: element.scrollHeight,
     widgets: element.querySelectorAll(".react-grid-item").length,
+    format,
   });
 }
 
-function checkSize(element) {
-  const reason = exportSizeProblem(element);
+function checkSize(element, format) {
+  const reason = exportSizeProblem(element, format);
   if (reason) {
     throw new TooBigToExport(reason);
   }
@@ -94,10 +123,17 @@ function checkSize(element) {
 */
 const MAX_CANVAS_PIXELS = 16000000;
 
+/*
+  How far a capture will shrink to stay under that ceiling. Past this it is
+  a picture of a dashboard nobody can read, which is not worth making -- so
+  this is also the point at which an image export says no.
+*/
+const MIN_CAPTURE_SCALE = 0.5;
+
 export function captureScale(width, height) {
   const area = Math.max(1, width) * Math.max(1, height);
   const fits = Math.sqrt(MAX_CANVAS_PIXELS / area);
-  return Math.max(0.5, Math.min(CAPTURE_SCALE, fits));
+  return Math.max(MIN_CAPTURE_SCALE, Math.min(CAPTURE_SCALE, fits));
 }
 
 /*
@@ -469,10 +505,10 @@ async function captureGrid(container, { scale, background }) {
 
 // Capture once, then lay it onto the branded page. Both exports share this
 // so a PDF and an image of the same dashboard are the same artefact.
-async function capturePage(element, { title, owner }) {
+async function capturePage(element, { title, owner, format }) {
   // Before anything is drawn: the answer for a dashboard that is too big
   // should be immediate, not the end of a wait.
-  checkSize(element);
+  checkSize(element, format);
   await withTimeout(drawEverything(), 5000, "Drawing the widgets");
   const skippedImages = foreignImageCount(element);
   // Sized for the finished page, header and margins included: those are
@@ -510,7 +546,7 @@ async function capturePage(element, { title, owner }) {
   a map with no map on it and no explanation.
 */
 export async function renderDashboardToPng(element, { title, owner } = {}) {
-  const { canvas, skippedImages, failedWidgets } = await capturePage(element, { title, owner });
+  const { canvas, skippedImages, failedWidgets } = await capturePage(element, { title, owner, format: PNG });
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
   return { blob, skippedImages, failedWidgets };
 }
@@ -533,7 +569,7 @@ function jpegBytesOf(canvas) {
 }
 
 export async function renderDashboardToPdf(element, { title, owner } = {}) {
-  const { canvas, skippedImages, failedWidgets } = await capturePage(element, { title, owner });
+  const { canvas, skippedImages, failedWidgets } = await capturePage(element, { title, owner, format: PDF });
   const pdf = buildSingleImagePdf({
     jpegBytes: jpegBytesOf(canvas),
     imageWidth: canvas.width,

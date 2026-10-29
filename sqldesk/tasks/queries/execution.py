@@ -1,7 +1,5 @@
 import signal
-import sys
 import time
-from collections import deque
 
 import redis
 from rq import get_current_job
@@ -25,8 +23,37 @@ def _job_lock_id(query_hash, data_source_id):
     return "query_hash_job:%s:%s" % (data_source_id, query_hash)
 
 
-def _unlock(query_hash, data_source_id):
-    redis_connection.delete(_job_lock_id(query_hash, data_source_id))
+#: Delete the lock only if it still names this job.
+#:
+#: `DELETE` on its own dropped whatever was there, so a finishing job released
+#: the lock a *newer* job had already taken -- and the next request for that
+#: query started a third run of it, against the data source, while the second
+#: was still going. Two executions of the same query is what the lock exists
+#: to prevent, and the race is likeliest exactly when it matters: the same
+#: query asked for repeatedly, by a dashboard full of widgets.
+_UNLOCK_IF_MINE = """
+if redis.call('get', KEYS[1]) == ARGV[1] then
+    return redis.call('del', KEYS[1])
+end
+return 0
+"""
+
+
+def _unlock(query_hash, data_source_id, job_id=None):
+    """Release the lock, unless another job has taken it since."""
+    key = _job_lock_id(query_hash, data_source_id)
+    if job_id is None:
+        # Nothing to compare against: the old behaviour, for a caller that
+        # does not know which job it is.
+        redis_connection.delete(key)
+        return
+    try:
+        redis_connection.eval(_UNLOCK_IF_MINE, 1, key, job_id)
+    except redis.ResponseError:
+        # A Redis with scripting turned off. Dropping the lock is worse than
+        # leaving it: a stale lock is cleared by enqueue_query, which checks
+        # whether the job it names is still alive.
+        logger.warning("Could not release the lock for %s with a script.", query_hash, exc_info=True)
 
 
 def enqueue_query(query, data_source, user_id, is_api_key=False, scheduled_query=None, metadata={}, queue_name=None):
@@ -108,7 +135,7 @@ def enqueue_query(query, data_source, user_id, is_api_key=False, scheduled_query
                 }
 
                 if not scheduled_query:
-                    enqueue_kwargs["result_ttl"] = settings.JOB_EXPIRY_TIME
+                    enqueue_kwargs["result_ttl"] = settings.JOB_RESULT_TTL
 
                 job = queue.enqueue(execute_query, query, data_source.id, metadata, **enqueue_kwargs)
 
@@ -156,28 +183,24 @@ def _resolve_user(user_id, is_api_key, query_id):
         return None
 
 
-def _get_size_iterative(dict_obj):
-    """Iteratively finds size of objects in bytes"""
-    seen = set()
-    size = 0
-    objects = deque([dict_obj])
+def _shape_of(data):
+    """
+    How big the result is, for the log line, in rows and columns.
 
-    while objects:
-        current = objects.popleft()
-        if id(current) in seen:
-            continue
-        seen.add(id(current))
-        size += sys.getsizeof(current)
-
-        if isinstance(current, dict):
-            objects.extend(current.keys())
-            objects.extend(current.values())
-        elif hasattr(current, "__dict__"):
-            objects.append(current.__dict__)
-        elif hasattr(current, "__iter__") and not isinstance(current, (str, bytes, bytearray)):
-            objects.extend(current)
-
-    return size
+    This used to be the result's size in bytes, measured by walking every
+    object in it and keeping the id of each one in a set: on a 200,000-row
+    result that was 1.9 seconds of a 2.3-second write, spent entirely on one
+    line of logging. Rows and columns answer the question people actually
+    bring to that line -- "was this a big result" -- and cost two lookups.
+    """
+    if not isinstance(data, dict):
+        return "unknown"
+    rows = data.get("rows")
+    columns = data.get("columns")
+    try:
+        return "{} rows x {} columns".format(len(rows), len(columns))
+    except TypeError:
+        return "unknown"
 
 
 class QueryExecutor:
@@ -237,10 +260,10 @@ class QueryExecutor:
         run_time = time.time() - started_at
 
         logger.info(
-            "job=execute_query query_hash=%s ds_id=%d data_length=%s error=[%s]",
+            "job=execute_query query_hash=%s ds_id=%d data=%s error=[%s]",
             self.query_hash,
             self.data_source_id,
-            data and _get_size_iterative(data),
+            data and _shape_of(data),
             error,
         )
 
@@ -291,7 +314,12 @@ class QueryExecutor:
             # Safe on the failure path too: a lock left behind by a job that
             # died is cleared by enqueue_query, which drops any lock whose job
             # has finished, failed or expired.
-            _unlock(self.query_hash, self.data_source.id)
+            #
+            # And only if the lock is still this job's: a plain delete here
+            # released a lock a newer job had taken, so the next request for
+            # the same query started a third run of it while the second was
+            # still going.
+            _unlock(self.query_hash, self.data_source.id, self.job.id if self.job else None)
 
     def _annotate_query(self, query_runner):
         self.metadata["Job ID"] = self.job.id

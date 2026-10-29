@@ -252,11 +252,49 @@ def serialize_widget(object):
 
     if object.visualization and object.visualization.id:
         d["visualization"] = serialize_visualization(object.visualization)
+        d["tab_visualizations"] = _serialize_widget_tabs(object)
 
     return d
 
 
-def serialize_alert(alert, full=True):
+def _serialize_widget_tabs(widget):
+    """
+    The other visualizations this widget offers as tabs, in the saved order.
+
+    Without their query: every tab is a visualization of the widget's own
+    query, which is already on `visualization`, and repeating a serialized
+    query per tab would put several copies of the same SQL, schedule and data
+    source into a dashboard payload that is already the heaviest thing the
+    application sends.
+
+    Unknown ids are skipped rather than left as holes. A visualization can be
+    deleted while a widget still names it, and a dashboard is not the place to
+    discover that.
+    """
+    ids = (widget.options or {}).get("tabs")
+    if not isinstance(ids, list) or not ids:
+        return []
+
+    found = {
+        row.id: row
+        for row in models.Visualization.query.filter(
+            models.Visualization.id.in_([one for one in ids if isinstance(one, int)]),
+            models.Visualization.query_id == widget.visualization.query_id,
+        )
+    }
+    return [serialize_visualization(found[one], with_query=False) for one in ids if one in found]
+
+
+def serialize_alert_fire(fire):
+    return {
+        "state": fire.state,
+        "value": fire.value,
+        "notified": fire.notified,
+        "created_at": fire.created_at,
+    }
+
+
+def serialize_alert(alert, full=True, fires_24h=None, with_history=False):
     d = {
         "id": alert.id,
         "name": alert.name,
@@ -267,6 +305,17 @@ def serialize_alert(alert, full=True):
         "created_at": alert.created_at,
         "rearm": alert.rearm,
     }
+
+    # Counted for the whole list in one query and handed in, rather than each
+    # alert asking for its own: the list already costs a query and a user per
+    # row without adding a third.
+    if fires_24h is not None:
+        d["fires_24h"] = fires_24h
+
+    # Only where somebody opened the alert. On the list it would be a query
+    # per row for something nobody is reading yet.
+    if with_history:
+        d["history"] = [serialize_alert_fire(fire) for fire in alert.recent_fires()]
 
     if full:
         d["query"] = serialize_query(alert.query_rel)

@@ -202,12 +202,36 @@ def test_asana_notify_calls_requests_post():
         assert mock_response.status_code == 204
 
 
-def test_slack_notify_calls_requests_post():
-    alert = mock.Mock(spec_set=["id", "name", "custom_subject", "custom_body", "render_template"])
+def test_slack_asks_for_the_unescaped_rendering():
+    # Slack is not HTML. Escaped, a value containing `&` arrives reading
+    # `&amp;` and one containing `<` reads `&lt;`.
+    alert = mock.Mock(spec_set=["id", "name", "subject_for", "body_for", "render_template"])
     alert.id = 1
     alert.name = "Test Alert"
-    alert.custom_subject = "Test custom subject"
-    alert.custom_body = "Test custom body"
+    alert.subject_for = mock.Mock(return_value="subject")
+    alert.body_for = mock.Mock(return_value="body")
+    query = mock.Mock()
+    query.id = 1
+
+    with mock.patch("sqldesk.destinations.slack.requests.post"):
+        Slack({"url": "https://slack.com/api/api.test"}).notify(
+            alert, query, mock.Mock(), Alert.TRIGGERED_STATE, mock.Mock(), "https://localhost:5000", {}, {"url": "x"}
+        )
+
+    alert.body_for.assert_called_with(escape=False)
+    alert.subject_for.assert_called_with(escape=False)
+
+
+def test_slack_notify_calls_requests_post():
+    # `body_for`/`subject_for` rather than the `custom_*` properties: Slack is
+    # not HTML, so it asks for the unescaped rendering. The properties still
+    # exist and still mean the escaped form, for the destinations that send
+    # HTML or plain text.
+    alert = mock.Mock(spec_set=["id", "name", "subject_for", "body_for", "render_template"])
+    alert.id = 1
+    alert.name = "Test Alert"
+    alert.subject_for = mock.Mock(return_value="Test custom subject")
+    alert.body_for = mock.Mock(return_value="Test custom body")
 
     alert.render_template = mock.Mock(return_value={"Rendered": "template"})
     query = mock.Mock()

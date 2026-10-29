@@ -307,10 +307,14 @@ class Mysql(BaseSQLQueryRunner):
         said otherwise. The worst kind of security control is the one that reports
         success.
         """
+        mode = (self.configuration.get("ssl_mode") or "").strip().lower()
+        # A mode that insists on TLS means it, ticked box or not: choosing
+        # Verify Identity without also ticking Use SSL used to decide nothing,
+        # and the connection took whatever the server offered.
+        if mode in ("required", "verify-ca", "verify-identity"):
+            return self.SSL_MODES[mode]
         if not self.configuration.get("use_ssl"):
             return None
-
-        mode = (self.configuration.get("ssl_mode") or "").strip().lower()
         return self.SSL_MODES.get(mode)
 
     def _cancel(self, thread_id):

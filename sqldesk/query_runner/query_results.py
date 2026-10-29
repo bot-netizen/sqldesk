@@ -154,6 +154,7 @@ def prepare_parameterized_query(query, query_params):
 
 
 class Results(BaseQueryRunner):
+    query_language = "query_results"
     should_annotate_query = False
     noop_query = "SELECT 1"
 

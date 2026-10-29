@@ -39,16 +39,14 @@ BRAND = """<svg viewBox="0 0 120 120" aria-hidden="true">
 # (file, label, hide on narrow screens)
 SITE_NAV = [
     ("index.html", "Overview", False),
-    ("why.html", "Why SQLDesk", False),
-    ("performance.html", "Performance", True),
-    ("roadmap.html", "Roadmap", False),
-    ("blog/index.html", "Blog", False),
     ("guide/overview.html", "Docs", False),
+    ("blog/index.html", "Blog", False),
+    ("releases.html", "Releases", False),
 ]
 
 #: Pages that live at the root and keep their own stylesheet, so only their
 #: header nav is rewritten.
-TOP_LEVEL = ["index.html", "why.html", "performance.html", "roadmap.html"]
+TOP_LEVEL = ["index.html", "releases.html"]
 
 
 def site_nav(prefix, current):
@@ -62,6 +60,20 @@ def site_nav(prefix, current):
         mark = ' aria-current="page"' if href == current else ""
         out.append('      <a href="{}{}"{}{}>{}</a>'.format(prefix, href, cls, mark, label))
     out.append('      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>')
+    out.append(
+        """      <button class="theme-toggle" type="button" data-theme-toggle
+              aria-label="Switch to dark mode" title="Switch to dark mode">
+        <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.7 5.7 0 1 0 7.1 7.1Z"/>
+        </svg>
+        <svg class="sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="3.1"/>
+          <path d="M8 1v1.6M8 13.4V15M15 8h-1.6M2.6 8H1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1M12.9 12.9l-1.1-1.1M4.2 4.2 3.1 3.1"/>
+        </svg>
+      </button>"""
+    )
     return "\n".join(out)
 
 
@@ -108,11 +120,12 @@ PAGES = [
     ("queries.html", "Queries and parameters", "Using SQLDesk"),
     ("visualizations.html", "Visualizations", "Using SQLDesk"),
     ("dashboards.html", "Dashboards and textboxes", "Using SQLDesk"),
+    ("streams.html", "Streams", "Using SQLDesk"),
     ("alerts.html", "Alerts", "Using SQLDesk"),
     ("mcp.html", "MCP", "AI"),
     ("administration.html", "Administration", "Running it"),
     ("deploying.html", "Deploying", "Running it"),
-    ("../roadmap.html", "Releases &amp; roadmap", "Reference"),
+    ("../releases.html", "Releases", "Reference"),
 ]
 
 
@@ -167,11 +180,23 @@ def render(filename, description, body):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} \u2014 SQLDesk docs</title>
 <meta name="description" content="{description}">
+<meta property="og:title" content="{title} \u2014 SQLDesk docs">
+<meta property="og:description" content="{description}">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://sqldesk.org/guide/{filename}">
+<meta property="og:image" content="https://sqldesk.org/assets/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SQLDesk: one place for everything you do with data">
+<meta property="og:site_name" content="SQLDesk">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sqldesk.org/assets/social-card.png">
 <link rel="icon" href="{icon}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
+<script>document.documentElement.classList.add("js");try{{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}}catch(e){{}}</script>
 </head>
 <body>
 
@@ -200,16 +225,18 @@ def render(filename, description, body):
 <footer>
   <div class="wrap">
     <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
-       <a href="../roadmap.html">Releases</a> &nbsp;&middot;&nbsp;
+       <a href="../releases.html">Releases</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
   </div>
 </footer>
 
+<script src="../assets/theme.js" defer></script>
 </body>
 </html>
 """.format(
         title=title,
+        filename=filename,
         description=description,
         icon=ICON,
         brand=BRAND,
@@ -224,8 +251,13 @@ def main():
     docs = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
     changed = []
 
-    # The guide, whose whole frame is generated.
+    # The guide, whose whole frame is generated. An entry reaching outside
+    # guide/ is a sidebar link to a page that keeps its own frame -- it
+    # belongs in the list so it appears in the contents, not in this loop,
+    # which would look for a guide body it does not have.
     for filename, _title, _section in PAGES:
+        if filename.startswith("../"):
+            continue
         path = os.path.join(docs, "guide", filename)
         before = open(path).read()
         after = render(filename, _description(path), _read(path))

@@ -50,7 +50,17 @@ class TestStartingConsumers(StreamTaskTestCase):
         with mock.patch.object(tasks.consume_stream, "delay") as started:
             self.assertEqual(1, tasks.supervise_streams())
 
-        started.assert_called_once_with(stream.id)
+        started.assert_called_once_with(stream.id, job_id=tasks._job_id(stream.id))
+
+    def test_not_again_while_one_is_still_waiting_for_a_worker(self):
+        """Queued each minute while the workers were busy, they piled up and then ran back to back."""
+        self.stream(pinned=True)
+
+        with mock.patch.object(tasks, "_queued", return_value=True):
+            with mock.patch.object(tasks.consume_stream, "delay") as started:
+                tasks.supervise_streams()
+
+        started.assert_not_called()
 
     def test_and_none_for_a_stream_nobody_is_watching(self):
         # A stream's cost is continuous, unlike a query's, so an unwatched one
@@ -150,7 +160,31 @@ class TestOneConsumerJob(StreamTaskTestCase):
             with mock.patch.object(tasks.consume_stream, "delay") as again:
                 tasks.consume_stream(stream.id)
 
-        again.assert_called_once_with(stream.id)
+        again.assert_called_once_with(stream.id, at_front=True)
+
+    def test_a_worker_told_to_stop_hands_over_rather_than_being_killed(self):
+        """
+        Its pod has 120 seconds; a consumer runs for five minutes. Told to stop,
+        it finishes the flush in hand and hands over, and the successor runs
+        on the new pod.
+        """
+        stream = self.stream(pinned=True)
+        seen = {"flushes": 0}
+
+        def consume(_stream, _broker, should_continue, **_kwargs):
+            while should_continue():
+                seen["flushes"] += 1
+
+        answers = iter([False, False, False, True])
+        with mock.patch.object(tasks, "shutting_down", side_effect=lambda: next(answers, True)):
+            with mock.patch.object(tasks, "consume", side_effect=consume):
+                with mock.patch.object(tasks.consume_stream, "delay") as again:
+                    with mock.patch.object(tasks.handover, "give") as given:
+                        tasks.consume_stream(stream.id)
+
+        self.assertEqual(2, seen["flushes"])
+        given.assert_called_once()
+        again.assert_called_once_with(stream.id, at_front=True)
 
     def test_but_not_when_its_stream_has_gone_quiet(self):
         stream = self.stream(last_viewed_at=utcnow() - datetime.timedelta(seconds=30))
@@ -471,7 +505,7 @@ class TestSlotsAndStates(BaseTestCase):
         with mock.patch.object(tasks.consume_stream, "delay") as delayed:
             self.assertEqual(1, tasks.supervise_streams())
 
-        delayed.assert_called_once_with(stream.id)
+        delayed.assert_called_once_with(stream.id, job_id=tasks._job_id(stream.id))
         self.assertIn(stream.id, slots.held())
 
     def test_a_paused_stream_is_not_started(self):

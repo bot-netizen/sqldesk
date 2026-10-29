@@ -51,18 +51,22 @@ DIALECTS = {
     "vertica": "postgres",
 }
 
+
 #: Runners whose "SQL" is not SQL. Parsing a Mongo aggregation as SQL produces
 #: nonsense findings, so the button says it does not apply rather than lying.
-NOT_SQL = {
-    "elasticsearch",
-    "elasticsearch2",
-    "mongodb",
-    "google_spreadsheets",
-    "json",
-    "influxdb",
-    "prometheus",
-    "url",
-}
+def is_sql(data_source_type):
+    """
+    Whether this kind of data source is worth parsing as SQL.
+
+    Asked of the runner rather than of a list kept here. The list had eight
+    types on it and the product has thirty-five: `mimir` was missing, so the
+    editor's panel parsed PromQL as SQL and reported a syntax error in a
+    perfectly good query -- the same gap MCP had, from the same cause. A
+    runner now says what language it speaks and both ask it.
+    """
+    from sqldesk.query_runner import LANGUAGE_SQL, query_language_for
+
+    return query_language_for(data_source_type) == LANGUAGE_SQL
 
 
 class Finding:
@@ -253,7 +257,7 @@ def analyze(sql, data_source_type=None):
     the panel reports, not an error page. Half-written SQL is the normal state
     of the editor.
     """
-    if data_source_type in NOT_SQL:
+    if not is_sql(data_source_type):
         return {
             "applicable": False,
             "reason": "This data source does not use SQL, so there is nothing to parse.",

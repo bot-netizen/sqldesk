@@ -43,6 +43,25 @@ const DEFAULT_OPTIONS = {
   referenceBands: [],
   window: { mode: "all", points: 50, minutes: 60 },
   zoom: "none",
+
+  // 0.7.10: what happens when several rows share an x -- a query keyed on
+  // more columns than the chart plots. It has always been a sum; now it can
+  // say so, and say otherwise. `sum` keeps every saved chart's numbers.
+  rollup: "sum",
+
+  // 0.7.10: stacked panels sharing one x axis, one cursor and one legend.
+  // One panel is the chart that has always been drawn, so every saved chart
+  // keeps its layout. Which panel a series is in lives in seriesOptions.
+  panels: 1,
+
+  // 0.7.8: one breakpoint that recolours bars by their own value, so a
+  // shortfall reads as a shortfall. `value: 0` with a colour below it is the
+  // case this exists for -- on a horizontal bar chart of variances, the sign
+  // is the whole point and a single series colour hides it.
+  //
+  // Off until a colour is chosen. `below`/`above` left null keep the series
+  // colour, so setting one of the two is a complete and sensible state.
+  valueThreshold: { enabled: false, value: 0, below: null, above: null },
 };
 
 // Written as numeral format strings because that is what every saved chart
@@ -70,7 +89,7 @@ export default function getOptions(options: any) {
     result.series.stacking = "stack";
   }
 
-  // Charts saved before the rename store color_scheme "Redash"
+  // Charts saved before the rename store color_scheme "Tealdash"
   result.color_scheme = resolveColorScheme(result.color_scheme);
 
   // A saved chart holds numeral format strings; the editor writes the shared

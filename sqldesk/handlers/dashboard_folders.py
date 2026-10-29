@@ -119,7 +119,12 @@ class DashboardFolderResource(BaseResource):
     @require_admin
     def delete(self, folder_id):
         folder = self._folder(folder_id)
-        held = models.Dashboard.query.filter(models.Dashboard.folder_id == folder.id).count()
+        # Archived dashboards do not count: the page shows the folder as empty
+        # and nothing lists archived dashboards to move them out, so a folder
+        # holding only those could never be deleted. They are unfiled with it.
+        held = models.Dashboard.query.filter(
+            models.Dashboard.folder_id == folder.id, models.Dashboard.is_archived.is_(False)
+        ).count()
         if held:
             # Rather than quietly unfiling them. Deleting a folder that holds a
             # set somebody curated should be a decision about those dashboards,
@@ -130,6 +135,11 @@ class DashboardFolderResource(BaseResource):
                     held, "" if held == 1 else "s"
                 ),
             )
+        # The archived ones it still holds are unfiled first, straight on the
+        # rows so none of them gets a new version for it.
+        models.db.session.execute(
+            models.Dashboard.__table__.update().where(models.Dashboard.folder_id == folder.id).values(folder_id=None)
+        )
         models.db.session.delete(folder)
         models.db.session.commit()
         self.record_event({"action": "delete", "object_id": folder_id, "object_type": "dashboard_folder"})
@@ -166,8 +176,11 @@ class DashboardFolderAssignmentResource(BaseResource):
         else:
             require_object_modify_permission(dashboard, self.current_user)
 
-        dashboard.folder = target
-        models.db.session.commit()
+        # Without a new version, so whoever is editing it is not told their
+        # save conflicts with a move they cannot see.
+        from sqldesk.handlers.dashboards import _write_without_a_new_version
+
+        _write_without_a_new_version(dashboard, folder_id=target.id if target else None)
         self.record_event(
             {
                 "action": "move_to_folder",

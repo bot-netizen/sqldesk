@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { get } from "lodash";
 import Alert from "antd/lib/alert";
 import Button from "antd/lib/button";
 import Checkbox from "antd/lib/checkbox";
@@ -31,6 +32,16 @@ import "./streams.less";
   an hour later that it is unparseable, or so fast that everything is sampled,
   is the afternoon this page exists to prevent.
 */
+
+/*
+  What the server said, not what axios says about it. axios's own message is
+  "Request failed with status code 400"; the reason -- "x.proto:2: Expected ;"
+  -- is in the response body, and it is the whole point of checking an upload
+  the moment it is chosen.
+*/
+export function serverMessage(error, fallback) {
+  return get(error, "response.data.message") || (error && error.message) || fallback;
+}
 
 function seconds(value) {
   if (!value) {
@@ -217,6 +228,10 @@ function MessageFormat({ topic, dataSourceId, onChange }) {
   const [problem, setProblem] = useState(null);
   const [checking, setChecking] = useState(false);
   const picker = useRef(null);
+  // Which upload check is current. Switching format, or choosing other files,
+  // while one is in flight makes its reply stale: it would otherwise set the
+  // message types of the schema somebody has moved on from.
+  const checked = useRef(0);
 
   // Whether the topic already has a schema for this format, kept on the server.
   const kept = topic && topic.value_format === format && (topic.schema_files || []).length > 0;
@@ -228,8 +243,10 @@ function MessageFormat({ topic, dataSourceId, onChange }) {
   }, [format, files, type, ready]);
 
   const choose = (value) => {
+    checked.current += 1;
     setFormat(value);
     setProblem(null);
+    setChecking(false);
     if (topic && topic.value_format === value) {
       setFiles(null);
       setNames(topic.schema_files || []);
@@ -250,6 +267,9 @@ function MessageFormat({ topic, dataSourceId, onChange }) {
     }
     setChecking(true);
     setProblem(null);
+    checked.current += 1;
+    const attempt = checked.current;
+    const stale = () => attempt !== checked.current;
     Promise.all(chosen.map(readText))
       .then((read) => {
         setFiles(read);
@@ -259,14 +279,20 @@ function MessageFormat({ topic, dataSourceId, onChange }) {
           schema_files: read,
         });
       })
-      .then((checked) => {
-        setTypes(checked.message_types || []);
-        setType(checked.message_type || null);
+      .then((result) => {
+        if (stale()) {
+          return;
+        }
+        setTypes(result.message_types || []);
+        setType(result.message_type || null);
       })
       .catch((error) => {
+        if (stale()) {
+          return;
+        }
         setTypes([]);
         setType(null);
-        setProblem((error && error.message) || "Those files could not be read.");
+        setProblem(serverMessage(error, "Those files could not be read."));
       })
       .finally(() => {
         setChecking(false);
@@ -583,7 +609,7 @@ function ManageTopics() {
       .then((data) => setTopics(data.topics))
       .catch((error) => {
         setTopics([]);
-        setProblem((error && error.message) || "Could not ask the cluster what topics it has.");
+        setProblem(serverMessage(error, "Could not ask the cluster what topics it has."));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -606,7 +632,7 @@ function ManageTopics() {
       axios
         .post(`api/data_sources/${chosen}/topics/${encodeURIComponent(topic)}/analyse`, body)
         .then((found) => setAnalysis((all) => ({ ...all, [topic]: { ...found, measured_at: new Date() } })))
-        .catch((error) => notification.error("Could not read that topic", (error && error.message) || ""))
+        .catch((error) => notification.error("Could not read that topic", serverMessage(error, "")))
         .finally(() => setAnalysing(null));
     },
     [chosen]
@@ -621,7 +647,7 @@ function ManageTopics() {
           notification.success(alreadyEnabled ? `How ${topic} is read was saved.` : `${topic} can now be queried.`);
           load(chosen);
         })
-        .catch((error) => notification.error("Could not enable that topic", (error && error.message) || ""))
+        .catch((error) => notification.error("Could not enable that topic", serverMessage(error, "")))
         .finally(() => setSaving(null));
     },
     [chosen, load]

@@ -135,6 +135,27 @@ whenever a second thing ran). Docker Desktop has 6 GB. **One heavy job at a
 time** — a webpack build alongside a test container and minikube wedged the
 daemon at 4 GB and took minikube's container with it.
 
+## The frontend checks when `pnpm` will not run
+
+Since node was upgraded to **26.10.0** on this machine, `pnpm` is gone:
+`/opt/homebrew/bin/pnpm` is a corepack symlink into the removed
+`Cellar/node/24.4.0`, and `package.json` pins `>=18.0.0 <26.0.0` anyway. CI
+installs node 24 and pnpm 10.30.3 itself, so only local runs are affected.
+
+The four checks `pnpm test` runs can be run straight off the installed
+`node_modules`, which is how 2026-10-25's verification was done:
+
+```bash
+node node_modules/typescript/bin/tsc --noEmit -p client/tsconfig.json
+TZ=Africa/Khartoum node node_modules/jest/bin/jest.js
+cd viz-lib && node ../node_modules/typescript/bin/tsc --noEmit
+cd viz-lib && node ../node_modules/jest/bin/jest.js
+```
+
+`node_modules/.bin/*` are shell wrappers, so `node node_modules/.bin/jest`
+fails with a syntax error — use the real entry points above. A `pnpm install`
+(and therefore cypress) still needs node 24 back.
+
 ## Checking a page without signing in
 
 **Never enter credentials to look at something.** Two ways that work:

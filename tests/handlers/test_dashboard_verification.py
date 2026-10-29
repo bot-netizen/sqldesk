@@ -48,6 +48,19 @@ class TestVerifying(VerificationTestCase):
         self.assertIsNotNone(verification["at"])
         self.assertFalse(verification["changed_since"])
 
+    def test_it_does_not_give_an_editor_a_conflict(self):
+        """
+        Through the ORM it moved the dashboard's version, and whoever had it
+        open in edit mode was told their next save conflicted with a change
+        they could not see.
+        """
+        before = self.dashboard.version
+
+        self.verify()
+
+        db.session.refresh(self.dashboard)
+        self.assertEqual(before, self.dashboard.version)
+
     def test_the_dashboard_page_shows_it(self):
         self.verify()
 

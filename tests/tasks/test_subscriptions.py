@@ -15,6 +15,25 @@ def _rendering_on():
     )
 
 
+def _half_visible(factory, dashboard):
+    """
+    A dashboard with one widget everybody can read and one from an HR source,
+    and a colleague who can read only the first. `can_see_dashboard` says yes
+    for them: one widget's source is theirs.
+    """
+    hr_group = factory.create_group(name="HR")
+    db.session.add(hr_group)
+    db.session.commit()
+    hr = factory.create_data_source(name="HR", group=hr_group)
+    for source in (factory.data_source, hr):
+        query = factory.create_query(data_source=source)
+        visualization = factory.create_visualization(query_rel=query)
+        factory.create_widget(dashboard=dashboard, visualization=visualization)
+    colleague = factory.create_user(email="colleague@example.com")
+    db.session.commit()
+    return colleague
+
+
 class SendingTestCase(BaseTestCase):
     def setUp(self):
         super().setUp()
@@ -105,6 +124,35 @@ class TestSending(SendingTestCase):
         self.assertIn(self.dashboard.name, message.subject)
         self.assertIsNotNone(subscription.last_sent_at)
         self.assertIsNone(subscription.last_error)
+
+    def test_a_recipient_who_cannot_see_every_widget_is_not_sent_it(self):
+        """Asked at each send: their access, or the dashboard, may have changed since they were added."""
+        colleague = _half_visible(self.factory, self.dashboard)
+        subscription = self._subscription(recipient_ids=[self.owner.id, colleague.id])
+
+        _, send = self._send(subscription)
+
+        self.assertEqual([[self.owner.email]], [call[0][0].recipients for call in send.call_args_list])
+        self.assertIsNotNone(subscription.last_sent_at)
+        self.assertIn(colleague.name, subscription.last_error)
+
+    def test_a_dashboard_with_a_query_that_never_ran_is_still_sent(self):
+        """
+        It failed at "how old are the numbers" -- `Query.retrieved_at` assumed
+        a result -- and the subscription recorded that the mail server would
+        not take it, then tried again every minute.
+        """
+        never_ran = self.factory.create_query()
+        visualization = self.factory.create_visualization(query_rel=never_ran)
+        self.factory.create_widget(dashboard=self.dashboard, visualization=visualization)
+        db.session.commit()
+        subscription = self._subscription()
+
+        _, send = self._send(subscription)
+
+        self.assertEqual(1, send.call_count)
+        self.assertIsNone(subscription.last_error)
+        self.assertIn("have not been refreshed", send.call_args[0][0].html)
 
     def test_a_picture_goes_inline_so_it_is_seen(self):
         subscription = self._subscription(format=models.DashboardSubscription.PNG)
@@ -244,3 +292,55 @@ class TestWhenItCannotBeSent(SendingTestCase):
             task.send_subscription(subscription_id)  # must not raise
 
         send.assert_not_called()
+
+
+class TestAFailedSendBacksOff(SendingTestCase):
+    """
+    A failed send left `last_sent_at` alone, so it was due again a minute
+    later: a refused address meant everybody before it got the dashboard every
+    minute, and a broken renderer drew it every minute, all day.
+    """
+
+    def test_it_waits_longer_after_each_failure(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        subscription = self._subscription(failures=2, last_attempt_at=now)
+
+        self.assertFalse(task._is_due(subscription, now + datetime.timedelta(minutes=3)))
+        self.assertTrue(task._is_due(subscription, now + datetime.timedelta(minutes=5)))
+
+    def test_and_never_more_than_an_hour(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        subscription = self._subscription(failures=20, last_attempt_at=now)
+
+        self.assertTrue(task._is_due(subscription, now + datetime.timedelta(minutes=61)))
+
+    def test_one_refused_address_does_not_resend_to_the_others(self):
+        colleague = self.factory.create_admin(email="colleague@example.com")
+        db.session.commit()
+        subscription = self._subscription(recipient_ids=[self.owner.id, colleague.id])
+
+        def refuse_the_colleague(message):
+            if colleague.email in message.recipients:
+                raise RuntimeError("550 no such mailbox")
+
+        with _rendering_on(), mock.patch.object(task.screenshots, "capture", return_value=b"PNG"):
+            with mock.patch.object(task.mail, "send", side_effect=refuse_the_colleague) as send:
+                task.send_subscription(subscription.id)
+                # And the next minute's run finds it already sent.
+                task.send_subscription(subscription.id)
+
+        self.assertEqual(2, send.call_count)
+        self.assertIsNotNone(subscription.last_sent_at)
+        self.assertEqual(0, subscription.failures)
+        self.assertIn(colleague.name, subscription.last_error)
+
+    def test_a_send_nobody_received_counts_as_a_failure(self):
+        subscription = self._subscription()
+
+        with _rendering_on(), mock.patch.object(task.screenshots, "capture", return_value=b"PNG"):
+            with mock.patch.object(task.mail, "send", side_effect=RuntimeError("down")):
+                task.send_subscription(subscription.id)
+
+        self.assertIsNone(subscription.last_sent_at)
+        self.assertEqual(1, subscription.failures)
+        self.assertIsNotNone(subscription.last_attempt_at)

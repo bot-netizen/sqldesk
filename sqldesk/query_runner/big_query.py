@@ -104,6 +104,10 @@ class BigQuery(BaseSQLQueryRunner):
     def __init__(self, configuration):
         super().__init__(configuration)
         self.should_annotate_query = configuration.get("useQueryAnnotation", False)
+        # Set before anything can be interrupted: it was first assigned once a
+        # job had been inserted, so a cancel or timeout during the dry run or
+        # the insert raised AttributeError in the handler and hid the reason.
+        self.current_job_id = None
 
     @classmethod
     def enabled(cls):
@@ -202,8 +206,8 @@ class BigQuery(BaseSQLQueryRunner):
         A dry run costs nothing and returns the figure BigQuery bills on, which
         makes it the one cost estimate in SQLDesk that is money rather than a
         proxy for it. Public because `sqldesk.mcp.cost` asks for it by name --
-        the private `_get_total_bytes_processed` below has existed for the
-        scanned-data limit since Redash, and this is the same call with a name
+        the private `_get_total_bytes_processed` below is inherited, serving the
+        scanned-data limit, and this is the same call under a name
         something outside the runner may use.
         """
         return self._get_total_bytes_processed(self._get_bigquery_service().jobs(), query)

@@ -2,6 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import classNames from "classnames";
 import Link from "@/components/Link";
+import UserAvatar from "@/components/UserAvatar";
 import TypeLogo from "@/components/TypeLogo";
 import { IMG_ROOT } from "@/services/data-source";
 
@@ -53,7 +54,14 @@ PreviewCard.defaultProps = {
 export function UserPreviewCard({ user, withLink, children, ...props }) {
   const title = withLink ? <Link href={"users/" + user.id}>{user.name}</Link> : user.name;
   return (
-    <PreviewCard {...props} imageUrl={user.profile_image_url} title={title} body={user.email}>
+    // `image` rather than `imageUrl`: a person may have no picture, and the
+    // avatar draws their initials instead of an empty <img>.
+    <PreviewCard
+      {...props}
+      image={<UserAvatar user={user} size={32} className="m-r-5" />}
+      title={title}
+      body={user.email}
+    >
       {children}
     </PreviewCard>
   );
@@ -61,7 +69,7 @@ export function UserPreviewCard({ user, withLink, children, ...props }) {
 
 UserPreviewCard.propTypes = {
   user: PropTypes.shape({
-    profile_image_url: PropTypes.string.isRequired,
+    profile_image_url: PropTypes.string,
     name: PropTypes.string.isRequired,
     email: PropTypes.string.isRequired,
   }).isRequired,

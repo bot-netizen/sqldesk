@@ -1,0 +1,1890 @@
+{
+  "version": 1,
+  "bugs": [
+    {
+      "error_message": "Significant refactor of widgets.py",
+      "file": "sqldesk/handlers/widgets.py",
+      "root_cause": "12 lines replaced/restructured",
+      "fix": "Rewrote 24→29 lines (12 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-001",
+      "timestamp": "2026-10-03T14:21:31.561Z",
+      "last_seen": "2026-10-03T14:21:31.561Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/serializers/__init__.py",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 14→5 lines (9 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-002",
+      "timestamp": "2026-10-03T14:21:46.424Z",
+      "last_seen": "2026-10-03T14:21:46.424Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of dashboards.py",
+      "file": "sqldesk/handlers/dashboards.py",
+      "root_cause": "18 lines replaced/restructured",
+      "fix": "Rewrote 20→3 lines (18 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-003",
+      "timestamp": "2026-10-03T14:22:09.326Z",
+      "last_seen": "2026-10-03T14:22:09.326Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of test_kind_partition.py",
+      "file": "tests/handlers/test_kind_partition.py",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 11→15 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-004",
+      "timestamp": "2026-10-03T14:29:23.486Z",
+      "last_seen": "2026-10-03T14:29:23.486Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "CSS fix: key, href",
+      "file": "client/app/pages/queries-list/QueriesList.jsx",
+      "root_cause": "key: \"archive\", → \"archive\", title: \"Archived\", icon: () => <Sidebar.MenuIcon icon=\"fa fa-archive\" />; href: \"queries/archive\", → view.key === \"all\" ? base : `${base",
+      "fix": "Changed key: \"archive\", → \"archive\", title: \"Archived\", icon: () => <Sidebar.MenuIcon icon=\"fa fa-archive\" />; href: \"queries/archive\", → view.key === \"all\" ? base : `${base",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-005",
+      "timestamp": "2026-10-03T14:41:24.627Z",
+      "last_seen": "2026-10-03T14:41:24.627Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of QueriesList.jsx",
+      "file": "client/app/pages/queries-list/QueriesList.jsx",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 7→14 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-006",
+      "timestamp": "2026-10-03T14:41:34.772Z",
+      "last_seen": "2026-10-03T14:41:34.772Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of query.js",
+      "file": "client/app/services/query.js",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 6→20 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-007",
+      "timestamp": "2026-10-03T14:41:55.983Z",
+      "last_seen": "2026-10-03T14:41:55.983Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "CSS fix: render",
+      "file": "client/app/pages/streams/streams.routes.jsx",
+      "root_cause": "render: () => <Redirect to=\"admin/streams\" />, → () =>",
+      "fix": "Changed render: () => <Redirect to=\"admin/streams\" />, → () =>",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-008",
+      "timestamp": "2026-10-03T14:45:18.005Z",
+      "last_seen": "2026-10-03T14:45:18.005Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "A saved streaming query listed under Queries linked to /queries/<id>, the ordinary view page",
+      "file": "client/app/services/query.js",
+      "root_cause": "Query#getUrl built `queries/<id>` for every query. It had no way to know the query read a stream -- the serializer did not say -- so a streaming query in any list linked to a page that would enqueue a warehouse job against a broker. QuerySource carried code whose only job was to bounce the browser back out of it after the navigation.",
+      "fix": "serialize is_streaming on the query (one cached SELECT per request, not per row); getUrl returns streams/query/<id>, and ignores the `source` flag because a streaming query has only one page; QueryView redirects rather than mounting.",
+      "tags": [
+        "streams",
+        "routing",
+        "js",
+        "0.7"
+      ],
+      "status": "fixed",
+      "id": "bug-009"
+    },
+    {
+      "error_message": "QueryView had no streaming support at all -- no streams_only anywhere in it",
+      "file": "client/app/pages/queries/QueryView.jsx",
+      "root_cause": "The view page shows a stored result and offers to re-run it. A streaming query stores nothing, so there was nothing to show and the Execute path would have gone to the warehouse runner. Reachable because the list linked there.",
+      "fix": "A wrapper component redirects to the editor before QueryView's hooks run, so none of them -- including the one that executes -- ever runs for a stream.",
+      "tags": [
+        "streams",
+        "js",
+        "0.7"
+      ],
+      "status": "fixed",
+      "id": "bug-010"
+    },
+    {
+      "error_message": "The Add Widget picker offered streaming queries for an ordinary dashboard, and vice versa",
+      "file": "client/app/components/QuerySelector.jsx",
+      "root_cause": "QuerySelector searched through Query.query({q}) with no kind, while handlers/widgets.py refuses a panel that would mix streams with saved queries. Every such choice therefore ended in the server's refusal, after the person had chosen.",
+      "fix": "QuerySelector takes a `kind`; AddWidgetDialog passes the dashboard's. Recent queries are filtered client-side because api/queries/recent has no filter of its own.",
+      "tags": [
+        "streams",
+        "dashboards",
+        "js",
+        "0.7"
+      ],
+      "status": "fixed",
+      "id": "bug-011"
+    },
+    {
+      "error_message": "Every helm upgrade left its migration Job and pod behind (79 on a minikube upgraded 84 times)",
+      "file": "charts/sqldesk/templates/migrate-job.yaml",
+      "root_cause": "The Job's name carried .Release.Revision. hook-delete-policy before-hook-creation removes only the previous Job of the same name, so with a new name every time nothing was ever removed.",
+      "fix": "Fixed name `<fullname>-migrate`; the last migration's Job stays with its log, older ones are replaced. tests/test_chart.py asserts no revision in the name. Old revision-named Jobs need a one-off manual delete.",
+      "tags": [
+        "helm",
+        "chart",
+        "migrations",
+        "0.7.5"
+      ],
+      "status": "fixed",
+      "id": "bug-012"
+    },
+    {
+      "error_message": "Under Argo CD (helm template) the chart would generate a new secretKey on every sync",
+      "file": "charts/sqldesk/templates/_helpers.tpl",
+      "root_cause": "Generated secrets are kept by `lookup`, which returns nothing under helm template / client-side dry-run. Argo CD renders with helm template, so randAlphaNum runs every sync and resource-policy: keep is Helm-only.",
+      "fix": "Not fixable in-chart (a first install and helm template both see no Secret). Documented in examples/values-production.yaml and docs/guide/deploying.html: create the Secret (cookie-secret, secret-key, database-url) and set secrets.existingSecret. Proved by helm template | kubectl apply twice in a restricted namespace.",
+      "tags": [
+        "helm",
+        "argocd",
+        "secrets",
+        "docs",
+        "0.7.5"
+      ],
+      "status": "documented",
+      "id": "bug-013"
+    },
+    {
+      "error_message": "Backup command in the deploy guide failed: secret \"sqldesk\" not found",
+      "file": "docs/guide/deploying.html",
+      "root_cause": "The generated Secret is named `<fullname>-secrets` (sqldesk-secrets), not `sqldesk`.",
+      "fix": "Corrected in the guide and in examples/values-production.yaml.",
+      "tags": [
+        "docs",
+        "secrets",
+        "0.7.5"
+      ],
+      "status": "fixed",
+      "id": "bug-014"
+    },
+    {
+      "error_message": "Protobuf schemas with references failed: the registry has no /subjects/common/money.proto/versions/1",
+      "file": "sqldesk/streams/decode.py",
+      "root_cause": "A Protobuf reference's subject is usually its import path, with slashes. Put in the URL unquoted it is a different path.",
+      "fix": "quote(subject, safe='') when fetching /subjects/<subject>/versions/<n>. Found by Confluent's ProtobufSerializer against a fake registry.",
+      "tags": [
+        "streams",
+        "protobuf",
+        "schema-registry",
+        "0.7.6"
+      ],
+      "status": "fixed",
+      "id": "bug-015"
+    },
+    {
+      "error_message": "CERTIFICATE_VERIFY_FAILED: Missing Authority Key Identifier, for a registry on a private CA the brokers accept",
+      "file": "sqldesk/streams/decode.py",
+      "root_cause": "Python 3.13's ssl.create_default_context sets VERIFY_X509_STRICT, which refuses certificates without an AKI -- common from internal and self-signed CAs. librdkafka does not insist, so brokers connected and the registry beside them was refused.",
+      "fix": "Clear VERIFY_X509_STRICT on the registry's context; signatures, expiry and names still checked. test_over_tls_it_trusts_the_clusters_own_ca uses AKI-less certificates.",
+      "tags": [
+        "streams",
+        "tls",
+        "python-3.13",
+        "schema-registry",
+        "0.7.6"
+      ],
+      "status": "fixed",
+      "id": "bug-016"
+    },
+    {
+      "error_message": "kubectl apply -f examples/kafka-demo.yaml restarted Redpanda and stripped the producers' resource limits",
+      "file": "examples/kafka-demo.yaml",
+      "root_cause": "The running demo had resources patched in live that the file never carried; apply replaced the pod templates with the file's.",
+      "fix": "Resources put in the file (Redpanda 256Mi/768Mi, producers 64Mi/256Mi) and re-applied. Diff live ReplicaSet templates against the file before applying it to a cluster somebody uses.",
+      "tags": [
+        "minikube",
+        "demo",
+        "kubectl",
+        "0.7.6"
+      ],
+      "status": "fixed",
+      "id": "bug-017"
+    },
+    {
+      "error_message": "Significant refactor of index.jsx",
+      "file": "client/app/components/ApplicationArea/index.jsx",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 9→28 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-018",
+      "timestamp": "2026-10-24T09:53:40.720Z",
+      "last_seen": "2026-10-24T09:53:40.720Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong return value",
+      "file": "client/app/components/ApplicationArea/index.jsx",
+      "root_cause": "Was returning: <ErrorMessage error={unhandledError} />;",
+      "fix": "Now returns: <Router routes={routes.items} onRouteChange={setCu",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-019",
+      "timestamp": "2026-10-24T09:53:52.049Z",
+      "last_seen": "2026-10-24T09:53:52.049Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/mcp/__init__.py",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 5→7 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-020",
+      "timestamp": "2026-10-24T10:09:06.219Z",
+      "last_seen": "2026-10-24T10:09:06.219Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/mcp/__init__.py",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 16→48 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-021",
+      "timestamp": "2026-10-24T10:09:18.265Z",
+      "last_seen": "2026-10-24T10:09:18.265Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of prometheus.py",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "15 lines replaced/restructured",
+      "fix": "Rewrote 22→53 lines (15 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-022",
+      "timestamp": "2026-10-24T10:24:23.166Z",
+      "last_seen": "2026-10-24T10:24:23.166Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong return value",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "Was returning: datetime.now()",
+      "fix": "Now returns: datetime.now(timezone.utc)",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-023",
+      "timestamp": "2026-10-24T10:24:26.429Z",
+      "last_seen": "2026-10-24T10:24:26.429Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Missing error handling in prometheus.py",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-024",
+      "timestamp": "2026-10-24T10:24:32.538Z",
+      "last_seen": "2026-10-24T10:24:32.538Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Missing error handling in sample_value()",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-025",
+      "timestamp": "2026-10-24T10:27:46.241Z",
+      "last_seen": "2026-10-24T10:27:46.241Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Missing error handling in api_error()",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-026",
+      "timestamp": "2026-10-24T10:30:19.014Z",
+      "last_seen": "2026-10-24T10:30:19.014Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of prometheus.py",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 4→6 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-027",
+      "timestamp": "2026-10-24T10:30:26.664Z",
+      "last_seen": "2026-10-24T10:30:26.664Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong operator: == should be !=",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "Used \"==\" instead of \"!=\"",
+      "fix": "Changed operator == → !=",
+      "tags": [
+        "auto-detected",
+        "operator-fix",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-028",
+      "timestamp": "2026-10-24T10:30:39.036Z",
+      "last_seen": "2026-10-24T10:30:39.036Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of test_prometheus.py",
+      "file": "tests/query_runner/test_prometheus.py",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 7→30 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-029",
+      "timestamp": "2026-10-24T10:31:00.115Z",
+      "last_seen": "2026-10-24T10:31:00.115Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of prometheus.py",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 20→35 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-030",
+      "timestamp": "2026-10-24T10:32:56.556Z",
+      "last_seen": "2026-10-24T10:32:56.556Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Missing error handling in _timeout()",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-031",
+      "timestamp": "2026-10-24T10:33:09.652Z",
+      "last_seen": "2026-10-24T10:33:09.652Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M1: MCP refused every PromQL query on a Mimir source -- 'Only a read (SELECT, WITH, SHOW, DESCRIBE) can be run from here.'",
+      "file": "sqldesk/mcp/__init__.py",
+      "root_cause": "MCP decided a source's language from a hand-kept list of data source types. `mimir` was never added to it (nor yandex_metrika/yandex_appmetrika/yandex_disk/google_search_console), so PromQL was parsed as SQL.",
+      "fix": "Every runner declares `query_language` (sqldesk/query_runner/__init__.py), with READ_ONLY_LANGUAGES/UNCHECKABLE_LANGUAGES keyed by language. mcp's _language()/_by_language() read it. check_sql and explain_query refuse a non-SQL language outright via _not_sql_here().",
+      "tags": [
+        "mimir",
+        "promql",
+        "mcp",
+        "query_language",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-032",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M2: `a + b` reached Prometheus as `a   b` (400), and `web-[0-9]+` as `web-[0-9] `",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "The query body was read with urllib.parse.parse_qs, which reads a form submission: `+` decodes to a space, and every `&` splits -- including one inside a label value.",
+      "fix": "split_query_body(): split only before one of API_PARAMETERS, percent-decode with unquote (not unquote_plus).",
+      "tags": [
+        "mimir",
+        "promql",
+        "parse_qs",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-033",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M3: a refused Prometheus/Mimir query showed only '400 Client Error: Bad Request for url: ...'",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "response.raise_for_status() discarded the JSON body, which is where Prometheus names the problem (errorType/error).",
+      "fix": "api_error(response) reads the body's errorType/error, falls back to the text, then the status; run_query/get_schema/Mimir.test_connection use it.",
+      "tags": [
+        "mimir",
+        "error-message",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-034",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M4: a mistyped Mimir tenant read as the error 'query result is empty.' while the connection test passed",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "An empty result set was returned as an error, and Mimir.test_connection ran `query=1`, which Mimir answers without reading a series -- so any tenant string passed.",
+      "fix": "An empty result is now rows=[] with no error. test_connection asks /api/v1/label/__name__/values and fails, naming the tenant, when it holds no metrics.",
+      "tags": [
+        "mimir",
+        "tenant",
+        "x-scope-orgid",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-035",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M5: KeyError on 'value'/'metric' for scalar, string and native-histogram results, and for a range selector in an instant query",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "The result shape was inferred from the endpoint called rather than read from the answer's resultType; only vector and matrix were handled.",
+      "fix": "guess_result_type()/rows_for() dispatch on resultType (guessing from the shape when absent); get_scalar_rows() and histogram_fields() added; /api/v1/query answering a matrix is read as one.",
+      "tags": [
+        "mimir",
+        "promql",
+        "result-type",
+        "histogram",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-036",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M6: Grafana Cloud's /api/prom 404'd on every query; the Mimir API prefix could not be set",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "api_base_url read configuration['prometheus_prefix'] but configuration_schema never offered the field, so /prometheus was the only value it could have.",
+      "fix": "prometheus_prefix is in the Mimir schema (default /prometheus, in order and extra_options); an emptied value means the API is at the root.",
+      "tags": [
+        "mimir",
+        "grafana-cloud",
+        "configuration",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-037",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M7: start=now-1h raised, an RFC3339 offset was dropped, and start/end with no step ran as an instant query",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "convert_query_range() sent the value to dateutil (which raises on now-1h) and converted with time.mktime, which reads a datetime as the worker's local time; a range without a step fell through to /api/v1/query.",
+      "fix": "resolve_time()/epoch(): now and now-1h understood, a naive time read as UTC, an aware one keeping its offset; a start or end with no step returns a message asking for one; sample_time() returns UTC-aware datetimes.",
+      "tags": [
+        "mimir",
+        "timezone",
+        "time.mktime",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-038",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M8: labels only the first series carried became columns, and `value` was a string so charts got a category axis",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "Columns were built from result[0]['metric'].keys() and the value was passed through as the text the API sends.",
+      "fix": "columns_for() takes the union of the keys over every row; sample_value() converts to float (NaN/+Inf survive); the value column is TYPE_FLOAT, TYPE_STRING only for a string result.",
+      "tags": [
+        "mimir",
+        "columns",
+        "charts",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-039",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "M9: a Prometheus that accepted the connection and never answered held a worker until the job's limit",
+      "file": "sqldesk/query_runner/prometheus.py",
+      "root_cause": "No requests call passed a timeout, and get_schema runs from the scheduler, where there is no job limit to reach.",
+      "fix": "_timeout() with DEFAULT_TIMEOUT=30, a configurable `timeout` option, applied through _get_prometheus_kwargs so every request carries it.",
+      "tags": [
+        "mimir",
+        "timeout",
+        "reliability",
+        "py"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-040",
+      "timestamp": "2026-10-24T10:40:08.000Z",
+      "last_seen": "2026-10-24T10:40:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of Dockerfile",
+      "file": "Dockerfile",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 35→140 lines (9 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "unknown"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-041",
+      "timestamp": "2026-10-25T10:16:27.921Z",
+      "last_seen": "2026-10-25T10:16:27.921Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "id": "bug-042",
+      "error_message": "helm upgrade failed: Deployment sqldesk-redis invalid -- spec.strategy.rollingUpdate: Forbidden: may not be specified when strategy `type` is 'Recreate'",
+      "root_cause": "The Redis deployment was given `strategy: type: Recreate` so that two Redises never run behind one Service during an upgrade. Kubernetes defaults `rollingUpdate` (maxSurge/maxUnavailable) on every RollingUpdate deployment and the API server owns those defaults, so a server-side apply that sets type=Recreate over an existing deployment does not clear them and the object is rejected. The whole `helm upgrade` fails -- not just that deployment -- for every install that has ever run this chart. A fresh install would have been fine, which is why nothing before the first real upgrade caught it.",
+      "fix": "Express it as RollingUpdate with maxSurge 0 and maxUnavailable 1. With one replica that is the same behaviour -- the old pod terminates before the new one starts -- and it applies cleanly over an existing deployment. charts/sqldesk/templates/redis.yaml; tests/test_chart.py asserts maxSurge 0 and the absence of 'type: Recreate'.",
+      "tags": [
+        "helm",
+        "kubernetes",
+        "upgrade",
+        "redis",
+        "server-side-apply"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "id": "bug-043",
+      "error_message": "tests/models/test_alerts.py: AssertionError: 'triggered' != 'unknown' -- eight TestAlertEvaluate tests fail, but only when something else ran first",
+      "root_cause": "tests/tasks/test_alerts.py replaced Alert.evaluate and sqldesk.tasks.alerts.notify_subscriptions by plain assignment -- `Alert.evaluate = MagicMock(return_value=...)` -- with no patch and no cleanup. The mock stays on the class for the rest of the process, so every alert in every later test evaluates to whatever the last of those three tests set. The files pass alone and fail together, which is why it read as a flake and why the failing file was never the guilty one. CI ran the whole suite in one process, so it was red there and green locally for anyone running a subset.",
+      "fix": "mock.patch.object with addCleanup, so both are restored; the notifier is handed back to the test rather than read off the module. A new test asserts Alert.evaluate is not a MagicMock afterwards, so the next person to do this is told by a test rather than by an unrelated file. Note tests/factories.py ModelFactory._get_kwargs shallow-copies its defaults, so `options={}` and `data={...}` are shared objects -- the same class of hazard, not yet triggered.",
+      "tags": [
+        "tests",
+        "mock",
+        "order-dependence",
+        "alerts",
+        "ci"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "id": "bug-044",
+      "error_message": "tests/query_runner/test_clickhouse.py::test_a_connection_error_does_not_carry_it_either: AssertionError: no logs of level WARNING or higher triggered on sqldesk.query_runner.clickhouse -- passes alone, fails in a full run",
+      "root_cause": "migrations/env.py called fileConfig(config.config_file_name), and fileConfig's disable_existing_loggers defaults to True: it sets .disabled = True on every logger that exists by then, keeping only the names in migrations/alembic.ini (root, sqlalchemy.engine, alembic). tests/test_migrations.py compiles every migration through alembic's command API, which runs env.py, so from that file onwards every sqldesk logger in the process was switched off. assertLogs sets a handler and a level but never clears .disabled, so the ClickHouse test saw no records and read as if the warning had stopped being emitted -- the assertion that failed was the one guarding a password out of the log, which made it look like a sanitisation regression. Beyond the suite it is worse: `manage db upgrade` and `manage database create_tables` (which stamps) run env.py in-process, so the application's own logging went quiet for the rest of those processes.",
+      "fix": "fileConfig(config.config_file_name, disable_existing_loggers=False) in migrations/env.py, with a comment saying why it has to stay off. Guarded by tests/test_migrations.py::test_compiling_one_leaves_the_rest_of_the_process_able_to_log, which creates a logger, compiles a migration and asserts the logger is still enabled. Found by bisecting the suite in halves against the one failing test: 32 root-level files -> second half -> quarter 3 -> test_migrations.py, then proved directly by calling fileConfig on migrations/alembic.ini in a shell and printing logger.disabled before and after.",
+      "tags": [
+        "tests",
+        "logging",
+        "order-dependence",
+        "migrations",
+        "alembic",
+        "ci"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "id": "bug-045",
+      "error_message": "No failure yet -- found by inspection while fixing bug-043 and bug-044: tests/factories.py handed the same dict to every model a factory made",
+      "root_cause": "ModelFactory._get_kwargs did `self.kwargs.copy()`, a shallow copy, so the mutable defaults declared once at module level -- options={} on the alert, visualization and widget factories, data={'columns': {}, 'rows': []} on the query result factory -- were a single object shared by every model those factories ever made in the process. A test that writes into options rather than replacing it would leak into objects other tests are holding, and the test that failed would be in another file, as in bug-043 and bug-044. Hidden until now because the models commit and Flask-SQLAlchemy expires them, so reads after create() come back from Postgres; the shared object only bites between construction and flush.",
+      "fix": "Deep-copy only the factory's own dict/list/set defaults, and only those: what the caller passes stays the caller's object, and callables are left alone so Sequence keeps one counter instead of being copied back to where the call before it started. tests/test_factories.py guards all four properties; two of them fail if the copy goes back to shallow.",
+      "tags": [
+        "tests",
+        "factories",
+        "order-dependence",
+        "latent"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "error_message": "Wrong return value",
+      "file": "sqldesk/handlers/queries.py",
+      "root_cause": "Was returning: result",
+      "fix": "Now returns: QuerySerializer(query, with_api_key=True).serializ",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-046",
+      "timestamp": "2026-10-25T12:08:51.960Z",
+      "last_seen": "2026-10-25T12:08:51.960Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "id": "bug-046",
+      "error_message": "The API Key dialog on a query empties its own field after Regenerate, and the CSV and JSON URLs it offers become ?api_key=undefined",
+      "root_cause": "POST /api/queries/<id>/regenerate_api_key returned QuerySerializer(query).serialize() with no with_api_key, while every other query endpoint the editor uses passes with_visualizations=True, with_api_key=True. The one endpoint whose entire purpose is to hand back a new key was the one that left it out. The client does setQuery(extend(query.clone(), {api_key: data.api_key})), so api_key became undefined until the page was reloaded. Three tests covered the endpoint and all three read the database rather than the response, so none of them saw it.",
+      "fix": "QuerySerializer(query, with_api_key=True).serialize(), guarded by tests/handlers/test_queries.py::TestQueryRegenerateApiKey::test_and_the_new_key_comes_back_in_the_answer, which asserts on the response body and that it matches what the database now holds.",
+      "tags": [
+        "api",
+        "queries",
+        "serializer",
+        "ui",
+        "found-by-exercising-the-api"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "id": "bug-047",
+      "error_message": "POST /api/widgets without a visualization_id key: 500 Internal Server Error, KeyError: 'visualization_id' at sqldesk/handlers/widgets.py:77",
+      "root_cause": "The handler did widget_properties.pop('visualization_id') with no default. The browser always sends the key (Dashboard.addWidget seeds props with visualization_id: null), so the UI never hit it; anyone writing a textbox widget against the API themselves, which is a documented use of the endpoint, got a 500 and a traceback in the server log for a perfectly good request.",
+      "fix": "pop('visualization_id', None) -- absent means a textbox, as the docstring already said. tests/handlers/test_widgets.py::test_create_text_widget_without_mentioning_a_visualization_at_all.",
+      "tags": [
+        "api",
+        "widgets",
+        "dashboards",
+        "500",
+        "found-by-exercising-the-api"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/mcp/__init__.py",
+      "root_cause": "14 lines replaced/restructured",
+      "fix": "Rewrote 17→21 lines (14 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-048",
+      "timestamp": "2026-10-25T17:07:19.926Z",
+      "last_seen": "2026-10-25T17:07:19.926Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/mcp/__init__.py",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 7→8 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-049",
+      "timestamp": "2026-10-25T17:09:59.969Z",
+      "last_seen": "2026-10-25T17:09:59.969Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of index.html",
+      "file": "docs/index.html",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 9→21 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "html"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-050",
+      "timestamp": "2026-10-25T17:39:45.389Z",
+      "last_seen": "2026-10-25T17:39:45.389Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "id": "bug-048",
+      "error_message": "The Streams guide vanished from the sidebar of ten of the twelve guide pages",
+      "root_cause": "docs/tools/chrome.py rebuilds each guide page's whole frame, including the sidebar, from its own PAGES list. The Streams link had been added to the pages by hand and streams.html was never added to PAGES, so the first regeneration deleted the link everywhere. Silent: the generator reports only how many pages it rewrote.",
+      "fix": "streams.html added to PAGES between dashboards and alerts, so the page is generated like its neighbours and the link cannot be dropped again. Verified: 12 of 12 sidebars carry it and the generator runs twice with nothing to change.",
+      "tags": [
+        "docs",
+        "generator",
+        "navigation"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "id": "bug-049",
+      "error_message": "Three sections of the homepage are invisible when JavaScript is off",
+      "root_cause": "`.reveal{opacity:0}` is undone by an IntersectionObserver adding `.in`. With no JavaScript nothing adds it, so the agent transcript, the stream window and the demo video never appear -- while the commit that introduced it claimed the page was complete without script. The theme toggle had the same shape: rendered, and dead.",
+      "fix": "The head sets a `js` class on <html>, and the hiding rule and the toggle's display both hang off it. With scripting off the rows are simply visible and the switch is not shown. Verified in the browser by removing the class.",
+      "tags": [
+        "docs",
+        "progressive-enhancement",
+        "accessibility"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "id": "bug-050",
+      "error_message": "Dark mode shipped two colour pairings below WCAG AA, in a change whose message said they were measured",
+      "root_cause": "The dark values are the application's wall-display tokens, which are measured -- but for the pairings the application has. The site introduced two it does not: white on the accent (3.59:1, and 2.35:1 against the hover colour) and --faint for 11-13px labels (3.58:1). Light mode had the same fault on small labels at 3.44:1, from before.",
+      "fix": "The primary button's ink flips with the theme (#0c0b10 on the accent: 5.47:1, 8.36:1 on hover), and --faint became a literal in both themes (#8d8a99 dark, #726d65 light). Measured in the browser afterwards: every pairing 4.67:1 or better in both themes.",
+      "tags": [
+        "docs",
+        "dark-mode",
+        "accessibility",
+        "contrast"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "id": "bug-051",
+      "error_message": "On a phone the site's top bar clipped its own links: GitHub and the theme switch could not be reached",
+      "root_cause": "The bar is a single flex row with no wrap. At 375px its contents needed 545px, so Releases was cut in half and the last two items were outside the viewport entirely. The previous bar hid one link with hide-sm and fitted; five links plus a switch do not.",
+      "fix": "Below 620px the bar wraps: the mark on its own line, the links under it, smaller padding. Nothing is hidden, because each of the five is a destination. Verified at 375px on the overview and a guide page -- bar fits, every item on screen, no sideways scroll.",
+      "tags": [
+        "docs",
+        "responsive",
+        "navigation"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "id": "bug-052",
+      "error_message": "find_dashboards could drop a verified dashboard into a count, named none of the ones it omitted, and described a panel with a sibling panel's words",
+      "root_cause": "Cutting the described dashboards from eight to four exposed three things: the order was `updated_at desc` with no verified-first rule, so a confirmed board fell behind four unchecked ones; the tail said 'N more match. Name one' without ever saying the names; and collapsing panels onto one line per query took the description from whichever panel carried one while printing the first panel's type and columns.",
+      "fix": "Verified first then most recent, as find_queries already did; the omitted boards are named, up to eight; and the panel that carries the description is the panel described, with its own options fetched. Three tests in TestWhichDashboardsAreDescribed.",
+      "tags": [
+        "mcp",
+        "agents",
+        "ranking"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25"
+    },
+    {
+      "id": "bug-056",
+      "error_message": "GET /api/config returns 500 on an install that has not been through /setup: AttributeError: 'NoneType' object has no attribute 'slug' at sqldesk/handlers/authentication.py:439",
+      "root_cause": "The handler reads current_org.slug unguarded, and before the first organization exists current_org is None. Inherited: the line is byte-identical in v0.7.6 and last changed in the fork commit, so it is not a 0.7.7 regression. Nobody normally meets it, because a fresh install is sent to /setup, which is server-rendered and answers 200 -- but anything that fetches /api/config first, including a client that has the SPA cached from a previous install, gets a 500 with a traceback rather than an answer saying the install is not set up yet.",
+      "fix": "Fixed in 0.7.8. Four guards, because the whole /api/config path reads the org, not just the one line in the bug report: _org_setting(key) falls back to the install defaults in settings/organization.py (where get_setting ends up anyway for an unset setting), _slack_is_connected() answers False with no org to have connected one, config() returns org_slug null plus setup_required True, and base_href() returns '/' under MULTI_ORG with no org -- the index route is org-scoped there, so there is no unscoped URL to build and url_for raised BuildError. get_login_url already answered that case the same way. base_href was NOT in the original diagnosis and was found by the test, because MULTI_ORG is on in the test environment. tests/test_handlers.py::TestConfigBeforeSetup, four tests, each guard mutation-tested.",
+      "tags": [
+        "api",
+        "first-run",
+        "inherited",
+        "found-by-smoke-test"
+      ],
+      "status": "fixed",
+      "found": "2026-10-25",
+      "file": "sqldesk/handlers/authentication.py",
+      "last_seen": "2026-10-27T01:24:12.352948Z"
+    },
+    {
+      "error_message": "Wrong condition in logic",
+      "file": "client/app/components/TypeLogo.tsx",
+      "root_cause": "Condition was: if (src && brokenSrc !== src)",
+      "fix": "Changed to: if (src && brokenSrc !== src && !isMissingLogo(src)",
+      "tags": [
+        "auto-detected",
+        "logic-fix",
+        "tsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-057",
+      "timestamp": "2026-10-26T23:09:29.680Z",
+      "last_seen": "2026-10-26T23:09:29.680Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/settings/__init__.py",
+      "root_cause": "7 lines replaced/restructured",
+      "fix": "Rewrote 9→15 lines (7 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-058",
+      "timestamp": "2026-10-26T23:12:15.900Z",
+      "last_seen": "2026-10-26T23:12:15.900Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Incorrect value in code",
+      "file": "client/app/components/items-list/components/ListPageControls.jsx",
+      "root_cause": "Had \"@ant-design/icons/FilterOutlined\"",
+      "fix": "Changed to \"@ant-design/icons/SearchOutlined\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-059",
+      "timestamp": "2026-10-26T23:17:14.691Z",
+      "last_seen": "2026-10-26T23:17:14.691Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "CSS fix: chrome",
+      "file": "client/app/components/items-list/components/ListPageControls.jsx",
+      "root_cause": "chrome: Filter holds the → search is server-side",
+      "fix": "Changed chrome: Filter holds the → search is server-side",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-060",
+      "timestamp": "2026-10-26T23:17:23.180Z",
+      "last_seen": "2026-10-26T23:17:23.180Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of ListPageControls.jsx",
+      "file": "client/app/components/items-list/components/ListPageControls.jsx",
+      "root_cause": "17 lines replaced/restructured",
+      "fix": "Rewrote 42→28 lines (17 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-061",
+      "timestamp": "2026-10-26T23:17:31.751Z",
+      "last_seen": "2026-10-26T23:17:31.751Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of ListPageControls.less",
+      "file": "client/app/components/items-list/components/ListPageControls.less",
+      "root_cause": "10 lines replaced/restructured",
+      "fix": "Rewrote 17→27 lines (10 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "less"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-062",
+      "timestamp": "2026-10-26T23:17:39.417Z",
+      "last_seen": "2026-10-26T23:17:39.417Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of ListPageControls.test.js",
+      "file": "client/app/components/items-list/components/ListPageControls.test.js",
+      "root_cause": "15 lines replaced/restructured",
+      "fix": "Rewrote 34→21 lines (15 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-063",
+      "timestamp": "2026-10-26T23:18:20.216Z",
+      "last_seen": "2026-10-26T23:18:20.216Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of ItemsFetcher.js",
+      "file": "client/app/components/items-list/classes/ItemsFetcher.js",
+      "root_cause": "17 lines replaced/restructured",
+      "fix": "Rewrote 42→62 lines (17 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-064",
+      "timestamp": "2026-10-26T23:21:16.906Z",
+      "last_seen": "2026-10-26T23:21:16.906Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/chart/getOptions.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-065",
+      "timestamp": "2026-10-26T23:40:06.108Z",
+      "last_seen": "2026-10-26T23:40:06.108Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/chart/echarts/buildOption.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-066",
+      "timestamp": "2026-10-26T23:40:20.007Z",
+      "last_seen": "2026-10-29T13:39:38.215Z",
+      "occurrences": 5,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/chart/echarts/buildOption.threshold.test.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-067",
+      "timestamp": "2026-10-26T23:41:49.399Z",
+      "last_seen": "2026-10-26T23:41:49.399Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of buildOption.threshold.test.ts",
+      "file": "viz-lib/src/visualizations/chart/echarts/buildOption.threshold.test.ts",
+      "root_cause": "10 lines replaced/restructured",
+      "fix": "Rewrote 13→39 lines (10 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-068",
+      "timestamp": "2026-10-26T23:43:09.138Z",
+      "last_seen": "2026-10-26T23:43:09.138Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/chart/Editor/ThresholdColorSettings.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-069",
+      "timestamp": "2026-10-26T23:45:32.881Z",
+      "last_seen": "2026-10-26T23:45:32.881Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/table/cellFormat.ts",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-070",
+      "timestamp": "2026-10-26T23:48:56.651Z",
+      "last_seen": "2026-10-26T23:48:56.651Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of cellFormat.ts",
+      "file": "viz-lib/src/visualizations/table/cellFormat.ts",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 9→49 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-071",
+      "timestamp": "2026-10-26T23:49:07.662Z",
+      "last_seen": "2026-10-26T23:49:07.662Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/table/utils.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-072",
+      "timestamp": "2026-10-26T23:49:13.846Z",
+      "last_seen": "2026-10-26T23:52:34.111Z",
+      "occurrences": 2,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/table/cellFormat.test.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-073",
+      "timestamp": "2026-10-26T23:50:08.383Z",
+      "last_seen": "2026-10-26T23:51:11.163Z",
+      "occurrences": 2,
+      "related_bugs": []
+    },
+    {
+      "error_message": "ResizeObserver loop completed with undelivered notifications -- shown to the user as \"Something on this page did not work\"",
+      "file": "client/app/components/ApplicationArea/index.jsx",
+      "root_cause": "The global window.onerror handler skipped chunk-load errors and reported everything else. ResizeObserver's loop warning arrives as an ErrorEvent with a message and NO `error` object, so `isChunkLoadError(event.error)` never saw it and it fell through to notification.error. useElementSize triggers it on any visualization that scales to its widget. webpack.config.js already filtered the same message from the dev-server overlay, so the dev tooling knew and the app did not.",
+      "fix": "client/app/lib/browserNoise.js: isBenignBrowserNoise(event) reads event.error OR event.message, matched against the Chrome and Safari wordings. Guarded in the handler beside the chunk-error guard.",
+      "tags": [
+        "frontend",
+        "error-handling",
+        "resize-observer",
+        "false-alarm",
+        "0.7.8"
+      ],
+      "status": "fixed",
+      "id": "bug-074",
+      "timestamp": "2026-10-27T00:09:26.838605Z",
+      "last_seen": "2026-10-27T00:09:26.838605Z",
+      "occurrences": 1,
+      "related_bugs": [],
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk"
+    },
+    {
+      "error_message": "GET /static/images/db-logos/mimir.png 404 (NOT FOUND)",
+      "file": "client/app/components/TypeLogo.tsx",
+      "root_cause": "TypeLogo degraded a missing logo to an initials tile, but only via <img onError> -- so it requested the file and waited for the 404 on every page that listed the type. Cosmetic, but one failed request per logo per page, for every data source type without a file. Kafka did it before Mimir.",
+      "fix": "client/app/lib/logoAssets.js: isMissingLogo(src) checks the build-time listing webpack already produces for requireImages(), so a known-absent logo renders the tile with no request. Returns false when the listing is unavailable (jest, non-webpack builds), which is the old behaviour -- a needless 404 beats a tile covering a logo that is really there.",
+      "tags": [
+        "frontend",
+        "assets",
+        "404",
+        "webpack",
+        "0.7.8"
+      ],
+      "status": "fixed",
+      "id": "bug-075",
+      "timestamp": "2026-10-27T00:09:26.838605Z",
+      "last_seen": "2026-10-27T00:09:26.838605Z",
+      "occurrences": 1,
+      "related_bugs": [],
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk"
+    },
+    {
+      "error_message": "Typing in the search box on the alerts, groups, group members or outdated-queries list filtered nothing",
+      "file": "client/app/components/items-list/classes/ItemsFetcher.js",
+      "root_cause": "updateSearch reports `{ search: true }`, but PlainListFetcher.fetch only went back to the server for `changes.tags || changes.sorting`. A search change fell through to the branch that re-pages the items already held, unfiltered. The comment directly above that condition read \"only if tags or search changes\" -- the intent was written down and the code never matched it, which is presumably how it survived. Alerts additionally has no `q` on its endpoint and a getRequest that discarded the term.",
+      "fix": "A plain list whose endpoint takes `q` now refetches on a search change. One whose endpoint does not can pass `matches(item, term)` to ResourceItemsSource and is filtered in the browser over the whole list (not the page in front of you). AlertsList passes one that matches the alert's name and its query's name.",
+      "tags": [
+        "frontend",
+        "items-list",
+        "search",
+        "upstream-bug",
+        "0.7.8"
+      ],
+      "status": "fixed",
+      "id": "bug-076",
+      "timestamp": "2026-10-27T00:09:26.838605Z",
+      "last_seen": "2026-10-27T00:09:26.838605Z",
+      "occurrences": 1,
+      "related_bugs": [],
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk"
+    },
+    {
+      "error_message": "Chart palettes \"removed\" -- reported, not real",
+      "file": "viz-lib/src/visualizations/ColorPalette.ts",
+      "root_cause": "Nothing was removed. Four palettes (SQLDesk, Viridis, Tableau 10, D3 Category 10) are offered by the Color Scheme select in DefaultColorsSettings, which the Colors tab shows for every chart type except pie and heatmap -- those have their own colour panels. Recorded so the next report of this is answered from here.",
+      "fix": "No change. Verified in ColorPalette.ts:86 (AllColorPalettes) and DefaultColorsSettings.tsx:76 (the select).",
+      "tags": [
+        "viz-lib",
+        "not-a-bug",
+        "answered",
+        "0.7.8"
+      ],
+      "status": "not-a-bug",
+      "id": "bug-077",
+      "timestamp": "2026-10-27T00:09:26.838605Z",
+      "last_seen": "2026-10-27T00:09:26.838605Z",
+      "occurrences": 1,
+      "related_bugs": [],
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk"
+    },
+    {
+      "error_message": "Page loading slower than 0.7.6 -- investigated, no regression found",
+      "file": "webpack.config.js",
+      "root_cause": "No measurable regression. Bundle 528 KB gzipped against a CI-enforced budget of 560 (522 KB in September, so ~6 KB added); webpack.config.js byte-identical between v0.7.6 and v0.7.7; pages/index.js identical so nothing moved between the eager and lazy sets; initial payload 0.50 MB of brotli served in ~44 ms in-pod and 52 ms through a port-forward; handlers/base.py got FASTER (record_events batches ~75 jobs into 1); all queues empty; real traffic median 41 ms. Most likely what was felt: the ChunkLoadError in the same report -- a deploy renames every chunk, so a tab open across one refetches everything and reloads itself.",
+      "fix": "No change. TRAP recorded: probing with `Accept-Encoding: gzip` alone reports 2.38 MB and Content-Encoding: none, which looks exactly like broken compression. flask-compress will only use an algorithm it can compress incrementally on a STREAMED response and its streaming set is ('zstd','br','deflate') -- gzip is not in it, and a static file is streamed. See sqldesk/compression.py's docstring. Also: `duration` in the metrics log is MILLISECONDS.",
+      "tags": [
+        "performance",
+        "not-a-bug",
+        "measurement",
+        "compression",
+        "0.7.8"
+      ],
+      "status": "not-a-bug",
+      "id": "bug-078",
+      "timestamp": "2026-10-27T00:09:26.838605Z",
+      "last_seen": "2026-10-27T00:09:26.838605Z",
+      "occurrences": 1,
+      "related_bugs": [],
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk"
+    },
+    {
+      "error_message": "Significant refactor of test_data_sources.py",
+      "file": "tests/models/test_data_sources.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 4→12 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-079",
+      "timestamp": "2026-10-27T00:28:10.134Z",
+      "last_seen": "2026-10-27T00:28:10.134Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong return value",
+      "file": "sqldesk/handlers/authentication.py",
+      "root_cause": "Was returning: models.SlackWorkspace.query.filter(models.SlackWor",
+      "fix": "Now returns: False",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-080",
+      "timestamp": "2026-10-27T01:20:21.535Z",
+      "last_seen": "2026-10-27T01:20:21.535Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong return value",
+      "file": "sqldesk/handlers/authentication.py",
+      "root_cause": "Was returning: json_response({\"org_slug\": current_org.slug, \"clie",
+      "fix": "Now returns: json_response({\"org_slug\": None, \"setup_required\":",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-081",
+      "timestamp": "2026-10-27T01:20:27.208Z",
+      "last_seen": "2026-10-27T01:20:27.208Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong operator: != should be ==",
+      "file": "sqldesk/handlers/authentication.py",
+      "root_cause": "Used \"!=\" instead of \"==\"",
+      "fix": "Changed operator != → ==",
+      "tags": [
+        "auto-detected",
+        "operator-fix",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-082",
+      "timestamp": "2026-10-27T01:22:37.693Z",
+      "last_seen": "2026-10-27T01:22:37.693Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of test_mcp.py",
+      "file": "tests/handlers/test_mcp.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 6→48 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-083",
+      "timestamp": "2026-10-27T12:07:24.136Z",
+      "last_seen": "2026-10-27T12:07:24.136Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong return value",
+      "file": "sqldesk/models/__init__.py",
+      "root_cause": "Was returning: User.query.join(AlertSubscription).filter(AlertSub",
+      "fix": "Now returns: {}",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-084",
+      "timestamp": "2026-10-27T12:30:13.320Z",
+      "last_seen": "2026-10-27T12:30:13.320Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/models/__init__.py",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 27→37 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-085",
+      "timestamp": "2026-10-27T12:31:00.472Z",
+      "last_seen": "2026-10-27T12:31:00.472Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Wrong return value",
+      "file": "sqldesk/handlers/alerts.py",
+      "root_cause": "Was returning: [serialize_alert(alert) for alert in models.Alert.",
+      "fix": "Now returns: [serialize_alert(alert, fires_24h=fires.get(alert.",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-086",
+      "timestamp": "2026-10-27T12:31:28.628Z",
+      "last_seen": "2026-10-27T12:31:28.628Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of slack.py",
+      "file": "sqldesk/destinations/slack.py",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 11→13 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-087",
+      "timestamp": "2026-10-27T12:59:34.566Z",
+      "last_seen": "2026-10-27T12:59:34.566Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/models/__init__.py",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 3→9 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-088",
+      "timestamp": "2026-10-27T13:00:42.170Z",
+      "last_seen": "2026-10-27T13:00:42.170Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Incorrect value in code",
+      "file": "client/app/components/HelpTrigger.jsx",
+      "root_cause": "Had \"/alerts.html\"",
+      "fix": "Changed to \"/alerts.html#templates\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-089",
+      "timestamp": "2026-10-27T13:02:52.158Z",
+      "last_seen": "2026-10-27T13:02:52.158Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of users.py",
+      "file": "sqldesk/models/users.py",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 7→21 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-090",
+      "timestamp": "2026-10-27T13:20:51.175Z",
+      "last_seen": "2026-10-27T13:20:51.175Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "id": "bug-091",
+      "file": "client/app/pages/dashboards/export/index.js",
+      "error_message": "Too big to export: \"This dashboard has 13 widgets\" when downloading a dashboard as an image",
+      "root_cause": "capturePage() is shared by renderDashboardToPng and renderDashboardToPdf, and called checkSize() unconditionally. checkSize enforced the one-page report rule -- at most MAX_WIDGETS (12) widgets, and no taller than one A4 landscape page plus 30%. Both halves of that rule exist because a PDF is paginated. A PNG is not: composeExportCanvas sizes its canvas to the dashboard, not to A4, and captureScale already answers an oversized canvas by drawing smaller rather than refusing. So every image download inherited a constraint that only the PDF has, and refused dashboards it could have drawn, citing a page size for a file with no pages.",
+      "fix": "tooBigToExport takes a format. PNG is checked only against MAX_CANVAS_PIXELS at MIN_CAPTURE_SCALE -- what the browser will actually allocate; PDF keeps the one-page rule unchanged, so tests/test_one_page.py's pin on MAX_WIDGETS still holds. exportSizeProblem/checkSize/capturePage thread the format through, and ShareDashboardButton asks per format. Four tests in capture.test.js cover the image path; mutation-checked by restoring the shared rule, which fails all four and leaves the five PDF tests passing.",
+      "tags": [
+        "dashboards",
+        "export",
+        "screenshot",
+        "png",
+        "pdf",
+        "found-by-user"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-28T09:01:45.480657+00:00"
+    },
+    {
+      "id": "bug-092",
+      "file": "viz-lib/src/visualizations/table/cellFormat.ts",
+      "error_message": "Table data bars below zero rendered with no fill; reported as 'very light color'",
+      "root_cause": "DEFAULT_CELL_FORMAT.dataBarNegativeColor was \"danger\". The semantic colour set is good/warning/serious/critical/neutral/accent -- \"danger\" is in none of them, and it is not a CSS colour either. washColor() therefore fell to its non-semantic branch and produced `color-mix(in srgb, danger 16%, transparent)`, which is invalid CSS, so the browser dropped the whole background declaration. The negative bar had no fill at all. The string appeared exactly once in the codebase, as that default, so nothing else ever exercised it.",
+      "fix": "Default is \"critical\". Separately the bar's fill moved from a 16% wash to solid (dataBarFill, default solid even for columns saved earlier, since those are the unreadable ones), with the number restated in a measured contrast ink clipped to the bar's rectangle. Tests in cellFormat.test.tsx under 'a bar you can actually see'; mutation-checked by restoring the default, which fails four tests.",
+      "tags": [
+        "viz-lib",
+        "table",
+        "data-bar",
+        "css",
+        "color-mix",
+        "found-by-user"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-28T11:16:29.655415+00:00"
+    },
+    {
+      "error_message": "Significant refactor of buildOption.ts",
+      "file": "viz-lib/src/visualizations/chart/echarts/buildOption.ts",
+      "root_cause": "11 lines replaced/restructured",
+      "fix": "Rewrote 26→71 lines (11 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-093",
+      "timestamp": "2026-10-29T13:18:20.372Z",
+      "last_seen": "2026-10-29T13:18:20.372Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/chart/Editor/SeriesSettings.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-094",
+      "timestamp": "2026-10-29T13:22:04.022Z",
+      "last_seen": "2026-10-29T13:22:04.022Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Incorrect value in code",
+      "file": "viz-lib/src/visualizations/chart/Editor/PanelSettings.tsx",
+      "root_cause": "Had \"@/visualizations/prop-types\"",
+      "fix": "Changed to \"../panels\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "tsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-095",
+      "timestamp": "2026-10-29T13:22:23.467Z",
+      "last_seen": "2026-10-29T13:22:23.467Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Type error",
+      "file": "viz-lib/src/visualizations/chart/Editor/PanelSettings.test.tsx",
+      "root_cause": "Missing or incorrect type annotation",
+      "fix": "Added type assertion/annotation",
+      "tags": [
+        "auto-detected",
+        "type-fix",
+        "tsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-096",
+      "timestamp": "2026-10-29T13:23:30.347Z",
+      "last_seen": "2026-10-29T13:23:30.347Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/mcp/__init__.py",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 12→17 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-097",
+      "timestamp": "2026-10-29T13:24:44.961Z",
+      "last_seen": "2026-10-29T13:24:44.961Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/mcp/__init__.py",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 24→53 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-098",
+      "timestamp": "2026-10-29T13:25:16.444Z",
+      "last_seen": "2026-10-29T13:25:16.444Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of __init__.py",
+      "file": "sqldesk/mcp/__init__.py",
+      "root_cause": "28 lines replaced/restructured",
+      "fix": "Rewrote 34→4 lines (28 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-099",
+      "timestamp": "2026-10-29T15:00:29.987Z",
+      "last_seen": "2026-10-29T15:00:29.987Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of VisualizationWidget.jsx",
+      "file": "client/app/components/dashboards/dashboard-widget/VisualizationWidget.jsx",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 13→27 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-100",
+      "timestamp": "2026-10-29T15:24:11.001Z",
+      "last_seen": "2026-10-29T15:24:11.001Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of rollup.ts",
+      "file": "viz-lib/src/visualizations/chart/rollup.ts",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 12→13 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-101",
+      "timestamp": "2026-10-29T15:41:43.383Z",
+      "last_seen": "2026-10-29T15:41:43.383Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of rollup.ts",
+      "file": "viz-lib/src/visualizations/chart/rollup.ts",
+      "root_cause": "13 lines replaced/restructured",
+      "fix": "Rewrote 30→19 lines (13 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-102",
+      "timestamp": "2026-10-29T15:41:53.599Z",
+      "last_seen": "2026-10-29T15:41:53.599Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of buildOption.ts",
+      "file": "viz-lib/src/visualizations/chart/echarts/buildOption.ts",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 33→53 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-103",
+      "timestamp": "2026-10-29T15:42:07.413Z",
+      "last_seen": "2026-10-29T15:42:07.413Z",
+      "occurrences": 1,
+      "related_bugs": []
+    }
+  ],
+  "applied_observations": {
+    "38a95456-f559-4e29-88a3-e72ed8273b31": true,
+    "bd166722-558e-447a-8a30-aa883acaeded": true,
+    "e58b45e3-f465-4b95-aca7-9f3ba2c2b0b5": true,
+    "dd811c28-f43e-4392-ab03-d5734d6adb0d": true,
+    "152be237-24f2-4c0e-89f3-42f7528c45cd": true,
+    "bc09c25c-7ee1-4254-9e3c-3aec1f7c1c24": true,
+    "f1a9f5df-cb92-47cf-aa94-977f8c291d98": true,
+    "c4398d4c-ad9b-4f20-80dd-dbbce4cdb505": true,
+    "f749f70c-ace2-4fec-8711-8a0548ff8385": true,
+    "847a56b9-69dd-4d27-8cc0-c823d28490e3": true,
+    "d3849790-e545-488f-b353-58b46b96f220": true,
+    "1e9c4b12-1bea-418f-86af-0150502b9a9f": true,
+    "bb0e33ab-6f48-4e92-8acc-60723dc5c115": true,
+    "35b25ec5-717b-4ed1-b362-71840325b94a": true,
+    "e781d5fc-7a24-4bd0-960c-75cbe9e9ac77": true,
+    "886504d2-7726-48e1-a692-105c87f78223": true,
+    "f6ca451d-5d63-4062-a372-5d3aff3f7b02": true,
+    "f2f267d8-e756-4484-bc40-0625fdc843cd": true,
+    "7fe359e5-7f83-4077-8476-e102ba4efe67": true,
+    "fd79c25f-4e02-4bf1-beed-292227fcaa52": true,
+    "fb0be46b-ecbd-48a9-8c27-6e75795cef7a": true,
+    "f678aa72-2d25-4d68-9495-d4f7f2415faa": true,
+    "dfdd981a-446a-4a9d-bd1a-c5306c2e29e1": true,
+    "bcbd42d8-c4a0-4cd6-a14f-e74d6d0288d3": true,
+    "d3d0bf0c-1a80-4b62-a9e0-312c6829c283": true,
+    "714dbb60-2a4e-48c4-860f-92721d6fe2bd": true,
+    "120a39e6-991b-4d22-bfea-de78468169b5": true,
+    "746cad58-9124-4a2e-970d-1ebf03fe1731": true,
+    "3e12ff8b-4204-4f7f-b2c7-2d7c2fe8b6b5": true,
+    "8a2fdfc7-a577-42ab-9936-80ba2de1b8be": true,
+    "fd677c13-36a9-4f9e-9686-52e7546a9bbc": true,
+    "47ba1c48-6675-46ba-80f2-78d846e200f0": true,
+    "bed6a27c-640f-4e9b-85ed-f779ab2563d1": true,
+    "aa598029-d57b-4177-ad6b-447b4347bca3": true,
+    "cc9372d3-7a5a-496d-b8aa-b4893417f40d": true,
+    "b54faffb-8f01-41ff-9b84-042c5d1c5866": true,
+    "82681bdf-33c8-47e8-b0dc-0ab58266d1b8": true,
+    "e6144004-c62d-4d38-8790-9dbdc965af4b": true,
+    "9015ca87-699f-42a1-9134-e7be8a4cd5ec": true,
+    "1f55ab04-a3fc-4785-ad79-081d4dd0b9fb": true,
+    "3d459bb1-1080-4314-b316-97a4e813b3ca": true,
+    "6c1288df-3813-4170-88ad-53bddf22ac53": true,
+    "69a588fd-8dc7-4ab5-be5b-009243dbb231": true,
+    "400d5fcf-55ef-4a8d-a50d-55f4a47b6665": true,
+    "936fbf27-783a-4a27-b0c7-781490e34907": true,
+    "9d2c0b83-fd11-442f-9274-629991df7ad9": true,
+    "5a20da0e-095f-4a5d-9a8d-3760f968ae58": true,
+    "2edece27-101a-4940-810e-41ecb268bd91": true,
+    "b3136ba7-5677-44c7-a5ce-c582124702a4": true,
+    "80350ff5-2eb0-4cf9-927e-2f1a745840e3": true,
+    "ffa3249f-4e46-4585-8320-722887853b85": true,
+    "c2eedb5d-8636-49d2-8a57-aa754a34fd29": true,
+    "4d64562b-533d-4ef6-b894-ce0160801553": true,
+    "b548d8c7-89c6-459d-a7fe-90f36ead5164": true,
+    "ecc4f756-26ee-488a-9362-1eb9ace7d0e3": true,
+    "3d96a546-95c1-4138-b481-cec7cbf1d056": true,
+    "4be1fd31-6299-4f3e-8d4c-5372782a2741": true,
+    "707af710-c711-4741-a511-96b216bc6b9c": true,
+    "34c33fc6-5124-4dc1-827c-fadfadb09e54": true,
+    "bd8caf12-3267-4b56-a08c-ea63acb44071": true,
+    "1cc76d61-f7c7-40de-ae6f-bd03047de6df": true,
+    "36c8c55b-ce0d-42d5-be86-f075422fdae4": true,
+    "c4e9d0a5-9abd-4660-b4f8-fbe50038b58d": true,
+    "cbdc0df1-f68c-495e-8144-002102a3aff5": true,
+    "977638e5-1434-4ac0-b18d-72cefed93a19": true,
+    "62116ea2-aaaa-4234-995d-aa79e87b1c1e": true,
+    "1b8e8001-67ec-4621-bae7-b23688a81d33": true,
+    "b2b9e15e-cc02-489e-ab9c-10288c40f54e": true,
+    "d6fe26df-e486-4a74-8ae4-fb2ff1572779": true,
+    "6a3eae20-bbda-4600-b2dc-4f6ab764ec5c": true,
+    "ab4607ea-30f8-4fc3-987d-b12372388ac5": true,
+    "0017eda3-f957-4ace-ab30-29371e05a9e2": true,
+    "f8dab580-bd41-4f43-af0c-70f3d70a3d24": true
+  },
+  "next_id": 104
+}

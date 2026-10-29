@@ -1,4 +1,5 @@
 import React from "react";
+import lazyPage from "@/lib/lazyPage";
 import routeWithUserSession from "@/components/ApplicationArea/routeWithUserSession";
 import routeWithApiKeySession from "@/components/ApplicationArea/routeWithApiKeySession";
 import routes from "@/services/routes";
@@ -18,10 +19,10 @@ import routes from "@/services/routes";
 
   The Suspense boundary that covers the wait is in Router.
 */
-const DashboardFolders = React.lazy(() => import(/* webpackChunkName: "dashboard" */ "./DashboardFolders"));
-const DashboardPage = React.lazy(() => import(/* webpackChunkName: "dashboard" */ "./DashboardPage"));
-const PublicDashboardPage = React.lazy(() => import(/* webpackChunkName: "dashboard" */ "./PublicDashboardPage"));
-const WallDashboardPage = React.lazy(() => import(/* webpackChunkName: "dashboard" */ "./WallDashboardPage"));
+const DashboardFolders = lazyPage(() => import(/* webpackChunkName: "dashboard" */ "./DashboardFolders"));
+const DashboardPage = lazyPage(() => import(/* webpackChunkName: "dashboard" */ "./DashboardPage"));
+const PublicDashboardPage = lazyPage(() => import(/* webpackChunkName: "dashboard" */ "./PublicDashboardPage"));
+const WallDashboardPage = lazyPage(() => import(/* webpackChunkName: "dashboard" */ "./WallDashboardPage"));
 
 // Kept for the links people have already sent each other.
 routes.register(

@@ -82,7 +82,7 @@ function Diff({ diff }) {
   );
 }
 
-function QueryHistoryDialog({ dialog, query, canRestore }) {
+function QueryHistoryDialog({ dialog, query, canRestore, unsaved }) {
   const [versions, setVersions] = useState(null);
   const [failed, setFailed] = useState(false);
   const [chosen, setChosen] = useState(0);
@@ -114,7 +114,7 @@ function QueryHistoryDialog({ dialog, query, canRestore }) {
 
   const restore = useCallback(() => {
     setRestoring(true);
-    axios
+    return axios
       .post(`api/queries/${query.id}/versions/${version.id}/restore`)
       .then((updated) => {
         notification.success(`Version ${version.number} restored, as a new version.`);
@@ -126,6 +126,24 @@ function QueryHistoryDialog({ dialog, query, canRestore }) {
       });
   }, [dialog, query, version]);
 
+  // Restoring replaces what is in the editor. With unsaved changes there it
+  // used to discard them without a word, and the guard against leaving with
+  // unsaved changes never fired, because the restore reset what counts as
+  // saved. Asked first now.
+  const confirmRestore = useCallback(() => {
+    if (!unsaved) {
+      restore();
+      return;
+    }
+    Modal.confirm({
+      title: `Restore version ${version.number}?`,
+      content: "The editor has changes you have not saved. Restoring replaces them.",
+      okText: "Restore and discard my changes",
+      cancelText: "Keep editing",
+      onOk: restore,
+    });
+  }, [unsaved, restore, version]);
+
   return (
     <Modal
       {...dialog.props}
@@ -136,7 +154,7 @@ function QueryHistoryDialog({ dialog, query, canRestore }) {
           Close
         </Button>,
         canRestore && version && (
-          <Button key="restore" type="primary" loading={restoring} onClick={restore} data-test="RestoreVersion">
+          <Button key="restore" type="primary" loading={restoring} onClick={confirmRestore} data-test="RestoreVersion">
             Restore version {version.number}
           </Button>
         ),
@@ -212,9 +230,11 @@ QueryHistoryDialog.propTypes = {
   dialog: DialogPropType.isRequired,
   query: PropTypes.object.isRequired,
   canRestore: PropTypes.bool,
+  // Whether the editor holds changes that are not saved.
+  unsaved: PropTypes.bool,
 };
 
-QueryHistoryDialog.defaultProps = { canRestore: false };
+QueryHistoryDialog.defaultProps = { canRestore: false, unsaved: false };
 
 // The unwrapped component, for tests: `wrapDialog` exists to be opened from a
 // menu, and a test that went through it would be testing the wrapper.

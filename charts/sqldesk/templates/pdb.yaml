@@ -1,0 +1,24 @@
+{{- if gt (int .Values.server.replicas) 1 }}
+# How many web pods a cluster may take away at once.
+#
+# A node drain, a cluster upgrade or a scale-down otherwise evicts every
+# server pod at the same time: Kubernetes is within its rights, nothing is
+# unhealthy, and the install is simply down for as long as the new pods take
+# to start. One pod has to stay up.
+#
+# Only with more than one replica. A budget that insists on keeping one of one
+# blocks the drain outright, which turns a routine node upgrade into something
+# somebody has to come and override.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "sqldesk.fullname" . }}-server
+  labels:
+    {{- include "sqldesk.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "sqldesk.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: server
+{{- end }}

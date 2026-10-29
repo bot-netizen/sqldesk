@@ -104,12 +104,26 @@
     Table
 -----------------------------------------------------------*/
 @table-border-radius-base: @radius-card;
-@table-header-color: @n-600;
-@table-header-bg: @n-100;
+/* A header is marked by weight and a rule, not by a fill.
+
+   @n-100 measured 1.10:1 against the white rows it labelled, and a fill has
+   to reach about 1.25:1 before the eye reads it as a band at all -- so it
+   cost a colour and bought nothing. On a dashboard it was worse than
+   nothing: page @n-50, card white, header @n-100 stacked three near-identical
+   warm off-whites, which is what read as muddy.
+
+   @n-600 as the ink was the other half. The ramp's own note says n-600
+   measures 3.3-3.7:1 across our surfaces, and it measured 3.33:1 on the
+   header it was paired with -- a label below AA on every table in the app.
+   @n-900 is 17.2:1 on white. */
+@table-header-color: @n-900;
+@table-header-bg: @component-background;
 @table-header-icon-color: @n-500;
 @table-header-icon-active-color: @n-800;
-@table-header-sort-bg: @n-100;
-@table-header-sort-active-bg: @n-200;
+/* Sorting feedback is the one thing that still wants a fill, so it now has
+   the contrast to itself rather than competing with a header-wide wash. */
+@table-header-sort-bg: @component-background;
+@table-header-sort-active-bg: @n-100;
 @table-header-filter-active-bg: @n-200;
 @table-body-sort-bg: transparent;
 @table-row-hover-bg: @n-100;

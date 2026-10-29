@@ -1,4 +1,5 @@
 import React from "react";
+import lazyPage from "@/lib/lazyPage";
 
 import routeWithUserSession from "@/components/ApplicationArea/routeWithUserSession";
 import routes from "@/services/routes";
@@ -10,7 +11,7 @@ import routes from "@/services/routes";
   may connect a client -- and reachable only from the Admin menu, nobody
   without super_admin could find it at all.
 */
-const MyMcp = React.lazy(() => import(/* webpackChunkName: "mcp" */ "./MyMcp"));
+const MyMcp = lazyPage(() => import(/* webpackChunkName: "mcp" */ "./MyMcp"));
 
 routes.register(
   "Mcp.Mine",

@@ -28,6 +28,7 @@ def run_script(script, shell):
 
 
 class Script(BaseQueryRunner):
+    query_language = "python"
     should_annotate_query = False
 
     @classmethod

@@ -21,6 +21,29 @@ metadata:
     {{- include "sqldesk.labels" . | nindent 4 }}
 spec:
   replicas: 1
+  # One Redis at a time, briefly none.
+  #
+  # The default strategy starts the new one before stopping the old, and with
+  # a single Service in front of them the workers divide between two sets of
+  # queues for as long as that takes: a job enqueued through one is invisible
+  # to a worker reading the other, so a query submitted during an upgrade
+  # simply never ran.
+  #
+  # Expressed as maxSurge 0 rather than `type: Recreate`, which cannot be
+  # applied to a Deployment that already exists: Kubernetes defaults
+  # `rollingUpdate` on every RollingUpdate deployment, those defaults are
+  # owned by the API server rather than by Helm, and the apply is then
+  # rejected outright --
+  #   spec.strategy.rollingUpdate: Forbidden: may not be specified when
+  #   strategy `type` is 'Recreate'
+  # -- which fails the whole upgrade, for every install that has ever run
+  # this chart. maxSurge 0 with one replica is the same behaviour: the old
+  # pod goes before the new one starts.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       {{- include "sqldesk.selectorLabels" . | nindent 6 }}
@@ -47,7 +70,21 @@ spec:
           {{- if include "sqldesk.redisManaged" . }}
           # A queue is a place to put work for the worker to run, so Redis
           # answers only with the password the chart generated.
-          args: ["--requirepass", "$(REDIS_PASSWORD)"]
+          #
+          # And a memory ceiling with `noeviction`. Without one, Redis grows
+          # until the kernel kills it and every queued job goes with it;
+          # `allkeys-lru`, the usual answer, would instead evict queue entries
+          # and job records -- silently losing somebody's query rather than
+          # refusing the next write. Refusing is the honest failure: the
+          # enqueue reports an error, the person sees it, and nothing already
+          # queued is lost.
+          args:
+            - "--requirepass"
+            - "$(REDIS_PASSWORD)"
+            - "--maxmemory"
+            - {{ .Values.redis.maxmemory | quote }}
+            - "--maxmemory-policy"
+            - "noeviction"
           env:
             - name: REDIS_PASSWORD
               valueFrom:
@@ -69,4 +106,6 @@ spec:
               {{- end }}
             initialDelaySeconds: 3
             periodSeconds: 5
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
 {{- end }}

@@ -5,7 +5,7 @@ import Dropdown from "antd/lib/dropdown";
 import Menu from "antd/lib/menu";
 import Checkbox from "antd/lib/checkbox";
 import Input from "antd/lib/input";
-import FilterOutlinedIcon from "@ant-design/icons/FilterOutlined";
+import SearchOutlinedIcon from "@ant-design/icons/SearchOutlined";
 import TableOutlinedIcon from "@ant-design/icons/TableOutlined";
 import PlainButton from "@/components/PlainButton";
 import localOptions from "@/lib/localOptions";
@@ -13,16 +13,22 @@ import localOptions from "@/lib/localOptions";
 import "./ListPageControls.less";
 
 /*
-  The Filter and Columns controls in a list page header.
+  The Search and Columns controls in a list page header.
 
-  Both do real work rather than sitting there as chrome: Filter holds the
-  search field, which is server-side and so filters the whole result set,
-  and Columns toggles visibility per column. A control that looked like it
-  filtered but only affected the page in front of you would be worse than
-  no control at all.
+  Both do real work rather than sitting there as chrome: search is server-side
+  and so filters the whole result set, and Columns toggles visibility per
+  column. A control that looked like it filtered but only affected the page in
+  front of you would be worse than no control at all.
+
+  Search used to live inside a dropdown behind a button marked "Filter", which
+  is two problems. Nobody looks for a search box behind a funnel icon, so on a
+  list of eighty dashboards people scrolled. And a text field inside an antd
+  Dropdown fights the Dropdown: a click in the overlay closes it, so the field
+  vanished as you reached for it, and the fix was a stopPropagation that then
+  had to be tested. A field that is simply there has none of that.
 */
 
-export function FilterControl({ value, onChange, placeholder, label }) {
+export function SearchControl({ value, onChange, placeholder, label }) {
   /*
     The field holds what you typed; `value` is the list's search term, which
     arrives 200ms later because the list debounces it (see ItemsList). Feeding
@@ -54,48 +60,34 @@ export function FilterControl({ value, onChange, placeholder, label }) {
     [onChange]
   );
 
-  const overlay = (
-    // A click anywhere in a Dropdown's overlay closes it, which for a panel
-    // built around a text field means the field vanishes the moment you try to
-    // type in it. Only clicks outside should close this one.
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
-    <div className="list-page-filter-panel" onClick={(event) => event.stopPropagation()}>
-      <div className="list-page-filter-label">{label}</div>
-      <Input
-        allowClear
-        autoFocus
-        placeholder={placeholder}
-        value={text}
-        aria-label={label}
-        onFocus={() => {
-          typing.current = true;
-        }}
-        onBlur={() => {
-          typing.current = false;
-        }}
-        onChange={(event) => handleChange(event.target.value)}
-      />
-    </div>
-  );
-
   return (
-    <Dropdown overlay={overlay} trigger={["click"]} placement="bottomRight">
-      <PlainButton className={`list-page-control${text ? " list-page-control-on" : ""}`} data-test="ListFilterButton">
-        <FilterOutlinedIcon aria-hidden="true" />
-        <span>Filter</span>
-      </PlainButton>
-    </Dropdown>
+    <Input
+      className="list-page-search"
+      allowClear
+      prefix={<SearchOutlinedIcon aria-hidden="true" />}
+      placeholder={placeholder}
+      value={text}
+      aria-label={label}
+      data-test="ListSearchInput"
+      onFocus={() => {
+        typing.current = true;
+      }}
+      onBlur={() => {
+        typing.current = false;
+      }}
+      onChange={(event) => handleChange(event.target.value)}
+    />
   );
 }
 
-FilterControl.propTypes = {
+SearchControl.propTypes = {
   value: PropTypes.string,
   onChange: PropTypes.func.isRequired,
   placeholder: PropTypes.string,
   label: PropTypes.string,
 };
 
-FilterControl.defaultProps = { value: "", placeholder: "Search…", label: "Search" };
+SearchControl.defaultProps = { value: "", placeholder: "Search…", label: "Search" };
 
 /*
   Hidden columns are stored per list (storageKey) rather than globally, so

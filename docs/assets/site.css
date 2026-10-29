@@ -11,9 +11,11 @@
      #f6f8f9 (cool) over the top of it, so the site matching the token did not
      match the product. It matches the product now. Worth reconciling in the
      app one day; the site should not be the thing that moves.
-   - There is no `prefers-color-scheme: dark` block. SQLDesk itself is light
-     everywhere except the wall display, so a site that went dark on half its
-     readers was the odd one out.
+   - Dark is a switch in the bar, not `prefers-color-scheme`. SQLDesk itself
+     is light everywhere except the wall display, so a site that went dark on
+     its own for half its readers would be the odd one out; a reader who asks
+     for it gets it, and the choice is remembered. The dark values are the
+     wall display's own tokens.
 */
 :root {
   --n-50: #fbfaf9;
@@ -39,7 +41,10 @@
   --ink: var(--n-900);
   --ink-2: var(--n-800);
   --muted: var(--n-700);
-  --faint: var(--n-600);
+  /* Not var(--n-600): 11-13px labels sit on this, and #8a857e measured 3.44:1
+     on the canvas -- under AA for text that small. 4.82:1 there and 4.68:1
+     on the sunken, and still lighter than --muted. */
+  --faint: #726d65;
   --accent: var(--ac-600);
   --accent-ink: var(--ac-700);
   --accent-wash: var(--ac-100);
@@ -153,6 +158,29 @@ a:focus-visible {
 @media (max-width: 760px) {
   .topbar nav a.hide-sm {
     display: none;
+  }
+}
+/* Five links, the mark and the switch do not fit a phone: at 375px the bar
+   needed 545, so Releases was clipped and GitHub and the switch could not be
+   reached at all. The bar stacks instead -- the mark on its own line, the
+   links wrapping under it -- rather than hiding anything, because every one
+   of the five is a destination somebody came for. */
+@media (max-width: 620px) {
+  .topbar-in {
+    flex-wrap: wrap;
+    height: auto;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    gap: 8px;
+  }
+  .topbar nav {
+    margin-left: 0;
+    width: 100%;
+    gap: 2px;
+  }
+  .topbar nav a {
+    font-size: 13px;
+    padding: 5px 8px;
   }
 }
 
@@ -795,3 +823,74 @@ footer a {
     margin-bottom: 24px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Dark, from the application's wall-display tokens -- measured against WCAG AA
+   there, not picked by eye here. The neutral ramp inverts (50 is the darkest
+   surface, 900 the brightest ink), so every rule written against --n-* comes
+   out right without being touched.
+   --------------------------------------------------------------------------- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --n-50: #1b1a21;
+  --n-100: #232229;
+  --n-200: #26252d;
+  --n-300: #33313b;
+  --n-400: #3f3d49;
+  --n-500: #55525f;
+  --n-600: #6e6b78;
+  --n-700: #a5a2ae;
+  --n-800: #d6d4dd;
+  --n-900: #f4f3f7;
+  --ac-100: #28333b;
+  --ac-200: #2f4049;
+  --ac-400: #3f8296;
+  --ac-600: #2e93a8;
+  --ac-700: #6bb4c4;
+
+  --canvas: #131218;
+  --surface: #1b1a21;
+  --sunken: #232229;
+  --rule: #33313b;
+  --rule-soft: #26252d;
+  --ink: #f4f3f7;
+  --ink-2: #d6d4dd;
+  --muted: #a5a2ae;
+  /* Lighter than the application's wall token: there it labels nothing smaller
+     than body text, here it carries 11-13px notes, and #6e6b78 measured 3.58:1
+     on canvas -- under AA. This is 5.52:1 on canvas, 4.67:1 on the sunken. */
+  --faint: #8d8a99;
+  --accent: #2e93a8;
+  --accent-ink: #6bb4c4;
+  --accent-wash: #28333b;
+  --accent-edge: #2f4049;
+  --code-bg: #1b1a21;
+
+  --good: #3fb87a;
+  --good-wash: #21332f;
+  --warning: #d79a2b;
+  --warning-wash: #392e23;
+  --serious: #e8763a;
+  --critical: #e2685e;
+}
+
+/* The switch itself. */
+.theme-toggle {
+  display: none; place-items: center; width: 34px; height: 34px; padding: 0;
+  margin-left: 4px; border: 1px solid transparent; border-radius: 8px;
+  background: none; color: var(--muted); cursor: pointer;
+}
+.theme-toggle:hover { color: var(--ink); border-color: var(--rule); background: var(--surface); }
+.theme-toggle svg { width: 17px; height: 17px; display: block; }
+.theme-toggle .moon { display: block; }
+.theme-toggle .sun { display: none; }
+:root[data-theme="dark"] .theme-toggle .moon { display: none; }
+:root[data-theme="dark"] .theme-toggle .sun { display: block; }
+/* The switch appears only where the script that works it is running. */
+.js .theme-toggle { display: inline-grid; }
+/* A product screenshot is a light image whatever the page is doing. */
+:root[data-theme="dark"] .demo-video { border: 1px solid var(--rule); }
+/* White on the accent measures 3.59:1 in dark, and 2.35:1 on the hover colour,
+   both under AA. The accent is a light teal there, so the ink flips with it. */
+:root[data-theme="dark"] .btn-primary { color: #0c0b10; }
+:root[data-theme="dark"] .btn-primary:hover { color: #0c0b10; }

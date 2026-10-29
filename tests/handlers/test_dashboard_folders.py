@@ -170,6 +170,16 @@ class TestMovingOneInAndOut(FolderTestCase):
 
         self.assertEqual(200, self.move(dashboard, folder.id).status_code)
 
+    def test_filing_one_does_not_give_its_editor_a_conflict(self):
+        dashboard = self.factory.create_dashboard(user=self.factory.user)
+        folder = self.folder(name="Scratch", locked=False)
+        before = dashboard.version
+
+        self.move(dashboard, folder.id)
+
+        db.session.refresh(dashboard)
+        self.assertEqual((folder.id, before), (dashboard.folder_id, dashboard.version))
+
     def test_somebody_elses_dashboard_is_not_yours_to_file(self):
         folder = self.folder(name="Scratch", locked=False)
         theirs = self.factory.create_dashboard(user=self.factory.create_user())
@@ -191,6 +201,24 @@ class TestRemovingAFolder(FolderTestCase):
 
         self.assertEqual(400, rv.status_code)
         self.assertIn("1 dashboard", rv.json["message"])
+
+    def test_one_holding_only_archived_dashboards_goes(self):
+        """
+        The page shows it as empty and nothing lists archived dashboards to
+        move them out, so it could never be deleted.
+        """
+        folder = self.folder()
+        archived = self.filed(folder)
+        archived.is_archived = True
+        db.session.commit()
+
+        rv = self.make_request(
+            "delete", "/api/dashboard_folders/{}".format(folder.id), user=self.factory.create_admin()
+        )
+
+        self.assertEqual(200, rv.status_code)
+        db.session.refresh(archived)
+        self.assertIsNone(archived.folder_id)
 
     def test_an_empty_one_goes(self):
         folder = self.folder()

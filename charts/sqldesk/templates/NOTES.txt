@@ -60,7 +60,7 @@ put an Ingress in front and terminate TLS there.
 {{- end }}
 {{- else -}}
 MCP is off. Turn it on with `--set mcp.enabled=true` and see
-https://bot-netizen.github.io/sqldesk/guide/mcp.html
+https://sqldesk.org/guide/mcp.html
 {{- end }}
 
 {{- if not .Values.host }}

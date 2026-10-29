@@ -387,6 +387,34 @@ class Flush:
         )
 
 
+#: Consecutive failed flushes before a consumer gives up and says why.
+MAX_FAILED_FLUSHES = 30
+
+#: How much one flush moves the measured rate. A second's count is noisy -- a
+#: producer batching, a poll that came back early -- and the sample rate it
+#: decides is shown on every chart, so it should not jump about with it.
+SMOOTHING = 0.3
+
+
+def _received_rate(stream, count, now):
+    """
+    Messages a second arriving on the topic, before any sampling.
+
+    This flush's count over the time since the last one, smoothed against the
+    rate measured before. The first flush of a run, or one after a gap, has
+    nothing recent to smooth against and is taken as it is.
+    """
+    last = stream.last_flush_at
+    elapsed = (now - last).total_seconds() if last else 0
+    if elapsed <= 0 or elapsed > 60:
+        return count / (float(settings.STREAM_FLUSH_SECONDS) or 1.0)
+    instant = count / elapsed
+    previous = stream.observed_rate or 0
+    if not previous:
+        return instant
+    return SMOOTHING * instant + (1 - SMOOTHING) * previous
+
+
 def flush_once(stream, store, messages, now=None, decoder=None):
     """
     One flush: sample, decode, write, trim, and update what the page reads.
@@ -431,10 +459,17 @@ def flush_once(stream, store, messages, now=None, decoder=None):
     # Measured, then used. The window for the *next* flush follows from the rate
     # this one observed, which is the only honest order: a window chosen from a
     # rate nobody has measured is a guess with a number on it.
-    observed = store.observed_rate()
-    stream.observed_rate = observed
-    stream.window_seconds = window.window_for(stream.budget, observed)
-    stream.sample_rate = window.sample_rate_for(observed * rate, stream.ceiling)
+    #
+    # The topic's rate is what *arrived*, before sampling. It used to be
+    # estimated as the rows stored over the last minute times the current
+    # sample rate -- but most of those rows were kept at an earlier, lower
+    # rate, so once a topic went over the ceiling the estimate fed on itself:
+    # at twice the ceiling the rate climbed past 100 within half a minute,
+    # stored almost nothing, collapsed back to 1 and did it again.
+    received = _received_rate(stream, len(messages), now)
+    stream.observed_rate = received
+    stream.sample_rate = window.sample_rate_for(received, stream.ceiling)
+    stream.window_seconds = window.window_for(stream.budget, received / stream.sample_rate)
     store.truncate(stream.window_seconds)
     stream.rows = store.rows()
     stream.malformed = (stream.malformed or 0) + malformed
@@ -465,6 +500,7 @@ def consume(stream, broker, should_continue, now=None, decoder=None):
         # as one did not.
         broker.open()
 
+        failures = 0
         while should_continue():
             started = time.monotonic()
             collected = []
@@ -478,9 +514,30 @@ def consume(stream, broker, should_continue, now=None, decoder=None):
                     break
                 if time.monotonic() - started >= settings.STREAM_FLUSH_SECONDS:
                     break
-            flush_once(stream, store, collected, now=now, decoder=decoder)
+            try:
+                flush_once(stream, store, collected, now=now, decoder=decoder)
+                failures = 0
+            except decode.SchemaError:
+                # The uploaded schema no longer loads: nothing will read until
+                # somebody fixes it, and the reason belongs on the page.
+                raise
+            except Exception:
+                # One bad second is dropped and counted, not the end of the
+                # consumer: a message DuckDB cannot insert, or a reader holding
+                # the window a moment too long, used to stop it -- with no
+                # hand-over, and again on every restart while the message was
+                # there. Thirty in a row is something actually wrong.
+                failures += 1
+                logger.warning("stream %s: a flush failed (%s in a row)", stream.id, failures, exc_info=True)
+                models.db.session.rollback()
+                if failures >= MAX_FAILED_FLUSHES:
+                    raise
+                stream.malformed = (stream.malformed or 0) + len(collected)
+                models.db.session.commit()
             # After the flush and never before it, so a committed offset only
-            # ever covers events that are already in the window.
+            # ever covers events that are already in the window -- or, after
+            # a failed flush, events that were counted and dropped, so a poison
+            # message is passed rather than read again for ever.
             broker.commit_position()
             # The window is a file and DuckDB gives it to one process at a
             # time. Held open for the whole run -- minutes -- this consumer

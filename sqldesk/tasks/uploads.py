@@ -21,9 +21,9 @@ import datetime
 import logging
 
 from flask import render_template
+from flask_mail import Message
 
-from sqldesk import models, redis_connection, settings, uploads
-from sqldesk.tasks.general import send_mail
+from sqldesk import mail, models, redis_connection, settings, uploads
 from sqldesk.utils import base_url, utcnow
 from sqldesk.worker import job
 
@@ -120,6 +120,18 @@ def warn_about_expiring_uploads():
     return sent
 
 
+def send_mail(to, subject, html, text):
+    """
+    Send now, and raise if it does not go.
+
+    Not `sqldesk.tasks.general.send_mail`, which catches every error and logs
+    it: called from here it returned normally when the mail server refused,
+    `_tell` took that for a warning sent, and the file was deleted the next
+    day with nobody told. This module's one promise depends on knowing.
+    """
+    mail.send(Message(recipients=to, subject=subject, html=html, body=text))
+
+
 def _tell(person, their_uploads):
     """One mail. Returns whether it went."""
     files = [
@@ -167,12 +179,18 @@ def delete_expired_uploads():
         return 0
 
     now = utcnow()
+    # A full day after the warning went, however late it went. A file already
+    # past expiry when it was first warned about -- after a mail outage, a
+    # scheduler that was down, an install that switched the lifecycle on --
+    # used to be warned and deleted in the same run.
+    warned_before = now - uploads.WARN_WITHIN
     expired = [
         upload
         for upload in models.UploadedFile.query.filter(
             models.UploadedFile.expires_at.isnot(None),
             models.UploadedFile.expires_at <= now,
             models.UploadedFile.expiry_warning_sent_at.isnot(None),
+            models.UploadedFile.expiry_warning_sent_at <= warned_before,
         ).all()
         if upload.created_by is not None and upload.created_by.email
     ]

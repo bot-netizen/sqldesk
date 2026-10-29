@@ -4,6 +4,7 @@ import cx from "classnames";
 import Button from "antd/lib/button";
 import routeWithUserSession from "@/components/ApplicationArea/routeWithUserSession";
 import Link from "@/components/Link";
+import UserAvatar from "@/components/UserAvatar";
 import Paginator from "@/components/Paginator";
 import DynamicComponent from "@/components/DynamicComponent";
 import { DashboardTagsControl } from "@/components/tags-control/TagsControl";
@@ -13,7 +14,7 @@ import { UrlStateStorage } from "@/components/items-list/classes/StateStorage";
 import * as Sidebar from "@/components/items-list/components/Sidebar";
 import { Shell, Header, ViewTabs, TagChips } from "@/components/items-list/components/ListPage";
 import {
-  FilterControl,
+  SearchControl,
   ColumnsControl,
   useHiddenColumns,
   visibleColumns,
@@ -122,7 +123,7 @@ function getListColumns(controllerRef) {
     Columns.custom(
       (text, item) => (
         <span className="list-page-owner">
-          <img src={item.user.profile_image_url} alt="" />
+          <UserAvatar user={item.user} size={20} />
           {item.user.name}
         </span>
       ),
@@ -181,7 +182,7 @@ function DashboardList({ controller }) {
     <div className="page-dashboard-list">
       <Shell>
         <Header title={controller.params.pageTitle} subtitle={sourceSubtitle}>
-          <FilterControl
+          <SearchControl
             value={controller.searchTerm}
             onChange={controller.updateSearch}
             placeholder="Search dashboards…"

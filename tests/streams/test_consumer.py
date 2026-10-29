@@ -7,6 +7,7 @@ broker. What a broker would add is confidence that librdkafka behaves as
 `Broker` assumes, which is a different test and needs one running.
 """
 
+import datetime
 import json
 import shutil
 import tempfile
@@ -16,6 +17,7 @@ from sqldesk import models
 from sqldesk.models import db
 from sqldesk.streams import consumer
 from sqldesk.streams.store import Store
+from sqldesk.utils import utcnow
 from tests import BaseTestCase
 
 
@@ -201,11 +203,14 @@ class TestTheWindowMovesWithTheRate(ConsumerTestCase):
         # the rate is.
         stream = self.stream(row_budget=600)
         store = self.store_for(stream)
+        now = utcnow()
 
-        consumer.flush_once(stream, store, [message({"x": n}) for n in range(60)])
+        # One event a second, five seconds running.
+        for second in range(5):
+            now = now + datetime.timedelta(seconds=1)
+            consumer.flush_once(stream, store, [message({"x": second})], now=now)
 
-        # 60 rows over the measured minute is 1/sec, and 600 rows buys 600
-        # seconds of it.
+        # 1/sec, and 600 rows buys 600 seconds of it.
         self.assertEqual(600, stream.window_seconds)
 
     def test_events_past_the_window_are_trimmed_on_the_flush(self):
@@ -251,12 +256,32 @@ class TestSampling(ConsumerTestCase):
         """
         stream = self.stream(sample_rate=4, events_per_second=5)
         store = self.store_for(stream)
-        # 150 of 600 stored at one-in-four, so 2.5/sec stored over the
-        # measurement minute -- under the ceiling on its own, and 10/sec once
-        # scaled back up, which is twice it.
-        consumer.flush_once(stream, store, [message({"x": n}) for n in range(600)])
+        # 10 arrive in the second; 3 are stored at one-in-four. Against the
+        # ceiling of 5 the stored 3 would say "keep everything"; the 10 that
+        # arrived say one in two.
+        consumer.flush_once(stream, store, [message({"x": n}) for n in range(10)])
 
         self.assertEqual(2, stream.sample_rate)
+
+    def test_a_topic_over_the_ceiling_settles_rather_than_running_away(self):
+        """
+        At twice the ceiling, a minute of flushes. The rate used to be read off
+        the rows stored in the last minute times the current sample rate, which
+        fed on itself: it climbed past 100 within half a minute, stored almost
+        nothing, collapsed back to 1 and did it again.
+        """
+        stream = self.stream(events_per_second=50)
+        store = self.store_for(stream)
+        now = utcnow()
+        rates = []
+        for second in range(60):
+            now = now + datetime.timedelta(seconds=1)
+            batch = [message({"n": second * 100 + n}) for n in range(100)]
+            consumer.flush_once(stream, store, batch, now=now)
+            rates.append(stream.sample_rate)
+
+        self.assertEqual({2}, set(rates[5:]))
+        self.assertLessEqual(max(rates), 2)
 
     def test_a_keyed_stream_keeps_the_same_keys(self):
         # So a per-key count can be scaled back up honestly.
@@ -348,6 +373,44 @@ class TestTheLoop(ConsumerTestCase):
                 consumer.consume(stream, broker, until_drained(broker))
 
         self.assertEqual(2, models.Stream.query.get(stream.id).rows)
+
+
+class TestABadSecondIsNotTheEnd(ConsumerTestCase):
+    """
+    A flush that fails -- a message DuckDB cannot insert, a reader holding the
+    window a moment too long -- used to end the consumer, with no hand-over.
+    Now it is counted and dropped, and only a long run of them stops it.
+    """
+
+    def test_the_consumer_carries_on_past_a_failed_flush(self):
+        stream = self.stream()
+        broker = FakeBroker([message({"x": 1})], [message({"x": 2})], [message({"x": 3})])
+        real = consumer.flush_once
+        calls = {"n": 0}
+
+        def flaky(*args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 2:
+                raise RuntimeError("Conversion Error")
+            return real(*args, **kwargs)
+
+        with mock.patch("sqldesk.settings.STREAM_FLUSH_SECONDS", 0):
+            with mock.patch.object(consumer, "flush_once", side_effect=flaky):
+                consumer.consume(stream, broker, until_drained(broker))
+
+        self.assertEqual(3, calls["n"])
+        self.assertEqual(1, stream.malformed)
+        # The failed second's position is passed, so a poison message is not read for ever.
+        self.assertEqual(3, broker.commits)
+
+    def test_but_a_long_run_of_them_stops_it_with_the_reason(self):
+        stream = self.stream()
+        broker = FakeBroker(*[[message({"x": n})] for n in range(consumer.MAX_FAILED_FLUSHES + 5)])
+
+        with mock.patch("sqldesk.settings.STREAM_FLUSH_SECONDS", 0):
+            with mock.patch.object(consumer, "flush_once", side_effect=RuntimeError("disk full")):
+                with self.assertRaisesRegex(RuntimeError, "disk full"):
+                    consumer.consume(stream, broker, until_drained(broker, cap=100))
 
 
 class TestTheWindowIsNotHeldOpen(ConsumerTestCase):

@@ -104,6 +104,7 @@ def parse_ga_response(response):
 
 
 class GoogleAnalytics4(BaseQueryRunner):
+    query_language = "read_only_api"
     should_annotate_query = False
 
     @classmethod

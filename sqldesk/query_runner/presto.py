@@ -122,7 +122,10 @@ class Presto(BaseQueryRunner):
             data = None
             default_message = "Unspecified DatabaseError: {0}".format(str(db))
             if isinstance(db.args[0], dict):
-                message = db.args[0].get("failureInfo", {"message", None}).get("message")
+                # A dict default: `{"message", None}` is a set, which has no
+                # `.get`, so a failure without failureInfo raised AttributeError
+                # and the engine's own message was lost.
+                message = (db.args[0].get("failureInfo") or {}).get("message") or db.args[0].get("message")
             else:
                 message = None
             error = default_message if message is None else message

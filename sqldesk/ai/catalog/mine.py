@@ -20,7 +20,7 @@ from collections import Counter
 import sqlglot
 from sqlglot import exp
 
-from sqldesk.ai.optimizer import NOT_SQL, dialect_for
+from sqldesk.ai.optimizer import dialect_for, is_sql
 
 logger = logging.getLogger(__name__)
 
@@ -232,7 +232,7 @@ def mine(sql, data_source_type=None):
     Returns counts rather than writing anything, so this is testable without a
     database and callable over thousands of queries before a single commit.
     """
-    if data_source_type in NOT_SQL or not (sql or "").strip():
+    if not is_sql(data_source_type) or not (sql or "").strip():
         return {"tables": Counter(), "columns": Counter(), "joins": Counter(), "measures": Counter()}
 
     try:

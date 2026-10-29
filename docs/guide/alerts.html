@@ -5,11 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Alerts — SQLDesk docs</title>
 <meta name="description" content="Setting up an alert, what it watches, and what it can send.">
+<meta property="og:title" content="Alerts — SQLDesk docs">
+<meta property="og:description" content="Setting up an alert, what it watches, and what it can send.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://sqldesk.org/guide/alerts.html">
+<meta property="og:image" content="https://sqldesk.org/assets/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SQLDesk: one place for everything you do with data">
+<meta property="og:site_name" content="SQLDesk">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sqldesk.org/assets/social-card.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
+<script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
 
@@ -28,12 +40,22 @@
     </a>
     <nav>
       <a href="../index.html">Overview</a>
-      <a href="../why.html">Why SQLDesk</a>
-      <a href="../performance.html" class="hide-sm">Performance</a>
-      <a href="../roadmap.html">Roadmap</a>
-      <a href="../blog/index.html">Blog</a>
       <a href="../guide/overview.html" aria-current="page">Docs</a>
+      <a href="../blog/index.html">Blog</a>
+      <a href="../releases.html">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+      <button class="theme-toggle" type="button" data-theme-toggle
+              aria-label="Switch to dark mode" title="Switch to dark mode">
+        <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.7 5.7 0 1 0 7.1 7.1Z"/>
+        </svg>
+        <svg class="sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="3.1"/>
+          <path d="M8 1v1.6M8 13.4V15M15 8h-1.6M2.6 8H1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1M12.9 12.9l-1.1-1.1M4.2 4.2 3.1 3.1"/>
+        </svg>
+      </button>
     </nav>
   </div>
 </header>
@@ -57,7 +79,7 @@
       <a href="administration.html">Administration</a>
       <a href="deploying.html">Deploying</a>
       <h4>Reference</h4>
-      <a href="../roadmap.html">Releases &amp; roadmap</a>
+      <a href="../releases.html">Releases</a>
   </nav>
   <main class="doc-body">
 <h1>Alerts</h1>
@@ -84,6 +106,24 @@ sitting above its threshold for a day is one message rather than a hundred.</p>
 <p>How long before a still-triggered alert notifies again. Zero means it tells you once and stays quiet
 until it recovers and trips a second time.</p>
 
+<h2>Muting</h2>
+<p><strong>Mute</strong> stops the messages without stopping the watching. The alert still runs after
+its query, still moves between triggered and ok, and its page still says which it is &mdash; nobody is
+sent anything while it is muted. That is the difference between muting a noisy alert and deleting it:
+unmute, and it tells you about now rather than replaying what it missed.</p>
+<p>It is for the alert everybody already knows about &mdash; the migration running this afternoon, the
+backfill that will hold revenue flat until Tuesday. An alert nobody ever wants unmuted is an alert to
+delete.</p>
+
+<h2>Who else gets told</h2>
+<p>Anybody who can see the alert can subscribe themselves to it, and being the owner does not subscribe
+you &mdash; somebody can build an alert for a team and stay off it. A subscription is either a person,
+who is mailed, or a <strong>destination</strong>: the Slack channel, webhook or address an
+administrator added under Settings &rarr; Alert Destinations.</p>
+<p>The subscriptions are listed on the alert itself, which is where one is removed. A destination
+belongs to the organization rather than to the alert, so taking it off one alert leaves every other
+alert using it alone.</p>
+
 <h2>Attachments</h2>
 <p>An alert can carry pictures of up to five dashboards or queries, rendered by a headless browser. It is
 off unless a renderer is configured, and the published image does not include one — it runs in its own
@@ -101,18 +141,82 @@ webhook needs nothing but a URL, and this needs the app.</p>
 <p>A picture that will not upload never stops the alert &mdash; the threshold was still crossed and
 somebody still needs to know &mdash; but the message says which one is missing, because an alert about a
 chart arriving with no chart and no explanation reads as the alert being broken.</p>
-<div class="doc-next"><a class="btn btn-ghost" href="dashboards.html">&larr; Dashboards and textboxes</a><a class="btn btn-primary" href="mcp.html">MCP &rarr;</a></div>
+<h2 id="templates">Writing the message</h2>
+<p>An alert sends a default message unless you give it one. Under <strong>Notification template</strong>
+on the alert, a subject and a body, both <a href="https://mustache.github.io/mustache.5.html">Mustache</a>
+&mdash; <code>{{ VARIABLE }}</code> is filled in, everything else is sent as you typed it.</p>
+
+<h3 id="template-variables">What you can put in it</h3>
+<table>
+  <tr><th>Variable</th><th>What it is</th></tr>
+  <tr><td><code>{{ALERT_NAME}}</code></td><td>The alert&rsquo;s name.</td></tr>
+  <tr><td><code>{{ALERT_URL}}</code></td><td>A link to the alert.</td></tr>
+  <tr><td><code>{{ALERT_STATUS}}</code></td><td><code>TRIGGERED</code>, <code>OK</code> or <code>UNKNOWN</code>.</td></tr>
+  <tr><td><code>{{ALERT_CONDITION}}</code></td><td>The operator: <code>&gt;</code>, <code>&lt;</code>, <code>==</code>&hellip;</td></tr>
+  <tr><td><code>{{ALERT_THRESHOLD}}</code></td><td>The number it is compared against.</td></tr>
+  <tr><td><code>{{ALERT_SELECTOR}}</code></td><td>Which row is read: <code>first</code>, <code>min</code> or <code>max</code>.</td></tr>
+  <tr><td><code>{{QUERY_NAME}}</code></td><td>The query behind it.</td></tr>
+  <tr><td><code>{{QUERY_URL}}</code></td><td>A link to that query.</td></tr>
+  <tr><td><code>{{QUERY_RESULT_VALUE}}</code></td><td>The value that was tested &mdash; usually the one you want.</td></tr>
+  <tr><td><code>{{QUERY_RESULT_ROWS}}</code></td><td>Every row, for looping over.</td></tr>
+  <tr><td><code>{{QUERY_RESULT_COLS}}</code></td><td>The column definitions.</td></tr>
+  <tr><td><code>{{QUERY_RESULT_TABLE}}</code></td><td>The rows as an array of arrays, for building a table.</td></tr>
+</table>
+
+<h3 id="slack-formatting">Formatting for Slack</h3>
+<p>Slack does not use Markdown. It uses its own <a href="https://api.slack.com/reference/surfaces/formatting"><strong>mrkdwn</strong></a>,
+and the differences are the ones that bite:</p>
+<table>
+  <tr><th>You want</th><th>Slack wants</th><th>Not</th></tr>
+  <tr><td>A link</td><td><code>&lt;https://example.com|the dashboard&gt;</code></td><td><code>[the dashboard](https://example.com)</code></td></tr>
+  <tr><td>Bold</td><td><code>*bold*</code></td><td><code>**bold**</code></td></tr>
+  <tr><td>Italic</td><td><code>_italic_</code></td><td><code>*italic*</code></td></tr>
+  <tr><td>Strikethrough</td><td><code>~struck~</code></td><td><code>~~struck~~</code></td></tr>
+  <tr><td>Code</td><td><code>`code`</code></td><td>&mdash; the same</td></tr>
+  <tr><td>Mention a person</td><td><code>&lt;@U024BE7LH&gt;</code></td><td><code>@name</code></td></tr>
+  <tr><td>Mention a channel</td><td><code>&lt;!channel&gt;</code></td><td><code>@channel</code></td></tr>
+</table>
+<p><strong>A link is the thing worth getting right.</strong> It is the way to put a dashboard in an alert
+without a picture, and it works on every Slack destination including the webhook:</p>
+<pre><code>{{ALERT_NAME}} is at {{QUERY_RESULT_VALUE}}, past {{ALERT_THRESHOLD}}.
+
+&lt;{{QUERY_URL}}|Open the query&gt; · &lt;https://sqldesk.example.com/dashboards/12-orders|The orders board&gt;</code></pre>
+<p>The query&rsquo;s own link comes from a variable. A dashboard&rsquo;s does not &mdash; an alert belongs
+to a query, and does not know which dashboards you consider related &mdash; so paste the dashboard URL
+from your browser.</p>
+
+<h3>A table of the rows</h3>
+<p>Mustache loops, so a short result can be sent in full. Slack has no table, but a code block keeps
+columns under each other:</p>
+<pre><code>```
+{{#QUERY_RESULT_TABLE}}{{.}}
+{{/QUERY_RESULT_TABLE}}
+```</code></pre>
+<p>Keep it short. Slack truncates a message block at 3000 characters, and a hundred rows in a
+notification is a report somebody has to scroll rather than an alert they can act on.</p>
+
+<h3>What is escaped, and where</h3>
+<p>Values are escaped for where they are going; the words you type are never touched. In an HTML email a
+result containing <code>&amp;</code> or <code>&lt;</code> is escaped, because it is text rather than
+markup. For Slack it is sent as it is &mdash; otherwise a value with an <code>&amp;</code> in it would
+arrive reading <code>&amp;amp;</code>.</p>
+<p>So a <code>&lt;url|label&gt;</code> you type works on Slack, and the same template sent by email shows
+the angle brackets. <strong>A template written for Slack is written for Slack</strong>; if an alert goes
+to both, write it for the one that matters and accept the other reads plainly.</p>
+
+<div class="doc-next"><a class="btn btn-ghost" href="streams.html">&larr; Streams</a><a class="btn btn-primary" href="mcp.html">MCP &rarr;</a></div>
   </main>
 </div>
 
 <footer>
   <div class="wrap">
     <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
-       <a href="../roadmap.html">Releases</a> &nbsp;&middot;&nbsp;
+       <a href="../releases.html">Releases</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
   </div>
 </footer>
 
+<script src="../assets/theme.js" defer></script>
 </body>
 </html>

@@ -38,6 +38,7 @@ def _transform_result(response):
 
 
 class Graphite(BaseQueryRunner):
+    query_language = "graphite"
     should_annotate_query = False
 
     @classmethod

@@ -5,7 +5,6 @@ import { isEmpty } from "lodash";
 import Dropdown from "antd/lib/dropdown";
 import Modal from "antd/lib/modal";
 import Menu from "antd/lib/menu";
-import recordEvent from "@/services/recordEvent";
 import { Moment } from "@/components/proptypes";
 import PlainButton from "@/components/PlainButton";
 
@@ -89,11 +88,6 @@ class Widget extends React.Component {
     tileProps: {},
     onDelete: () => {},
   };
-
-  componentDidMount() {
-    const { widget } = this.props;
-    recordEvent("view", "widget", widget.id);
-  }
 
   deleteWidget = () => {
     const { widget, onDelete } = this.props;

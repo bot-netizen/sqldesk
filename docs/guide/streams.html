@@ -5,11 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Streams — SQLDesk docs</title>
 <meta name="description" content="Kafka streams in SQLDesk: a window of the last few minutes, not a pipeline.">
+<meta property="og:title" content="Streams — SQLDesk docs">
+<meta property="og:description" content="Kafka streams in SQLDesk: a window of the last few minutes, not a pipeline.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://sqldesk.org/guide/streams.html">
+<meta property="og:image" content="https://sqldesk.org/assets/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SQLDesk: one place for everything you do with data">
+<meta property="og:site_name" content="SQLDesk">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sqldesk.org/assets/social-card.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
+<script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
 
@@ -28,12 +40,22 @@
     </a>
     <nav>
       <a href="../index.html">Overview</a>
-      <a href="../why.html">Why SQLDesk</a>
-      <a href="../performance.html" class="hide-sm">Performance</a>
-      <a href="../roadmap.html">Roadmap</a>
-      <a href="../blog/index.html">Blog</a>
       <a href="../guide/overview.html" aria-current="page">Docs</a>
+      <a href="../blog/index.html">Blog</a>
+      <a href="../releases.html">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+      <button class="theme-toggle" type="button" data-theme-toggle
+              aria-label="Switch to dark mode" title="Switch to dark mode">
+        <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.7 5.7 0 1 0 7.1 7.1Z"/>
+        </svg>
+        <svg class="sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="3.1"/>
+          <path d="M8 1v1.6M8 13.4V15M15 8h-1.6M2.6 8H1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1M12.9 12.9l-1.1-1.1M4.2 4.2 3.1 3.1"/>
+        </svg>
+      </button>
     </nav>
   </div>
 </header>
@@ -57,7 +79,7 @@
       <a href="administration.html">Administration</a>
       <a href="deploying.html">Deploying</a>
       <h4>Reference</h4>
-      <a href="../roadmap.html">Releases &amp; roadmap</a>
+      <a href="../releases.html">Releases</a>
   </nav>
   <main class="doc-body">
 <h1>Streams</h1>
@@ -198,6 +220,39 @@ starting again is a deliberate act.</p>
 events with an arrival time of now, which would be a chart that lies &mdash; so a pause leaves a hole,
 and the chart says it was paused.</p>
 
+<h2 id="rollups">Rollups, for the part worth keeping</h2>
+<p>A window is minutes long, so &ldquo;how does now compare with this morning&rdquo; has nowhere to
+read the answer from. A <strong>rollup</strong> is the answer: one row per minute per group, counted
+as the events arrive and kept for <strong>24 hours</strong>
+(<code>SQLDESK_STREAM_ROLLUP_HOURS</code>). The raw window lives in DuckDB and does not survive a
+restart; the rollup lives in Postgres and does.</p>
+<p>A stream declares the columns it groups by and the measures it keeps. The measures are
+<code>count</code>, <code>sum</code>, <code>min</code>, <code>max</code>, <code>avg</code>,
+<code>approx_distinct</code> and <code>distinct</code> &mdash; and distinct counts default to the
+approximate one, a HyperLogLog that costs almost nothing, because an exact distinct over a minute of
+a busy topic can cost more than everything else together. A dashboard counting unique visitors per
+minute does not need exact; the one rollup that does can say so.</p>
+<p><strong>Cardinality is what kills a rollup.</strong> Grouped by <code>user_id</code> on a
+ten-million-user stream it is not a rollup, it is the stream again with extra steps. So the distinct
+groups kept per minute are capped at a thousand &mdash; already more lines than a chart can draw
+&mdash; and everything past the cap lands in one <code>other</code> bucket that the chart
+<em>shows</em>. A total missing its long tail is wrong while looking right.</p>
+<p>A definition is checked against the stream&rsquo;s real columns when it is saved, so a column that
+is not there is a sentence you read immediately rather than a DuckDB error in a worker&rsquo;s log
+once a minute with nobody watching.</p>
+<div class="note">
+  <p><strong>There is no editor for this yet.</strong> Rollups are defined through the API, by an
+  administrator, against the stream:</p>
+<pre><code>POST /api/data_sources/&lt;data_source_id&gt;/stream/&lt;stream_id&gt;
+{"group_by": ["region"],
+ "measures": [{"name": "orders", "kind": "count"},
+              {"name": "revenue", "kind": "sum", "column": "amount"}]}</code></pre>
+  <p>and read back from
+  <code>GET /api/data_sources/&lt;data_source_id&gt;/stream/&lt;stream_id&gt;/rollup</code>, which
+  answers with the minutes it holds. A page for it is a later release; the store, the job and the
+  checking are here now.</p>
+</div>
+
 <h2 id="slots">Slots</h2>
 <p>A <strong>slot is a topic, not a viewer</strong>. Five people watching <code>orders</code> share one
 consumer and one window and take one slot between them, which is what makes a limit mean five topics
@@ -225,19 +280,19 @@ budgets.</p>
 <h2 id="dashboards">On a dashboard</h2>
 <p>A dashboard shows <a href="dashboards.html#streaming">streams or saved queries, never both</a>, and a
 streaming one is still until it is made live.</p>
-
-<div class="doc-next"><a class="btn btn-ghost" href="dashboards.html">&larr; Dashboards</a><a class="btn btn-primary" href="alerts.html">Alerts &rarr;</a></div>
+<div class="doc-next"><a class="btn btn-ghost" href="dashboards.html">&larr; Dashboards and textboxes</a><a class="btn btn-primary" href="alerts.html">Alerts &rarr;</a></div>
   </main>
 </div>
 
 <footer>
   <div class="wrap">
     <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
-       <a href="../roadmap.html">Releases</a> &nbsp;&middot;&nbsp;
+       <a href="../releases.html">Releases</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
   </div>
 </footer>
 
+<script src="../assets/theme.js" defer></script>
 </body>
 </html>

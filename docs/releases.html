@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Releases — SQLDesk</title>
+<meta name="description" content="Every SQLDesk release and what it was for, newest first &mdash; from 0.5 to the one being built now.">
+<meta property="og:title" content="Releases — SQLDesk">
+<meta property="og:description" content="Every SQLDesk release and what it was for, newest first — from 0.5 to the one being built now.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://sqldesk.org/releases.html">
+<meta property="og:image" content="https://sqldesk.org/assets/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SQLDesk: one place for everything you do with data">
+<meta property="og:site_name" content="SQLDesk">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sqldesk.org/assets/social-card.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+:root{
+  --n-50:#fbfaf9;--n-100:#f6f4f1;--n-200:#f1efec;--n-300:#e8e5e1;--n-600:#8a857e;--n-700:#6f6b66;--n-800:#34302b;--n-900:#1c1b1a;
+  --ac-100:#e4f4f7;--ac-200:#c6e8ee;--ac-400:#6bb4c4;--ac-600:#0a7c93;--ac-700:#086476;
+  --good:#1e7a4c;--warning:#9a6510;--critical:#b4342c;
+  --canvas:#f6f8f9;--surface:#fff;--sunken:var(--n-100);--rule:var(--n-300);--rule-soft:var(--n-200);
+  --ink:var(--n-900);--ink-2:var(--n-800);--muted:var(--n-700);--faint:#726d65;/* not n-600: 11px labels, AA */
+  --accent:var(--ac-600);--accent-ink:var(--ac-700);--accent-wash:var(--ac-100);--accent-edge:var(--ac-200);
+  --good-wash:#e8f3ed;--warning-wash:#f7efdf;
+  --r-chip:6px;--r-control:8px;--r-card:12px;
+  --sans:"Instrument Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink);text-underline-offset:2px}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+.wrap{width:100%;max-width:1560px;margin:0 auto;padding:0 clamp(20px,4vw,72px)}
+
+.topbar{border-bottom:1px solid var(--rule);background:color-mix(in srgb,var(--canvas) 88%,transparent);backdrop-filter:blur(8px);position:sticky;top:0;z-index:10}
+.topbar-in{display:flex;align-items:center;gap:14px;height:60px}
+.brand{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--ink);font-weight:600;letter-spacing:-.02em;font-size:17px}
+.brand svg{width:26px;height:26px;display:block;color:var(--accent)}
+.topbar nav{margin-left:auto;display:flex;gap:6px}
+.topbar nav a{font-size:14px;color:var(--muted);text-decoration:none;padding:6px 11px;border-radius:var(--r-chip)}
+.topbar nav a:hover,.topbar nav a[aria-current]{color:var(--accent-ink);background:var(--accent-wash)}
+
+.head{padding-block:64px 44px;border-bottom:1px solid var(--rule)}
+.eyebrow{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent-wash);border:1px solid var(--accent-edge);border-radius:999px;padding:5px 12px;margin-bottom:20px}
+h1{font-size:clamp(34px,5.2vw,52px);line-height:1.05;letter-spacing:-.03em;font-weight:600;margin:0 0 16px;text-wrap:balance;max-width:19ch}
+.lede{font-size:18.5px;line-height:1.6;color:var(--muted);max-width:62ch;margin:0}
+
+section{padding:60px 0;border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:none}
+h2{font-size:clamp(23px,3vw,31px);line-height:1.15;letter-spacing:-.022em;font-weight:600;margin:0 0 12px;text-wrap:balance;max-width:24ch}
+h3{font-size:16px;font-weight:600;margin:26px 0 6px}
+p{margin:0 0 15px;max-width:66ch}
+.sub{color:var(--muted);max-width:64ch}
+/* The points under a release. Tight, indented from the card's own edge,
+   and the marker in the accent so a list reads as part of the system. */
+.item .sub{font-size:.88rem;color:var(--faint)}
+.points{margin:4px 0 0;padding-left:17px;display:grid;gap:7px}
+.points li{color:var(--ink-2);line-height:1.55}
+.points li::marker{color:var(--accent)}
+code{font-family:var(--mono);font-size:.86em;background:var(--sunken);border:1px solid var(--rule-soft);border-radius:4px;padding:1px 5px;color:var(--ink-2);word-break:break-word}
+
+/* fix cards: number first, because the number is the point */
+.fix{border:1px solid var(--rule);border-radius:var(--r-card);background:var(--surface);overflow:hidden;margin-top:26px}
+.fix-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;padding:18px 22px;border-bottom:1px solid var(--rule-soft);background:var(--sunken)}
+.fix-n{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.09em;color:var(--faint)}
+.fix-t{font-size:17px;font-weight:600;letter-spacing:-.01em;margin:0}
+.fix-body{padding:20px 22px}
+.fix-body p:last-child{margin-bottom:0}
+
+.ba{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:var(--r-control);overflow:hidden;margin:6px 0 20px}
+.ba div{background:var(--surface);padding:14px 16px}
+.ba .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+.ba .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:19px;font-weight:500;letter-spacing:-.02em;display:block}
+.ba .n{font-size:12px;color:var(--muted);display:block;margin-top:3px}
+.ba .before .v{color:var(--critical)}
+.ba .after .v{color:var(--good)}
+.ba .delta .v{color:var(--accent-ink)}
+
+pre{font-family:var(--mono);font-size:12.5px;line-height:1.7;background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-control);padding:15px 17px;overflow-x:auto;margin:0 0 18px;color:var(--ink-2)}
+pre .c{color:var(--faint)}
+pre .hot{color:var(--critical)}
+pre .ok{color:var(--good)}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:var(--r-card);background:var(--surface);margin:22px 0}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--sunken);padding:10px 15px;white-space:nowrap;border-bottom:1px solid var(--rule)}
+td{padding:11px 15px;border-bottom:1px solid var(--rule-soft);vertical-align:top;line-height:1.5}
+tr:last-child td{border-bottom:none}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+td.hot{color:var(--critical)}
+td.ok{color:var(--good)}
+
+.note{border-left:3px solid var(--accent);padding:2px 0 2px 17px;margin:22px 0;font-size:15px}
+.note-h{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:5px}
+.note p:last-child{margin-bottom:0}
+.note.warn{border-color:var(--warning)}
+.note.warn .note-h{color:var(--warning)}
+
+footer{padding:44px 0 64px;font-size:13.5px;color:var(--muted)}
+footer a{color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+/* roadmap */
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;margin:22px 0 0;font-size:13.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.st{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.st-shipped{background:var(--good-wash);color:var(--good)}
+.st-testing{background:var(--accent-wash);color:var(--accent-ink);border:1px solid var(--accent-edge)}
+.st-progress{background:var(--warning-wash);color:var(--warning)}
+.st-planned{background:var(--sunken);color:var(--ink-2);border:1px solid var(--rule)}
+.st-demand{background:transparent;color:var(--faint);border:1px dashed var(--rule)}
+.phase-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 16px;margin-bottom:6px}
+.phase-head h2{margin:0}
+.items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:22px}
+.item{border:1px solid var(--rule);border-radius:var(--r-card);background:var(--surface);padding:16px 18px;display:grid;gap:7px;align-content:start}
+.item-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.item h3{margin:0;font-size:15.5px}
+.item p{margin:0;font-size:14.5px;color:var(--ink-2);max-width:none}
+.item .meta{font-size:12.5px;color:var(--muted)}
+.item .meta b{font-family:var(--mono);font-weight:500;color:var(--ink-2)}
+.item.lead{grid-column:1/-1;border-color:var(--accent-edge)}
+@media (max-width:760px){.items{grid-template-columns:1fr}}
+.compact{list-style:none;margin:18px 0 0;padding:0;display:grid;gap:0;border-top:1px solid var(--rule-soft);max-width:760px}
+.compact li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;padding:11px 0;border-bottom:1px solid var(--rule-soft);font-size:14.5px}
+.compact li span.d{grid-column:1/-1;color:var(--muted);font-size:13.5px}
+.why{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:var(--r-control);overflow:hidden;margin:18px 0 20px}
+.why div{background:var(--surface);padding:14px 16px;font-size:14px}
+.why .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:5px}
+
+/* ---------------------------------------------------------------------------
+   Dark, from the application's wall-display tokens -- measured against WCAG AA
+   there, not picked by eye here. The neutral ramp inverts (50 is the darkest
+   surface, 900 the brightest ink), so every rule written against --n-* comes
+   out right without being touched.
+   --------------------------------------------------------------------------- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --n-50: #1b1a21;
+  --n-100: #232229;
+  --n-200: #26252d;
+  --n-300: #33313b;
+  --n-400: #3f3d49;
+  --n-500: #55525f;
+  --n-600: #6e6b78;
+  --n-700: #a5a2ae;
+  --n-800: #d6d4dd;
+  --n-900: #f4f3f7;
+  --ac-100: #28333b;
+  --ac-200: #2f4049;
+  --ac-400: #3f8296;
+  --ac-600: #2e93a8;
+  --ac-700: #6bb4c4;
+
+  --canvas: #131218;
+  --surface: #1b1a21;
+  --sunken: #232229;
+  --rule: #33313b;
+  --rule-soft: #26252d;
+  --ink: #f4f3f7;
+  --ink-2: #d6d4dd;
+  --muted: #a5a2ae;
+  /* Lighter than the application's wall token: there it labels nothing smaller
+     than body text, here it carries 11-13px notes, and #6e6b78 measured 3.58:1
+     on canvas -- under AA. This is 5.52:1 on canvas, 4.67:1 on the sunken. */
+  --faint: #8d8a99;
+  --accent: #2e93a8;
+  --accent-ink: #6bb4c4;
+  --accent-wash: #28333b;
+  --accent-edge: #2f4049;
+  --code-bg: #1b1a21;
+
+  --good: #3fb87a;
+  --good-wash: #21332f;
+  --warning: #d79a2b;
+  --warning-wash: #392e23;
+  --serious: #e8763a;
+  --critical: #e2685e;
+}
+
+/* The switch itself. */
+.theme-toggle {
+  display: none; place-items: center; width: 34px; height: 34px; padding: 0;
+  margin-left: 4px; border: 1px solid transparent; border-radius: 8px;
+  background: none; color: var(--muted); cursor: pointer;
+}
+.theme-toggle:hover { color: var(--ink); border-color: var(--rule); background: var(--surface); }
+.theme-toggle svg { width: 17px; height: 17px; display: block; }
+.theme-toggle .moon { display: block; }
+.theme-toggle .sun { display: none; }
+:root[data-theme="dark"] .theme-toggle .moon { display: none; }
+:root[data-theme="dark"] .theme-toggle .sun { display: block; }
+/* The switch appears only where the script that works it is running. */
+.js .theme-toggle { display: inline-grid; }
+/* A product screenshot is a light image whatever the page is doing. */
+:root[data-theme="dark"] .demo-video { border: 1px solid var(--rule); }
+/* White on the accent measures 3.59:1 in dark, and 2.35:1 on the hover colour,
+   both under AA. The accent is a light teal there, so the ink flips with it. */
+:root[data-theme="dark"] .btn-primary { color: #0c0b10; }
+:root[data-theme="dark"] .btn-primary:hover { color: #0c0b10; }
+@media (max-width:620px){.topbar-in{flex-wrap:wrap;height:auto;padding-top:10px;padding-bottom:10px;gap:8px}.topbar nav{margin-left:0;width:100%;gap:2px}.topbar nav a{font-size:13px;padding:5px 8px}}
+</style>
+<script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="index.html">Overview</a>
+      <a href="guide/overview.html">Docs</a>
+      <a href="blog/index.html">Blog</a>
+      <a href="releases.html" aria-current="page">Releases</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+      <button class="theme-toggle" type="button" data-theme-toggle
+              aria-label="Switch to dark mode" title="Switch to dark mode">
+        <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.7 5.7 0 1 0 7.1 7.1Z"/>
+        </svg>
+        <svg class="sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="3.1"/>
+          <path d="M8 1v1.6M8 13.4V15M15 8h-1.6M2.6 8H1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1M12.9 12.9l-1.1-1.1M4.2 4.2 3.1 3.1"/>
+        </svg>
+      </button>
+    </nav>
+  </div>
+</header>
+<div class="wrap head">
+  <span class="eyebrow">Releases &middot; updated 25 October 2026</span>
+  <h1>One release, one idea.</h1>
+  <p class="lede">
+    SQLDesk is rebuilt a layer at a time. Each release has a single theme, and the theme is the
+    point &mdash; a release that does a little of everything is a release nobody can describe.
+    Below is every one of them, newest first, and the one being built now.
+  </p>
+  <div class="legend" aria-label="Status key">
+    <span><span class="st st-shipped">Shipped</span> released and tagged</span>
+    <span><span class="st st-progress">In progress</span> being built</span>
+    <span><span class="st st-planned">Next</span> decided, not started</span>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <h2>Where it has got to</h2>
+    <p class="sub">Each series is a sentence, because each one was a single decision.</p>
+    <div class="items">
+      <div class="item">
+        <div class="item-h"><h3>0.8 &mdash; Notebooks</h3><span class="st st-planned">Next</span></div>
+        <p>A place to do work a single SELECT cannot: steps that build on each other, in SQL and in
+           Python, saved and re-run.</p>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>0.7 &mdash; Kafka Streams</h3><span class="st st-shipped">Shipped</span></div>
+        <p>Kafka topics you can query and chart like anything else, dashboard folders with a stated
+           meaning, and an admin section that answers what is happening now.</p>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>0.6 &mdash; MCP</h3><span class="st st-shipped">Shipped</span></div>
+        <p>An agent that can reach your data with the same permissions you have, and a catalog that
+           tells it what the tables mean.</p>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>0.5 &mdash; Interface</h3><span class="st st-shipped">Shipped</span></div>
+        <p>The application got out of the way of the charts, and stopped fetching the same result
+           once per widget.</p>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>0.4 &mdash; Live</h3><span class="st st-shipped">Shipped</span></div>
+        <p>Dashboards that refresh themselves, and a screen on a wall that nobody has to touch.</p>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>Fork point</h3><span class="st">&mdash;</span></div>
+        <p>Redash 25, which brought 35+ data sources, the query editor, alerts and the
+           visualization library everything since is built on.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Every release, in order</h2>
+    <p class="sub">The high points. The full detail of each one is in
+       <a href="https://github.com/bot-netizen/sqldesk/blob/main/CHANGELOG.md">CHANGELOG.md</a>,
+       including what to do when you upgrade.</p>
+    <div class="items">
+      <div class="item">
+        <div class="item-h"><h3>0.7.9 &mdash; Alerts that say how often, tables you can read</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">28 October 2026</p>
+        <ul class="points">
+          <li>An alert remembers every time it fired, with the value the decision was made on, so one that went off six times before breakfast no longer looks like one that went off once. A Fires (24h) column on the list, the history beside the alert.</li>
+          <li>Slack templates are escaped for Slack rather than for HTML, so a value containing <code>&amp;</code> arrives as <code>&amp;</code>; the guide documents all twelve variables and the mrkdwn that differs from Markdown.</li>
+          <li>Table headers are marked by weight and a rule instead of a fill nobody could see &mdash; 1.10:1 against the rows it labelled &mdash; and the header text no longer fails AA at 3.33:1.</li>
+          <li>Data bars below zero had no colour at all: the default named a colour that does not exist, so the browser discarded it. Bars are solid now, with the number restated over the bar in an ink measured against the fill.</li>
+          <li>A line can say which line it is: six dash patterns per series, so this week and last week can share a colour.</li>
+          <li>Downloading a dashboard as an image no longer refuses at thirteen widgets. A picture has no pages; only the PDF does.</li>
+          <li>Avatars are drawn from initials on your own machines. Nothing is sent to gravatar.com, which previously learned the MD5 of every address in the organization on every page load.</li>
+        </ul>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>0.7.8 &mdash; Second Look</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">27 October 2026</p>
+        <ul class="points">
+          <li>Twelve things reported from using 0.7.7. Three turned out to be nothing &mdash; chart palettes were never removed, and there is no page-load regression &mdash; and saying so is part of the release.</li>
+          <li>Searching a list works. On queries and dashboards it is a box on the page rather than a dropdown called Filter; alerts has one at all; and on any list fetched whole it did nothing before this.</li>
+          <li>Numbers can be read by their value: one breakpoint colours a bar chart either side of it, and a table's data bars now point, taking a second colour below zero.</li>
+          <li>An agent can draw as well as read &mdash; a chart, a counter or a table on a draft query, and a draft dashboard to put them on. Fifteen MCP tools now, nine read-only.</li>
+          <li>A page that worked no longer reports a fault, a brand new install gets an answer from <code>/api/config</code> rather than a traceback, and schemas refresh every three hours instead of every thirty minutes.</li>
+        </ul>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>0.7.7 &mdash; Scale, and a smaller image</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">25 October 2026</p>
+        <ul class="points">
+          <li>The image is 1.22 GB, down from 1.59, built in two stages so the toolchain that compiles the drivers does not ship with them.</li>
+          <li>Work split across the processes that should do it: the web tier runs threaded with a statement timeout, scheduled queries and schema refreshes get their own workers, and Redis is given a memory ceiling instead of finding one.</li>
+          <li>A tag cannot publish an image whose tests were never run, and the chart is rendered three ways on every push.</li>
+          <li>Fixed: compiling a migration switched off the application's logging for the rest of the process, and two endpoints answered without the thing they were asked for.</li>
+        </ul>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>0.7.6 &mdash; Avro and Protobuf on streams</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">20 October 2026</p>
+        <ul class="points">
+          <li>A topic can be read as Avro or Protobuf, not only JSON &mdash; through a schema registry, which Confluent, Redpanda, Karapace and Apicurio all speak, or from an uploaded <code>.avsc</code> or <code>.proto</code>.</li>
+          <li>Fields arrive as real types: timestamps as timestamps, 64-bit integers as numbers, enums by name, nested messages as structs.</li>
+          <li>Decoding costs about 45,000 messages a second on one core, and JSON still costs nothing on the way in because it is never parsed there.</li>
+          <li>One migration, and every existing stream reads exactly as it did.</li>
+        </ul>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>0.7.5 &mdash; One migration Job, not one per upgrade</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">20 October 2026</p>
+        <ul class="points">
+          <li>Helm&rsquo;s migration Job has a fixed name again, so an upgrade replaces the last one. A cluster upgraded 84 times had 79 Jobs and their pods still sitting in it.</li>
+          <li>The chart&rsquo;s restricted pod security is tested rather than asserted: every container drops its privileges, every pod carries a seccomp profile, and each check fails when its rule is broken.</li>
+          <li>Under Argo CD, make the Secret once yourself. <code>helm template</code> cannot read back a generated one, so every sync would otherwise re-key every data source.</li>
+        </ul>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>0.7.4 &mdash; Restricted clusters, and Kafka over TLS</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">20 October 2026</p>
+        <ul class="points">
+          <li>The chart installs where Kubernetes enforces <code>restricted</code> pod security, with a production values file that matches.</li>
+          <li>Kafka over TLS with a CA, a client certificate and a key you provide.</li>
+          <li>Fixed: a verified dashboard cost a SQL statement per widget, a stream on a topic that was not there said nothing, and <code>manage db current</code> works again.</li>
+        </ul>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>0.7.3 &mdash; Curating the catalog</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">18 October 2026</p>
+        <ul class="points">
+          <li>The catalog can be searched, and told which tables to ignore.</li>
+          <li>An administrator can curate it over MCP &mdash; describe a table, hide one, propose a measure &mdash; and every write is audited with what it changed.</li>
+          <li>A dashboard can be verified, with a note saying what was checked. A badge with no reason is one nobody can weigh.</li>
+          <li>SQLDesk stops appearing in Kafka lag monitoring unless you ask it to.</li>
+        </ul>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>0.7.2 &mdash; Smaller responses, honest types</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">4 October 2026</p>
+        <ul class="points">
+          <li>Nothing compressed a response until now. A 6.7 MB result was 6.7 MB on the wire.</li>
+          <li>Every number and timestamp from DuckDB was declared a string, so charts had to guess. They are typed.</li>
+          <li>Eight data-source drivers upgraded, each checked against a real server rather than bumped and hoped for.</li>
+        </ul>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>0.7.1 &mdash; Mimir, and connectors that tell the truth</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">4 October 2026</p>
+        <ul class="points">
+          <li>Grafana Mimir, and a Prometheus runner that can carry a credential.</li>
+          <li>MySQL&rsquo;s SSL Mode dropdown decided nothing at all; TLS is real now. Vertica is offered again.</li>
+          <li>Trino returns typed columns and the error the server actually sent, instead of the error handler&rsquo;s own.</li>
+        </ul>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>0.7.0 &mdash; Kafka Streams</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">3 October 2026</p>
+        <ul class="points">
+          <li>A Kafka cluster is a data source and its topics are its tables. Analyse one before enabling it and you are told the columns, the rate, and how much history that buys.</li>
+          <li>A slot is a topic, not a viewer: five people watching <code>orders</code> share one consumer and one window between them.</li>
+          <li>Dashboard folders with a stated meaning, dashboards by email on a schedule, and OAuth 2.1 for MCP clients.</li>
+          <li>Permissions an administrator hands to a group, an admin section worth opening, and half the initial download &mdash; with nothing heavy on by default.</li>
+        </ul>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>0.6.0 &mdash; MCP</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">3 October 2026</p>
+        <ul class="points">
+          <li>An agent can reach SQLDesk over MCP, seeing no more than the editor gives it, and reading only.</li>
+          <li>A catalog built from what you already have, so an agent is given meaning rather than column names.</li>
+          <li>Measures are proposed, never assumed: a curator agrees one before it reaches anybody.</li>
+          <li>The semantic layer lives in git, uploads are confined to their own folder, and a security review covered everything reachable from outside.</li>
+        </ul>
+      </div>
+      <div class="item">
+        <div class="item-h"><h3>0.5.0 &mdash; Interface</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">24 September 2026</p>
+        <ul class="points">
+          <li>Dashboards stopped doing the same work several times over.</li>
+          <li>The chrome gave the charts their space back, and textboxes became somewhere to write.</li>
+          <li>Eight more chart types, and an Admin section.</li>
+          <li>Alerts can carry a picture, and a dashboard can go on a wall.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Next: 0.8 &mdash; Notebooks</h2>
+    <p class="sub">Decided, not started.</p>
+    <div class="items">
+      <div class="item">
+        <div class="item-h"><h3>Steps that build on each other</h3><span class="st st-planned">Planned</span></div>
+        <ul class="points">
+          <li>A notebook of SQL and Python steps, each one able to use what the step before it
+              returned, saved and re-run like a query.</li>
+          <li>A cost model before the query runs, so an expensive question is expensive before it
+              is asked rather than after.</li>
+          <li>MCP that asks before it spends, with per-data-source throttles and a kill switch an
+              administrator can reach.</li>
+          <li>Prometheus metrics, so the thing watching your warehouse can be watched too.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>
+      <a href="index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/bot-netizen/sqldesk/issues">Ask for a chart</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/bot-netizen/sqldesk/blob/main/CHANGELOG.md">Changelog</a>
+    </p>
+  </div>
+</footer>
+
+<script src="assets/theme.js" defer></script>
+</body>
+</html>

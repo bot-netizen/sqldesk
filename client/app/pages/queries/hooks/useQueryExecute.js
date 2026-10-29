@@ -37,14 +37,21 @@ export default function useQueryExecute(query) {
   });
 
   const queryResultInExecution = useRef(null);
-  // Clear executing queryResult when component is unmounted to avoid errors
+  // When the page goes, stop asking after its query: nothing is waiting for
+  // the answer. Clearing the ref also stops the late answer setting state.
   useEffect(() => {
     return () => {
+      const running = queryResultInExecution.current;
+      if (running && running.abandon) {
+        running.abandon();
+      }
       queryResultInExecution.current = null;
     };
   }, []);
 
-  const executeQuery = useImmutableCallback((request = runNow(), queryExecutor) => {
+  // `quiet`: a repeat nobody asked for by hand -- the stream editor's refresh
+  // -- records no event and raises no notification.
+  const executeQuery = useImmutableCallback((request = runNow(), queryExecutor, { quiet = false } = {}) => {
     let newQueryResult;
     if (queryExecutor) {
       newQueryResult = queryExecutor();
@@ -52,9 +59,16 @@ export default function useQueryExecute(query) {
       newQueryResult = query.getQueryResult(request);
     }
 
-    recordEvent("execute", "query", query.id);
-    notifications.getPermissions();
+    if (!quiet) {
+      recordEvent("execute", "query", query.id);
+      notifications.getPermissions();
+    }
 
+    // A new run replaces the old: nothing will read the old one's answer.
+    const replaced = queryResultInExecution.current;
+    if (replaced && replaced !== newQueryResult && replaced.abandon) {
+      replaced.abandon();
+    }
     queryResultInExecution.current = newQueryResult;
 
     setExecutionState({
@@ -84,7 +98,7 @@ export default function useQueryExecute(query) {
             query.queryResult = queryResult;
           }
 
-          if (executionState.loadedInitialResults) {
+          if (executionState.loadedInitialResults && !quiet) {
             notifications.showNotification("SQLDesk", `${query.name} updated.`);
           }
 
@@ -100,7 +114,7 @@ export default function useQueryExecute(query) {
       })
       .catch((queryResult) => {
         if (queryResultInExecution.current === newQueryResult) {
-          if (executionState.loadedInitialResults) {
+          if (executionState.loadedInitialResults && !quiet) {
             notifications.showNotification("SQLDesk", `${query.name} failed to run: ${queryResult.getError()}`);
           }
 

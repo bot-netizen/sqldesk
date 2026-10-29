@@ -1,4 +1,4 @@
-import { includes, map, extend, fromPairs } from "lodash";
+import { includes, map, range, some, extend, fromPairs } from "lodash";
 import React, { useMemo, useCallback } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import Table from "antd/lib/table";
@@ -8,12 +8,16 @@ import Radio from "antd/lib/radio";
 import { sortableElement } from "react-sortable-hoc";
 import { SortableContainer, DragHandle } from "@/components/sortable";
 import { EditorPropTypes } from "@/visualizations/prop-types";
+import { Select } from "@/components/visualizations/editor";
 import ChartTypeSelect from "./ChartTypeSelect";
+import { LINE_DASHES, hasLineDash } from "../lineDash";
+import { panelCount, seriesPanel } from "../panels";
+import { supportsPanels } from "./PanelSettings";
 import getChartData from "../getChartData";
 
 const SortableBodyRow = sortableElement((props: any) => <tr {...props} />);
 
-function getTableColumns(options: any, updateSeriesOption: any, debouncedUpdateSeriesOption: any) {
+function getTableColumns(options: any, series: any[], updateSeriesOption: any, debouncedUpdateSeriesOption: any) {
   const result = [
     {
       title: "Order",
@@ -40,6 +44,31 @@ function getTableColumns(options: any, updateSeriesOption: any, debouncedUpdateS
   ];
 
   if (!includes(["pie", "heatmap"], options.globalSeriesType)) {
+    // Which plot the series is drawn in. Only once there is more than one to
+    // choose between -- a column of "Panel 1" against a chart with one panel
+    // is a question nobody was asked.
+    const panels = panelCount(options);
+    if (panels > 1 && supportsPanels(options)) {
+      result.push({
+        title: "Panel",
+        dataIndex: "panel",
+        render: (unused, item) => (
+          <Select
+            data-test={`Chart.Series.${item.key}.Panel`}
+            dropdownMatchSelectWidth={false}
+            value={seriesPanel(item.key, options, panels)}
+            onChange={(value: any) => updateSeriesOption(item.key, "panel", value)}
+          >
+            {map(range(panels), (index) => (
+              <Select.Option key={index} value={index} data-test={`Chart.Series.Panel.${index}`}>
+                {index + 1}
+              </Select.Option>
+            ))}
+          </Select>
+        ),
+      });
+    }
+
     if (!options.swappedAxes) {
       result.push({
         title: "Y Axis",
@@ -75,6 +104,50 @@ function getTableColumns(options: any, updateSeriesOption: any, debouncedUpdateS
         />
       ),
     });
+
+    // Only where there is a line to dash, and only as a whole column: a
+    // column that appears and disappears as somebody changes one series'
+    // type would move every other control sideways while they worked.
+    if (some(series, ({ type }: any) => hasLineDash(type))) {
+      result.push({
+        title: "Line",
+        dataIndex: "dash",
+        render: (unused, item) =>
+          hasLineDash(item.type) ? (
+            <Select
+              data-test={`Chart.Series.${item.key}.Dash`}
+              dropdownMatchSelectWidth={false}
+              value={item.dash || "solid"}
+              onChange={(value: any) => updateSeriesOption(item.key, "dash", value)}
+            >
+              {map(LINE_DASHES, ({ value, name, pattern }) => (
+                <Select.Option key={value} value={value} data-test={`Chart.Series.Dash.${value}`}>
+                  <span className="series-settings-dash">
+                    <svg width="34" height="8" aria-hidden="true">
+                      <line
+                        x1="1"
+                        y1="4"
+                        x2="33"
+                        y2="4"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeDasharray={Array.isArray(pattern) ? pattern.join(" ") : undefined}
+                      />
+                    </svg>
+                    {name}
+                  </span>
+                </Select.Option>
+              ))}
+            </Select>
+          ) : (
+            // A placeholder rather than an empty cell, so a column of bars
+            // beside a line does not read as a control that failed to draw.
+            <span className="series-settings-dash-none" aria-label="not a line">
+              &mdash;
+            </span>
+          ),
+      });
+    }
   }
 
   return result;
@@ -116,8 +189,8 @@ export default function SeriesSettings({ options, data, onOptionsChange }: any) 
   const [debouncedUpdateSeriesOption] = useDebouncedCallback(updateSeriesOption, 200);
 
   const columns = useMemo(
-    () => getTableColumns(options, updateSeriesOption, debouncedUpdateSeriesOption),
-    [options, updateSeriesOption, debouncedUpdateSeriesOption]
+    () => getTableColumns(options, series, updateSeriesOption, debouncedUpdateSeriesOption),
+    [options, series, updateSeriesOption, debouncedUpdateSeriesOption]
   );
 
   return (

@@ -9,6 +9,7 @@ import time
 
 import pytz
 from croniter import CroniterBadCronError, croniter
+from redis.exceptions import RedisError
 from sqlalchemy import UniqueConstraint, and_, cast, distinct, func, or_
 from sqlalchemy.dialects.postgresql import ARRAY, DOUBLE_PRECISION, JSONB
 from sqlalchemy.event import listens_for
@@ -135,6 +136,12 @@ class DataSource(BelongsToOrgMixin, db.Model):
     )
     queue_name = Column(db.String(255), default="queries")
     scheduled_queue_name = Column(db.String(255), default="scheduled_queries")
+    #: When an administrator stopped this source being queried, and why. In
+    #: Postgres because a pause is a decision, not a cache: in Redis alone it
+    #: lasted until the next restart, after which every scheduled query ran
+    #: against the warehouse somebody had deliberately taken out of service.
+    paused_at = Column(db.DateTime(True), nullable=True)
+    paused_note = Column(db.Text, nullable=True)
     created_at = Column(db.DateTime(True), default=db.func.now())
 
     data_source_groups = db.relationship("DataSourceGroup", back_populates="data_source", cascade="all")
@@ -257,17 +264,49 @@ class DataSource(BelongsToOrgMixin, db.Model):
 
     @property
     def paused(self):
-        return redis_connection.exists(self._pause_key)
+        """
+        Whether an administrator has stopped this source being queried.
+
+        Read from Postgres, with Redis as a fallback for an install upgrading
+        with a pause already in place. It lived only in Redis, which made
+        pausing a warehouse -- the thing somebody does when it is overloaded
+        or being migrated -- survive exactly until the next Redis restart, at
+        which point every scheduled query started running against it again
+        and nothing said so.
+        """
+        if self.paused_at is not None:
+            return True
+        try:
+            return bool(redis_connection.exists(self._pause_key))
+        except RedisError:
+            return False
 
     @property
     def pause_reason(self):
-        return redis_connection.get(self._pause_key)
+        if self.paused_at is not None:
+            return self.paused_note or ""
+        try:
+            return redis_connection.get(self._pause_key)
+        except RedisError:
+            return None
 
     def pause(self, reason=None):
-        redis_connection.set(self._pause_key, reason or "")
+        self.paused_at = utils.utcnow()
+        self.paused_note = reason or ""
+        # Still written to Redis, so a worker running the previous version
+        # during a rolling upgrade sees the pause too.
+        try:
+            redis_connection.set(self._pause_key, reason or "")
+        except RedisError:
+            logger.warning("Could not mirror the pause of %s to Redis.", self.id, exc_info=True)
 
     def resume(self):
-        redis_connection.delete(self._pause_key)
+        self.paused_at = None
+        self.paused_note = None
+        try:
+            redis_connection.delete(self._pause_key)
+        except RedisError:
+            logger.warning("Could not clear the pause of %s in Redis.", self.id, exc_info=True)
 
     def add_group(self, group, view_only=False):
         dsg = DataSourceGroup(group=group, data_source=self, view_only=view_only)
@@ -510,7 +549,10 @@ class QueryResult(db.Model, BelongsToOrgMixin):
     org = db.relationship(Organization)
     data_source_id = Column(key_type("DataSource"), db.ForeignKey("data_sources.id"))
     data_source = db.relationship(DataSource, backref=backref("query_results"))
-    query_hash = Column(db.String(32), index=True)
+    #: No `index=True`: the lookup index below starts with this column, so a
+    #: single-column index on it was a second copy of the same prefix -- paid
+    #: for on every insert, and these are the biggest rows in the database.
+    query_hash = Column(db.String(32))
     query_text = Column("query", db.Text)
     data = Column(JSONText, nullable=True)
     runtime = Column(DOUBLE_PRECISION)
@@ -531,6 +573,9 @@ class QueryResult(db.Model, BelongsToOrgMixin):
             "data_source_id",
             retrieved_at.desc(),
         ),
+        #: The cleanup deletes by age, and age was not indexed: every run
+        #: scanned the largest table in the database to find the cutoff.
+        db.Index("ix_query_results_retrieved_at", "retrieved_at"),
     )
 
     def __str__(self):
@@ -677,6 +722,27 @@ def is_valid_cron(expression):
     return True
 
 
+#: The longest a run of failures may push a scheduled query out.
+#:
+#: The delay was 2**failures minutes with no ceiling, so a warehouse down for
+#: a day took a five-minute query to a 17-hour delay (2**10 minutes), and the
+#: morning after an outage every dashboard was still stale with nothing
+#: visibly wrong. An hour is long enough to stop hammering a broken source
+#: and short enough that recovery is not somebody's next job.
+MAX_SCHEDULE_BACKOFF = datetime.timedelta(hours=1)
+
+
+def _backoff(failures):
+    """How far a failing query's next run is pushed out."""
+    if not failures:
+        return datetime.timedelta(0)
+    try:
+        delay = datetime.timedelta(minutes=2**failures)
+    except OverflowError:
+        return MAX_SCHEDULE_BACKOFF
+    return min(delay, MAX_SCHEDULE_BACKOFF)
+
+
 def should_schedule_next(previous_iteration, now, interval, time=None, day_of_week=None, failures=0, cron=None):
     # if previous_iteration is None, it means the query has never been run before
     # so we should schedule it immediately
@@ -689,11 +755,7 @@ def should_schedule_next(previous_iteration, now, interval, time=None, day_of_we
         # since the query last ran. interval, time and day_of_week are ignored
         # -- the expression says everything.
         next_iteration = croniter(cron, previous_iteration).get_next(datetime.datetime)
-        if failures:
-            try:
-                next_iteration += datetime.timedelta(minutes=2**failures)
-            except OverflowError:
-                return False
+        next_iteration += _backoff(failures)
         return now > next_iteration
 
     # if time exists then interval > 23 hours (82800s)
@@ -723,11 +785,7 @@ def should_schedule_next(previous_iteration, now, interval, time=None, day_of_we
         next_iteration = (
             previous_iteration + datetime.timedelta(days=days_delay) + datetime.timedelta(days=days_to_add)
         ).replace(hour=hour, minute=minute)
-    if failures:
-        try:
-            next_iteration += datetime.timedelta(minutes=2**failures)
-        except OverflowError:
-            return False
+    next_iteration += _backoff(failures)
     return now > next_iteration
 
 
@@ -787,6 +845,19 @@ class Query(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model):
     query_class = SearchBaseQuery
     __tablename__ = "queries"
     __mapper_args__ = {"version_id_col": version, "version_id_generator": False}
+    #: Two lookups that had no index and scan the whole table.
+    #:
+    #: `(query_hash, data_source_id)` is how a finished execution finds the
+    #: other queries whose text is the same, to hand them the result -- one
+    #: scan per execution.
+    #:
+    #: `latest_query_data_id` is how the result cleanup finds whether a
+    #: result is still somebody's latest. It runs every five minutes with a
+    #: cap of ten thousand results, and asked per result.
+    __table_args__ = (
+        db.Index("ix_queries_hash_data_source", "query_hash", "data_source_id"),
+        db.Index("ix_queries_latest_query_data_id", "latest_query_data_id"),
+    )
 
     #: On top of the mixin's own. The API key is a credential, and a change
     #: record is a copy of it that nothing ever expires -- it is not part of
@@ -1136,11 +1207,14 @@ class Query(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model):
 
     @property
     def runtime(self):
-        return self.latest_query_data.runtime
+        return self.latest_query_data.runtime if self.latest_query_data else None
 
     @property
     def retrieved_at(self):
-        return self.latest_query_data.retrieved_at
+        # None for a query that has never run, rather than an AttributeError:
+        # a subscription to any dashboard with one such widget failed at "how
+        # old are the numbers", and said the mail server would not take it.
+        return self.latest_query_data.retrieved_at if self.latest_query_data else None
 
     @property
     def groups(self):
@@ -1350,6 +1424,16 @@ class Alert(TimestampMixin, BelongsToOrgMixin, db.Model):
         data = self.query_rel.latest_query_data.data if self.query_rel.latest_query_data else None
         new_state = self.UNKNOWN_STATE
 
+        # The number this decision was made on, kept for whoever reads the
+        # history later: "it fired" is a fact, "it fired at 412 against a
+        # threshold of 400" is the one worth being woken for.
+        #
+        # An attribute on the instance rather than a second return value,
+        # because `evaluate` is patched wholesale in the tests and changing
+        # what it returns would quietly change what they exercise. Absent is
+        # a fine answer -- the caller reads it with a default.
+        self.evaluated_value = None
+
         if data and data["rows"] and self.options["column"] in data["rows"][0]:
             op = OPERATORS.get(self.options["op"], lambda v, t: False)
 
@@ -1378,14 +1462,76 @@ class Alert(TimestampMixin, BelongsToOrgMixin, db.Model):
             threshold = self.options["value"]
 
             if value is not None:
+                self.evaluated_value = value
                 new_state = next_state(op, value, threshold)
 
         return new_state
 
+    #: The window the fire count covers. A day, but a rolling one.
+    #:
+    #: Not "today": there is no organization timezone, so today would have to
+    #: mean since UTC midnight -- and for anybody west of it an alert that
+    #: went off during the evening falls into tomorrow and the count reads
+    #: zero. A rolling 24 hours answers the same question ("is this thing
+    #: going off repeatedly?") and cannot be wrong about whose midnight.
+    FIRE_COUNT_WINDOW = datetime.timedelta(hours=24)
+
+    @classmethod
+    def fire_counts(cls, alert_ids, now=None):
+        """
+        How many times each of these alerts *fired* in the last 24 hours.
+
+        Fired, not changed: `ok -> triggered -> ok -> triggered` is two fires
+        and four state changes, and "it went off twice" is what somebody
+        means. The recoveries are still in the history, where they are worth
+        reading; they are not worth counting.
+
+        One grouped query for the whole list rather than one per row, because
+        the list already serializes a query and a user for every alert and
+        does not need a third round trip each.
+        """
+        if not alert_ids:
+            return {}
+        since = (now or utils.utcnow()) - cls.FIRE_COUNT_WINDOW
+        rows = (
+            db.session.query(AlertFire.alert_id, db.func.count(AlertFire.id))
+            .filter(
+                AlertFire.alert_id.in_(list(alert_ids)),
+                AlertFire.created_at >= since,
+                AlertFire.state == cls.TRIGGERED_STATE,
+            )
+            .group_by(AlertFire.alert_id)
+            .all()
+        )
+        return {alert_id: count for alert_id, count in rows}
+
+    def recent_fires(self, limit=20):
+        """This alert's history, newest first. Every state change, not only fires."""
+        return (
+            AlertFire.query.filter(AlertFire.alert_id == self.id)
+            .order_by(AlertFire.created_at.desc(), AlertFire.id.desc())
+            .limit(limit)
+            .all()
+        )
+
     def subscribers(self):
         return User.query.join(AlertSubscription).filter(AlertSubscription.alert == self)
 
-    def render_template(self, template):
+    def render_template(self, template, escape=True):
+        """
+        A notification template, filled in.
+
+        `escape` is about where the result is going. Mustache escapes the
+        values it interpolates, not the words around them, and for an HTML
+        email that is exactly right: a query result containing `<b>` is text,
+        not markup, and must not become markup on the way.
+
+        Slack is not HTML. The same escaping turns a value containing `&` into
+        `&amp;` in the message, and a result with a `<` in it reads as
+        `&lt;` -- so a destination that speaks its own markup asks for the
+        unescaped form. The template's own words are untouched either way,
+        which is why a hand-written `<url|label>` has always survived.
+        """
         if template is None:
             return ""
 
@@ -1405,9 +1551,15 @@ class Alert(TimestampMixin, BelongsToOrgMixin, db.Model):
             "ALERT_NAME": self.name,
             "ALERT_URL": "{host}/alerts/{alert_id}".format(host=host, alert_id=self.id),
             "ALERT_STATUS": self.state.upper(),
-            "ALERT_SELECTOR": self.options["selector"],
-            "ALERT_CONDITION": self.options["op"],
-            "ALERT_THRESHOLD": self.options["value"],
+            # Read with defaults, as `evaluate` reads them. `selector` was
+            # added after alerts already existed, and an alert saved without
+            # one raised here -- so an old alert with a custom template
+            # failed to notify at the moment it had something to say, which
+            # is the worst time for a notification to be the thing that
+            # breaks.
+            "ALERT_SELECTOR": self.options.get("selector", "first"),
+            "ALERT_CONDITION": self.options.get("op"),
+            "ALERT_THRESHOLD": self.options.get("value"),
             "QUERY_NAME": self.query_rel.name,
             "QUERY_URL": "{host}/queries/{query_id}".format(host=host, query_id=self.query_rel.id),
             "QUERY_RESULT_VALUE": result_value,
@@ -1415,17 +1567,25 @@ class Alert(TimestampMixin, BelongsToOrgMixin, db.Model):
             "QUERY_RESULT_COLS": data["columns"],
             "QUERY_RESULT_TABLE": result_table,
         }
-        return mustache_render_escape(template, context)
+        render = mustache_render_escape if escape else mustache_render
+        return render(template, context)
 
     @property
     def custom_body(self):
-        template = self.options.get("custom_body", self.options.get("template"))
-        return self.render_template(template)
+        return self.body_for()
 
     @property
     def custom_subject(self):
+        return self.subject_for()
+
+    def body_for(self, escape=True):
+        """The body, escaped for HTML or left as the author wrote it."""
+        template = self.options.get("custom_body", self.options.get("template"))
+        return self.render_template(template, escape=escape)
+
+    def subject_for(self, escape=True):
         template = self.options.get("custom_subject")
-        return self.render_template(template)
+        return self.render_template(template, escape=escape)
 
     @property
     def groups(self):
@@ -1763,7 +1923,10 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
         return cls.query.filter(cls.slug == slug, cls.org == org).one()
 
     def fork(self, user, keep=lambda widget: True):
-        forked_list = ["org", "layout", "dashboard_filters_enabled", "tags"]
+        # `kind` too: a copy of a streaming dashboard is a streaming dashboard.
+        # Without it the copy defaulted to "saved", landed in the saved list
+        # with stream widgets on it, and was offered warehouse intervals.
+        forked_list = ["org", "layout", "dashboard_filters_enabled", "tags", "kind"]
 
         kwargs = {a: getattr(self, a) for a in forked_list}
         forked_dashboard = Dashboard(name="Copy of (#{}) {}".format(self.id, self.name), user=user, **kwargs)
@@ -2349,10 +2512,19 @@ class CatalogTable(TimestampMixin, BelongsToOrgMixin, db.Model):
     #: and meaning is the thing a model most needs and least can guess.
     description = Column(db.Text, nullable=True)
     #: Where that sentence came from: "engine" for a comment the warehouse
-    #: already carried, "human" for one somebody wrote here. Harvesting must
-    #: never overwrite a human's words with an engine's silence, and without
-    #: recording the origin there is no way to tell the two apart.
+    #: already carried, "human" for one somebody wrote here, "mcp" for one an
+    #: agent wrote through MCP. Harvesting must never overwrite a human's words
+    #: with an engine's silence, and without recording the origin there is no
+    #: way to tell the two apart.
     description_source = Column(db.String(16), nullable=True)
+    #: Who wrote it and when. "mcp" says a machine typed the sentence; it does
+    #: not say whose key it was, and that is the question asked first when a
+    #: description turns out to be wrong. An agent writes far more of these
+    #: than a person ever will, so the answer has to be in a column rather
+    #: than reconstructed from the event log.
+    described_by_id = Column(key_type("User"), db.ForeignKey("users.id"), nullable=True)
+    described_by = db.relationship("User", foreign_keys=[described_by_id])
+    described_at = Column(db.DateTime(True), nullable=True)
     #: The compact text handed to a model, built at harvest rather than per
     #: request so assembling a prompt is concatenation.
     card = Column(db.Text, nullable=True)
@@ -2441,6 +2613,17 @@ class CatalogMeasure(TimestampMixin, BelongsToOrgMixin, db.Model):
     #: organisation stands behind is not.
     status = Column(db.String(16), default=MEASURE_PROPOSED, nullable=False)
     description = Column(db.Text, nullable=True)
+    #: Who proposed it, where anybody did. Null for the harvest's own finds,
+    #: which is most of them: mined from saved SQL, nobody proposed those.
+    #: A measure an agent proposes needs an author for the same reason a
+    #: description does -- the curator reviewing it asks whose it is first.
+    proposed_by_id = Column(key_type("User"), db.ForeignKey("users.id"), nullable=True)
+    proposed_by = db.relationship("User", foreign_keys=[proposed_by_id])
+    #: Who approved or denied it, and when. The reviewer was only ever in an
+    #: Event row, which is not something a tool can return beside the measure.
+    reviewed_by_id = Column(key_type("User"), db.ForeignKey("users.id"), nullable=True)
+    reviewed_by = db.relationship("User", foreign_keys=[reviewed_by_id])
+    reviewed_at = Column(db.DateTime(True), nullable=True)
 
     @property
     def approved(self):
@@ -2775,6 +2958,13 @@ class DashboardSubscription(TimestampMixin, BelongsToOrgMixin, db.Model):
 
     active = Column(db.Boolean, default=True, nullable=False)
     last_sent_at = Column(db.DateTime(True), nullable=True)
+    #: When it was last tried, and how many tries in a row have failed. A
+    #: failed send used to leave `last_sent_at` alone, so the subscription was
+    #: due again a minute later: a refused address meant everybody before it
+    #: in the list got the dashboard every minute, and a broken renderer drew
+    #: it every minute, all day.
+    last_attempt_at = Column(db.DateTime(True), nullable=True)
+    failures = Column(db.Integer, nullable=False, default=0, server_default="0")
 
     #: Why the last send did not happen, shown to the owner. Cleared by a send
     #: that works, so it never describes a problem that has gone away.
@@ -2815,6 +3005,46 @@ class DashboardSubscription(TimestampMixin, BelongsToOrgMixin, db.Model):
 
 
 @generic_repr("id", "user_id", "destination_id", "alert_id")
+class AlertFire(db.Model):
+    """
+    One line in an alert's history: it changed to this state, then.
+
+    The alert row itself carries only `state` and `last_triggered_at` -- where
+    it is now and when it last moved. That answers "is this firing" and
+    nothing else, so an alert that has gone off four times since breakfast
+    looks exactly like one that went off once and stayed there. Which of those
+    two is happening is usually the whole question.
+
+    `value` is what the alert was evaluating when it moved. "It fired" is a
+    fact; "it fired at 412 against a threshold of 400" is the one worth being
+    woken for. Null where the query could not be read at all, which is the
+    same reason the state went unknown.
+
+    `notified` says whether anything was actually sent. A muted alert and the
+    first unknown-to-ok settle both change state in silence, and a history
+    that showed them as notifications would have people looking for messages
+    nobody sent.
+    """
+
+    id = primary_key("AlertFire")
+    alert_id = Column(key_type("Alert"), db.ForeignKey("alerts.id", ondelete="CASCADE"))
+    alert = db.relationship(Alert, backref=backref("fires", cascade="all, delete-orphan", passive_deletes=True))
+    state = Column(db.String(255))
+    value = Column(db.String(255), nullable=True)
+    notified = Column(db.Boolean, default=False, server_default="false", nullable=False)
+    created_at = Column(db.DateTime(True), default=db.func.now(), nullable=False)
+
+    __tablename__ = "alert_fires"
+    __table_args__ = (
+        # Every read of this table is "one alert, newest first", for the count
+        # on the list and the history on the page.
+        db.Index("alert_fires_alert_id_created_at", "alert_id", "created_at"),
+    )
+
+    def __str__(self):
+        return "{} {} at {}".format(self.alert_id, self.state, self.created_at)
+
+
 class AlertSubscription(TimestampMixin, db.Model):
     id = primary_key("AlertSubscription")
     user_id = Column(key_type("User"), db.ForeignKey("users.id"))

@@ -2,7 +2,7 @@ import datetime
 
 from mock import patch
 
-from sqldesk.models import Alert, AlertSubscription, db
+from sqldesk.models import Alert, AlertFire, AlertSubscription, db
 from sqldesk.utils import utcnow
 from tests import BaseTestCase
 
@@ -290,3 +290,98 @@ class TestAlertSubscriptionresourceDelete(BaseTestCase):
         path = "/api/alerts/{}/subscriptions/{}".format(alert.id, subscription_two.id)
         response = self.make_request("delete", path, user=admin_user)
         self.assertEqual(response.status_code, 200)
+
+
+class TestAlertFireCounts(BaseTestCase):
+    """
+    "It fired four times" on the list, and the history behind it.
+
+    The alert row carries `state` and `last_triggered_at`, which says where it
+    is and when it last moved. One that has gone off six times reads exactly
+    like one that went off once and stayed there, and telling those apart is
+    usually the point.
+    """
+
+    def fire(self, alert, state, value=None, ago=datetime.timedelta(0), notified=True):
+        fire = AlertFire(
+            alert=alert,
+            state=state,
+            value=value,
+            notified=notified,
+            created_at=utcnow() - ago,
+        )
+        db.session.add(fire)
+        db.session.commit()
+        return fire
+
+    def test_the_list_says_how_many_times_each_one_fired(self):
+        alert = self.factory.create_alert()
+        for _ in range(4):
+            self.fire(alert, Alert.TRIGGERED_STATE)
+
+        rv = self.make_request("get", "/api/alerts")
+
+        (body,) = [a for a in rv.json if a["id"] == alert.id]
+        self.assertEqual(4, body["fires_24h"])
+
+    def test_recoveries_are_not_fires(self):
+        # ok -> triggered -> ok -> triggered is two fires and four state
+        # changes. "It went off twice" is what somebody means.
+        alert = self.factory.create_alert()
+        for state in (Alert.TRIGGERED_STATE, Alert.OK_STATE, Alert.TRIGGERED_STATE, Alert.OK_STATE):
+            self.fire(alert, state)
+
+        rv = self.make_request("get", "/api/alerts")
+
+        (body,) = [a for a in rv.json if a["id"] == alert.id]
+        self.assertEqual(2, body["fires_24h"])
+
+    def test_the_window_is_a_rolling_day(self):
+        alert = self.factory.create_alert()
+        self.fire(alert, Alert.TRIGGERED_STATE, ago=datetime.timedelta(hours=23))
+        self.fire(alert, Alert.TRIGGERED_STATE, ago=datetime.timedelta(hours=25))
+
+        rv = self.make_request("get", "/api/alerts")
+
+        (body,) = [a for a in rv.json if a["id"] == alert.id]
+        self.assertEqual(1, body["fires_24h"], "yesterday's fire is not today's problem")
+
+    def test_an_alert_that_never_fired_says_zero_rather_than_nothing(self):
+        alert = self.factory.create_alert()
+
+        rv = self.make_request("get", "/api/alerts")
+
+        (body,) = [a for a in rv.json if a["id"] == alert.id]
+        self.assertEqual(0, body["fires_24h"])
+
+    def test_opening_one_shows_its_history_newest_first(self):
+        alert = self.factory.create_alert()
+        self.fire(alert, Alert.TRIGGERED_STATE, value="412", ago=datetime.timedelta(hours=2))
+        self.fire(alert, Alert.OK_STATE, value="120", ago=datetime.timedelta(hours=1))
+
+        rv = self.make_request("get", "/api/alerts/{}".format(alert.id))
+
+        history = rv.json["history"]
+        self.assertEqual([Alert.OK_STATE, Alert.TRIGGERED_STATE], [h["state"] for h in history])
+        self.assertEqual(["120", "412"], [h["value"] for h in history])
+
+    def test_the_history_says_whether_anything_was_sent(self):
+        # A muted alert still changes state. A history that showed it as a
+        # notification would have people hunting for a message nobody sent.
+        alert = self.factory.create_alert()
+        self.fire(alert, Alert.TRIGGERED_STATE, notified=False)
+
+        rv = self.make_request("get", "/api/alerts/{}".format(alert.id))
+
+        self.assertFalse(rv.json["history"][0]["notified"])
+
+    def test_the_list_does_not_ask_once_per_alert(self):
+        # Five alerts, one grouped count query. The list already costs a query
+        # and a user per row; it does not need a third each.
+        for _ in range(5):
+            self.fire(self.factory.create_alert(), Alert.TRIGGERED_STATE)
+
+        with patch.object(Alert, "fire_counts", wraps=Alert.fire_counts) as counted:
+            self.make_request("get", "/api/alerts")
+
+        self.assertEqual(1, counted.call_count)

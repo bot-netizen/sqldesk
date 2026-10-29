@@ -2,6 +2,11 @@ import React from "react";
 import { mount } from "enzyme";
 
 import TypeLogo from "./TypeLogo";
+import isMissingLogo from "@/lib/logoAssets";
+
+// Under jest the real one has no folder listing to consult and so says "false"
+// to everything. Mocked, it can also answer for the build that does.
+jest.mock("@/lib/logoAssets", () => ({ __esModule: true, default: jest.fn(() => false) }));
 
 /*
   A data source logo is a file named after the type. Add a type without adding the
@@ -74,6 +79,18 @@ describe("TypeLogo", () => {
 
     expect(tile.prop("role")).toBe("img");
     expect(tile.prop("aria-label")).toBe("Grafana Mimir");
+  });
+
+  it("does not ask for a logo the build knows is not there", () => {
+    // The tile was always right; getting to it through a 404 was not. Every
+    // page listing the type logged a failed request to find out what the
+    // build already knew.
+    isMissingLogo.mockReturnValueOnce(true);
+
+    const logo = mount(<TypeLogo src="/static/images/db-logos/mimir.png" label="mimir" width={20} />);
+
+    expect(logo.find("img").exists()).toBe(false);
+    expect(logo.find(".type-logo-fallback").text()).toBe("MI");
   });
 
   it("stops being broken when the source changes to one that works", () => {

@@ -557,8 +557,10 @@ class QueryRegenerateApiKeyResource(BaseResource):
             }
         )
 
-        result = QuerySerializer(query).serialize()
-        return result
+        # with_api_key, or the one thing the caller asked for is the one thing
+        # missing from the answer: the dialog reads `api_key` off this response
+        # and would blank its own field and build `?api_key=undefined` URLs.
+        return QuerySerializer(query, with_api_key=True).serialize()
 
 
 class QueryForkResource(BaseResource):
@@ -706,6 +708,10 @@ class QueryVersionRestoreResource(BaseResource):
         taken = history.snapshot(version)
         if taken.get("schedule") != query.schedule:
             require_permission_to_schedule(self.current_user)
+        # The dropdowns a version names, as saving them by hand would check:
+        # otherwise a version that once pointed at a query this person cannot
+        # read gets them its values through the dropdown endpoint.
+        require_access_to_dropdown_queries(self.current_user, {"options": taken.get("options") or {}})
         # A schedule that was valid when it was saved and is not now -- a cron
         # expression a later version of croniter rejects, an interval below a
         # minimum somebody has since set. Caught here rather than stored again

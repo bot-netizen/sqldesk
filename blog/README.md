@@ -43,7 +43,7 @@ Optional:
 ## Links and images
 
 - Other pages on the site: start at the site root, such as
-  `[Deploying](/guide/deploying.html)` or `[Performance](/performance.html)`.
+  `[Deploying](/guide/deploying.html)` or `[Releases](/releases.html)`.
 - Other posts: just the file name with `.html`, such as `[the first post](sqldesk-and-what-it-is-for.html)`.
 - Images: put them in `blog/images/` and write `![What it shows](images/chart.png)`.
 

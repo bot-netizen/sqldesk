@@ -13,15 +13,19 @@ Two tables, deliberately:
 - `rollup`, per-minute buckets going back a day, read from Postgres through a
   view so one query can join "now" to "this morning" without two data sources.
 
-The connection is the stream's store, locked down the same way an upload's is:
-a stream's SQL is written by people, so DuckDB's defaults would be theirs.
+The connection is in memory, with each window attached read-only and then
+locked down -- no file, no extension, no setting changed back -- because a
+stream's SQL is written by people and runs in the web process, and DuckDB's
+defaults would be theirs. See `lock_down`.
 """
 
 import logging
 import os
 import re
+import threading
 import time
 
+from sqldesk import settings
 from sqldesk.query_runner import (
     TYPE_BOOLEAN,
     TYPE_DATETIME,
@@ -114,8 +118,43 @@ def names_in(query, identifier):
     return re.search(r"\b{}\b".format(re.escape(identifier)), query or "", re.IGNORECASE) is not None
 
 
+#: Everything a stream query's connection may not do, once the windows it
+#: reads are attached. Set in this order and locked last, so the SQL being
+#: confined cannot switch any of it back.
+LOCKED_DOWN = (
+    # No file anywhere: the windows are already attached, and a path left open
+    # here would let a query attach another cluster's window from the same
+    # organisation's folder.
+    "SET allowed_directories = []",
+    "SET enable_external_access = false",
+    "SET autoinstall_known_extensions = false",
+    "SET autoload_known_extensions = false",
+)
+
+
+def lock_down(connection):
+    """
+    Take away everything a stream query does not need, or raise.
+
+    The SQL here is typed by whoever can read the cluster and runs inside the
+    web process. Left at DuckDB's defaults it could read any file the server
+    can -- `/proc/self/environ` holds the secret key and the database URL --
+    list the filesystem, write files and install extensions. Raises rather than
+    carrying on when a setting is refused: half a lock is not one.
+    """
+    for statement in LOCKED_DOWN:
+        connection.execute(statement)
+    connection.execute("SET threads = {}".format(int(settings.STREAM_QUERY_THREADS)))
+    connection.execute("SET memory_limit = '{}MB'".format(int(settings.STREAM_QUERY_MEMORY_MB)))
+    connection.execute("SET lock_configuration = true")
+
+
 class KafkaStream(BaseSQLQueryRunner):
     should_annotate_query = False
+
+    #: What one query may return. A page shows a screenful, it asks again
+    #: every two seconds, and anything larger is a question for a warehouse.
+    MAX_ROWS = 2000
 
     #: Kept out of the ordinary query editor. A window exists only while
     #: somebody is watching, so a saved query against one would run against
@@ -301,7 +340,11 @@ class KafkaStream(BaseSQLQueryRunner):
 
         connection = duckdb.connect(":memory:")
         attached = []
-        for stream in streams:
+        # Only the topics the query names. Attaching every topic on the cluster
+        # made a query on one wait out every other topic's flush, and held a
+        # read lock on windows it never read -- long enough, on a busy
+        # cluster, to lock their consumers out.
+        for stream in (stream for stream in streams if names_in(query, table_name(stream.topic))):
             name = table_name(stream.topic)
             path = stream.store_path()
             if not os.path.exists(path):
@@ -342,6 +385,13 @@ class KafkaStream(BaseSQLQueryRunner):
                 continue
             connection.execute('CREATE VIEW "{}" AS SELECT * FROM "{}__window".events'.format(name, name))
             attached.append(stream)
+        try:
+            lock_down(connection)
+        except Exception:
+            # Refused rather than run open. A connection this cannot lock is
+            # one on which the SQL somebody typed could read the server's files.
+            connection.close()
+            raise
         return connection, attached
 
     def run_query(self, query, user):
@@ -364,21 +414,45 @@ class KafkaStream(BaseSQLQueryRunner):
             except Exception:
                 logger.warning("could not note that stream %s was viewed", stream.id, exc_info=True)
 
-        connection, attached = self._attached(streams, query)
+        try:
+            connection, attached = self._attached(streams, query)
+        except Exception as error:
+            logger.exception("could not prepare a locked-down connection for a stream query")
+            return None, "This query could not be run safely here: {}".format(error)
+
+        # The web process runs this, so it is bounded twice over: in rows,
+        # because a window holds millions and the page shows a screenful; and
+        # in time, because a query that runs past gunicorn's timeout takes the
+        # worker with it.
+        timer = threading.Timer(settings.STREAM_QUERY_SECONDS, connection.interrupt)
+        timer.daemon = True
+        timer.start()
         try:
             kinds = _described(connection, query)
-            cursor = connection.cursor()
-            cursor.execute(query)
+            # On the connection itself, not a cursor: a DuckDB cursor is a
+            # connection of its own, and interrupting this one would not stop
+            # a query running on that.
+            connection.execute(query)
             columns = self.fetch_columns(
-                [(column[0], TYPES.get(kinds.get(column[0], ""), TYPE_STRING)) for column in cursor.description]
+                [(column[0], TYPES.get(kinds.get(column[0], ""), TYPE_STRING)) for column in connection.description]
             )
-            rows = [dict(zip((column["name"] for column in columns), row)) for row in cursor.fetchall()]
-            return json_dumps({"columns": columns, "rows": rows}), None
+            fetched = connection.fetchmany(self.MAX_ROWS + 1)
+            names = [column["name"] for column in columns]
+            rows = [dict(zip(names, row)) for row in fetched[: self.MAX_ROWS]]
+            return json_dumps({"columns": columns, "rows": rows, "truncated": len(fetched) > self.MAX_ROWS}), None
         except JobTimeoutException:
             raise
         except Exception as error:
+            if "INTERRUPT" in str(error).upper():
+                return None, (
+                    "This query ran for longer than {} seconds and was stopped. A window is minutes of events; "
+                    "a question that needs longer than that is one for a warehouse.".format(
+                        settings.STREAM_QUERY_SECONDS
+                    )
+                )
             return None, self._explain(error, named, attached)
         finally:
+            timer.cancel()
             connection.close()
 
     def _explain(self, error, named, attached):

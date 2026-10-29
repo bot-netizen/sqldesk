@@ -537,7 +537,7 @@ export const VARIANTS: Record<string, Variant[]> = {
       name: "a mapping to a missing column",
       options: { globalSeriesType: "line", columnMapping: { not_a_column: "x", value: "y" } },
     },
-    ...["SQLDesk", "Viridis", "Tableau 10", "D3 Category 10", "Redash", "Not A Palette"].map((color_scheme) => ({
+    ...["SQLDesk", "Viridis", "Tableau 10", "D3 Category 10", "Tealdash", "Not A Palette"].map((color_scheme) => ({
       name: `the ${color_scheme} palette`,
       options: { globalSeriesType: "column", color_scheme, columnMapping: { label: "x", value: "y" } },
     })),

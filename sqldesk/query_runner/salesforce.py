@@ -59,6 +59,7 @@ TYPES_MAP = dict(
 
 
 class Salesforce(BaseQueryRunner):
+    query_language = "soql"
     should_annotate_query = False
 
     @classmethod

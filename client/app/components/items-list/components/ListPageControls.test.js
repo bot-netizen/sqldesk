@@ -1,9 +1,9 @@
 import React from "react";
 import { mount } from "enzyme";
 import Dropdown from "antd/lib/dropdown";
-import { FilterControl, ColumnsControl, visibleColumns } from "./ListPageControls";
+import { SearchControl, ColumnsControl, visibleColumns } from "./ListPageControls";
 
-// Both controls hang their contents off a Dropdown overlay, which antd only
+// ColumnsControl hangs its contents off a Dropdown overlay, which antd only
 // mounts once the trigger is clicked. Rendering the overlay directly tests what
 // it contains without driving the popup open.
 function getOverlay(wrapper) {
@@ -81,26 +81,37 @@ describe("visibleColumns", () => {
   });
 });
 
-describe("FilterControl", () => {
-  it("does not let a click on the field reach the dropdown", () => {
-    // antd closes a Dropdown when its overlay is clicked, which for a panel
-    // built around a text field meant the field vanished as you tried to type.
-    const overlay = getOverlay(mount(<FilterControl value="" onChange={() => {}} />));
+describe("SearchControl", () => {
+  const field = (wrapper) => wrapper.find("input").first();
 
-    const event = { stopPropagation: jest.fn() };
-    overlay.find(".list-page-filter-panel").first().simulate("click", event);
+  function type(wrapper, text) {
+    field(wrapper).simulate("change", { target: { value: text } });
+    wrapper.update();
+  }
 
-    expect(event.stopPropagation).toHaveBeenCalled();
+  it("is a field on the page, not a button that opens one", () => {
+    // It spent a release inside a Dropdown behind a funnel marked "Filter",
+    // where people looking for a search box did not find it.
+    const wrapper = mount(<SearchControl value="" onChange={() => {}} />);
+
+    expect(wrapper.find(Dropdown).exists()).toBe(false);
+    expect(wrapper.find("input").exists()).toBe(true);
+  });
+
+  it("says what it searches, to the eye and to a screen reader", () => {
+    const wrapper = mount(
+      <SearchControl value="" onChange={() => {}} placeholder="Search dashboards…" label="Search dashboards" />
+    );
+
+    expect(field(wrapper).prop("placeholder")).toBe("Search dashboards…");
+    expect(field(wrapper).prop("aria-label")).toBe("Search dashboards");
   });
 
   it("reports what was typed", () => {
     const onChange = jest.fn();
-    const overlay = getOverlay(mount(<FilterControl value="" onChange={onChange} />));
+    const wrapper = mount(<SearchControl value="" onChange={onChange} />);
 
-    overlay
-      .find("input")
-      .first()
-      .simulate("change", { target: { value: "revenue" } });
+    type(wrapper, "revenue");
 
     expect(onChange).toHaveBeenCalledWith("revenue");
   });
@@ -112,25 +123,12 @@ describe("FilterControl", () => {
     reappeared: typing at any speed dropped characters and the word in
     progress vanished as you wrote it.
 
-    These drive the real popup rather than mounting the overlay element on its
-    own -- a detached copy has none of the component's state, which is exactly
-    what is being tested.
+    Taking the field out of the dropdown does not fix that -- the debounce is
+    still there -- so these stay.
   */
-  function openFilter(wrapper) {
-    wrapper.find('button[data-test="ListFilterButton"]').simulate("click");
-    wrapper.update();
-    return wrapper;
-  }
-
-  const field = (wrapper) => wrapper.find("input").first();
-
-  function type(wrapper, text) {
-    field(wrapper).simulate("change", { target: { value: text } });
-    wrapper.update();
-  }
 
   it("keeps what was typed before the list has caught up", () => {
-    const wrapper = openFilter(mount(<FilterControl value="" onChange={() => {}} />));
+    const wrapper = mount(<SearchControl value="" onChange={() => {}} />);
 
     type(wrapper, "rev");
 
@@ -138,7 +136,7 @@ describe("FilterControl", () => {
   });
 
   it("keeps a whole word typed faster than the list updates", () => {
-    const wrapper = openFilter(mount(<FilterControl value="" onChange={() => {}} />));
+    const wrapper = mount(<SearchControl value="" onChange={() => {}} />);
 
     // `value` never moves: the debounce has not fired for any of these.
     "revenue".split("").reduce((sofar, letter) => {
@@ -153,7 +151,7 @@ describe("FilterControl", () => {
   it("does not undo typing when the list echoes an earlier term back", () => {
     // A slow request can land an older term after a newer one. Whoever is
     // typing must not have the field rewritten under the cursor.
-    const wrapper = openFilter(mount(<FilterControl value="" onChange={() => {}} />));
+    const wrapper = mount(<SearchControl value="" onChange={() => {}} />);
     field(wrapper).simulate("focus");
     type(wrapper, "revenue");
 
@@ -164,8 +162,8 @@ describe("FilterControl", () => {
   });
 
   it("follows the term when it is changed somewhere else", () => {
-    // The back button, or a search cleared while this panel was closed.
-    const wrapper = openFilter(mount(<FilterControl value="revenue" onChange={() => {}} />));
+    // The back button, or a search cleared somewhere else on the page.
+    const wrapper = mount(<SearchControl value="revenue" onChange={() => {}} />);
     field(wrapper).simulate("blur");
     expect(field(wrapper).prop("value")).toBe("revenue");
 

@@ -2,7 +2,7 @@ import datetime
 import json
 from unittest import mock
 
-from sqldesk import models, settings
+from sqldesk import mcp, models, settings, utils
 from sqldesk.handlers.mcp import MyMcpResource
 from tests import BaseTestCase
 
@@ -563,12 +563,54 @@ class TestExplainAndRun(McpTestCase):
         self.assertIn("Seq Scan", body["result"]["content"][0]["text"])
         self.assertTrue(worker.call_args[0][2].startswith("EXPLAIN "))
 
-    def test_rows_are_truncated_for_reading_not_silently(self):
+    def test_every_row_the_query_was_allowed_to_return_is_returned(self):
+        # The SQL is rewritten to ask for no more than ROW_LIMIT, so anything
+        # under it has already been fetched and paid for. Rendering fewer only
+        # hid rows somebody had already waited on.
         many = {"columns": [{"name": "n"}], "rows": [{"n": i} for i in range(500)]}
         with mock.patch("sqldesk.mcp._on_a_worker", return_value=(many, None)):
             body = self.call("run_query", {"sql": "SELECT 1", "data_source": self.factory.data_source.name})
         text = body["result"]["content"][0]["text"]
-        self.assertIn("450 more rows returned", text)
+
+        self.assertNotIn("more rows returned", text)
+        self.assertIn("499", text)
+        self.assertEqual(501, len(text.splitlines()), "a header and 500 rows")
+
+    def test_rows_past_the_ceiling_are_truncated_for_reading_not_silently(self):
+        over = {"columns": [{"name": "n"}], "rows": [{"n": i} for i in range(mcp.ROW_LIMIT + 20)]}
+        with mock.patch("sqldesk.mcp._on_a_worker", return_value=(over, None)):
+            body = self.call("run_query", {"sql": "SELECT 1", "data_source": self.factory.data_source.name})
+        text = body["result"]["content"][0]["text"]
+
+        self.assertIn("20 more rows returned", text)
+
+    def test_what_the_tool_promises_is_what_it_hands_back(self):
+        """
+        The description said "up to 1000 rows" while the rendering stopped at
+        fifty, because the promise, the SQL rewrite and the rendering were
+        three separate numbers and only two of them agreed.
+        """
+        tool = next(t for t in mcp.TOOLS if t["name"] == "run_query")
+        self.assertIn(str(mcp.ROW_LIMIT), tool["description"])
+
+        rows = {"columns": [{"name": "n"}], "rows": [{"n": i} for i in range(mcp.ROW_LIMIT)]}
+        with mock.patch("sqldesk.mcp._on_a_worker", return_value=(rows, None)):
+            body = self.call("run_query", {"sql": "SELECT 1", "data_source": self.factory.data_source.name})
+        text = body["result"]["content"][0]["text"]
+
+        self.assertNotIn("more rows returned", text)
+        self.assertEqual(mcp.ROW_LIMIT + 1, len(text.splitlines()))
+
+    def test_rows_are_tab_separated_rather_than_json(self):
+        # The same rows cost two to three times as much when every key is
+        # repeated on every row, and a thousand of them is where that tells.
+        rows = {"columns": [{"name": "region"}, {"name": "n"}], "rows": [{"region": "EMEA", "n": 7}]}
+        with mock.patch("sqldesk.mcp._on_a_worker", return_value=(rows, None)):
+            body = self.call("run_query", {"sql": "SELECT 1", "data_source": self.factory.data_source.name})
+        text = body["result"]["content"][0]["text"]
+
+        self.assertEqual("region\tn", text.splitlines()[0])
+        self.assertEqual("EMEA\t7", text.splitlines()[1])
 
     def test_the_new_tools_are_advertised(self):
         names = {t["name"] for t in json.loads(self.post(rpc("tools/list")).data)["result"]["tools"]}
@@ -774,6 +816,51 @@ class TestNoMoreThanTheApplicationGives(McpTestCase):
         self.assertIn("1 widgets", text)
 
 
+class TestARowCeiling(McpTestCase):
+    """
+    `run_query` returns at most 1,000 rows, whatever the SQL says. It relied on
+    the runners' `apply_auto_limit`, which only acts on a statement starting
+    with SELECT: a WITH query, an explicit large LIMIT, or anything on Athena
+    or Presto brought back every row, into a web worker.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.factory.data_source.name = "pg"
+        models.db.session.commit()
+        self.worker = mock.patch("sqldesk.mcp._on_a_worker", return_value=({"columns": [], "rows": []}, None))
+        self.ran = self.worker.start()
+        self.addCleanup(self.worker.stop)
+
+    def sent(self, sql, source_type="pg"):
+        self.factory.data_source.type = source_type
+        models.db.session.commit()
+        self.post(rpc("tools/call", {"name": "run_query", "arguments": {"sql": sql, "data_source": "pg"}}))
+        return self.ran.call_args[0][2]
+
+    def test_a_with_query_is_limited(self):
+        self.assertIn("LIMIT 1000", self.sent("WITH x AS (SELECT 1 AS a) SELECT * FROM x"))
+
+    def test_a_larger_limit_is_lowered(self):
+        sent = self.sent("SELECT * FROM t LIMIT 10000000")
+        self.assertIn("LIMIT 1000", sent)
+        self.assertNotIn("10000000", sent)
+
+    def test_a_smaller_one_is_left_as_written(self):
+        self.assertEqual("SELECT * FROM t LIMIT 5", self.sent("SELECT * FROM t LIMIT 5"))
+
+    def test_a_union_is_limited_as_a_whole(self):
+        self.assertTrue(self.sent("SELECT 1 UNION ALL SELECT 2").rstrip().endswith("LIMIT 1000"))
+
+    def test_sql_server_gets_top_and_keeps_its_order_by(self):
+        sent = self.sent("SELECT a FROM t ORDER BY a", source_type="mssql")
+        self.assertIn("TOP 1000", sent)
+        self.assertIn("ORDER BY a", sent)
+
+    def test_athena_is_limited_too(self):
+        self.assertIn("LIMIT 1000", self.sent("SELECT * FROM t", source_type="athena"))
+
+
 class TestOnlyReadsRunFromHere(McpTestCase):
     """
     Not the security boundary -- the database account's grants are -- but a
@@ -822,11 +909,32 @@ class TestOnlyReadsRunFromHere(McpTestCase):
         self._as("azure_kusto")
         self.assertIn("editor", self.assertRefused("run_query", ".drop table T"))
 
-    def test_a_read_only_api_goes_through_unparsed(self):
+    def test_a_mongodb_read_goes_through(self):
         self._as("mongodb")
         body = self.call("run_query", '{"collection": "orders", "query": {}}')
         self.assertFalse(body["result"].get("isError"), body)
         self.ran.assert_called_once()
+
+    def test_a_mongodb_pipeline_that_writes_is_refused(self):
+        # `$out` replaces a collection and `$merge` writes into one, from an
+        # ordinary aggregate. MongoDB was waved through as "read-only".
+        self._as("mongodb")
+        self.assertIn(
+            "$out", self.assertRefused("run_query", '{"collection": "x", "aggregate": [{"$out": "orders"}]}')
+        )
+        self.assertIn(
+            "$merge",
+            self.assertRefused(
+                "run_query",
+                '{"collection": "x", "aggregate": [{"$facet": {"a": [{"$merge": {"into": "orders"}}]}}]}',
+            ),
+        )
+
+    def test_a_json_source_may_get_but_not_post(self):
+        self._as("json")
+        self.assertIn("POST", self.assertRefused("run_query", "url: https://api.example.com/x\nmethod: post"))
+        body = self.call("run_query", "url: https://api.example.com/x")
+        self.assertFalse(body["result"].get("isError"), body)
 
     def test_a_second_statement_needs_no_semicolon_on_sql_server(self):
         # T-SQL runs a batch: sqlglot read `SELECT 1 DELETE FROM t` as one
@@ -1803,12 +1911,71 @@ class TestCuratingTheCatalogOverMcp(McpTestCase):
         self.assertEqual("One row per order. Key: order_id (UUID).", self.table.description)
         self.assertEqual("mcp", self.table.description_source)
 
-    def test_it_hides_one(self):
+    def test_the_card_an_agent_is_given_carries_the_new_description(self):
+        """
+        The reported bug: described through MCP, and find_context still did
+        not say so. The card is what an agent reads, and only the harvest
+        ever wrote it -- a day later at best, never on a paused source.
+        """
+        self.call({"name": "orders", "description": "One row per order."}, user=self.admin)
+
+        models.db.session.refresh(self.table)
+        self.assertIn("One row per order.", self.table.card or "")
+
+    def test_and_so_does_the_card_after_the_page_describes_one(self):
+        rv = self.make_request(
+            "post",
+            "/api/catalog/tables/{}".format(self.table.id),
+            data={"description": "Typed on the page."},
+            user=self.admin,
+            org=False,
+        )
+
+        self.assertEqual(200, rv.status_code)
+        models.db.session.refresh(self.table)
+        self.assertIn("Typed on the page.", self.table.card or "")
+
+    def test_clearing_a_description_takes_it_off_the_card_too(self):
+        self.call({"name": "orders", "description": "One row per order."}, user=self.admin)
+        self.call({"name": "orders", "description": ""}, user=self.admin)
+
+        models.db.session.refresh(self.table)
+        self.assertNotIn("One row per order.", self.table.card or "")
+
+    def test_it_records_whose_key_wrote_the_description(self):
+        """ "mcp" says a machine typed it; it does not say whose key it was."""
+        self.call({"name": "orders", "description": "One row per order."}, user=self.admin)
+
+        models.db.session.refresh(self.table)
+        self.assertEqual(self.admin.id, self.table.described_by_id)
+        self.assertIsNotNone(self.table.described_at)
+
+    def test_and_clearing_it_clears_the_author(self):
+        self.call({"name": "orders", "description": "One row per order."}, user=self.admin)
+        self.call({"name": "orders", "description": ""}, user=self.admin)
+
+        models.db.session.refresh(self.table)
+        self.assertIsNone(self.table.described_by_id)
+        self.assertIsNone(self.table.described_at)
+
+    def test_it_will_not_hide_one(self):
+        """
+        Hiding a table decides what everybody is offered, and any key that
+        may curate could have done it with no review and nothing on a page to
+        notice. It stays a decision somebody makes in the Catalog page, with
+        the table in front of them.
+        """
         rv = self.call({"name": "orders", "hidden": True}, user=self.admin)
 
-        self.assertIn("can still be queried", rv.json["result"]["content"][0]["text"])
+        self.assertIn("Admin -> Catalog", rv.json["error"]["message"])
         models.db.session.refresh(self.table)
-        self.assertTrue(self.table.hidden)
+        self.assertFalse(self.table.hidden)
+
+    def test_and_does_not_offer_it_either(self):
+        rv = self.post(rpc("tools/list"), user=self.admin)
+        update_table = [tool for tool in rv.json["result"]["tools"] if tool["name"] == "update_table"][0]
+
+        self.assertNotIn("hidden", update_table["inputSchema"]["properties"])
 
     def test_it_will_not_replace_what_a_person_wrote(self):
         self.table.description = "Orders, excluding the test tenant."
@@ -1833,7 +2000,7 @@ class TestCuratingTheCatalogOverMcp(McpTestCase):
         self.assertEqual("Orders.", self.table.description)
         self.assertEqual("mcp", self.table.description_source)
 
-    def test_hiding_does_not_need_overwrite_and_leaves_a_persons_words_alone(self):
+    def test_a_refused_hide_leaves_a_persons_words_alone(self):
         self.table.description = "Orders, excluding the test tenant."
         self.table.description_source = "human"
         models.db.session.commit()
@@ -1841,7 +2008,7 @@ class TestCuratingTheCatalogOverMcp(McpTestCase):
         self.call({"name": "orders", "hidden": True}, user=self.admin)
 
         models.db.session.refresh(self.table)
-        self.assertTrue(self.table.hidden)
+        self.assertFalse(self.table.hidden)
         self.assertEqual("Orders, excluding the test tenant.", self.table.description)
 
     def test_a_name_in_two_data_sources_asks_which(self):
@@ -1863,3 +2030,1259 @@ class TestCuratingTheCatalogOverMcp(McpTestCase):
         rv = self.call({"name": "nope", "description": "x"}, user=self.admin)
 
         self.assertIn("No table called", rv.json["error"]["message"])
+
+
+class TestSavingAQueryOverMcp(McpTestCase):
+    """
+    `save_query` and `update_query`: what an agent may do with somebody's
+    saved SQL.
+
+    The rule throughout is that nothing an agent writes is shown to anybody
+    else as settled. A saved query is a draft; an edit is a draft's edit, with
+    a version recorded. Publishing, verifying and approving stay with people.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.author = self.factory.user
+
+    def call(self, tool, arguments, user=None, api_key=None):
+        return self.post(rpc("tools/call", {"name": tool, "arguments": arguments}), user=user, api_key=api_key)
+
+    def listed(self, user=None, api_key=None):
+        rv = self.post(rpc("tools/list"), user=user, api_key=api_key)
+        return [tool["name"] for tool in rv.json["result"]["tools"]]
+
+    def test_it_is_offered_to_somebody_who_may_create_queries(self):
+        self.assertIn("save_query", self.listed(user=self.author))
+        self.assertIn("update_query", self.listed(user=self.author))
+
+    def test_a_saved_query_is_a_draft_on_the_right_source(self):
+        rv = self.call(
+            "save_query",
+            {
+                "name": "Orders by region",
+                "sql": "SELECT region, COUNT(*) FROM orders GROUP BY 1",
+                "data_source": self.factory.data_source.name,
+                "description": "One row per region.",
+            },
+        )
+
+        self.assertFalse(rv.json["result"].get("isError"))
+        query = models.Query.query.filter(models.Query.name == "Orders by region").one()
+        self.assertTrue(query.is_draft)
+        self.assertEqual(self.factory.data_source.id, query.data_source_id)
+        self.assertEqual(self.author.id, query.user_id)
+        self.assertEqual("One row per region.", query.description)
+
+    def test_the_reply_says_where_to_find_it(self):
+        rv = self.call(
+            "save_query",
+            {"name": "Orders", "sql": "SELECT 1", "data_source": self.factory.data_source.name},
+        )
+        query = models.Query.query.filter(models.Query.name == "Orders").one()
+
+        self.assertIn("queries/{}".format(query.id), rv.json["result"]["content"][0]["text"])
+
+    def test_it_refuses_to_save_something_that_is_not_a_read(self):
+        # What is saved is what a person will press Run on.
+        rv = self.call(
+            "save_query",
+            {"name": "Tidy up", "sql": "DELETE FROM orders", "data_source": self.factory.data_source.name},
+        )
+
+        self.assertIn("error", rv.json)
+        self.assertEqual(0, models.Query.query.filter(models.Query.name == "Tidy up").count())
+
+    def test_it_will_not_save_against_a_source_the_caller_may_only_read(self):
+        view_only = self.factory.create_data_source(group=self.factory.default_group, view_only=True)
+
+        rv = self.call(
+            "save_query",
+            {"name": "Peek", "sql": "SELECT 1", "data_source": view_only.name},
+        )
+
+        self.assertIn("error", rv.json)
+
+    def test_editing_a_draft_records_a_version(self):
+        query = self.factory.create_query(query_text="SELECT 1", is_draft=True, user=self.author)
+        models.db.session.commit()
+
+        rv = self.call("update_query", {"id": query.id, "sql": "SELECT 2"})
+
+        self.assertFalse(rv.json["result"].get("isError"))
+        models.db.session.refresh(query)
+        self.assertEqual("SELECT 2", query.query_text)
+        self.assertEqual(self.author.id, query.last_modified_by_id)
+        self.assertTrue(models.Change.query.filter(models.Change.object_id == query.id).count() >= 1)
+
+    def test_but_a_published_query_is_left_alone(self):
+        # Other people's dashboards and alerts read it, and nobody would see
+        # a diff.
+        query = self.factory.create_query(query_text="SELECT 1", is_draft=False, user=self.author)
+        models.db.session.commit()
+
+        rv = self.call("update_query", {"id": query.id, "sql": "SELECT 2"})
+
+        self.assertIn("published", rv.json["error"]["message"])
+        models.db.session.refresh(query)
+        self.assertEqual("SELECT 1", query.query_text)
+
+    def test_and_so_is_somebody_elses_draft(self):
+        other = self.factory.create_user()
+        query = self.factory.create_query(query_text="SELECT 1", is_draft=True, user=other)
+        models.db.session.commit()
+
+        rv = self.call("update_query", {"id": query.id, "sql": "SELECT 2"})
+
+        self.assertIn("somebody else's", rv.json["error"]["message"])
+
+    def test_nothing_to_change_is_refused_rather_than_a_silent_success(self):
+        query = self.factory.create_query(is_draft=True, user=self.author)
+        models.db.session.commit()
+
+        rv = self.call("update_query", {"id": query.id})
+
+        self.assertIn("Nothing to change", rv.json["error"]["message"])
+
+    def test_an_oauth_session_is_offered_neither(self):
+        with mock.patch("sqldesk.settings.MCP_OAUTH_ENABLED", True):
+            import secrets
+
+            from sqldesk.oauth import ACCESS_PREFIX
+
+            value = ACCESS_PREFIX + secrets.token_urlsafe(32)
+            models.db.session.add(
+                models.OAuthToken(
+                    client_id="test-client",
+                    org_id=self.author.org_id,
+                    user_id=self.author.id,
+                    access_token_digest=models._token_digest(value),
+                    scope=models.OAUTH_SCOPE,
+                    access_expires_at=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1),
+                )
+            )
+            models.db.session.commit()
+
+            listed = self.listed(api_key=value)
+            rv = self.call("save_query", {"name": "x", "sql": "SELECT 1", "data_source": "x"}, api_key=value)
+
+        self.assertNotIn("save_query", listed)
+        self.assertIn("mcp:read", rv.json["error"]["message"])
+
+
+class TestDrawingAResultOverMcp(McpTestCase):
+    """
+    `save_visualization` and `save_dashboard`.
+
+    An agent that can write SQL and not show it has done half a job: the
+    answer to "how are orders doing" is a chart somebody can put on a wall,
+    not a result set in a transcript. The same rule as everything else it
+    writes applies -- what comes out is a draft, and publishing stays with a
+    person.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.author = self.factory.user
+        self.query = self.factory.create_query(
+            query_text="SELECT region, amount FROM orders", is_draft=True, user=self.author
+        )
+        models.db.session.commit()
+
+    def call(self, tool, arguments, user=None, api_key=None):
+        return self.post(rpc("tools/call", {"name": tool, "arguments": arguments}), user=user, api_key=api_key)
+
+    def listed(self, user=None, api_key=None):
+        rv = self.post(rpc("tools/list"), user=user, api_key=api_key)
+        return [tool["name"] for tool in rv.json["result"]["tools"]]
+
+    def draw(self, **arguments):
+        arguments.setdefault("query_id", self.query.id)
+        rv = self.call("save_visualization", arguments)
+        self.assertNotIn("error", rv.json, rv.json.get("error"))
+        self.assertFalse(rv.json["result"].get("isError"), rv.json["result"])
+        return models.Visualization.query.order_by(models.Visualization.id.desc()).first()
+
+    def test_both_are_offered_to_somebody_who_may_make_them(self):
+        offered = self.listed(user=self.author)
+
+        self.assertIn("save_visualization", offered)
+        self.assertIn("save_dashboard", offered)
+
+    def test_a_chart_is_mapped_so_it_renders(self):
+        # columnMapping is what getChartData reads; without it the chart draws
+        # nothing and the failure is silent.
+        visualization = self.draw(kind="chart", x="region", y=["amount"], chart_type="column")
+
+        self.assertEqual("CHART", visualization.type)
+        self.assertEqual("column", visualization.options["globalSeriesType"])
+        self.assertEqual({"region": "x", "amount": "y"}, visualization.options["columnMapping"])
+        self.assertEqual(self.query.id, visualization.query_id)
+
+    def test_a_bar_chart_is_a_column_chart_on_its_side(self):
+        # `bar` is not a type of its own in the renderer.
+        visualization = self.draw(kind="chart", x="region", y=["amount"], chart_type="bar")
+
+        self.assertEqual("column", visualization.options["globalSeriesType"])
+        self.assertTrue(visualization.options["swappedAxes"])
+
+    def test_more_than_one_measure_gets_a_legend(self):
+        alone = self.draw(kind="chart", x="region", y=["amount"])
+        self.assertFalse(alone.options["legend"]["enabled"])
+
+        several = self.draw(kind="chart", x="region", y=["amount", "tax"])
+        self.assertTrue(several.options["legend"]["enabled"])
+        self.assertEqual({"region": "x", "amount": "y", "tax": "y"}, several.options["columnMapping"])
+
+    def test_a_pie_always_gets_a_legend(self):
+        # On a pie the slices are the categories, so the legend is how anybody
+        # reads it -- unlike a single-series bar chart, where it is noise.
+        pie = self.draw(kind="chart", x="region", y=["amount"], chart_type="pie")
+
+        self.assertTrue(pie.options["legend"]["enabled"])
+
+    def test_a_series_column_splits_the_chart(self):
+        visualization = self.draw(kind="chart", x="region", y=["amount"], series="channel")
+
+        self.assertEqual("series", visualization.options["columnMapping"]["channel"])
+
+    def test_a_counter_and_a_table_need_no_columns_mapping(self):
+        counter = self.draw(kind="counter", column="amount")
+        self.assertEqual("COUNTER", counter.type)
+        self.assertEqual("amount", counter.options["counterColName"])
+
+        table = self.draw(kind="table")
+        self.assertEqual("TABLE", table.type)
+
+    def test_a_chart_without_its_columns_is_refused(self):
+        rv = self.call("save_visualization", {"query_id": self.query.id, "kind": "chart"})
+
+        self.assertIn("error", rv.json)
+        self.assertEqual(0, models.Visualization.query.count())
+
+    def test_it_will_not_draw_a_published_query(self):
+        # Its page is read by other people: a chart nobody added appearing on
+        # it is the same surprise as its SQL changing.
+        published = self.factory.create_query(is_draft=False, user=self.author)
+        models.db.session.commit()
+
+        rv = self.call("save_visualization", {"query_id": published.id, "kind": "table"})
+
+        self.assertIn("error", rv.json)
+        self.assertIn("published", rv.json["error"]["message"])
+
+    def test_a_dashboard_is_a_draft_with_its_widgets_laid_out(self):
+        first = self.draw(kind="counter", column="amount")
+        second = self.draw(kind="table")
+        third = self.draw(kind="chart", x="region", y=["amount"])
+
+        rv = self.call(
+            "save_dashboard",
+            {"name": "Orders", "visualizations": [first.id, second.id, third.id]},
+        )
+        self.assertNotIn("error", rv.json, rv.json.get("error"))
+
+        dashboard = models.Dashboard.query.filter(models.Dashboard.name == "Orders").one()
+        self.assertTrue(dashboard.is_draft)
+        self.assertEqual(self.author.id, dashboard.user_id)
+
+        # Two to a row, in the order given. Without a position every widget
+        # sits at the origin, stacked on top of the others.
+        placed = {widget.visualization_id: widget.options["position"] for widget in dashboard.widgets}  # noqa: B020
+        self.assertEqual({"col": 0, "row": 0}, {k: placed[first.id][k] for k in ("col", "row")})
+        self.assertEqual({"col": 12, "row": 0}, {k: placed[second.id][k] for k in ("col", "row")})
+        self.assertEqual({"col": 0, "row": 6}, {k: placed[third.id][k] for k in ("col", "row")})
+
+    def test_the_reply_says_where_to_find_the_dashboard(self):
+        visualization = self.draw(kind="table")
+
+        rv = self.call("save_dashboard", {"name": "Orders", "visualizations": [visualization.id]})
+        dashboard = models.Dashboard.query.filter(models.Dashboard.name == "Orders").one()
+
+        self.assertIn("dashboards/{}".format(dashboard.id), rv.json["result"]["content"][0]["text"])
+
+    def test_a_bad_id_leaves_no_half_a_dashboard_behind(self):
+        visualization = self.draw(kind="table")
+
+        rv = self.call("save_dashboard", {"name": "Orders", "visualizations": [visualization.id, 99999]})
+
+        self.assertIn("error", rv.json)
+        self.assertEqual(0, models.Dashboard.query.filter(models.Dashboard.name == "Orders").count())
+
+    def test_it_will_not_show_a_result_the_caller_could_not_have_run(self):
+        other = self.factory.create_data_source(group=self.factory.create_group())
+        theirs = self.factory.create_query(data_source=other, is_draft=True)
+        hidden = self.factory.create_visualization(query_rel=theirs)
+        models.db.session.commit()
+
+        rv = self.call("save_dashboard", {"name": "Sneak", "visualizations": [hidden.id]})
+
+        self.assertIn("error", rv.json)
+        self.assertEqual(0, models.Dashboard.query.filter(models.Dashboard.name == "Sneak").count())
+
+    def test_an_empty_dashboard_is_refused(self):
+        rv = self.call("save_dashboard", {"name": "Nothing", "visualizations": []})
+
+        self.assertIn("error", rv.json)
+
+
+class TestTheChartTypesAnAgentCanDraw(McpTestCase):
+    """
+    The nine types `save_visualization` offers, and what each one needs.
+
+    Three were added in 0.7.10 because the editor already offered them and
+    MCP did not: a box plot, a bubble chart and a heatmap. The nineteen other
+    registered visualizations are still browser-only, each carrying options of
+    its own that the schema here -- already the heaviest of the tools -- would
+    have to describe.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.author = self.factory.user
+        self.query = self.factory.create_query(
+            query_text="SELECT region, amount, tax, hour FROM orders", is_draft=True, user=self.author
+        )
+        models.db.session.commit()
+
+    def call(self, tool, arguments):
+        arguments.setdefault("query_id", self.query.id)
+        return self.post(rpc("tools/call", {"name": tool, "arguments": arguments}), user=self.author)
+
+    def draw(self, **arguments):
+        rv = self.call("save_visualization", arguments)
+        self.assertNotIn("error", rv.json, rv.json.get("error"))
+        self.assertFalse(rv.json["result"].get("isError"), rv.json["result"])
+        return models.Visualization.query.order_by(models.Visualization.id.desc()).first()
+
+    def refused(self, **arguments):
+        before = models.Visualization.query.count()
+        rv = self.call("save_visualization", arguments)
+        self.assertEqual(before, models.Visualization.query.count())
+        if "error" in rv.json:
+            return rv.json["error"]["message"]
+        self.assertTrue(rv.json["result"].get("isError"), rv.json["result"])
+        return rv.json["result"]["content"][0]["text"]
+
+    def offered_types(self):
+        rv = self.post(rpc("tools/list"), user=self.author)
+        tool = next(t for t in rv.json["result"]["tools"] if t["name"] == "save_visualization")
+        return tool["inputSchema"]["properties"]["chart_type"]["enum"]
+
+    def test_every_type_the_schema_offers_can_actually_be_drawn(self):
+        # The guard against the two lists drifting. A type in the enum that
+        # the handler refuses is a tool that lies about itself, and a model
+        # has no way to find out except by being refused.
+        needs = {
+            "bubble": {"size": "tax"},
+            "heatmap": {"y": ["hour"], "value": "amount"},
+        }
+        for chart_type in self.offered_types():
+            with self.subTest(chart_type=chart_type):
+                arguments = {"kind": "chart", "x": "region", "y": ["amount"], "chart_type": chart_type}
+                arguments.update(needs.get(chart_type, {}))
+                visualization = self.draw(**arguments)
+                self.assertEqual("CHART", visualization.type)
+
+    def test_the_schema_offers_what_the_handler_accepts_and_no_more(self):
+        self.assertEqual(list(mcp.CHART_TYPES), list(self.offered_types()))
+
+    def test_a_type_the_renderer_does_not_have_is_refused_by_name(self):
+        message = self.refused(kind="chart", x="region", y=["amount"], chart_type="sankey")
+
+        # Named, so the next attempt is informed rather than another guess.
+        self.assertIn("column", message)
+        self.assertIn("heatmap", message)
+
+    def test_a_box_plot_needs_nothing_a_line_chart_does_not(self):
+        visualization = self.draw(kind="chart", x="region", y=["amount"], chart_type="box")
+
+        self.assertEqual("box", visualization.options["globalSeriesType"])
+        self.assertEqual({"region": "x", "amount": "y"}, visualization.options["columnMapping"])
+
+    def test_a_box_plot_takes_several_measures(self):
+        # One distribution per column, which is the comparison it exists for.
+        visualization = self.draw(kind="chart", x="region", y=["amount", "tax"], chart_type="box")
+
+        self.assertEqual("y", visualization.options["columnMapping"]["tax"])
+
+    def test_a_bubble_chart_maps_its_size_column(self):
+        visualization = self.draw(kind="chart", x="region", y=["amount"], chart_type="bubble", size="tax")
+
+        self.assertEqual("bubble", visualization.options["globalSeriesType"])
+        self.assertEqual("size", visualization.options["columnMapping"]["tax"])
+
+    def test_a_bubble_chart_with_no_size_column_is_refused(self):
+        # Every bubble the same size is a scatter chart with a misleading
+        # name on it -- a chart that looks like it worked.
+        message = self.refused(kind="chart", x="region", y=["amount"], chart_type="bubble")
+
+        self.assertIn("size", message)
+
+    def test_a_heatmap_colours_its_grid_from_the_value_column(self):
+        visualization = self.draw(kind="chart", x="region", y=["hour"], chart_type="heatmap", value="amount")
+
+        self.assertEqual("heatmap", visualization.options["globalSeriesType"])
+        self.assertEqual({"region": "x", "hour": "y", "amount": "zVal"}, visualization.options["columnMapping"])
+
+    def test_a_heatmap_with_no_value_column_is_refused(self):
+        # It would draw a full grid of cells at the bottom of the ramp.
+        message = self.refused(kind="chart", x="region", y=["hour"], chart_type="heatmap")
+
+        self.assertIn("value", message)
+
+    def test_a_heatmaps_y_is_one_row_label_not_a_list_of_measures(self):
+        message = self.refused(kind="chart", x="region", y=["hour", "amount"], chart_type="heatmap", value="tax")
+
+        self.assertIn("one", message)
+
+    def test_a_heatmap_is_refused_a_series_column(self):
+        # Its grid is already two dimensional; a third is not a thing it draws.
+        message = self.refused(
+            kind="chart", x="region", y=["hour"], chart_type="heatmap", value="amount", series="channel"
+        )
+
+        self.assertIn("series", message)
+
+    def test_a_heatmap_reads_from_its_colour_scale_rather_than_a_legend(self):
+        visualization = self.draw(kind="chart", x="region", y=["hour"], chart_type="heatmap", value="amount")
+
+        self.assertFalse(visualization.options["legend"]["enabled"])
+
+    def test_the_three_new_types_still_land_on_a_draft_only(self):
+        published = self.factory.create_query(is_draft=False, user=self.author)
+        models.db.session.commit()
+
+        for chart_type, extra in (("box", {}), ("bubble", {"size": "tax"}), ("heatmap", {"value": "amount"})):
+            with self.subTest(chart_type=chart_type):
+                before = models.Visualization.query.count()
+                rv = self.post(
+                    rpc(
+                        "tools/call",
+                        {
+                            "name": "save_visualization",
+                            "arguments": dict(
+                                query_id=published.id,
+                                kind="chart",
+                                x="region",
+                                y=["hour"],
+                                chart_type=chart_type,
+                                **extra,
+                            ),
+                        },
+                    ),
+                    user=self.author,
+                )
+                self.assertIn("error", rv.json)
+                self.assertEqual(before, models.Visualization.query.count())
+
+
+class TestProposingAMeasureOverMcp(McpTestCase):
+    def setUp(self):
+        super().setUp()
+        self.admin = self.factory.create_admin()
+        self.table = models.CatalogTable(
+            org=self.factory.org, data_source_id=self.factory.data_source.id, name="orders"
+        )
+        models.db.session.add(self.table)
+        models.db.session.commit()
+
+    def call(self, arguments, user=None):
+        return self.post(rpc("tools/call", {"name": "propose_measure", "arguments": arguments}), user=user)
+
+    def test_a_proposal_waits_for_a_curator(self):
+        rv = self.call(
+            {"name": "gross_revenue", "table": "orders", "kind": "sum", "column": "amount"}, user=self.admin
+        )
+
+        self.assertIn("until a curator agrees", rv.json["result"]["content"][0]["text"])
+        measure = models.CatalogMeasure.query.one()
+        self.assertEqual(models.MEASURE_PROPOSED, measure.status)
+        self.assertEqual(self.admin.id, measure.proposed_by_id)
+
+    def test_an_agreed_measure_is_not_proposed_over(self):
+        models.db.session.add(
+            models.CatalogMeasure(
+                org=self.factory.org,
+                data_source_id=self.factory.data_source.id,
+                table_name="orders",
+                name="gross_revenue",
+                kind="sum",
+                column_name="amount",
+                status=models.MEASURE_APPROVED,
+            )
+        )
+        models.db.session.commit()
+
+        rv = self.call(
+            {"name": "gross_revenue", "table": "orders", "kind": "avg", "column": "amount"}, user=self.admin
+        )
+
+        self.assertIn("already agreed", rv.json["result"]["content"][0]["text"])
+        self.assertEqual(models.MEASURE_APPROVED, models.CatalogMeasure.query.one().status)
+        self.assertEqual("sum", models.CatalogMeasure.query.one().kind)
+
+    def test_a_denied_one_goes_back_on_the_list_rather_than_becoming_true(self):
+        models.db.session.add(
+            models.CatalogMeasure(
+                org=self.factory.org,
+                data_source_id=self.factory.data_source.id,
+                table_name="orders",
+                name="gross_revenue",
+                kind="sum",
+                column_name="amount",
+                status=models.MEASURE_DENIED,
+            )
+        )
+        models.db.session.commit()
+
+        self.call({"name": "gross_revenue", "table": "orders", "kind": "sum", "column": "net"}, user=self.admin)
+
+        measure = models.CatalogMeasure.query.one()
+        self.assertEqual(models.MEASURE_PROPOSED, measure.status)
+        self.assertEqual("net", measure.column_name)
+
+    def test_a_count_needs_no_column(self):
+        rv = self.call({"name": "orders_placed", "table": "orders", "kind": "count"}, user=self.admin)
+
+        self.assertFalse(rv.json["result"].get("isError"))
+        # "*", as the harvester stores COUNT(*): the column is declared NOT
+        # NULL, and the two have to agree or a mined measure and a proposed
+        # one are different rows for the same number.
+        self.assertEqual("*", models.CatalogMeasure.query.one().column_name)
+
+    def test_but_a_sum_does(self):
+        rv = self.call({"name": "revenue", "table": "orders", "kind": "sum"}, user=self.admin)
+
+        self.assertIn("`column` is required", rv.json["error"]["message"])
+
+    def test_an_invented_kind_is_refused(self):
+        rv = self.call({"name": "revenue", "table": "orders", "kind": "median", "column": "amount"}, user=self.admin)
+
+        self.assertIn("`kind` is one of", rv.json["error"]["message"])
+
+    def test_a_table_nobody_has_harvested_says_so(self):
+        rv = self.call({"name": "x", "table": "nowhere", "kind": "count"}, user=self.admin)
+
+        self.assertIn("No table called", rv.json["error"]["message"])
+
+    def test_somebody_who_may_not_curate_is_not_offered_it(self):
+        rv = self.post(rpc("tools/list"), user=self.factory.user)
+
+        self.assertNotIn("propose_measure", [tool["name"] for tool in rv.json["result"]["tools"]])
+
+
+class TestTheDailyCapOnWrites(McpTestCase):
+    """
+    An agent told to describe a warehouse will describe the whole warehouse,
+    and a loop getting it wrong will do it just as fast. The cap makes a
+    mistake a morning's review rather than a restore.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.admin = self.factory.create_admin()
+        models.db.session.add(
+            models.CatalogTable(org=self.factory.org, data_source_id=self.factory.data_source.id, name="orders")
+        )
+        models.db.session.commit()
+
+    def _wrote(self, count, tool="update_table", outcome="ok", user=None):
+        for _ in range(count):
+            models.db.session.add(
+                models.McpEvent(
+                    org=self.factory.org,
+                    user=user or self.admin,
+                    method="tools/call",
+                    tool=tool,
+                    outcome=outcome,
+                )
+            )
+        models.db.session.commit()
+
+    def _describe(self):
+        return self.post(
+            rpc("tools/call", {"name": "update_table", "arguments": {"name": "orders", "description": "One row."}}),
+            user=self.admin,
+        )
+
+    def test_under_the_cap_a_write_goes_through(self):
+        self._wrote(10)
+
+        self.assertFalse(self._describe().json["result"].get("isError"))
+
+    def test_at_the_cap_it_is_refused_and_says_when_it_resets(self):
+        self._wrote(50)
+
+        message = self._describe().json["error"]["message"]
+
+        self.assertIn("daily limit", message)
+        self.assertIn("midnight", message)
+
+    def test_refused_and_failed_calls_do_not_count_towards_it(self):
+        self._wrote(50, outcome="error")
+        self._wrote(10, outcome="refused")
+
+        self.assertFalse(self._describe().json["result"].get("isError"))
+
+    def test_reads_do_not_count_towards_it(self):
+        self._wrote(60, tool="find_context")
+
+        self.assertFalse(self._describe().json["result"].get("isError"))
+
+    def test_the_cap_is_per_person(self):
+        other = self.factory.create_admin()
+        self._wrote(50, user=other)
+
+        self.assertFalse(self._describe().json["result"].get("isError"))
+
+    def test_an_install_may_turn_it_off(self):
+        self._wrote(80)
+
+        with mock.patch("sqldesk.settings.MCP_WRITES_PER_DAY", 0):
+            self.assertFalse(self._describe().json["result"].get("isError"))
+
+
+class TestWhatTheAuditSaysAboutAWrite(McpTestCase):
+    """
+    "update_table ok" did not answer the question anybody brings to an audit
+    of an agent's writes, which is what that table used to say.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.admin = self.factory.create_admin()
+        self.table = models.CatalogTable(
+            org=self.factory.org,
+            data_source_id=self.factory.data_source.id,
+            name="orders",
+            description="What it was before.",
+            description_source="mcp",
+        )
+        models.db.session.add(self.table)
+        models.db.session.commit()
+
+    def _detail(self):
+        row = (
+            models.McpEvent.query.filter(models.McpEvent.tool.isnot(None)).order_by(models.McpEvent.id.desc()).first()
+        )
+        return row.detail or ""
+
+    def test_it_records_the_before_and_the_after(self):
+        self.post(
+            rpc(
+                "tools/call",
+                {"name": "update_table", "arguments": {"name": "orders", "description": "What it says now."}},
+            ),
+            user=self.admin,
+        )
+
+        detail = self._detail()
+        self.assertIn("What it was before.", detail)
+        self.assertIn("What it says now.", detail)
+        self.assertIn("orders", detail)
+
+    def test_a_saved_query_is_recorded_by_id_and_name(self):
+        self.post(
+            rpc(
+                "tools/call",
+                {
+                    "name": "save_query",
+                    "arguments": {
+                        "name": "Orders by region",
+                        "sql": "SELECT 1",
+                        "data_source": self.factory.data_source.name,
+                    },
+                },
+            ),
+            user=self.admin,
+        )
+
+        detail = self._detail()
+        self.assertIn("saved query", detail)
+        self.assertIn("Orders by region", detail)
+
+    def test_and_a_read_still_records_the_question_rather_than_a_write(self):
+        self.post(
+            rpc("tools/call", {"name": "find_context", "arguments": {"question": "what are orders"}}),
+            user=self.admin,
+        )
+
+        self.assertIn("what are orders", self._detail())
+
+
+class TestWhatAnAnswerCosts(McpTestCase):
+    """
+    Measured on a real catalog on 2026-10-25, one question to `find_dashboards`
+    cost 1,346 tokens: eight dashboards, twelve chart lines each, and the whole
+    thing again as `structuredContent`. The semantic catalog that makes an
+    agent correct costs 153. These hold the answers to the shape that made
+    that difference.
+    """
+
+    def call(self, name, arguments=None):
+        return json.loads(self.post(rpc("tools/call", {"name": name, "arguments": arguments or {}})).data)["result"]
+
+    def text(self, name, arguments=None):
+        return self.call(name, arguments)["content"][0]["text"]
+
+    def board_showing_one_query_several_ways(self, name, views=5):
+        dashboard = self.factory.create_dashboard(name=name)
+        query = self.factory.create_query(
+            name="Revenue per minute", description="revenue by region", data_source=self.factory.data_source
+        )
+        for kind in ("CHART", "COUNTER", "TABLE", "BOXPLOT", "PIVOT")[:views]:
+            visualization = self.factory.create_visualization(query_rel=query, type=kind, name=kind.title())
+            self.factory.create_widget(dashboard=dashboard, visualization=visualization)
+        return dashboard, query
+
+    def test_no_tool_repeats_its_answer_as_structured_content(self):
+        """
+        It was sent with no `outputSchema` declared anywhere, so no client
+        could rely on it, and it repeated about 90% of the text's bytes.
+        """
+        self.factory.create_query(
+            name="Revenue by region", description="revenue by region", data_source=self.factory.data_source
+        )
+        models.db.session.commit()
+        for name, arguments in (
+            ("find_queries", {"question": "revenue"}),
+            ("find_measures", {"question": "revenue"}),
+            ("find_dashboards", {"question": "revenue"}),
+            ("list_data_sources", {}),
+        ):
+            with self.subTest(name):
+                self.assertNotIn("structuredContent", self.call(name, arguments))
+
+    def test_panels_showing_the_same_query_are_one_line(self):
+        self.board_showing_one_query_several_ways("Revenue board")
+        models.db.session.commit()
+
+        found = self.text("find_dashboards", {"question": "revenue"})
+
+        self.assertIn("Revenue board", found)
+        # Four, not five: a plain table nobody described says nothing the
+        # query does not already say, and _worth_listing drops it.
+        self.assertIn("+3 more views of it", found, "panels of one query are one line and a count")
+        self.assertEqual(1, found.count("from query #"), "one line per query, not per panel")
+
+    def test_only_a_few_boards_are_described_and_the_rest_are_counted(self):
+        for n in range(7):
+            self.board_showing_one_query_several_ways("Revenue board {}".format(n), views=1)
+        models.db.session.commit()
+
+        found = self.text("find_dashboards", {"question": "revenue"})
+
+        described = found.count("— /dashboards/")
+        self.assertEqual(4, described, "four boards described")
+        self.assertIn("3 more match", found, "and the rest counted, with how to ask for them")
+        self.assertIn("Ask for one by name", found)
+
+    def test_the_tool_list_stays_lean(self):
+        """
+        It is sent on every turn whether a tool is called or not, so it is the
+        one thing here whose size is paid again and again. The nine a reader
+        is offered measured 4,348 bytes before the prose was trimmed; the
+        budget below is what that became, with room to add a tool without
+        rewriting this.
+        """
+        listed = json.loads(self.post(rpc("tools/list", {})).data)["result"]["tools"]
+
+        self.assertTrue(listed)
+        for tool in listed:
+            with self.subTest(tool["name"]):
+                self.assertLessEqual(
+                    len(tool["description"]),
+                    340,
+                    "a tool description earns its place on every turn: say what it does, when to "
+                    "reach for it, and the one constraint that is not obvious",
+                )
+
+        # The read-only nine, whatever else this caller is also offered.
+        reading = {
+            "list_data_sources",
+            "find_context",
+            "find_queries",
+            "find_dashboards",
+            "find_measures",
+            "expand_table",
+            "check_sql",
+            "explain_query",
+            "run_query",
+        }
+        offered = [tool for tool in listed if tool["name"] in reading]
+        self.assertEqual(len(reading), len(offered), "a read tool went missing")
+        self.assertLessEqual(len(json.dumps(offered, separators=(",", ":"))), 3800)
+
+
+class TestWhichDashboardsAreDescribed(McpTestCase):
+    """
+    Four boards are described and the rest are counted, so which four is the
+    whole question. Ordered by when they were last touched, a board somebody
+    read and confirmed falls behind four nobody has checked -- into a count,
+    where an agent cannot see that it exists.
+    """
+
+    def call(self, name, arguments=None):
+        return json.loads(self.post(rpc("tools/call", {"name": name, "arguments": arguments or {}})).data)["result"]
+
+    def text(self, name, arguments=None):
+        return self.call(name, arguments)["content"][0]["text"]
+
+    def board(self, name, verified=False, panels=1):
+        dashboard = self.factory.create_dashboard(name=name)
+        query = self.factory.create_query(
+            name=name + " query", description="revenue by region", data_source=self.factory.data_source
+        )
+        for n in range(panels):
+            visualization = self.factory.create_visualization(query_rel=query, type="CHART", name="Chart {}".format(n))
+            self.factory.create_widget(dashboard=dashboard, visualization=visualization)
+        if verified:
+            dashboard.verified_at = datetime.datetime.utcnow() - datetime.timedelta(days=30)
+            dashboard.verified_note = "checked against finance"
+            models.db.session.add(dashboard)
+        return dashboard
+
+    def test_a_verified_board_is_described_even_behind_newer_ones(self):
+        self.board("Revenue, checked", verified=True)
+        for n in range(6):
+            self.board("Revenue draft {}".format(n))
+        models.db.session.commit()
+
+        found = self.text("find_dashboards", {"question": "revenue"})
+
+        self.assertIn("Revenue, checked", found)
+        self.assertIn("[VERIFIED]", found)
+        self.assertIn("checked against finance", found)
+
+    def test_the_boards_that_did_not_fit_are_named_not_only_counted(self):
+        for n in range(7):
+            self.board("Revenue board {}".format(n))
+        models.db.session.commit()
+
+        found = self.text("find_dashboards", {"question": "revenue"})
+
+        self.assertIn("3 more match:", found)
+        self.assertIn("Ask for one by name", found)
+        named = [
+            name
+            for name in (
+                "Revenue board 0",
+                "Revenue board 1",
+                "Revenue board 2",
+                "Revenue board 3",
+                "Revenue board 4",
+                "Revenue board 5",
+                "Revenue board 6",
+            )
+            if name in found
+        ]
+        self.assertEqual(7, len(named), "every board is either described or named in the tail")
+
+    def test_a_panel_is_described_by_the_words_written_on_it(self):
+        """
+        Not by a sibling's words: a counter and a line chart of one query are
+        one line, and the line has to say what the panel it describes shows.
+        """
+        dashboard = self.factory.create_dashboard(name="Revenue board")
+        query = self.factory.create_query(
+            name="Revenue", description="revenue by region", data_source=self.factory.data_source
+        )
+        plain = self.factory.create_visualization(query_rel=query, type="CHART", name="Plain", description="")
+        described = self.factory.create_visualization(
+            query_rel=query, type="COUNTER", name="Counted", description="completed orders only"
+        )
+        self.factory.create_widget(dashboard=dashboard, visualization=plain)
+        self.factory.create_widget(dashboard=dashboard, visualization=described)
+        models.db.session.commit()
+
+        found = self.text("find_dashboards", {"question": "revenue"})
+
+        self.assertIn("completed orders only", found)
+        line = next(one for one in found.splitlines() if "completed orders only" in one)
+        self.assertIn("counter", line.lower(), "the description belongs to the counter, so the line is the counter's")
+
+
+class TestAlertsOverMcp(McpTestCase):
+    """
+    Debugging an alert is almost always one of four questions: why did it
+    fire, is it flapping, why did it *not* fire, and was anybody told. Before
+    0.7.9 an alert kept only its current state, so a tool here could have
+    answered "it is triggered" and almost nothing else. The fire history is
+    what makes the other three answerable, and this is what reads it.
+    """
+
+    def call(self, name, arguments=None, user=None):
+        body = rpc("tools/call", {"name": name, "arguments": arguments or {}})
+        return json.loads(self.post(body, user=user).data)
+
+    def text(self, name, arguments=None, user=None):
+        return self.call(name, arguments, user=user)["result"]["content"][0]["text"]
+
+    def an_alert(self, **kwargs):
+        options = {"column": "orders", "op": "<", "value": 100}
+        options.update(kwargs.pop("options", {}))
+        query = kwargs.pop("query", None) or self.factory.create_query(
+            name="Orders per hour", data_source=self.factory.data_source
+        )
+        alert = self.factory.create_alert(query_rel=query, options=options, **kwargs)
+        models.db.session.commit()
+        return alert
+
+    def fire(self, alert, state, value=None, notified=True, minutes_ago=0):
+        row = models.AlertFire(
+            alert_id=alert.id,
+            state=state,
+            value=None if value is None else str(value),
+            notified=notified,
+            created_at=utils.utcnow() - datetime.timedelta(minutes=minutes_ago),
+        )
+        models.db.session.add(row)
+        models.db.session.commit()
+        return row
+
+    def with_result(self, query, rows, retrieved_at=None):
+        result = self.factory.create_query_result(
+            data={"columns": [{"name": "orders"}], "rows": rows},
+            retrieved_at=retrieved_at or utils.utcnow(),
+            data_source=query.data_source,
+        )
+        query.latest_query_data = result
+        models.db.session.add(query)
+        models.db.session.commit()
+        return result
+
+    # --- find_alerts -----------------------------------------------------
+
+    def test_an_alert_is_found_by_its_name(self):
+        self.an_alert(name="Orders have dried up")
+
+        self.assertIn("Orders have dried up", self.text("find_alerts", {"question": "dried up"}))
+
+    def test_and_by_the_name_of_the_query_behind_it(self):
+        # Alerts are often named for the threshold while the subject somebody
+        # asks about is in the query's name.
+        self.an_alert(name="Below 100")
+
+        self.assertIn("Below 100", self.text("find_alerts", {"question": "orders per hour"}))
+
+    def test_the_condition_comes_back_as_words_rather_than_option_keys(self):
+        self.an_alert(name="Quiet", options={"column": "orders", "op": "<", "value": 100})
+
+        found = self.text("find_alerts", {"question": "quiet"})
+
+        self.assertIn("orders < 100", found)
+
+    def test_a_selector_is_shown_because_it_changes_what_is_measured(self):
+        self.an_alert(name="Peak", options={"column": "latency", "op": ">", "value": 2, "selector": "max"})
+
+        self.assertIn("max(latency) > 2", self.text("find_alerts", {"question": "peak"}))
+
+    def test_a_spelled_out_operator_reads_as_a_symbol(self):
+        # The model has accepted both forms for years; only one of them reads.
+        self.an_alert(name="Legacy", options={"column": "orders", "op": "less than", "value": 100})
+
+        self.assertIn("orders < 100", self.text("find_alerts", {"question": "legacy"}))
+
+    def test_the_fire_count_is_the_point_of_the_line(self):
+        alert = self.an_alert(name="Flapper")
+        for minutes in (10, 40, 70):
+            self.fire(alert, models.Alert.TRIGGERED_STATE, value=412, minutes_ago=minutes)
+
+        self.assertIn("3 fires in 24h", self.text("find_alerts", {"question": "flapper"}))
+
+    def test_a_fire_older_than_the_window_is_not_counted(self):
+        alert = self.an_alert(name="Quiet lately")
+        self.fire(alert, models.Alert.TRIGGERED_STATE, value=1, minutes_ago=60 * 25)
+
+        self.assertNotIn("fire in 24h", self.text("find_alerts", {"question": "quiet lately"}))
+
+    def test_muted_is_said_on_the_line(self):
+        # An alert evaluating and telling nobody looks identical to a quiet
+        # one, which is exactly the confusion worth spending a word on.
+        self.an_alert(name="Hushed", options={"column": "orders", "op": "<", "value": 1, "muted": True})
+
+        self.assertIn("MUTED", self.text("find_alerts", {"question": "hushed"}))
+
+    def test_an_alert_on_a_source_this_key_cannot_read_is_not_found(self):
+        other = self.factory.create_data_source(name="locked", group=self.factory.create_group(name="Locked"))
+        self.an_alert(name="Secret threshold", query=self.factory.create_query(name="Private", data_source=other))
+
+        self.assertIn("No alerts match", self.text("find_alerts", {"question": "secret threshold"}))
+
+    def test_nothing_matching_says_so_rather_than_answering_emptily(self):
+        self.assertIn("No alerts match", self.text("find_alerts", {"question": "payroll"}))
+
+    # --- explain_alert ---------------------------------------------------
+
+    def test_explain_gives_the_condition_and_the_query(self):
+        alert = self.an_alert(name="Orders low")
+
+        said = self.text("explain_alert", {"id": alert.id})
+
+        self.assertIn("Condition: orders < 100", said)
+        self.assertIn("Orders per hour", said)
+
+    def test_the_history_carries_the_value_each_change_was_decided_on(self):
+        alert = self.an_alert(name="Orders low")
+        self.fire(alert, models.Alert.TRIGGERED_STATE, value=412, minutes_ago=30)
+
+        said = self.text("explain_alert", {"id": alert.id})
+
+        self.assertIn("triggered at 412", said)
+
+    def test_a_change_nobody_was_told_about_says_so(self):
+        # The difference between "we missed the message" and "no message was
+        # ever sent", which is the first thing somebody asks.
+        alert = self.an_alert(name="Silent")
+        self.fire(alert, models.Alert.TRIGGERED_STATE, value=7, notified=False, minutes_ago=5)
+
+        self.assertIn("nobody notified", self.text("explain_alert", {"id": alert.id}))
+
+    def test_the_history_is_capped_so_a_month_of_flapping_cannot_fill_a_window(self):
+        alert = self.an_alert(name="Noisy")
+        for minute in range(30):
+            self.fire(alert, models.Alert.TRIGGERED_STATE, value=minute, minutes_ago=minute)
+
+        said = self.text("explain_alert", {"id": alert.id})
+
+        # Twenty lines of history, and a line saying there is more.
+        self.assertEqual(20, said.count("triggered at"))
+        self.assertIn("there may be more", said)
+
+    def test_the_current_value_comes_from_the_querys_last_run(self):
+        alert = self.an_alert(name="Orders low")
+        self.with_result(alert.query_rel, [{"orders": 412}])
+
+        self.assertIn("orders = 412", self.text("explain_alert", {"id": alert.id}))
+
+    def test_a_stale_result_is_refused_as_the_current_value(self):
+        # A threshold checked against a result three days old reads as an
+        # answer and sends somebody to the threshold when the real fault is
+        # that nothing has run.
+        alert = self.an_alert(name="Orders low")
+        self.with_result(alert.query_rel, [{"orders": 412}], retrieved_at=utils.utcnow() - datetime.timedelta(days=3))
+
+        said = self.text("explain_alert", {"id": alert.id})
+
+        self.assertIn("too old to read as the current value", said)
+        self.assertIn("3 days ago", said)
+
+    def test_a_query_that_has_never_run_says_so(self):
+        alert = self.an_alert(name="Brand new")
+
+        self.assertIn("never run", self.text("explain_alert", {"id": alert.id}))
+
+    def test_a_column_the_query_no_longer_returns_is_named(self):
+        # The alert cannot evaluate at all, and the reason is in the query's
+        # columns rather than in the threshold.
+        alert = self.an_alert(name="Renamed")
+        self.with_result(alert.query_rel, [{"order_count": 412}])
+
+        self.assertIn("no longer returns a column called orders", self.text("explain_alert", {"id": alert.id}))
+
+    def test_nobody_subscribed_is_worth_saying(self):
+        alert = self.an_alert(name="Shouting into a void")
+
+        self.assertIn("nobody is subscribed", self.text("explain_alert", {"id": alert.id}))
+
+    def test_a_destination_is_named_with_the_kind_it_is(self):
+        # "Slack" and "email" are different answers to "was anybody told",
+        # because one of them wakes a channel up.
+        alert = self.an_alert(name="Orders low")
+        self.factory.create_alert_subscription(alert=alert, user=self.factory.user)
+        models.db.session.commit()
+
+        self.assertIn("(slack)", self.text("explain_alert", {"id": alert.id}))
+
+    def test_a_subscription_with_no_destination_is_mail_to_that_person(self):
+        alert = self.an_alert(name="Orders low")
+        self.factory.create_alert_subscription(alert=alert, user=self.factory.user, destination=None)
+        models.db.session.commit()
+
+        said = self.text("explain_alert", {"id": alert.id})
+
+        self.assertIn("email to {}".format(self.factory.user.email), said)
+
+    def test_rearm_is_explained_because_it_looks_like_the_condition_clearing(self):
+        alert = self.an_alert(name="Throttled")
+        alert.rearm = 3600
+        models.db.session.add(alert)
+        models.db.session.commit()
+
+        self.assertIn("Rearm: 3600", self.text("explain_alert", {"id": alert.id}))
+
+    def test_an_alert_this_key_cannot_read_is_refused_without_confirming_it_exists(self):
+        other = self.factory.create_data_source(name="locked", group=self.factory.create_group(name="Locked"))
+        alert = self.an_alert(query=self.factory.create_query(name="Private", data_source=other))
+
+        said = self.call("explain_alert", {"id": alert.id})
+
+        # The same answer as for an id that does not exist: saying which would
+        # confirm an alert exists to somebody who may not see it.
+        self.assertIn("No alert #{}".format(alert.id), said["error"]["message"])
+
+    def test_an_id_that_does_not_exist_is_refused_the_same_way(self):
+        said = self.call("explain_alert", {"id": 999999})
+
+        self.assertIn("No alert #999999", said["error"]["message"])
+
+    def test_both_tools_are_offered_without_any_write_permission(self):
+        # They read; they join the nine that an OAuth session may call.
+        offered = json.loads(self.post(rpc("tools/list")).data)["result"]["tools"]
+        names = [tool["name"] for tool in offered]
+
+        self.assertIn("find_alerts", names)
+        self.assertIn("explain_alert", names)
+
+
+class TestBuildingAnAlertOverMcp(McpTestCase):
+    """
+    An alert is not like a draft query. A draft sits inert until somebody
+    publishes it; an alert starts evaluating at once, and one with a
+    destination starts waking people up. So the safety model is the word
+    alerts already have: muted. The agent's alert records its history from the
+    first evaluation and tells nobody until a person has read it.
+    """
+
+    def call(self, name, arguments=None, user=None, api_key=None):
+        body = rpc("tools/call", {"name": name, "arguments": arguments or {}})
+        return json.loads(self.post(body, api_key=api_key, user=user).data)
+
+    def text(self, name, arguments=None):
+        return self.call(name, arguments)["result"]["content"][0]["text"]
+
+    def a_query(self, columns=("orders",), name="Orders per hour"):
+        query = self.factory.create_query(name=name, data_source=self.factory.data_source)
+        result = self.factory.create_query_result(
+            data={"columns": [{"name": c} for c in columns], "rows": [{c: 1 for c in columns}]},
+            data_source=self.factory.data_source,
+        )
+        query.latest_query_data = result
+        models.db.session.add(query)
+        models.db.session.commit()
+        return query
+
+    def args(self, query, **kwargs):
+        made = {"query_id": query.id, "column": "orders", "op": "<", "value": 100, "name": "Orders have dried up"}
+        made.update(kwargs)
+        return made
+
+    def test_an_alert_is_created_muted_and_with_nobody_subscribed(self):
+        query = self.a_query()
+
+        said = self.text("save_alert", self.args(query))
+
+        alert = models.Alert.query.one()
+        self.assertTrue(alert.options["muted"], "an agent's alert wakes nobody until a person says so")
+        self.assertEqual([], alert.subscriptions)
+        self.assertIn("MUTED", said)
+
+    def test_the_condition_is_stored_as_the_alert_evaluates_it(self):
+        query = self.a_query()
+
+        self.text("save_alert", self.args(query, column="orders", op=">=", value=5))
+
+        alert = models.Alert.query.one()
+        self.assertEqual("orders", alert.options["column"])
+        self.assertEqual(">=", alert.options["op"])
+        self.assertEqual(5, alert.options["value"])
+        # `evaluate` defaults a missing selector, but an alert saved without
+        # one broke the template renderer once already.
+        self.assertEqual("first", alert.options["selector"])
+
+    def test_it_says_where_to_unmute_it(self):
+        query = self.a_query()
+
+        said = self.text("save_alert", self.args(query))
+
+        alert = models.Alert.query.one()
+        self.assertIn("alerts/{}".format(alert.id), said)
+
+    def test_a_column_the_query_does_not_return_is_refused_by_name(self):
+        # The failure worth a refusal: an alert on a misspelt column
+        # evaluates to unknown for ever and looks exactly like one that is
+        # simply not firing.
+        query = self.a_query(columns=("order_count",))
+
+        said = self.call("save_alert", self.args(query, column="orders"))
+
+        self.assertIn("does not return a column called orders", said["error"]["message"])
+        self.assertIn("order_count", said["error"]["message"], "and says what it does return")
+        self.assertEqual(0, models.Alert.query.count())
+
+    def test_a_query_that_has_never_run_is_refused(self):
+        query = self.factory.create_query(name="Never run", data_source=self.factory.data_source)
+        models.db.session.commit()
+
+        said = self.call("save_alert", self.args(query))
+
+        self.assertIn("never run", said["error"]["message"])
+        self.assertEqual(0, models.Alert.query.count())
+
+    def test_an_operator_outside_the_six_is_refused(self):
+        query = self.a_query()
+
+        said = self.call("save_alert", self.args(query, op="is roughly"))
+
+        self.assertIn("`op` must be one of", said["error"]["message"])
+
+    def test_a_threshold_that_is_not_a_number_is_refused(self):
+        query = self.a_query()
+
+        said = self.call("save_alert", self.args(query, value="a hundred"))
+
+        self.assertIn("as a number", said["error"]["message"])
+
+    def test_a_query_this_key_cannot_read_is_refused_without_confirming_it(self):
+        other = self.factory.create_data_source(name="locked", group=self.factory.create_group(name="Locked"))
+        query = self.factory.create_query(name="Private", data_source=other)
+        models.db.session.commit()
+
+        said = self.call("save_alert", self.args(query))
+
+        self.assertIn("No query #{}".format(query.id), said["error"]["message"])
+        self.assertEqual(0, models.Alert.query.count())
+
+    def test_a_stream_is_refused_because_an_alert_on_one_could_never_fire(self):
+        # `streams_only` is patched rather than the source's type changed: a
+        # type with no runner registered in this image cannot even have a
+        # query saved against it, which is a different failure.
+        query = self.a_query()
+        with mock.patch.object(type(self.factory.data_source), "streams_only", property(lambda self: True)):
+            said = self.call("save_alert", self.args(query))
+
+        self.assertIn("cannot watch a stream", said["error"]["message"])
+        self.assertEqual(0, models.Alert.query.count())
+
+    def test_it_counts_against_the_daily_write_cap(self):
+        query = self.a_query()
+        with mock.patch("sqldesk.settings.MCP_WRITES_PER_DAY", 1):
+            self.text("save_alert", self.args(query, name="First"))
+            said = self.call("save_alert", self.args(query, name="Second"))
+
+        self.assertIn("daily limit", said["error"]["message"])
+        self.assertEqual(1, models.Alert.query.count())
+
+    def test_the_write_is_audited_like_every_other(self):
+        query = self.a_query()
+
+        self.text("save_alert", self.args(query))
+
+        event = models.McpEvent.query.filter(models.McpEvent.tool == "save_alert").one()
+        self.assertEqual("ok", event.outcome)
+        # The write note, not a summary of the arguments: what an audit of an
+        # agent's writes is actually asked.
+        self.assertIn("saved alert", event.detail)
+
+    def test_it_is_not_offered_to_an_oauth_session(self):
+        # Every write needs a personal API key; an OAuth session is mcp:read.
+        offered = [tool["name"] for tool in mcp._offered_tools(self.factory.user, by_api_key=False)]
+
+        self.assertNotIn("save_alert", offered)
+
+    def test_but_it_is_offered_to_a_key_whose_owner_may_use_alerts(self):
+        offered = [tool["name"] for tool in mcp._offered_tools(self.factory.user, by_api_key=True)]
+
+        self.assertIn("save_alert", offered)

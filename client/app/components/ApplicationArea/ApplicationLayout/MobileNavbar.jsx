@@ -103,7 +103,7 @@ export default function MobileNavbar({ getPopupContainer }) {
               )}
               <Menu.Item key="help">
                 {/* eslint-disable-next-line react/jsx-no-target-blank */}
-                <Link href="https://bot-netizen.github.io/sqldesk" target="_blank" rel="noopener">
+                <Link href="https://sqldesk.org" target="_blank" rel="noopener">
                   Help
                 </Link>
               </Menu.Item>

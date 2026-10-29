@@ -151,7 +151,7 @@ def _shown(day):
     return "{} {}".format(day.day, day.strftime("%B %Y"))
 
 
-def _head(title, description, og_title, og_type):
+def _head(title, description, og_title, og_type, url):
     return """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -162,11 +162,20 @@ def _head(title, description, og_title, og_type):
 <meta property="og:title" content="{og_title}">
 <meta property="og:description" content="{description}">
 <meta property="og:type" content="{og_type}">
+<meta property="og:url" content="{url}">
+<meta property="og:image" content="https://sqldesk.org/assets/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SQLDesk: one place for everything you do with data">
+<meta property="og:site_name" content="SQLDesk">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sqldesk.org/assets/social-card.png">
 <link rel="icon" href="{icon}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
+<script>document.documentElement.classList.add("js");try{{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}}catch(e){{}}</script>
 </head>
 <body>
 
@@ -186,6 +195,7 @@ def _head(title, description, og_title, og_type):
         description=html.escape(description),
         og_title=html.escape(og_title),
         og_type=og_type,
+        url=url,
         icon=ICON,
         brand=BRAND,
         nav=site_nav("../", "blog/index.html"),
@@ -196,12 +206,13 @@ FOOT = """
 <footer>
   <div class="wrap">
     <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
-       <a href="../roadmap.html">Releases</a> &nbsp;&middot;&nbsp;
+       <a href="../releases.html">Releases</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
   </div>
 </footer>
 
+<script src="../assets/theme.js" defer></script>
 </body>
 </html>
 """
@@ -239,7 +250,13 @@ def render_post(post, posts):
             html.escape(post["next"]["link"]), html.escape(post["next"]["label"])
         )
     page = (
-        _head(post["title"] + " — SQLDesk", post["description"], post["title"], "article")
+        _head(
+            post["title"] + " — SQLDesk",
+            post["description"],
+            post["title"],
+            "article",
+            "https://sqldesk.org/blog/" + post["file"],
+        )
         + """
 <div class="wrap post-layout">
   <nav class="post-nav" aria-label="Posts">
@@ -299,7 +316,7 @@ def render_listing(posts):
             )
         )
     page = (
-        _head("Blog — SQLDesk", LISTING_DESCRIPTION, "SQLDesk blog", "website")
+        _head("Blog — SQLDesk", LISTING_DESCRIPTION, "SQLDesk blog", "website", "https://sqldesk.org/blog/")
         + """
 <div class="wrap post-layout">
   <nav class="post-nav" aria-label="Posts">

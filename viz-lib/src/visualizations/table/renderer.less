@@ -24,7 +24,14 @@
   }
 
   .ant-table-thead > tr > th {
-    font-weight: 500;
+    // Weight and a rule, where there used to be a fill the eye could not
+    // see. A result table's column names come from the query, so they stay
+    // sentence case at the body size: upper case with tracking would widen
+    // `customer_lifetime_value` and read worse, which is why this differs
+    // from the curated labels on the list pages.
+    font-weight: 700;
+    color: var(--color-text, #1c1b1a);
+    border-bottom: 2px solid var(--color-text-subtle, #b5afa6);
     // Keeps the column names on one line, so the header cannot grow taller
     // than a row while the rows stay put.
     white-space: nowrap;
@@ -66,11 +73,17 @@
         top: 0;
         border-top: 0;
         z-index: 1;
-        // Opaque, because the rows scroll underneath it -- but the token, not
-        // a hardcoded grey. A literal colour here is one no theme can reach,
-        // and with `!important` on it, one no theme can override either: it
-        // was the last white thing left on the dark wall display.
-        background: var(--color-surface-sunken) !important;
+        // Opaque, because the rows scroll underneath it -- but the surface the
+        // table is actually on, not the sunken one. A literal colour here is
+        // one no theme can reach, and with `!important` on it, one no theme
+        // can override either: it was the last white thing left on the dark
+        // wall display.
+        //
+        // It was `--color-surface-sunken`, which is why the header stayed
+        // cream after the fill was removed everywhere else -- this rule won
+        // on `!important` and nothing else could get past it. A header is not
+        // a recess; it sits on the card with the rows it labels.
+        background: var(--color-surface) !important;
       }
     }
   }
@@ -225,11 +238,58 @@
       left: 0;
       background: var(--color-action-tint, #e4f4f7);
       border-radius: 3px;
-      transition: width 0.6s ease;
+      // `left` animates with the width because a bar that crosses zero
+      // between refreshes changes both, and moving only one walks the bar
+      // across the cell before it resizes.
+      transition:
+        width 0.6s ease,
+        left 0.6s ease;
     }
 
-    > span {
+    /* Only where the column has values on both sides of zero: a line at the
+       middle is what makes the direction readable as a sign rather than as a
+       bar that happens to start somewhere. */
+    &.table-cell-databar-signed::before {
+      content: "";
+      position: absolute;
+      top: -2px;
+      bottom: -2px;
+      left: var(--databar-zero, 50%);
+      width: 1px;
+      background: var(--color-border, #e3dfd7);
+      z-index: 1;
+    }
+
+    /* Both copies of the number are blocks so they occupy the same box: the
+       clipped one is positioned over the other and has to line up exactly,
+       including under the right alignment a numeric column gets. */
+    .table-cell-databar-value {
       position: relative;
+      display: block;
+      z-index: 2;
+
+      /* Bars only. The number stays in the DOM, so the row keeps its height
+         and a screen reader still reads the value. */
+      &.is-hidden {
+        color: transparent;
+      }
+    }
+
+    .table-cell-databar-over {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+
+      /* The copy exists to restate the number in a readable ink, nothing
+         more. Its markup matches the first copy exactly -- that is what makes
+         the two line up under any alignment -- so everything decorative
+         inside it has to be switched off, or a changed cell flashes twice and
+         paints its highlight over the bar. */
+      .table-cell-changed {
+        animation: none;
+        background: none;
+      }
     }
   }
 

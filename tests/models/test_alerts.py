@@ -216,3 +216,76 @@ class TestAlertRenderTemplate(BaseTestCase):
         """
         result = alert.render_template(textwrap.dedent(custom_alert))
         self.assertMultiLineEqual(result, textwrap.dedent(expected))
+
+
+class TestWhatATemplateIsEscapedFor(BaseTestCase):
+    """
+    Mustache escapes the values it interpolates, not the words around them.
+
+    For an HTML email that is right: a query result containing `<b>` is text,
+    and must not become markup on the way. Slack is not HTML, and the same
+    escaping turns a value containing `&` into `&amp;` in the message.
+    """
+
+    def alert_showing(self, value, template):
+        query = self.factory.create_query()
+        query.latest_query_data = self.factory.create_query_result(
+            data={"columns": [{"name": "v"}], "rows": [{"v": value}]}
+        )
+        alert = self.factory.create_alert(
+            query_rel=query,
+            options={"op": "greater than", "value": 0, "column": "v", "custom_body": template},
+        )
+        db.session.commit()
+        return alert
+
+    def test_html_keeps_escaping_values(self):
+        alert = self.alert_showing("Ben & Jerry's", "Saw {{QUERY_RESULT_VALUE}}")
+
+        self.assertIn("&amp;", alert.body_for())
+
+    def test_slack_gets_the_value_as_it_is(self):
+        alert = self.alert_showing("Ben & Jerry's", "Saw {{QUERY_RESULT_VALUE}}")
+
+        self.assertIn("Ben & Jerry's", alert.body_for(escape=False))
+        self.assertNotIn("&amp;", alert.body_for(escape=False))
+
+    def test_a_result_with_angle_brackets_does_not_arrive_as_entities(self):
+        # `<` in a value is what makes a Slack message read as gibberish.
+        alert = self.alert_showing("a < b", "{{QUERY_RESULT_VALUE}}")
+
+        self.assertEqual("a < b", alert.body_for(escape=False))
+        self.assertIn("&lt;", alert.body_for())
+
+    def test_the_templates_own_words_are_untouched_either_way(self):
+        # A hand-written Slack link has always survived, because Mustache
+        # escapes what it interpolates rather than the template.
+        link = "<https://example.com/d/1|the dashboard>"
+        alert = self.alert_showing(1, link + " shows {{QUERY_RESULT_VALUE}}")
+
+        self.assertIn(link, alert.body_for(escape=False))
+        self.assertIn(link, alert.body_for())
+
+    def test_the_old_properties_still_mean_escaped(self):
+        # `custom_body` is read by eleven destinations that send HTML or plain
+        # text. Changing what it means under them was not the point.
+        alert = self.alert_showing("Ben & Jerry's", "{{QUERY_RESULT_VALUE}}")
+
+        self.assertEqual(alert.body_for(), alert.custom_body)
+        self.assertIn("&amp;", alert.custom_body)
+
+    def test_an_alert_saved_before_selector_existed_still_renders(self):
+        # `selector` was added after alerts already existed. `evaluate`
+        # defaults it; this read it unguarded, so an old alert with a custom
+        # template raised at the moment it had something to say.
+        query = self.factory.create_query()
+        query.latest_query_data = self.factory.create_query_result(
+            data={"columns": [{"name": "v"}], "rows": [{"v": 1}]}
+        )
+        alert = self.factory.create_alert(
+            query_rel=query,
+            options={"op": "greater than", "value": 0, "column": "v", "custom_body": "{{ALERT_SELECTOR}}"},
+        )
+        db.session.commit()
+
+        self.assertEqual("first", alert.body_for())

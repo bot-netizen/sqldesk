@@ -22,7 +22,20 @@ describe("Login", () => {
     cy.getByTestId("Password").type("password{enter}");
 
     cy.title().should("eq", "SQLDesk");
-    cy.getByTestId("ProfileDropdown").find("img.profile__image_thumb").should("exist");
+    // The seeded admin has no picture, so the navbar draws initials rather
+    // than an <img>. Avatars are worked out locally now instead of being
+    // fetched from gravatar, which is the whole point of the change -- this
+    // asserted the gravatar era and would pass again only if it came back.
+    //
+    // Two letters rather than the exact pair: edit_profile_spec runs before
+    // this one and renames the admin, restoring the name at the end of its
+    // own test. Pinning the letters here would make this fail for that
+    // spec's reasons. Which letters come from which field is pinned in
+    // UserAvatar.test.js, where nothing else can disturb it.
+    cy.getByTestId("ProfileDropdown")
+      .find(".user-avatar-initials")
+      .invoke("text")
+      .should("match", /^[A-Z]{2}$/);
 
     cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.percySnapshot("Homepage");

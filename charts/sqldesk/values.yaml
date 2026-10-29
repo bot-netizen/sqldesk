@@ -58,11 +58,30 @@ worker:
   # queue and its own workers, so it cannot starve the rest. MCP's queue is
   # added at the end when MCP is on without a worker of its own, so it is
   # never left with nobody to take it.
-  queues: "queries,scheduled_queries,schemas,periodic,emails,default"
+  #
+  # Queries only. The housekeeping queues are the periodic worker's below:
+  # with everything here, two slow queries meant nothing was deciding what to
+  # refresh, nothing was evaluating alerts and nothing was sending mail.
+  queues: "queries,scheduled_queries,schemas"
   workersCount: 2
   resources:
     requests: { cpu: 200m, memory: 512Mi }
     limits: { memory: 2Gi }
+
+# Scheduling, alerts, mail and the cleanups: everything that is not a query.
+#
+# A separate deployment because none of it is heavy -- a few seconds of work a
+# minute -- and all of it needs to be *running*, which is exactly what it was
+# not while the query workers were busy. Turn it off and its queues go back on
+# the ordinary worker, which is the behaviour before 0.7.7.
+periodicWorker:
+  enabled: true
+  replicas: 1
+  queues: "periodic,emails,default"
+  workersCount: 1
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 1Gi }
 
 # The Model Context Protocol server, and the catalog it answers from.
 #
@@ -214,6 +233,20 @@ rendering:
 # not a number to raise.
 scheduler:
   enabled: true
+  # More than one is safe, and worth it where minutes without scheduling
+  # matter.
+  #
+  # rq-scheduler takes a Redis lock before each pass and only the holder
+  # enqueues anything -- verified in the installed rq_scheduler: `run` calls
+  # `enqueue_jobs` only inside `if self.acquire_lock()`, and the others log
+  # "Lock already taken - skipping run". So a second pod is a warm spare, not
+  # a second copy of every due job. With one, the minutes between a node going
+  # away and the pod being rescheduled are minutes in which no scheduled query
+  # runs and no alert is evaluated, and nothing says so.
+  #
+  # Left at one because that is what every existing install runs; raise it
+  # where an outage of the scheduler is worth a second pod.
+  replicas: 1
   resources:
     requests: { cpu: 50m, memory: 256Mi }
     limits: { memory: 512Mi }
@@ -243,6 +276,18 @@ redis:
   # but this release's pods away from it.
   password: ""
   external: ""
+  # A ceiling, with `noeviction` as the policy.
+  #
+  # Without one Redis grows until the kernel kills it, and every queued job
+  # goes with it. The usual `allkeys-lru` would be worse here than refusing:
+  # it would quietly evict queue entries and job records, so a query somebody
+  # submitted would simply never run and nothing would say so. Keep this
+  # comfortably under the memory limit below -- Redis needs room above
+  # maxmemory for its own overhead.
+  maxmemory: "768mb"
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 1Gi }
 
 # Only this release's pods may talk to its Postgres, Redis and renderer.
 # Needs a network plugin that enforces NetworkPolicy (Calico, Cilium, the

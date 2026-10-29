@@ -406,22 +406,32 @@ class TestWhoMayCurateTheCatalog(CatalogTestCase):
     for is rarely the person who runs the server.
     """
 
-    def _curator(self):
+    def _curator(self, reads=True):
+        """A curator who is not an admin; `reads` puts their group on the data source."""
         group = self.factory.create_group(
             name="Curators", permissions=models.Group.DEFAULT_PERMISSIONS + ["manage_catalog"]
         )
         db.session.add(group)
         db.session.commit()
+        if reads:
+            self.factory.data_source.add_group(group, view_only=True)
+            db.session.commit()
         return self.factory.create_user(group_ids=[group.id])
+
+    def _table(self, source=None):
+        table = models.CatalogTable(
+            org=self.factory.org, data_source_id=(source or self.factory.data_source).id, name="orders"
+        )
+        db.session.add(table)
+        db.session.commit()
+        return table
 
     def test_a_curator_who_is_not_an_admin_may_read_it(self):
         rv = self.make_request("get", "/api/catalog", user=self._curator(), org=False)
         self.assertEqual(200, rv.status_code)
 
     def test_and_may_describe_a_table(self):
-        table = models.CatalogTable(org=self.factory.org, data_source_id=self.factory.data_source.id, name="orders")
-        db.session.add(table)
-        db.session.commit()
+        table = self._table()
 
         rv = self.make_request(
             "post",
@@ -432,6 +442,37 @@ class TestWhoMayCurateTheCatalog(CatalogTestCase):
         )
 
         self.assertEqual(200, rv.status_code)
+
+    def test_but_only_on_data_sources_their_groups_can_read(self):
+        """
+        Curation can be granted to a group that is not on every data source.
+        Until 0.7.7 such a curator could list another source's tables, export
+        the SQL of its verified queries, and write the descriptions its users'
+        models are fed.
+        """
+        table = self._table()
+        curator = self._curator(reads=False)
+
+        listed = self.make_request("get", "/api/catalog", user=curator, org=False)
+        described = self.make_request(
+            "post",
+            "/api/catalog/tables/{}".format(table.id),
+            data={"description": "Planted."},
+            user=curator,
+            org=False,
+        )
+        exported = self.make_request("get", "/api/catalog/export", user=curator, org=False, is_json=False)
+
+        self.assertEqual([], [t["name"] for t in listed.json.get("tables", [])])
+        self.assertEqual(404, described.status_code)
+        db.session.refresh(table)
+        self.assertIsNone(table.description)
+        self.assertNotIn(b"orders", exported.data)
+
+    def test_an_admin_sees_every_source(self):
+        self._table()
+        rv = self.make_request("get", "/api/catalog", user=self.factory.create_admin(), org=False)
+        self.assertIn("orders", [t["name"] for t in rv.json["tables"]])
 
     def test_somebody_without_the_feature_may_not(self):
         rv = self.make_request("get", "/api/catalog", user=self.factory.user, org=False)
@@ -1273,3 +1314,61 @@ class TestAskingWhetherOneQueryIsConfirmed(TestVerifyingASavedQuery):
 
         self.assertTrue(rv.json["verified"])
         self.assertFalse(rv.json["current"])
+
+
+class TestReviewingWhatAnAgentWrote(CatalogTestCase):
+    """
+    An agent can describe a warehouse in an afternoon -- the point of letting
+    it -- so a curator needs the list of exactly what it wrote, and whose key
+    it was written with. A badge here and there in a catalog of three thousand
+    tables is not a review.
+    """
+
+    def setUp(self):
+        super().setUp()
+        group = self.factory.create_group(
+            name="Curators", permissions=models.Group.DEFAULT_PERMISSIONS + ["manage_catalog"]
+        )
+        models.db.session.add(group)
+        models.db.session.commit()
+        self.factory.data_source.add_group(group, view_only=True)
+        models.db.session.commit()
+        self.admin = self.factory.create_user(group_ids=[group.id])
+        self.source = self.factory.data_source
+        self.by_agent = models.CatalogTable(
+            org=self.factory.org,
+            data_source=self.source,
+            name="events",
+            description="One row per event.",
+            description_source="mcp",
+            described_by=self.admin,
+            described_at=datetime.datetime.now(datetime.timezone.utc),
+        )
+        self.by_hand = models.CatalogTable(
+            org=self.factory.org,
+            data_source=self.source,
+            name="orders",
+            description="One row per order.",
+            description_source="human",
+        )
+        self.untouched = models.CatalogTable(org=self.factory.org, data_source=self.source, name="audit_log")
+        models.db.session.add_all([self.by_agent, self.by_hand, self.untouched])
+        models.db.session.commit()
+
+    def _listed(self, **params):
+        query = "&".join("{}={}".format(key, value) for key, value in params.items())
+        rv = self.make_request("get", "/api/catalog?" + query, user=self.admin, org=False)
+        self.assertEqual(200, rv.status_code)
+        return {table["name"]: table for table in rv.json["tables"]}
+
+    def test_the_agent_filter_returns_only_what_an_agent_wrote(self):
+        self.assertEqual({"events"}, set(self._listed(source="mcp")))
+
+    def test_every_table_says_whose_key_described_it(self):
+        self.assertEqual(self.admin.name, self._listed()["events"]["described_by"])
+
+    def test_and_nobody_is_named_where_a_person_typed_it(self):
+        self.assertIsNone(self._listed()["orders"]["described_by"])
+
+    def test_without_the_filter_the_whole_catalog_is_still_listed(self):
+        self.assertEqual({"events", "orders", "audit_log"}, set(self._listed()))

@@ -28,6 +28,7 @@ from sqldesk.streams import activity, decode, handover, rollup, slots, watching
 from sqldesk.streams.consumer import Broker, consume
 from sqldesk.streams.consumer import _security as security
 from sqldesk.streams.store import RECEIVED, Store
+from sqldesk.tasks.worker import shutting_down
 from sqldesk.utils import utcnow
 from sqldesk.worker import job
 
@@ -88,11 +89,36 @@ def supervise_streams():
         if stream.last_error and "slot" in stream.last_error:
             stream.last_error = None
             models.db.session.commit()
-        consume_stream.delay(stream.id)
+        if _queued(stream.id):
+            # One already waiting for a stream worker. Queuing another each
+            # minute while the workers are busy piled them up, and they then
+            # ran back to back as soon as one was free.
+            continue
+        consume_stream.delay(stream.id, job_id=_job_id(stream.id))
         started += 1
     if started:
         logger.info("task=supervise_streams started=%s", started)
     return started
+
+
+def _job_id(stream_id):
+    return "consume-stream-{}".format(stream_id)
+
+
+def _queued(stream_id):
+    """Whether the supervisor's job for this stream is still waiting to run."""
+    from rq.exceptions import NoSuchJobError
+
+    from sqldesk import rq_redis_connection
+    from sqldesk.tasks import Job
+
+    try:
+        return Job.fetch(_job_id(stream_id), connection=rq_redis_connection).get_status() in ("queued", "deferred")
+    except NoSuchJobError:
+        return False
+    except Exception:
+        logger.warning("could not ask whether stream %s is queued", stream_id, exc_info=True)
+        return False
 
 
 def _being_consumed(stream_id):
@@ -132,7 +158,14 @@ def _claim(stream_id):
         return False
 
 
-@job("streams", timeout=CONSUMER_MINUTES * 60 + 30)
+#: How long a consumer job may wait for a stream worker before it lapses. With
+#: no stream worker at all -- an install with streams on and nothing taking
+#: from the queue -- jobs otherwise piled up in Redis for ever; with one that is
+#: busy, the supervisor queues a fresh one the next minute anyway.
+QUEUED_SECONDS = 120
+
+
+@job("streams", timeout=CONSUMER_MINUTES * 60 + 30, ttl=QUEUED_SECONDS)
 def consume_stream(stream_id):
     """
     Consume one stream until it goes quiet or the job's time is up.
@@ -153,6 +186,10 @@ def consume_stream(stream_id):
     carry_on = False
 
     def should_continue():
+        # The worker has been told to stop: finish this flush and hand over,
+        # rather than run until the pod is killed with nothing handed on.
+        if shutting_down():
+            return False
         # Re-read rather than trusting the row we loaded: whether anybody is
         # watching changes while this runs, which is the entire point.
         models.db.session.refresh(stream)
@@ -210,7 +247,9 @@ def consume_stream(stream_id):
             # find nothing -- which would make it a cold start at the end and
             # drop whatever arrived in between.
             handover.give(stream_id, broker.last_positions)
-            consume_stream.delay(stream_id)
+            # At the front: behind other topics' jobs it could wait out the
+            # hand-over's minute and start cold, leaving a hole in the chart.
+            consume_stream.delay(stream_id, at_front=True)
         else:
             # Nothing is going to renew it, and leaving it to expire would hold
             # a slot for two minutes after the stream stopped.

@@ -30,6 +30,38 @@ jobs:
       - run: ruff check .
       - run: black --check .
 
+  # The chart, rendered and linted. `helm template` catches what a YAML lint
+  # cannot: a value referenced but never defined renders as empty and the
+  # object is silently wrong, and a strategy or probe the API server will
+  # refuse is only visible once it is rendered. Cheap, and it would have
+  # caught a release-stopping upgrade failure in 0.7.7.
+  chart:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+      - run: helm lint charts/sqldesk
+      - name: Render it the ways people deploy it
+        run: |
+          set -euo pipefail
+          helm template sqldesk charts/sqldesk > /dev/null
+          helm template sqldesk charts/sqldesk -f examples/values-production.yaml > /dev/null
+          helm template sqldesk charts/sqldesk \
+            --set mcp.enabled=true --set streams.enabled=true --set uploads.enabled=true \
+            --set server.replicas=2 --set periodicWorker.enabled=false > /dev/null
+      - name: Does it parse as Kubernetes objects?
+        run: |
+          helm template sqldesk charts/sqldesk | python3 -c "
+          import sys, yaml
+          kinds = [d['kind'] for d in yaml.safe_load_all(sys.stdin) if d]
+          print(len(kinds), 'objects:', ', '.join(sorted(set(kinds))))
+          assert 'Deployment' in kinds and 'Service' in kinds, kinds"
+
   backend-unit-tests:
     runs-on: ubuntu-22.04
     needs: backend-lint

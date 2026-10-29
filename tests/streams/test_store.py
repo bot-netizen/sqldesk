@@ -97,6 +97,28 @@ class TestWhatGoesIn(StoreTestCase):
         self.assertEqual(0, malformed)
         self.assertNotIn("extra", [name for name, _kind in self.store.columns()])
 
+    def test_a_field_that_changes_type_is_null_for_that_row_not_the_end(self):
+        """
+        The first flush fixed `id` as a number. One message sending a string
+        made the INSERT a conversion error, and the consumer stopped -- again
+        on every restart while that message was in the window.
+        """
+        self.store.append(events({"id": 1, "v": 10}))
+
+        added, _ = self.store.append(events({"id": "a-17", "v": 11}, {"id": 3, "v": 12}))
+
+        self.assertEqual(2, added)
+        stored = self.store.connection.execute("SELECT id, v FROM events ORDER BY v").fetchall()
+        self.assertEqual([(1, 10), (None, 11), (3, 12)], stored)
+
+    def test_a_field_name_with_a_quote_in_it_is_still_a_column(self):
+        self.store.append(events({'say "hi"': 1}))
+
+        added, _ = self.store.append(events({'say "hi"': 2}))
+
+        self.assertEqual(1, added)
+        self.assertEqual(2, self.store.rows())
+
     def test_and_the_event_itself_is_not_lost_to_it(self):
         # Ignoring the field must not mean dropping the message.
         self.store.append(events({"x": 1}))

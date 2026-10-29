@@ -13,6 +13,7 @@ from sqldesk.tasks.catalog import eval_catalog, harvest_catalogs
 from sqldesk.tasks.failure_report import send_aggregated_errors
 from sqldesk.tasks.general import sync_user_details, version_check
 from sqldesk.tasks.queries import (
+    cleanup_events,
     cleanup_mcp_events,
     cleanup_query_results,
     empty_schedules,
@@ -185,6 +186,15 @@ def periodic_job_definitions():
 
     if settings.QUERY_RESULTS_CLEANUP_ENABLED:
         jobs.append({"func": cleanup_query_results, "interval": timedelta(minutes=5)})
+
+    # The events table grows faster than any other -- a row per execution,
+    # each holding the query text -- and the cleanup for it was written,
+    # tested, settable, and never scheduled, so nothing ever pruned it. Hourly
+    # rather than every five minutes: it is capped per run, and a table that
+    # has never been pruned works through its backlog an hour at a time
+    # instead of holding a long lock once.
+    if settings.EVENTS_CLEANUP_MAX_AGE > 0:
+        jobs.append({"func": cleanup_events, "timeout": 300, "interval": timedelta(hours=1)})
 
     # Add your own custom periodic jobs in your dynamic_settings module.
     jobs.extend(settings.dynamic_settings.periodic_jobs() or [])

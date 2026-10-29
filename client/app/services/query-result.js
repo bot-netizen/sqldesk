@@ -7,6 +7,13 @@ import { Auth } from "@/services/auth";
 import { isString, uniqBy, each, isNumber, includes, extend, forOwn, get } from "lodash";
 
 const logger = debug("sqldesk:services:QueryResult");
+
+// Failed polls in a row before a running query is called failed. Each waits
+// twice the last: 1, 2, 4, 8, 16 seconds -- long enough to ride out a deploy.
+const MAX_POLL_FAILURES = 5;
+
+// How often a hidden tab asks after a running query.
+const HIDDEN_POLL_MS = 5000;
 const filterTypes = ["filter", "multi-filter", "multiFilter"];
 
 function defer() {
@@ -416,13 +423,39 @@ class QueryResult {
       });
   }
 
-  refreshStatus(query, parameters, tryNumber = 1) {
+  /*
+    Stop polling for this result. Called when nothing is waiting for it any
+    more -- the page that started it has gone, or a new run replaced it.
+    Before this, a four-minute query somebody navigated away from was polled
+    for its whole run, every few seconds, against a handful of web workers.
+  */
+  abandon() {
+    this.abandoned = true;
+    clearTimeout(this.pollTimer);
+  }
+
+  refreshStatus(query, parameters, tryNumber = 1, failures = 0) {
+    if (this.abandoned) {
+      return;
+    }
     const loadResult = () =>
       Auth.isAuthenticated() ? this.loadResult() : this.loadLatestCachedResult(query, parameters);
 
     const request = Auth.isAuthenticated()
       ? axios.get(`api/jobs/${this.job.id}`)
       : axios.get(`api/queries/${query}/jobs/${this.job.id}`);
+
+    const next = (wait, nextFailures) => {
+      if (this.abandoned) {
+        return;
+      }
+      // A hidden tab nobody is looking at does not need the answer twice a
+      // second; it still gets it, five seconds at a time.
+      const delay = typeof document !== "undefined" && document.hidden ? Math.max(wait, HIDDEN_POLL_MS) : wait;
+      this.pollTimer = setTimeout(() => {
+        this.refreshStatus(query, parameters, tryNumber + 1, nextFailures);
+      }, delay);
+    };
 
     request
       .then((jobResponse) => {
@@ -439,13 +472,20 @@ class QueryResult {
           } else {
             waitTime = 3000;
           }
-          setTimeout(() => {
-            this.refreshStatus(query, parameters, tryNumber + 1);
-          }, waitTime);
+          next(waitTime, 0);
         }
       })
       .catch((error) => {
         logger("Connection error", error);
+        const status = get(error, "response.status");
+        // A 502 while a deploy rolls, a gateway timeout, a dropped connection:
+        // the job is still running on the worker, and one failed poll used to
+        // mark it failed for good. Asked again, a few times, before saying so.
+        // A 403 or 404 is an answer, not a blip.
+        if (status !== 403 && status !== 404 && failures < MAX_POLL_FAILURES) {
+          next(1000 * Math.pow(2, failures), failures + 1);
+          return;
+        }
         // TODO: use QueryResultError, or better yet: exception/reject of promise.
         this.update({
           job: {

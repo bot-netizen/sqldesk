@@ -34,13 +34,28 @@ spec:
               {{- /*
                 MCP's queue goes last on the ordinary worker when nothing
                 else takes it. Named with no worker of its own, it would
-                otherwise hold every model query forever.
+                otherwise hold every model query forever. The same for
+                streams: switched on with their worker off, consumer jobs
+                waited for a worker that was not there and the Streams pages
+                never filled.
               */}}
-              {{- if and .Values.mcp.enabled .Values.mcp.queue (not .Values.mcp.worker.enabled) }}
-              value: {{ printf "%s,%s" .Values.worker.queues .Values.mcp.queue | quote }}
-              {{- else }}
-              value: {{ .Values.worker.queues | quote }}
+              {{- $queues := .Values.worker.queues }}
+              {{- /*
+                And the housekeeping queues, when nothing else takes them.
+                Switched off, they must not be stranded: no scheduling, no
+                alerts and no mail is a worse failure than a slow query,
+                because nothing reports it.
+              */}}
+              {{- if not .Values.periodicWorker.enabled }}
+              {{- $queues = printf "%s,%s" $queues .Values.periodicWorker.queues }}
               {{- end }}
+              {{- if and .Values.mcp.enabled .Values.mcp.queue (not .Values.mcp.worker.enabled) }}
+              {{- $queues = printf "%s,%s" $queues .Values.mcp.queue }}
+              {{- end }}
+              {{- if and .Values.streams.enabled (not .Values.streams.worker.enabled) }}
+              {{- $queues = printf "%s,streams" $queues }}
+              {{- end }}
+              value: {{ $queues | quote }}
             - name: WORKERS_COUNT
               value: {{ .Values.worker.workersCount | quote }}
           livenessProbe:
@@ -75,6 +90,68 @@ spec:
       {{- with .Values.tolerations }}
       tolerations: {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- if .Values.periodicWorker.enabled }}
+---
+# Scheduling, alerts, mail and the cleanups: everything that is not a query.
+#
+# The point is what it does *not* do: run queries. A query can hold a worker
+# for minutes, and with the housekeeping queues on the same worker, two slow
+# queries meant nothing was deciding what to refresh, nothing was evaluating
+# alerts and nothing was sending mail. The install went on answering every
+# probe while quietly stopping being an install.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sqldesk.fullname" . }}-periodic-worker
+  labels:
+    {{- include "sqldesk.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.periodicWorker.replicas }}
+  selector:
+    matchLabels:
+      {{- include "sqldesk.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: periodic-worker
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include "sqldesk.secretChecksum" . }}
+      labels:
+        {{- include "sqldesk.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: periodic-worker
+    spec:
+      {{- include "sqldesk.podSecurity" . | nindent 6 }}
+      containers:
+        - name: worker
+          image: {{ include "sqldesk.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "sqldesk.containerSecurity" . | nindent 10 }}
+          args: ["worker"]
+          env:
+            {{- include "sqldesk.env" . | nindent 12 }}
+            - name: QUEUES
+              value: {{ .Values.periodicWorker.queues | quote }}
+            - name: WORKERS_COUNT
+              value: {{ .Values.periodicWorker.workersCount | quote }}
+          livenessProbe:
+            exec:
+              command: ["/app/bin/docker-entrypoint", "workers_healthcheck"]
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          volumeMounts:
+            {{- include "sqldesk.uploadsMount" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.periodicWorker.resources | nindent 12 }}
+      volumes:
+        {{- include "sqldesk.uploadsVolume" . | nindent 8 }}
+      # None of this work is long: a job here is seconds, not minutes.
+      terminationGracePeriodSeconds: 60
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- include "sqldesk.uploadsAffinity" . | nindent 6 }}
+{{- end }}
 {{- if and .Values.mcp.enabled .Values.mcp.queue .Values.mcp.worker.enabled }}
 ---
 # A worker that takes only MCP's queue.
@@ -231,8 +308,9 @@ metadata:
   labels:
     {{- include "sqldesk.labels" . | nindent 4 }}
 spec:
-  # One. Two schedulers would put every due job on the queue twice.
-  replicas: 1
+  # Safe above one: rq-scheduler enqueues only while holding a Redis lock, so
+  # the others skip the pass. See the comment on `scheduler.replicas`.
+  replicas: {{ .Values.scheduler.replicas }}
   strategy:
     type: Recreate
   selector:

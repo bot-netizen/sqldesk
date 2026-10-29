@@ -4,6 +4,7 @@ from sqldesk.utils import deprecated
 
 @deprecated()
 class Url(BaseHTTPQueryRunner):
+    query_language = "read_only_api"
     requires_url = False
 
     def test_connection(self):

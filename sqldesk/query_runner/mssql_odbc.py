@@ -3,6 +3,7 @@ import logging
 from sqldesk.query_runner import (
     BaseSQLQueryRunner,
     JobTimeoutException,
+    has_odbc_driver,
     register,
 )
 from sqldesk.query_runner.mssql import types_map
@@ -68,7 +69,7 @@ class SQLServerODBC(BaseSQLQueryRunner):
 
     @classmethod
     def enabled(cls):
-        return enabled
+        return enabled and has_odbc_driver("ODBC Driver 18 for SQL Server")
 
     @classmethod
     def name(cls):

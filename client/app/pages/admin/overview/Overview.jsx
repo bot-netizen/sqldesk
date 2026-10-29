@@ -1,13 +1,15 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect } from "react";
 import PropTypes from "prop-types";
 import cx from "classnames";
 import Button from "antd/lib/button";
 import Tooltip from "@/components/Tooltip";
 
 import Layout from "@/components/admin/Layout";
+import StaleNotice from "@/components/admin/StaleNotice";
 import { axios } from "@/services/axios";
 import notification from "@/services/notification";
 import recordEvent from "@/services/recordEvent";
+import usePolledData from "@/lib/hooks/usePolledData";
 
 import { pressure, formatBytes, formatRatio, UNKNOWN } from "./pressure";
 
@@ -105,25 +107,22 @@ TopUsers.propTypes = {
 TopUsers.defaultProps = { rows: [], windowMinutes: 60 };
 
 export default function Overview({ onError }) {
-  const [overview, setOverview] = useState(null);
-  const onErrorRef = useRef(onError);
-  onErrorRef.current = onError;
-
-  const load = useCallback(
-    () =>
-      axios
-        .get("/api/admin/overview")
-        .then(setOverview)
-        .catch((error) => onErrorRef.current(error)),
-    []
-  );
+  const load = useCallback(() => axios.get("/api/admin/overview"), []);
+  // A 502 while a worker restarts is exactly what this page is open to watch;
+  // it keeps what it has rather than becoming an error page -- see usePolledData.
+  const {
+    data: overview,
+    loadedAt,
+    failedAt,
+    refresh,
+  } = usePolledData(load, {
+    intervalMs: REFRESH_MS,
+    onError,
+  });
 
   useEffect(() => {
     recordEvent("view", "page", "admin/overview");
-    load();
-    const timer = setInterval(load, REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [load]);
+  }, []);
 
   const cleanup = (what, label) =>
     axios
@@ -145,6 +144,7 @@ export default function Overview({ onError }) {
   return (
     <Layout activeTab="overview">
       <div className="admin-overview-page">
+        {failedAt && <StaleNotice loadedAt={loadedAt} onRetry={refresh} />}
         <div className="admin-overview-columns">
           <Panel title="Headroom">
             <Meter

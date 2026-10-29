@@ -5,11 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Data sources — SQLDesk docs</title>
 <meta name="description" content="Connecting a data source, what each one needs, and how permissions work.">
+<meta property="og:title" content="Data sources — SQLDesk docs">
+<meta property="og:description" content="Connecting a data source, what each one needs, and how permissions work.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://sqldesk.org/guide/connectors.html">
+<meta property="og:image" content="https://sqldesk.org/assets/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SQLDesk: one place for everything you do with data">
+<meta property="og:site_name" content="SQLDesk">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sqldesk.org/assets/social-card.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
+<script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
 
@@ -28,12 +40,22 @@
     </a>
     <nav>
       <a href="../index.html">Overview</a>
-      <a href="../why.html">Why SQLDesk</a>
-      <a href="../performance.html" class="hide-sm">Performance</a>
-      <a href="../roadmap.html">Roadmap</a>
-      <a href="../blog/index.html">Blog</a>
       <a href="../guide/overview.html" aria-current="page">Docs</a>
+      <a href="../blog/index.html">Blog</a>
+      <a href="../releases.html">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+      <button class="theme-toggle" type="button" data-theme-toggle
+              aria-label="Switch to dark mode" title="Switch to dark mode">
+        <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.7 5.7 0 1 0 7.1 7.1Z"/>
+        </svg>
+        <svg class="sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="3.1"/>
+          <path d="M8 1v1.6M8 13.4V15M15 8h-1.6M2.6 8H1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1M12.9 12.9l-1.1-1.1M4.2 4.2 3.1 3.1"/>
+        </svg>
+      </button>
     </nav>
   </div>
 </header>
@@ -57,7 +79,7 @@
       <a href="administration.html">Administration</a>
       <a href="deploying.html">Deploying</a>
       <h4>Reference</h4>
-      <a href="../roadmap.html">Releases &amp; roadmap</a>
+      <a href="../releases.html">Releases</a>
   </nav>
   <main class="doc-body">
 <h1>Data sources</h1>
@@ -86,8 +108,41 @@ able to write new queries against the source.</p>
   <tr><td>Snowflake, Databricks</td><td>Account or host, warehouse, database, and a user or token.</td></tr>
   <tr><td>MongoDB, Elasticsearch</td><td>A connection string. These are not SQL — queries are JSON, and SQL-shaped features do not apply to them.</td></tr>
   <tr><td>Google Sheets</td><td>A service account key, and the sheet shared with that account's address.</td></tr>
+  <tr><td>Prometheus, Mimir</td><td>The base URL. Mimir also wants the tenant (<code>X-Scope-OrgID</code>) and, behind Grafana Cloud or a gateway, the API prefix &mdash; see below.</td></tr>
   <tr><td>Query Results</td><td>Not external at all: query the results of other queries, in SQLite. Useful for joining across sources.</td></tr>
 </table>
+
+<h3 id="promql">Prometheus and Mimir: what you write is PromQL</h3>
+<p>These are not SQL sources. What you type in the editor is a PromQL expression, and SQLDesk says so
+rather than trying to parse it as SQL &mdash; the optimizer panel and the MCP tools that check SQL both
+ask the data source what language it speaks and stand aside.</p>
+<p>The query body is the expression, optionally followed by the API's own parameters:</p>
+<pre><code>sum(rate(http_requests_total[5m])) by (job)&amp;start=now-6h&amp;end=now&amp;step=60</code></pre>
+<ul>
+  <li><strong>Times</strong> take <code>now</code>, <code>now-1h</code> (s, m, h, d, w, y), a Unix
+    timestamp, or an RFC 3339 time. A time with no zone is read as UTC rather than as whatever the worker
+    happens to be set to.</li>
+  <li><strong>A range needs a step.</strong> <code>start</code> and <code>end</code> without one used to
+    run quietly as an instant query and return a single point; now it says so.</li>
+  <li><strong>Encode a space as <code>%20</code></strong>, not as <code>+</code>. A <code>+</code> is an
+    addition operator, and treating it as a space turned <code>a + b</code> into a parse error and
+    <code>web-[0-9]+</code> into a regex that silently matched nothing.</li>
+</ul>
+<p>Scalars, strings, matrices and native histograms all come back as rows; the columns are the union of
+the labels across every series, so a label only the second series carries is still a column, and
+<code>value</code> is a number rather than text.</p>
+<h4>Mimir</h4>
+<ul>
+  <li><strong>Tenant.</strong> The connection test asks for the tenant's metric names, so a tenant that is
+    empty or misspelled fails the test and says which it was. It used to run <code>1</code>, which Mimir
+    answers for any tenant string at all, so the test passed and every real query came back
+    &ldquo;query result is empty&rdquo;.</li>
+  <li><strong>API prefix.</strong> <code>/prometheus</code> by default. Grafana Cloud serves
+    <code>/api/prom</code>; a gateway that already strips the prefix wants it cleared.</li>
+  <li><strong>Timeout.</strong> 30 seconds by default, configurable. No request waits for ever.</li>
+  <li>When the server refuses a query, you get <em>its</em> message &mdash; "parse error at char 8" or
+    "no org id" &mdash; rather than "400 Client Error", which is the one part you already knew.</li>
+</ul>
 
 <h2 id="streams">Kafka: a stream is a window</h2>
 <p>A topic is a data source like any other, but what you query is not the topic &mdash; it is the window
@@ -165,11 +220,12 @@ in autocomplete usually means the cache is older than the table.</p>
 <footer>
   <div class="wrap">
     <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
-       <a href="../roadmap.html">Releases</a> &nbsp;&middot;&nbsp;
+       <a href="../releases.html">Releases</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
        <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
   </div>
 </footer>
 
+<script src="../assets/theme.js" defer></script>
 </body>
 </html>

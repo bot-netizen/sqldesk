@@ -91,7 +91,7 @@ function Budgets({ stream, onSaved }) {
   const save = useCallback(() => {
     setSaving(true);
     axios
-      .post(`api/data_sources/${stream.data_source_id}/stream`, {
+      .post(`api/data_sources/${stream.data_source_id}/stream/${stream.id}`, {
         row_budget: Number(budget) || 0,
         events_per_second: Number(ceiling) || 0,
       })
@@ -101,7 +101,7 @@ function Budgets({ stream, onSaved }) {
       })
       .catch(() => notification.error("Could not save that."))
       .finally(() => setSaving(false));
-  }, [budget, ceiling, stream.data_source_id, stream.topic, onSaved]);
+  }, [budget, ceiling, stream.data_source_id, stream.id, stream.topic, onSaved]);
 
   const budgetId = `stream-${stream.id}-budget`;
   const ceilingId = `stream-${stream.id}-ceiling`;
@@ -219,7 +219,7 @@ export default function Streams() {
   const pin = useCallback(
     (stream, pinned) => {
       axios
-        .post(`api/data_sources/${stream.data_source_id}/stream`, { pinned })
+        .post(`api/data_sources/${stream.data_source_id}/stream/${stream.id}`, { pinned })
         .then(() => {
           notification.success(
             pinned

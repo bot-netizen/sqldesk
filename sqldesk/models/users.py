@@ -8,6 +8,7 @@ from operator import or_
 from flask import current_app, request_started, url_for
 from flask_login import AnonymousUserMixin, UserMixin, current_user
 from passlib.apps import custom_app_context as pwd_context
+from redis.exceptions import RedisError
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy_utils import EmailType
 from sqlalchemy_utils.models import generic_repr
@@ -46,10 +47,19 @@ def sync_last_active_at():
 def update_user_active_at(sender, *args, **kwargs):
     """
     Used as a Flask request_started signal callback that adds
-    the current user's details to Redis
+    the current user's details to Redis.
+
+    Best effort, because it runs on *every* request from a signed-in person
+    and nothing depends on the answer: "last seen" being a few minutes stale
+    is not worth a 500. A Redis that is restarting, full, or read-only used
+    to fail the request before the handler ran -- so a cache the product
+    treats as optional took the whole application down with it.
     """
     if current_user.is_authenticated and not current_user.is_api_user():
-        redis_connection.hset(LAST_ACTIVE_KEY, current_user.id, int(time.time()))
+        try:
+            redis_connection.hset(LAST_ACTIVE_KEY, current_user.id, int(time.time()))
+        except RedisError:
+            logger.warning("Could not record that %s is active.", current_user.id, exc_info=True)
 
 
 def init_app(app):
@@ -163,11 +173,25 @@ class User(TimestampMixin, db.Model, BelongsToOrgMixin, UserMixin, PermissionsCh
 
     @property
     def profile_image_url(self):
-        if self._profile_image_url:
-            return self._profile_image_url
+        """
+        A picture, or None for the browser to draw initials instead.
 
-        email_md5 = hashlib.md5(self.email.lower().encode(), usedforsecurity=False).hexdigest()
-        return "https://www.gravatar.com/avatar/{}?s=40&d=identicon".format(email_md5)
+        This used to return a gravatar URL built from an MD5 of the email
+        address. Three things wrong with that, in increasing order:
+
+        * It does not work offline. An air-gapped install drew a broken image
+          beside every query and logged a failed request for each one.
+        * It told gravatar.com the MD5 of every email address here, on every
+          page load, which is a disclosure nobody asked for from a tool whose
+          whole point is running on your own machines.
+        * Almost nobody has a gravatar, so what usually came back was the
+          identicon -- an abstract pattern no more recognisable than initials
+          and a round trip more expensive.
+
+        None rather than a placeholder URL, because the one thing the server
+        should not do is invent an address for a picture that is not there.
+        """
+        return self._profile_image_url or None
 
     @property
     def permissions(self):

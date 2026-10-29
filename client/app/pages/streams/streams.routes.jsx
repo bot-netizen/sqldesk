@@ -1,4 +1,5 @@
 import React from "react";
+import lazyPage from "@/lib/lazyPage";
 
 import routeWithUserSession from "@/components/ApplicationArea/routeWithUserSession";
 import navigateTo from "@/components/ApplicationArea/navigateTo";
@@ -15,8 +16,8 @@ import { currentUser } from "@/services/auth";
   the editor itself and the redirects for the URLs people have already sent
   each other.
 */
-const QuerySourcePage = React.lazy(() => import(/* webpackChunkName: "query-editor" */ "../queries/QuerySource"));
-const ManageTopics = React.lazy(() => import(/* webpackChunkName: "streams" */ "./ManageTopics"));
+const QuerySourcePage = lazyPage(() => import(/* webpackChunkName: "query-editor" */ "../queries/QuerySource"));
+const ManageTopics = lazyPage(() => import(/* webpackChunkName: "streams" */ "./ManageTopics"));
 
 /*
   The stream editor *is* the query editor.

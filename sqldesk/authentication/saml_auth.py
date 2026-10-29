@@ -150,9 +150,9 @@ def idp_initiated(org_slug=None):
 # this project was called when they were configured, and changing that is a
 # change to every customer's IdP configuration, not ours. Reading only the
 # current name would not fail loudly: users would still log in, but land in the
-# default group only and silently lose access to their data sources. All three
-# names are accepted, most recent first.
-SAML_GROUP_ATTRIBUTES = ("SQLDeskGroups", "TealdashGroups", "RedashGroups")
+# default group only and silently lose access to their data sources. Both
+# names are accepted, the current one first.
+SAML_GROUP_ATTRIBUTES = ("SQLDeskGroups", "TealdashGroups")
 
 
 def get_group_names(ava):

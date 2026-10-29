@@ -33,7 +33,39 @@ SQLALCHEMY_DATABASE_URI = os.environ.get(
 SQLALCHEMY_MAX_OVERFLOW = int_or_none(os.environ.get("SQLALCHEMY_MAX_OVERFLOW"))
 SQLALCHEMY_POOL_SIZE = int_or_none(os.environ.get("SQLALCHEMY_POOL_SIZE"))
 SQLALCHEMY_DISABLE_POOL = parse_boolean(os.environ.get("SQLALCHEMY_DISABLE_POOL", "false"))
-SQLALCHEMY_ENABLE_POOL_PRE_PING = parse_boolean(os.environ.get("SQLALCHEMY_ENABLE_POOL_PRE_PING", "false"))
+
+# Check a pooled connection is alive before handing it out.
+#
+# On by default. A connection pooled across a Postgres restart, a failover or
+# an idle-connection timeout on a proxy is dead in a way nothing notices until
+# a request uses it, and then that request is a 500 for no reason anybody can
+# see. The check is one round trip on a connection that has been sitting idle,
+# which is cheaper than the first thing any handler does with it.
+SQLALCHEMY_ENABLE_POOL_PRE_PING = parse_boolean(os.environ.get("SQLALCHEMY_ENABLE_POOL_PRE_PING", "true"))
+
+# Which process this is: "server", "worker", "scheduler", or empty for a
+# manage command or a test. Set by bin/docker-entrypoint, and read only to
+# decide the statement timeout below -- the web tier can afford a short one
+# and a worker cannot.
+PROCESS_ROLE = os.environ.get("SQLDESK_PROCESS_ROLE", "")
+
+# How long a statement from the *web* tier may run, in milliseconds.
+#
+# Nothing a request does should take thirty seconds: a query against a data
+# source runs on a worker, not here. Without this, one lock or one bad plan
+# holds a gunicorn worker until gunicorn's own timeout kills the worker
+# outright -- taking the other requests it was serving with it. Postgres
+# cancelling one statement costs one request.
+#
+# Deliberately not applied to workers: storing a very large result is a single
+# long INSERT, and killing it would fail a query that had already run.
+SQLALCHEMY_STATEMENT_TIMEOUT_MS = int(os.environ.get("SQLALCHEMY_STATEMENT_TIMEOUT_MS", "30000"))
+
+# And how long a transaction may sit open having done nothing, in
+# milliseconds. A handler that opens a transaction and then waits on something
+# slow -- a data source's test connection, an HTTP call -- holds its row locks
+# the whole time, and a VACUUM cannot clean up behind it.
+SQLALCHEMY_IDLE_IN_TRANSACTION_TIMEOUT_MS = int(os.environ.get("SQLALCHEMY_IDLE_IN_TRANSACTION_TIMEOUT_MS", "60000"))
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 SQLALCHEMY_ECHO = False
 
@@ -62,7 +94,27 @@ QUERY_RESULTS_EXPIRED_TTL_ENABLED = parse_boolean(os.environ.get("SQLDESK_QUERY_
 # default set query results expired ttl 86400 seconds
 QUERY_RESULTS_EXPIRED_TTL = int(os.environ.get("SQLDESK_QUERY_RESULTS_EXPIRED_TTL", "86400"))
 
-SCHEMAS_REFRESH_SCHEDULE = int(os.environ.get("SQLDESK_SCHEMAS_REFRESH_SCHEDULE", 30))
+# Minutes between background schema refreshes. Every data source is read on
+# every pass, and on a warehouse with thousands of tables one pass is minutes
+# of work -- so at the old default of 30 an install with a few large sources
+# spent much of its time rebuilding schemas nobody had asked about.
+#
+# Three hours instead. What that costs is bounded and recoverable rather than
+# nothing at all, so it is worth being plain about:
+#
+# * Autocomplete and the schema browser can be up to three hours behind. The
+#   browser's refresh button forces a live read of the one source in front of
+#   you, which is the cure for the case anybody actually notices.
+# * The catalog MCP answers from is harvested off this same cached copy (see
+#   tasks/catalog.py), so a table added since the last pass is invisible to an
+#   agent too, for up to this interval plus CATALOG_HARVEST_SCHEDULE.
+# * Running a query is unaffected. The cache is only ever a cache -- a miss
+#   reads the warehouse -- so nothing here decides whether SQL succeeds.
+#
+# Lower it where people add tables all day. Leaving one heavy source out
+# entirely is cheaper than shortening the interval for everything: see
+# `data_sources:schema:blacklist` in tasks/queries/maintenance.py.
+SCHEMAS_REFRESH_SCHEDULE = int(os.environ.get("SQLDESK_SCHEMAS_REFRESH_SCHEDULE", 180))
 SCHEMAS_REFRESH_TIMEOUT = int(os.environ.get("SQLDESK_SCHEMAS_REFRESH_TIMEOUT", 300))
 
 AUTH_TYPE = os.environ.get("SQLDESK_AUTH_TYPE", "api_key")
@@ -73,7 +125,7 @@ SECRET_KEY = os.environ.get("SQLDESK_COOKIE_SECRET")
 
 if SECRET_KEY is None:
     raise Exception(
-        "You must set the SQLDESK_COOKIE_SECRET environment variable. See https://bot-netizen.github.io/sqldesk/guide/deploying.html#settings for more information."
+        "You must set the SQLDESK_COOKIE_SECRET environment variable. See https://sqldesk.org/guide/deploying.html#settings for more information."
     )
 
 # The secret key to use when encrypting data source options
@@ -259,12 +311,36 @@ UPLOAD_UNLOAD_AFTER_DAYS = int(os.environ.get("SQLDESK_UPLOAD_UNLOAD_AFTER_DAYS"
 #: no figures is a message nobody can act on.
 UPLOAD_QUOTA_MB = int(os.environ.get("SQLDESK_UPLOAD_QUOTA_MB", "5120"))
 # Time limit (in seconds) for scheduled queries. Set this to -1 to execute without a time limit.
-SCHEDULED_QUERY_TIME_LIMIT = int(os.environ.get("SQLDESK_SCHEDULED_QUERY_TIME_LIMIT", -1))
+# Time limit (in seconds) for adhoc queries. Set this to -1 to execute without
+# a time limit.
+#
+# Fifteen minutes rather than no limit at all. A query with no limit holds a
+# worker for as long as the warehouse will keep the connection open -- hours,
+# in the cases that matter -- while passing every health probe, so an install
+# loses its capacity to something nobody is waiting for any more.
+#
+# Fifteen rather than five because a real warehouse has real slow queries: an
+# unindexed join over a year of events, a first run against cold storage. The
+# number is high enough that an honest query finishes and low enough that a
+# runaway one is not still holding a worker after lunch. Raise it per install
+# with SQLDESK_ADHOC_QUERY_TIME_LIMIT, or set -1 for no limit at all.
+ADHOC_QUERY_TIME_LIMIT = int(os.environ.get("SQLDESK_ADHOC_QUERY_TIME_LIMIT", 900))
 
-# Time limit (in seconds) for adhoc queries. Set this to -1 to execute without a time limit.
-ADHOC_QUERY_TIME_LIMIT = int(os.environ.get("SQLDESK_ADHOC_QUERY_TIME_LIMIT", -1))
+#: And for a scheduled one, which nobody is sitting in front of: half an hour.
+#: Same reasoning, longer rope -- an overnight roll-up is allowed to be slow,
+#: but not allowed to hold a worker until somebody notices next week.
+SCHEDULED_QUERY_TIME_LIMIT = int(os.environ.get("SQLDESK_SCHEDULED_QUERY_TIME_LIMIT", 1800))
 
 JOB_EXPIRY_TIME = int(os.environ.get("SQLDESK_JOB_EXPIRY_TIME", 3600 * 12))
+
+#: How long a finished job's record stays in Redis.
+#:
+#: Ten minutes, not the twelve hours the lock uses. The record exists so the
+#: browser that asked can be told the query is done; it then reads the result
+#: from Postgres and never asks again. Twelve hours of them is a Redis full of
+#: answers to questions nobody is going to ask -- and on an install that runs
+#: a few thousand queries a day, most of what is in there.
+JOB_RESULT_TTL = int(os.environ.get("SQLDESK_JOB_RESULT_TTL", 600))
 JOB_DEFAULT_FAILURE_TTL = int(os.environ.get("SQLDESK_JOB_DEFAULT_FAILURE_TTL", 7 * 24 * 60 * 60))
 
 LOG_LEVEL = os.environ.get("SQLDESK_LOG_LEVEL", "INFO")
@@ -622,6 +698,19 @@ STREAM_MAX_PER_USER = int(os.environ.get("SQLDESK_STREAM_MAX_PER_USER", "2"))
 #: How long one stream may run before somebody has to say they still want it.
 #: A forgotten tab would otherwise hold a slot all day.
 STREAM_MAX_MINUTES = int(os.environ.get("SQLDESK_STREAM_MAX_MINUTES", "30"))
+
+# How long a running job is given to finish when its worker is told to stop --
+# a deploy, a scale-down, a node drain. Under the pod's 300 s grace period and
+# supervisord's 290 s, so the job finishes or fails on its own terms before
+# anything is killed.
+WORKER_SHUTDOWN_SECONDS = int(os.environ.get("SQLDESK_WORKER_SHUTDOWN_SECONDS", "280"))
+
+# A stream query runs in the web process, so it is held to a fraction of
+# gunicorn's 60-second timeout and of the pod's memory: past these it is
+# stopped with a sentence rather than taking a web worker down with it.
+STREAM_QUERY_SECONDS = float(os.environ.get("SQLDESK_STREAM_QUERY_SECONDS", "20"))
+STREAM_QUERY_THREADS = int(os.environ.get("SQLDESK_STREAM_QUERY_THREADS", "2"))
+STREAM_QUERY_MEMORY_MB = int(os.environ.get("SQLDESK_STREAM_QUERY_MEMORY_MB", "512"))
 # Which queue an MCP-issued query goes on. Empty means the data source's own,
 # which is also where dashboards go -- so a model exploring competes with the
 # people waiting for a dashboard to load. Name a queue here and give it
@@ -639,6 +728,14 @@ MCP_AUDIT_RETENTION_DAYS = int(os.environ.get("SQLDESK_MCP_AUDIT_RETENTION_DAYS"
 # Refused MCP calls recorded per address per minute. Past it they are still
 # refused, just not each written down.
 MCP_AUDIT_REFUSALS_PER_MINUTE = int(os.environ.get("SQLDESK_MCP_AUDIT_REFUSALS_PER_MINUTE", "60"))
+
+# How many things one person's key may write through MCP in a day.
+#
+# An agent told to describe a warehouse will describe the whole warehouse, and
+# a loop that is getting it wrong will do it just as fast. Fifty is enough for
+# somebody working through their catalog with help, and small enough that a
+# mistake is a morning's review rather than a restore. 0 means no limit.
+MCP_WRITES_PER_DAY = int(os.environ.get("SQLDESK_MCP_WRITES_PER_DAY", "50"))
 
 FEATURE_DISABLE_REFRESH_QUERIES = parse_boolean(os.environ.get("SQLDESK_FEATURE_DISABLE_REFRESH_QUERIES", "false"))
 FEATURE_SHOW_QUERY_RESULTS_COUNT = parse_boolean(os.environ.get("SQLDESK_FEATURE_SHOW_QUERY_RESULTS_COUNT", "true"))

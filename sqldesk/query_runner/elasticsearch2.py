@@ -35,6 +35,7 @@ TYPES_MAP = {
 
 
 class ElasticSearch2(BaseHTTPQueryRunner):
+    query_language = "elasticsearch"
     should_annotate_query = False
 
     @classmethod

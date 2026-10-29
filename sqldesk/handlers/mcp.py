@@ -33,6 +33,7 @@ from sqldesk.mcp import (
     PARSE_ERROR,
     McpError,
     handle,
+    take_write_note,
     time_budget,
 )
 from sqldesk.permissions import require_super_admin
@@ -163,7 +164,14 @@ def _summary(message):
     """
     A line worth keeping. The question asked, or the tool called -- never the
     whole argument object, which is a caller's to fill however they like.
+
+    A write says what it changed, before and after: "update_table ok" did not
+    answer the one question anybody brings to an audit of an agent's writes,
+    which is what that table used to say.
     """
+    written = take_write_note()
+    if written:
+        return written[:DETAIL_LIMIT]
     params = (message.get("params") or {}) if isinstance(message, dict) else {}
     arguments = (params.get("arguments") or {}) if isinstance(params, dict) else {}
     if not isinstance(arguments, dict):

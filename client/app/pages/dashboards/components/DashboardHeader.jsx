@@ -7,6 +7,7 @@ import Checkbox from "antd/lib/checkbox";
 import Dropdown from "antd/lib/dropdown";
 import Menu from "antd/lib/menu";
 import { axios } from "@/services/axios";
+import UserAvatar from "@/components/UserAvatar";
 import EllipsisOutlinedIcon from "@ant-design/icons/EllipsisOutlined";
 import PauseCircleOutlinedIcon from "@ant-design/icons/PauseCircleOutlined";
 import PlayCircleOutlinedIcon from "@ant-design/icons/PlayCircleOutlined";
@@ -126,7 +127,7 @@ export function DashboardPageTitle({ dashboardConfiguration }) {
         )}
         <VerifiedBadge verification={dashboard.verification} />
         <Tooltip title={dashboard.user.name} placement="bottom">
-          <img src={dashboard.user.profile_image_url} className="profile-image" alt={dashboard.user.name} />
+          <UserAvatar user={dashboard.user} size={24} className="profile-image" />
         </Tooltip>
       </div>
       <DashboardTagsControl
