@@ -12,6 +12,7 @@ import { applyWindow, addReferences, zoomComponents } from "./references";
 import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
 import { dashPattern } from "../lineDash";
 import { measureAxisIndex, panelBoxes, panelCount, seriesPanel } from "../panels";
+import { Rollup, addToRollup, finishRollup, rollupMode, startRollup } from "../rollup";
 
 /** What ECharts asks for on a value axis when nobody tells it otherwise. */
 const ECHARTS_SPLIT_NUMBER = 5;
@@ -124,8 +125,16 @@ function thresholdColorer(options: any, seriesColour: string) {
   };
 }
 
-/** Collapse repeated x values, matching the aggregation the old renderer did. */
-function aggregate(points: any[], xAxisType: string, seriesType: string, missingValuesAsZero: boolean) {
+/**
+ * Collapse repeated x values.
+ *
+ * A query keyed on more columns than the chart plots returns several rows per
+ * x -- region, channel and product keyed, region alone on the axis -- and
+ * this is the roll-up that turns them into one point. It has always added
+ * them up; `rollup` is what lets a chart say otherwise, and `sum` remains the
+ * default so no saved chart changes the numbers it draws.
+ */
+function aggregate(points: any[], xAxisType: string, seriesType: string, missingValuesAsZero: boolean, rollup: Rollup) {
   const byX = new Map<any, any>();
   each(points, (point) => {
     const x = normalizeX(point.x, xAxisType);
@@ -137,8 +146,10 @@ function aggregate(points: any[], xAxisType: string, seriesType: string, missing
     const yError = cleanNumber(point.yError);
     const existing = aggregatable ? byX.get(x) : undefined;
     if (existing) {
-      existing.y = isNil(existing.y) ? y : (existing.y || 0) + (y || 0);
-      // Errors add with the values they belong to, as they did before.
+      addToRollup(existing.rollup, y);
+      // Errors add with the values they belong to, as they did before. An
+      // error bar describes a total, and the total is what is drawn whatever
+      // the rollup -- so this stays a sum even when the measure is not.
       if (!isNil(yError)) {
         existing.yError = isNil(existing.yError) ? yError : existing.yError + yError;
       }
@@ -148,6 +159,7 @@ function aggregate(points: any[], xAxisType: string, seriesType: string, missing
       x,
       y,
       yError,
+      rollup: addToRollup(startRollup(), y),
       // Carried through for bubble sizing and heatmap values; dropping them
       // here is why those two could not be built from this shape before.
       size: cleanNumber(point.size),
@@ -155,7 +167,10 @@ function aggregate(points: any[], xAxisType: string, seriesType: string, missing
       row: point.$raw,
     });
   });
-  return Array.from(byX.values());
+  return map(Array.from(byX.values()), (point) => ({
+    ...point,
+    y: finishRollup(point.rollup, rollup),
+  }));
 }
 
 /** Percent stacking: ECharts has no normalized mode, so the maths happens here. */
@@ -264,7 +279,7 @@ function buildCartesianSeries(
   const prepared = map(chartData, (series) => {
     const overrides = extend({ type: options.globalSeriesType, yAxis: 0 }, options.seriesOptions[series.name]);
     const points = sortPoints(
-      aggregate(series.data, xAxisType, overrides.type, options.missingValuesAsZero),
+      aggregate(series.data, xAxisType, overrides.type, options.missingValuesAsZero, rollupMode(options)),
       xAxisType,
       options
     );

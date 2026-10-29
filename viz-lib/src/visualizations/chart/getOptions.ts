@@ -44,6 +44,11 @@ const DEFAULT_OPTIONS = {
   window: { mode: "all", points: 50, minutes: 60 },
   zoom: "none",
 
+  // 0.7.10: what happens when several rows share an x -- a query keyed on
+  // more columns than the chart plots. It has always been a sum; now it can
+  // say so, and say otherwise. `sum` keeps every saved chart's numbers.
+  rollup: "sum",
+
   // 0.7.10: stacked panels sharing one x axis, one cursor and one legend.
   // One panel is the chart that has always been drawn, so every saved chart
   // keeps its layout. Which panel a series is in lives in seriesOptions.
