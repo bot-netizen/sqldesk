@@ -3218,15 +3218,43 @@ class AlertSubscription(TimestampMixin, db.Model):
         return AlertSubscription.query.join(User).filter(AlertSubscription.alert_id == alert_id)
 
     def notify(self, alert, query, user, new_state, app, host, metadata):
+        """
+        Send this subscription's notification.
+
+        A subscription with no destination used to mean "email me": an email
+        destination was invented on the spot, pointed at the subscriber's own
+        address. Removed on 2026-10-29 -- "remove the default email .. add if
+        user want to add".
+
+        The reason is that it was never chosen. Subscribing meant being
+        emailed whether or not anybody wanted mail, on an install that may
+        have no mail server configured at all, and the only way to stop it was
+        to stop being subscribed. Email is still a destination like any other;
+        it is now one somebody picks.
+
+        `SQLDESK_ALERT_EMAIL_FALLBACK` restores the old behaviour for an
+        install that was relying on it. Off by default, because a default
+        nobody chose is what this is removing -- but it exists, because an
+        alert quietly ceasing to notify on upgrade is a bad way to find out.
+        """
         if self.destination:
             return self.destination.notify(alert, query, user, new_state, app, host, metadata)
-        else:
-            # User email subscription, so create an email destination object
-            config = {"addresses": self.user.email}
-            schema = get_configuration_schema_for_destination_type("email")
-            options = ConfigurationContainer(config, schema)
-            destination = get_destination("email", options)
-            return destination.notify(alert, query, user, new_state, app, host, metadata, options)
+
+        if not settings.ALERT_EMAIL_FALLBACK:
+            logger.info(
+                "alert %s has a subscription for %s with no destination; nothing was sent. "
+                "Add a destination to the alert, or set SQLDESK_ALERT_EMAIL_FALLBACK=true "
+                "to keep emailing subscribers as before.",
+                alert.id,
+                self.user_id,
+            )
+            return None
+
+        config = {"addresses": self.user.email}
+        schema = get_configuration_schema_for_destination_type("email")
+        options = ConfigurationContainer(config, schema)
+        destination = get_destination("email", options)
+        return destination.notify(alert, query, user, new_state, app, host, metadata, options)
 
 
 @generic_repr("id", "trigger", "user_id", "org_id")

@@ -700,6 +700,19 @@ STREAM_MAX_PER_USER = int(os.environ.get("SQLDESK_STREAM_MAX_PER_USER", "2"))
 STREAM_MAX_MINUTES = int(os.environ.get("SQLDESK_STREAM_MAX_MINUTES", "30"))
 
 
+#: Whether a subscription with no destination emails the subscriber.
+#:
+#: It used to, unconditionally: subscribing to an alert meant being emailed
+#: whether or not anybody asked for mail, on an install that may have no mail
+#: server at all. Removed on 2026-10-29 -- email is a destination somebody
+#: picks, like every other.
+#:
+#: Off by default, because a default nobody chose is the thing being removed.
+#: Set it for an install that was relying on the old behaviour and has not yet
+#: given its alerts destinations.
+ALERT_EMAIL_FALLBACK = parse_boolean(os.environ.get("SQLDESK_ALERT_EMAIL_FALLBACK", "false"))
+
+
 #: Query pools: how much work a resource may be given at once, whatever the
 #: workers are doing. Written as `name=slots`, comma separated:
 #:

@@ -28,6 +28,16 @@ def notify_subscriptions(alert, new_state, metadata):
         logger.exception("Could not draw the attachments for alert %s; sending without them.", alert.id)
         metadata["screenshots"] = []
 
+    # How often this has gone off lately, carried the same way the pictures
+    # are. Four fires and four recoveries in an afternoon is a different
+    # problem from one fire that stayed, and a single message cannot tell them
+    # apart -- the count is what makes flapping visible at the moment somebody
+    # is reading about it. Never worth losing a notification over.
+    try:
+        metadata["fires_24h"] = models.Alert.fire_counts([alert.id]).get(alert.id, 0)
+    except Exception:
+        logger.exception("Could not count recent fires for alert %s; sending without the count.", alert.id)
+
     for subscription in alert.subscriptions:
         try:
             subscription.notify(alert, alert.query_rel, subscription.user, new_state, current_app, host, metadata)
