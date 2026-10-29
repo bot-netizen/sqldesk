@@ -1982,6 +1982,145 @@ class Visualization(TimestampMixin, BelongsToOrgMixin, db.Model):
         }
 
 
+class Notebook(TimestampMixin, BelongsToOrgMixin, db.Model):
+    """
+    A chain of cells, where everything else here ends in one SELECT.
+
+    The work a notebook is for is the work a saved query cannot hold: pull
+    this, join it to that, reshape it, look. People do that in Jupyter today
+    and the warehouse never hears about it, so the lineage, the permissions
+    and the scheduling all stop at the edge of somebody's laptop.
+
+    A draft until somebody publishes it, the same promise queries and
+    dashboards make, and for the same reason: what you are still building is
+    not in anybody else's list.
+    """
+
+    id = primary_key("Notebook")
+    org_id = Column(key_type("Organization"), db.ForeignKey("organizations.id"))
+    org = db.relationship(Organization, backref="notebooks")
+    name = Column(db.String(255))
+    description = Column(db.String(4096), nullable=True)
+    user_id = Column(key_type("User"), db.ForeignKey("users.id"))
+    user = db.relationship(User, foreign_keys=[user_id])
+    is_archived = Column(db.Boolean, default=False, index=True)
+    is_draft = Column(db.Boolean, default=True, index=True)
+    options = Column(MutableDict.as_mutable(JSONB), default={})
+    cells = db.relationship(
+        "NotebookCell",
+        cascade="all, delete-orphan",
+        order_by="NotebookCell.position",
+        back_populates="notebook",
+    )
+
+    __tablename__ = "notebooks"
+
+    def __str__(self):
+        return "%s %s" % (self.id, self.name)
+
+    @property
+    def store_name(self):
+        """
+        The per-notebook handoff store.
+
+        A file rather than a table: a cell hands the next one arbitrarily many
+        rows, and `query_results.data` is JSON in one Postgres column. The
+        displayed slice goes there; this is where the real thing lives, and it
+        is disposable -- re-running re-materializes it.
+        """
+        return "notebook-{}".format(self.id)
+
+
+class NotebookCell(TimestampMixin, db.Model):
+    """
+    One step, named rather than numbered.
+
+    Numbering breaks the instant somebody inserts a cell above, and it is the
+    single most common complaint about every notebook tool that does it. A
+    later cell refers to this one by name -- as a relation in SQL, as a
+    dataframe in Python -- so inserting, deleting and reordering leave every
+    reference still pointing at what it meant.
+    """
+
+    SQL = "sql"
+    PYTHON = "python"
+
+    id = primary_key("NotebookCell")
+    notebook_id = Column(key_type("Notebook"), db.ForeignKey("notebooks.id"), index=True)
+    notebook = db.relationship(Notebook, back_populates="cells")
+    #: Unique within its notebook, and how every other cell refers to it.
+    name = Column(db.String(255))
+    kind = Column(db.String(32), default=SQL)
+    source = Column(db.Text, default="")
+    #: Where it sits on the page. Order, not identity -- see the class note.
+    position = Column(db.Integer, default=0)
+    #: SQL cells only. A code cell reaches no data source: data arrives from
+    #: an earlier cell or not at all.
+    data_source_id = Column(key_type("DataSource"), db.ForeignKey("data_sources.id"), nullable=True)
+    data_source = db.relationship(DataSource)
+    #: The truncated slice shown on the page. The full handoff is in the
+    #: notebook's own store, which Postgres is the wrong shape for.
+    latest_result_id = Column(key_type("QueryResult"), db.ForeignKey("query_results.id"), nullable=True)
+    latest_result = db.relationship(QueryResult)
+    #: When this cell last produced what is on the page. Compared against the
+    #: cells it read, to decide whether what you are looking at is stale.
+    last_run_at = Column(db.DateTime(True), nullable=True)
+    options = Column(MutableDict.as_mutable(JSONB), default={})
+
+    __tablename__ = "notebook_cells"
+    __table_args__ = (db.UniqueConstraint("notebook_id", "name", name="unique_cell_name_in_notebook"),)
+
+    def __str__(self):
+        return "%s %s" % (self.id, self.name)
+
+    @property
+    def reaches_a_data_source(self):
+        """Only a SQL cell does. Decided 2026-10-04 and enforced, not assumed."""
+        return self.kind == self.SQL
+
+
+class NotebookRun(TimestampMixin, db.Model):
+    """
+    What happened when a cell ran: the provenance half of the split store.
+
+    Tiny, and kept for ever, where the handoff is arbitrary and disposable.
+    This is what makes staleness answerable -- it records which cells this one
+    read, so a cell whose inputs have re-run since can say so before anybody
+    trusts its number.
+
+    Zeppelin has the session and no staleness tracking, which is why Zeppelin
+    notebooks rot. That one addition is the difference between a notebook you
+    can believe and a notebook you have to re-run to believe.
+    """
+
+    OK = "ok"
+    FAILED = "failed"
+    RUNNING = "running"
+
+    id = primary_key("NotebookRun")
+    notebook_id = Column(key_type("Notebook"), db.ForeignKey("notebooks.id"), index=True)
+    notebook = db.relationship(Notebook)
+    cell_id = Column(key_type("NotebookCell"), db.ForeignKey("notebook_cells.id"), index=True)
+    cell = db.relationship(NotebookCell)
+    user_id = Column(key_type("User"), db.ForeignKey("users.id"), nullable=True)
+    user = db.relationship(User)
+    state = Column(db.String(32), default=RUNNING)
+    #: The names of the cells this run read, as they were at the time. Names
+    #: rather than ids so the record still reads to a person after a cell is
+    #: deleted.
+    inputs = Column(MutableList.as_mutable(JSONB), default=[])
+    started_at = Column(db.DateTime(True), nullable=True)
+    finished_at = Column(db.DateTime(True), nullable=True)
+    runtime = Column(db.Float, nullable=True)
+    rows = Column(db.Integer, nullable=True)
+    error = Column(db.Text, nullable=True)
+
+    __tablename__ = "notebook_runs"
+
+    def __str__(self):
+        return "%s cell=%s %s" % (self.id, self.cell_id, self.state)
+
+
 #: What an MCP client is allowed to ask for. One scope, because the tools are
 #: read-only and a scope a person cannot reason about is a consent screen
 #: nobody reads. If a writing tool is ever added it gets its own scope and
