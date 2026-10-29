@@ -1925,6 +1925,13 @@ PROPOSE_MEASURE = {
     "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True},
 }
 
+#: The chart types this tool can create, which is what the editor's own type
+#: list offers minus the twenty-odd registered visualizations that are not
+#: charts at all. Each of these nine is a column mapping and nothing else;
+#: anything needing options of its own is left to the browser, because the
+#: schema here is already the heaviest of the tools.
+CHART_TYPES = ("column", "bar", "line", "area", "pie", "scatter", "bubble", "heatmap", "box")
+
 SAVE_VISUALIZATION = {
     "name": "save_visualization",
     "title": "Add a chart to a draft query",
@@ -1945,16 +1952,21 @@ SAVE_VISUALIZATION = {
             "name": {"type": "string", "description": "What it is called on the query page."},
             "chart_type": {
                 "type": "string",
-                "enum": ["column", "bar", "line", "area", "pie", "scatter"],
-                "description": "For a chart. `bar` is a column chart on its side. Default column.",
+                "enum": CHART_TYPES,
+                "description": (
+                    "For a chart. `bar` is a column chart on its side. `bubble` also needs `size`; "
+                    "`heatmap` takes one `y` as the row label and needs `value`. Default column."
+                ),
             },
             "x": {"type": "string", "description": "For a chart: the column along the bottom."},
             "y": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "For a chart: the column or columns measured.",
+                "description": "For a chart: the column or columns measured. A heatmap takes one, its row label.",
             },
             "series": {"type": "string", "description": "For a chart: a column to split the series by."},
+            "size": {"type": "string", "description": "For a bubble chart: the column the bubble area comes from."},
+            "value": {"type": "string", "description": "For a heatmap: the column the colour comes from."},
             "column": {"type": "string", "description": "For a counter: the column to show."},
             "description": {"type": "string", "description": "What it shows, if the name does not say it."},
         },
@@ -2216,6 +2228,49 @@ def _drawable_query(user, org, query_id):
     return _editable_query(user, org, query_id)
 
 
+def _chart_columns(chart_type, x, ys, series, arguments):
+    """
+    Which query column plays which part in the chart.
+
+    `columnMapping` is what getChartData reads; a column named here that the
+    result does not have simply does not appear, so the refusals below are
+    about the parts that would otherwise produce a chart that looks like it
+    worked -- a heatmap with no colour, a bubble chart with no sizes.
+    """
+    mapping = {x: "x"}
+
+    if chart_type == "heatmap":
+        # A heatmap's y is the row label, not a measure: the grid is x by y
+        # and the number is the colour. Several y columns would be asking for
+        # several grids in one, and with no `value` every cell is drawn at the
+        # bottom of the ramp -- a full grid that says nothing.
+        if len(ys) != 1:
+            raise McpError(INVALID_PARAMS, "A heatmap takes one `y`: the row label. The number goes in `value`.")
+        value = (arguments.get("value") or "").strip()
+        if not value:
+            raise McpError(INVALID_PARAMS, "A heatmap needs `value`: the column the colour comes from.")
+        if series:
+            raise McpError(INVALID_PARAMS, "A heatmap has no series: its grid is `x` by `y`, coloured by `value`.")
+        mapping[ys[0]] = "y"
+        mapping[value] = "zVal"
+    else:
+        for column in ys:
+            mapping[column] = "y"
+
+    if chart_type == "bubble":
+        # Without a size column every bubble is drawn the same, which is a
+        # scatter chart with a misleading name on it.
+        size = (arguments.get("size") or "").strip()
+        if not size:
+            raise McpError(INVALID_PARAMS, "A bubble chart needs `size`: the column the bubble area comes from.")
+        mapping[size] = "size"
+
+    if series:
+        mapping[series] = "series"
+
+    return mapping
+
+
 def tool_save_visualization(user, org, arguments):
     arguments = arguments or {}
     query_id = arguments.get("query_id")
@@ -2239,15 +2294,11 @@ def tool_save_visualization(user, org, arguments):
             raise McpError(INVALID_PARAMS, "A chart needs `x` and at least one `y`.")
 
         chart_type = (arguments.get("chart_type") or "column").strip().lower()
-        if chart_type not in ("column", "bar", "line", "area", "pie", "scatter"):
-            raise McpError(INVALID_PARAMS, "`chart_type` is column, bar, line, area, pie or scatter.")
+        if chart_type not in CHART_TYPES:
+            raise McpError(INVALID_PARAMS, "`chart_type` is one of {}.".format(", ".join(CHART_TYPES)))
 
-        mapping = {x: "x"}
-        for column in ys:
-            mapping[column] = "y"
         series = (arguments.get("series") or "").strip()
-        if series:
-            mapping[series] = "series"
+        mapping = _chart_columns(chart_type, x, ys, series, arguments)
 
         options = {
             # `bar` is not a type of its own: it is a column chart with the
@@ -2258,8 +2309,11 @@ def tool_save_visualization(user, org, arguments):
             "seriesOptions": {},
             # A legend earns its space once there is more than one thing to
             # tell apart -- except on a pie, where the slices *are* the
-            # categories and the legend is how you read them at all.
-            "legend": {"enabled": chart_type == "pie" or len(ys) > 1 or bool(series)},
+            # categories and the legend is how you read them at all. A heatmap
+            # reads from its colour scale, which is not the legend.
+            "legend": {
+                "enabled": chart_type != "heatmap" and (chart_type == "pie" or len(ys) > 1 or bool(series)),
+            },
         }
         default_name = "{} by {}".format(", ".join(ys), x)
     elif kind == "counter":

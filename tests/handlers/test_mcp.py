@@ -2327,6 +2327,157 @@ class TestDrawingAResultOverMcp(McpTestCase):
         self.assertIn("error", rv.json)
 
 
+class TestTheChartTypesAnAgentCanDraw(McpTestCase):
+    """
+    The nine types `save_visualization` offers, and what each one needs.
+
+    Three were added in 0.7.10 because the editor already offered them and
+    MCP did not: a box plot, a bubble chart and a heatmap. The nineteen other
+    registered visualizations are still browser-only, each carrying options of
+    its own that the schema here -- already the heaviest of the tools -- would
+    have to describe.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.author = self.factory.user
+        self.query = self.factory.create_query(
+            query_text="SELECT region, amount, tax, hour FROM orders", is_draft=True, user=self.author
+        )
+        models.db.session.commit()
+
+    def call(self, tool, arguments):
+        arguments.setdefault("query_id", self.query.id)
+        return self.post(rpc("tools/call", {"name": tool, "arguments": arguments}), user=self.author)
+
+    def draw(self, **arguments):
+        rv = self.call("save_visualization", arguments)
+        self.assertNotIn("error", rv.json, rv.json.get("error"))
+        self.assertFalse(rv.json["result"].get("isError"), rv.json["result"])
+        return models.Visualization.query.order_by(models.Visualization.id.desc()).first()
+
+    def refused(self, **arguments):
+        before = models.Visualization.query.count()
+        rv = self.call("save_visualization", arguments)
+        self.assertEqual(before, models.Visualization.query.count())
+        if "error" in rv.json:
+            return rv.json["error"]["message"]
+        self.assertTrue(rv.json["result"].get("isError"), rv.json["result"])
+        return rv.json["result"]["content"][0]["text"]
+
+    def offered_types(self):
+        rv = self.post(rpc("tools/list"), user=self.author)
+        tool = next(t for t in rv.json["result"]["tools"] if t["name"] == "save_visualization")
+        return tool["inputSchema"]["properties"]["chart_type"]["enum"]
+
+    def test_every_type_the_schema_offers_can_actually_be_drawn(self):
+        # The guard against the two lists drifting. A type in the enum that
+        # the handler refuses is a tool that lies about itself, and a model
+        # has no way to find out except by being refused.
+        needs = {
+            "bubble": {"size": "tax"},
+            "heatmap": {"y": ["hour"], "value": "amount"},
+        }
+        for chart_type in self.offered_types():
+            with self.subTest(chart_type=chart_type):
+                arguments = {"kind": "chart", "x": "region", "y": ["amount"], "chart_type": chart_type}
+                arguments.update(needs.get(chart_type, {}))
+                visualization = self.draw(**arguments)
+                self.assertEqual("CHART", visualization.type)
+
+    def test_the_schema_offers_what_the_handler_accepts_and_no_more(self):
+        self.assertEqual(list(mcp.CHART_TYPES), list(self.offered_types()))
+
+    def test_a_type_the_renderer_does_not_have_is_refused_by_name(self):
+        message = self.refused(kind="chart", x="region", y=["amount"], chart_type="sankey")
+
+        # Named, so the next attempt is informed rather than another guess.
+        self.assertIn("column", message)
+        self.assertIn("heatmap", message)
+
+    def test_a_box_plot_needs_nothing_a_line_chart_does_not(self):
+        visualization = self.draw(kind="chart", x="region", y=["amount"], chart_type="box")
+
+        self.assertEqual("box", visualization.options["globalSeriesType"])
+        self.assertEqual({"region": "x", "amount": "y"}, visualization.options["columnMapping"])
+
+    def test_a_box_plot_takes_several_measures(self):
+        # One distribution per column, which is the comparison it exists for.
+        visualization = self.draw(kind="chart", x="region", y=["amount", "tax"], chart_type="box")
+
+        self.assertEqual("y", visualization.options["columnMapping"]["tax"])
+
+    def test_a_bubble_chart_maps_its_size_column(self):
+        visualization = self.draw(kind="chart", x="region", y=["amount"], chart_type="bubble", size="tax")
+
+        self.assertEqual("bubble", visualization.options["globalSeriesType"])
+        self.assertEqual("size", visualization.options["columnMapping"]["tax"])
+
+    def test_a_bubble_chart_with_no_size_column_is_refused(self):
+        # Every bubble the same size is a scatter chart with a misleading
+        # name on it -- a chart that looks like it worked.
+        message = self.refused(kind="chart", x="region", y=["amount"], chart_type="bubble")
+
+        self.assertIn("size", message)
+
+    def test_a_heatmap_colours_its_grid_from_the_value_column(self):
+        visualization = self.draw(kind="chart", x="region", y=["hour"], chart_type="heatmap", value="amount")
+
+        self.assertEqual("heatmap", visualization.options["globalSeriesType"])
+        self.assertEqual({"region": "x", "hour": "y", "amount": "zVal"}, visualization.options["columnMapping"])
+
+    def test_a_heatmap_with_no_value_column_is_refused(self):
+        # It would draw a full grid of cells at the bottom of the ramp.
+        message = self.refused(kind="chart", x="region", y=["hour"], chart_type="heatmap")
+
+        self.assertIn("value", message)
+
+    def test_a_heatmaps_y_is_one_row_label_not_a_list_of_measures(self):
+        message = self.refused(kind="chart", x="region", y=["hour", "amount"], chart_type="heatmap", value="tax")
+
+        self.assertIn("one", message)
+
+    def test_a_heatmap_is_refused_a_series_column(self):
+        # Its grid is already two dimensional; a third is not a thing it draws.
+        message = self.refused(
+            kind="chart", x="region", y=["hour"], chart_type="heatmap", value="amount", series="channel"
+        )
+
+        self.assertIn("series", message)
+
+    def test_a_heatmap_reads_from_its_colour_scale_rather_than_a_legend(self):
+        visualization = self.draw(kind="chart", x="region", y=["hour"], chart_type="heatmap", value="amount")
+
+        self.assertFalse(visualization.options["legend"]["enabled"])
+
+    def test_the_three_new_types_still_land_on_a_draft_only(self):
+        published = self.factory.create_query(is_draft=False, user=self.author)
+        models.db.session.commit()
+
+        for chart_type, extra in (("box", {}), ("bubble", {"size": "tax"}), ("heatmap", {"value": "amount"})):
+            with self.subTest(chart_type=chart_type):
+                before = models.Visualization.query.count()
+                rv = self.post(
+                    rpc(
+                        "tools/call",
+                        {
+                            "name": "save_visualization",
+                            "arguments": dict(
+                                query_id=published.id,
+                                kind="chart",
+                                x="region",
+                                y=["hour"],
+                                chart_type=chart_type,
+                                **extra,
+                            ),
+                        },
+                    ),
+                    user=self.author,
+                )
+                self.assertIn("error", rv.json)
+                self.assertEqual(before, models.Visualization.query.count())
+
+
 class TestProposingAMeasureOverMcp(McpTestCase):
     def setUp(self):
         super().setUp()
