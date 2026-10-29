@@ -224,6 +224,43 @@ development machine it filled the disk and took Postgres with it.</p>
   <tr><td><code>SQLDESK_STREAM_ACTIVE_MINUTES</code></td><td>How long after somebody last looked a stream keeps consuming, 15 by default. <code>0</code> turns streams off entirely.</td></tr>
 </table>
 
+<h2 id="pools">Query pools: capping what a warehouse is given</h2>
+<p>How many queries run at once has always been an accident of deployment: the number of worker
+processes times the number of replicas. The only way to change what a warehouse is subjected to was to
+change the deployment &mdash; and an autoscaler moving replicas while a query runs changed it again
+without anybody asking.</p>
+<p>A <strong>pool</strong> is a ceiling that does not move when the workers do. It is held in Redis,
+which every worker already shares, and is checked at the moment a query begins.</p>
+<p>The budget belongs to the pool rather than to SQLDesk, because the warehouse is what falls over, not
+us &mdash; a single number for the whole install would be the same figure for a Postgres toy and a
+Snowflake bill.</p>
+<p>Every data source draws from a pool of its own unless it names another, so the default behaviour is a
+per-source ceiling with nothing to configure:</p>
+<pre><code>SQLDESK_QUERY_POOLS="warehouse=8,reporting=4,vendor-api=2"</code></pre>
+<p>Point a data source at one by setting <code>query_pool</code> in its options. <strong>Two data
+sources on one machine should name the same pool</strong> &mdash; <code>prod-readonly</code> and
+<code>prod-analytics</code> are two rows here and one warehouse, and capping each at eight hands that
+warehouse sixteen. A pool need not be a database: a rate-limited HTTP connector is the same kind of
+scarce.</p>
+<table>
+  <tr><th>Setting</th><th>What it does</th></tr>
+  <tr><td><code>SQLDESK_QUERY_POOLS</code></td><td>Named pools and their sizes, as
+    <code>name=slots</code> pairs.</td></tr>
+  <tr><td><code>SQLDESK_QUERY_SLOTS_DEFAULT</code></td><td>What a pool nobody configured is worth.
+    <code>0</code> &mdash; unlimited &mdash; by default, so upgrading caps nothing. Set it to put a
+    ceiling under everything at once.</td></tr>
+  <tr><td><code>SQLDESK_QUERY_SLOT_WAIT_SECONDS</code></td><td>How long a query waits for room before
+    giving up and saying so. Short on purpose: a worker waiting is a worker doing nothing.</td></tr>
+  <tr><td><code>SQLDESK_QUERY_SLOT_TTL_SECONDS</code></td><td>How long a slot survives unrenewed. A
+    running query renews its own; this is what frees the slot when a worker is killed.</td></tr>
+</table>
+<p>A query that finds the pool full is refused with a sentence naming the pool and the numbers, rather
+than queueing behind it. <strong>A pool set to zero accepts no new work at all</strong>, which is the
+kill switch for a warehouse in trouble: the data source keeps its queries, dashboards, schema and
+permissions, and simply stops being given anything to do.</p>
+<p>Nothing is capped until you configure it. Unlimited is the default deliberately &mdash; an upgrade
+must not suddenly cap an install that has run a nightly batch of thirty refreshes for a year.</p>
+
 <h2 id="streams">Streams, operationally</h2>
 <p>What a stream costs is different in kind from everything else here: a query costs when somebody runs it,
 and a stream costs continuously. So the two numbers worth knowing are the <strong>row budget</strong> (how

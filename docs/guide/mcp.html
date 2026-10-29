@@ -256,7 +256,7 @@ Refusing a query for a reason that is not true is worse than running an expensiv
 narrower rather than another guess.</p>
 
 <h2 id="tools">The tools</h2>
-<p>Eight, and the order matters. The first question is not "what SQL should I write" but "has
+<p>Eighteen, and the order matters. The first question is not "what SQL should I write" but "has
 somebody already answered this".</p>
 
 <h3>Look for work that already exists</h3>
@@ -348,10 +348,16 @@ trust.</p>
     dashboards and alerts: it is refused, with the suggestion to open it in SQLDesk.</dd>
   <dt><code>save_visualization(query_id, kind, &hellip;)</code></dt>
   <dd>Draws a draft query's result: <code>chart</code> (with <code>x</code>, <code>y</code>, and
-    optionally <code>series</code> and a <code>chart_type</code> of column, bar, line, area, pie or
-    scatter), <code>counter</code> (with <code>column</code>) or <code>table</code>. Same rule as
-    editing: a draft the caller could edit in the browser. A published query's page is read by other
-    people, and a chart appearing on it that nobody added is the same surprise as its SQL changing.</dd>
+    optionally <code>series</code> and a <code>chart_type</code> of column, bar, line, area, pie,
+    scatter, bubble, heatmap or box), <code>counter</code> (with <code>column</code>) or
+    <code>table</code>. Same rule as editing: a draft the caller could edit in the browser. A published
+    query's page is read by other people, and a chart appearing on it that nobody added is the same
+    surprise as its SQL changing.
+    <p>Two of the chart types need a column the others do not, and are refused without it rather than
+    drawn: a <strong>bubble</strong> chart needs <code>size</code>, because every bubble the same size
+    is a scatter chart with a misleading name; a <strong>heatmap</strong> needs <code>value</code> (the
+    colour) and takes a single <code>y</code> as the row label, because with no value every cell is
+    drawn at the bottom of the ramp and the chart says nothing.</p></dd>
   <dt><code>save_dashboard(name, visualizations)</code></dt>
   <dd>Makes a <strong>draft</strong> dashboard from visualization ids, two to a row in the order
     given. Needs the same permission as creating a dashboard in the browser &mdash; separate from
@@ -359,6 +365,34 @@ trust.</p>
     to be on a query whose data source the caller can read, so a dashboard cannot be used to show
     somebody a result they could not have run themselves. A bad id refuses the whole call rather
     than leaving half a dashboard behind.</dd>
+</dl>
+
+<h3>Alerts</h3>
+<p>Debugging an alert is almost always one of four questions, and only the first is about the
+threshold: <em>why did this fire</em>, <em>is it flapping</em>, <em>why did it <strong>not</strong>
+fire</em>, and <em>was anybody actually told</em>.</p>
+<dl>
+  <dt><code>find_alerts(question)</code></dt>
+  <dd>Matched on the alert's name <em>and</em> on its query's, because alerts are usually named for the
+    threshold while the subject somebody asks about is in the query. Each line carries the condition as
+    words (<code>orders below 100</code>), the state, how often it fired in the last 24 hours, and
+    MUTED where it applies.</dd>
+  <dt><code>explain_alert(id)</code></dt>
+  <dd>The condition, the value the query last returned and when, the recent history with the value on
+    each line and whether anybody was told, and the destinations. A value older than a day is called
+    stale rather than reported as if it were current.</dd>
+  <dt><code>save_alert(query_id, column, op, value, name)</code></dt>
+  <dd>Builds one <strong>muted, with nobody subscribed</strong>. An alert is not a draft &mdash; it
+    starts evaluating the moment it exists, and one with a destination starts waking people, so
+    "create it and let somebody look later" is not the same promise <code>save_query</code> makes.
+    Muted is that promise in the vocabulary alerts already have, and it buys a trial run: leave it
+    muted a day and <code>explain_alert</code> says how often it <em>would</em> have fired, which is how
+    a threshold gets tuned against real data before it is allowed to page anybody.
+    <p>Two refusals, both about alerts that look like they work: a column the query does not return
+    (named, along with the ones it does), and a query that has never run.</p></dd>
+</dl>
+
+<dl>
   <dt><code>propose_measure(name, table, kind, column)</code></dt>
   <dd>Proposes a number and what it means, for a curator to agree or deny under Admin &rarr; Catalog
     &rarr; Measures. A proposed measure reaches no other agent until somebody signs it off: a definition

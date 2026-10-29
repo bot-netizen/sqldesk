@@ -236,6 +236,46 @@ why an all-positive column still gets the whole cell.</p>
     coloured cell: tinted keeps the text dark, solid paints the cell and flips the text to suit.</td></tr>
 </table>
 
+<h2 id="panels">Stacked panels: several plots, one clock</h2>
+<p>Spend reads around 1,400, a percent change around 20 and a rate around 5. There is no single y axis
+on which all three can be read &mdash; put them together and two of them are flat lines along the
+bottom. A second y axis handles two scales; a third needs a second plot.</p>
+<p>Under <strong>Y Axis &rarr; Panels</strong>, choose up to four. Each series then picks its panel on
+the <strong>Series</strong> tab. The panels share one x axis, one legend and <em>one cursor</em>:
+hovering a moment in the top panel marks the same moment in the others, which is the whole reason to
+stack them rather than put three charts side by side.</p>
+<p>Use it when the series are different measures against the same clock. For the same measure broken
+down different ways &mdash; revenue by region, by channel, by product &mdash; the categories differ, so
+stacking is wrong and <a href="dashboards.html#views">buttons on a dashboard widget</a> are right.</p>
+<p>Panels are for upright charts. A pie has no grid to divide, a heatmap builds its own, a box plot is a
+distribution per category, and a sideways bar chart already runs its categories down the axis the panels
+would cut &mdash; each of those draws as one plot whatever is set.</p>
+<p>A chart too short to divide still draws every panel it was told to, rather than quietly collapsing to
+one. A taller widget is the fix, and a chart that ignored the setting would never tell you that.</p>
+
+<h2 id="rollup">When several rows share an x</h2>
+<p>A query keyed on more columns than the chart plots returns several rows per point. Keyed on region,
+channel and product but plotting region alone, every region arrives several times, and something has to
+happen to the repeats.</p>
+<p>Something always did: they were added up, silently. That is right for money and wrong for a rate
+&mdash; the average of four conversion rates is a conversion rate, their sum is nothing at all.</p>
+<p>Under <strong>General &rarr; When rows share an x</strong>:</p>
+<table>
+  <tr><th>Setting</th><th>Use it for</th></tr>
+  <tr><td><strong>Add them up</strong></td><td>Totals, revenue, counts of things. The default, and what
+    every chart saved before this did.</td></tr>
+  <tr><td><strong>Average them</strong></td><td>Rates and ratios, where a total means nothing.</td></tr>
+  <tr><td><strong>Keep the lowest</strong> / <strong>highest</strong></td><td>The worst or best case at
+    each point.</td></tr>
+  <tr><td><strong>Count the rows</strong></td><td>How many rows share this x, ignoring the measure.</td></tr>
+</table>
+<p>Two details worth knowing. An average divides by the rows that carried a number, not by the rows
+&mdash; counting the empty ones would read every missing reading as a zero. And a point with no readings
+at all is drawn as a gap rather than a zero, because zero is a claim about the measure. Counting rows is
+the exception: an order with no total is still an order.</p>
+<p>Offered on column, line and area charts. A scatter or bubble chart is a point cloud and keeps every
+row, so collapsing it would be the bug rather than the feature.</p>
+
 <h2>Dates and times</h2>
 <p>Times are stored as the warehouse returned them and displayed in the organization's configured format.
 If a chart's x axis looks wrong by exactly some number of hours, the column is almost certainly a

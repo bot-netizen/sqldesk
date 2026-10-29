@@ -107,6 +107,30 @@ a row of their own, because that is where they can be dragged into order.</p>
 keep their own value — so you can show North and South side by side — and they share a single fetch
 whenever their values agree.</p>
 
+<h2 id="views">Several views on one panel</h2>
+<p>A query keyed on region, channel and product is three charts, not one: revenue by region, by channel,
+by product. Putting each on its own widget spreads one idea across three boxes &mdash; and runs the
+query three times, because a query behind several widgets is fetched and parsed once per widget.</p>
+<p>Instead, make the charts on the query page as usual, then on the widget's menu choose
+<strong>Choose Tabs</strong> and tick the ones to offer. Small buttons appear at the top right of the
+panel; the selected one fills in, the rest stay plain. <strong>The query runs once</strong> however many
+views the panel carries, because every view draws the result the widget already has.</p>
+<p>The panel is then titled by its <em>query</em> &mdash; "5 min vs last week" across the top, "Spend
+analysis" and "eCPM analysis" on the buttons. Putting the chart's name in the title as well would say
+one thing twice and leave the query unnamed.</p>
+<p>Two rules, both deliberate:</p>
+<ul>
+  <li><strong>Every view must belong to the widget's own query.</strong> That is what keeps the single
+  fetch true, and it keeps a second query's rows from appearing behind a widget whose access was checked
+  against the first.</li>
+  <li><strong>Charts only.</strong> A counter is one number and a table is already a grid of them; a row
+  of buttons over either is chrome around nothing.</li>
+</ul>
+<p>Which view is in front is per person and not saved, so somebody reading the channel split does not
+move it for everybody else.</p>
+<p>For several measures on different scales against the same clock, this is the wrong tool &mdash; those
+want <a href="visualizations.html#panels">stacked panels</a> inside one chart.</p>
+
 <h2 id="textboxes">Textboxes</h2>
 <p>Add one from Edit &rarr; Add Textbox. A textbox has three settings: the text, a <strong>style</strong>,
 and an <strong>alignment</strong>.</p>
