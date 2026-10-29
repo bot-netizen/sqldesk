@@ -1,4 +1,5 @@
 import signal
+import threading
 import time
 
 import redis
@@ -7,7 +8,7 @@ from rq.exceptions import NoSuchJobError
 from rq.job import JobStatus
 from rq.timeouts import JobTimeoutException
 
-from sqldesk import models, redis_connection, settings, uploads
+from sqldesk import models, pools, redis_connection, settings, uploads
 from sqldesk.query_runner import InterruptException
 from sqldesk.tasks.alerts import check_alerts_for_query
 from sqldesk.tasks.failure_report import track_failure
@@ -221,6 +222,9 @@ class QueryExecutor:
         # Close DB connection to prevent holding a connection for a long time while the query is executing.
         models.db.session.close()
         self.query_hash = gen_query_hash(self.query)
+        # Resolved once: `run` releases in a finally that must not depend on
+        # the data source still being loadable by then.
+        self.pool = pools.pool_for(self.data_source)
         self.is_scheduled_query = is_scheduled_query
         if self.is_scheduled_query:
             # Load existing tracker or create a new one if the job was created before code update:
@@ -246,6 +250,19 @@ class QueryExecutor:
         except Exception:
             logger.warning("could not record which uploads this query reads", exc_info=True)
 
+        # Room on the pool this data source draws from, before any work is
+        # sent to it. Here rather than at enqueue because a job waiting in a
+        # queue must not hold a slot -- the ceiling is on what the resource is
+        # *doing*, not on what is addressed to it.
+        refusal = self._take_a_slot()
+        if refusal:
+            return self._refuse(refusal)
+
+        # A slot expires on its own so that a killed worker frees it. That
+        # means a query running longer than the TTL would drop the slot it is
+        # still using, and the pool would admit somebody on top of it -- so
+        # the slot is renewed from a thread for as long as the query runs.
+        keep_slot = self._renew_in_background()
         try:
             data, error = query_runner.run_query(annotated_query, self.user)
         except Exception as e:
@@ -256,6 +273,9 @@ class QueryExecutor:
 
             data = None
             logger.warning("Unexpected error while running query:", exc_info=1)
+
+        finally:
+            keep_slot.set()
 
         run_time = time.time() - started_at
 
@@ -320,6 +340,103 @@ class QueryExecutor:
             # the same query started a third run of it while the second was
             # still going.
             _unlock(self.query_hash, self.data_source.id, self.job.id if self.job else None)
+            # The pool entry would expire on its own; giving it back now means
+            # the next query in the queue starts immediately rather than when
+            # a timer says so.
+            pools.release(self.pool, self._slot_holder())
+
+    def _slot_holder(self):
+        """
+        What occupies the slot.
+
+        The job id, so a retried job that is still counted re-acquires its own
+        entry instead of taking a second one -- and so an entry left behind by
+        a process that died can be read back to something.
+        """
+        return self.job.id if self.job else "adhoc:{}".format(self.query_hash)
+
+    def _take_a_slot(self):
+        """
+        Wait briefly for room on the pool, then give up and say so.
+
+        A worker blocked on a semaphore is a worker doing nothing, so the wait
+        is deliberately short. Contention means the resource is busy, and
+        telling somebody that in a few seconds beats holding a process for a
+        minute to discover it.
+
+        Returns None once there is room, or the sentence to show.
+        """
+        limit = pools.budget(self.pool, self.data_source)
+        if limit == pools.NO_LIMIT:
+            return None
+
+        deadline = time.time() + settings.QUERY_SLOT_WAIT_SECONDS
+        refusal = None
+        while True:
+            refusal = pools.acquire(
+                self.pool,
+                self._slot_holder(),
+                weight=1,
+                owner=str(self.metadata.get("Username") or ""),
+                limit=limit,
+            )
+            if refusal is None:
+                return None
+            if time.time() >= deadline:
+                return refusal
+            time.sleep(0.25)
+
+    def _renew_in_background(self):
+        """
+        Hold this query's slot for as long as the query runs.
+
+        Returns the event that stops it. A daemon thread because it must never
+        be the reason a worker will not exit: if the process is going down the
+        slot expiring on its own is exactly the right outcome.
+        """
+        stop = threading.Event()
+        if pools.budget(self.pool, self.data_source) == pools.NO_LIMIT:
+            stop.set()
+            return stop
+
+        # A third of the lifetime, so two renewals have to be missed before a
+        # slot is lost.
+        every = max(1, settings.QUERY_SLOT_TTL_SECONDS // 3)
+        pool, holder = self.pool, self._slot_holder()
+
+        def renew():
+            while not stop.wait(every):
+                try:
+                    pools.renew(pool, holder)
+                except Exception:
+                    logger.warning("could not renew the slot for %s", holder, exc_info=True)
+
+        threading.Thread(target=renew, name="pool-renew", daemon=True).start()
+        return stop
+
+    def _refuse(self, message):
+        """
+        Turn a full pool into the same shape as any other query failure.
+
+        A refusal is not an exception in the code's sense -- nothing went
+        wrong -- but it has to reach the person who asked, and the only route
+        from here to a screen is the error a failed query carries.
+        """
+        logger.info(
+            "job=execute_query state=refused pool=%s query_hash=%s ds_id=%d",
+            self.pool,
+            self.query_hash,
+            self.data_source_id,
+        )
+        self._log_progress("refused")
+        if self.is_scheduled_query:
+            # The next tick will try again; what matters is that the failure
+            # is recorded as the queue being full rather than the query being
+            # broken.
+            self.query_model = models.db.session.merge(self.query_model, load=False)
+            track_failure(self.query_model, message)
+            models.db.session.commit()
+        raise QueryExecutionError(message)
 
     def _annotate_query(self, query_runner):
         self.metadata["Job ID"] = self.job.id

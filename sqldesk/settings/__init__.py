@@ -699,6 +699,50 @@ STREAM_MAX_PER_USER = int(os.environ.get("SQLDESK_STREAM_MAX_PER_USER", "2"))
 #: A forgotten tab would otherwise hold a slot all day.
 STREAM_MAX_MINUTES = int(os.environ.get("SQLDESK_STREAM_MAX_MINUTES", "30"))
 
+
+#: Query pools: how much work a resource may be given at once, whatever the
+#: workers are doing. Written as `name=slots`, comma separated:
+#:
+#:     SQLDESK_QUERY_POOLS="warehouse=8,reporting=4,vendor-api=2"
+#:
+#: A data source draws from a pool of its own unless its `query_pool` option
+#: names another, so two sources on one machine can be made to share a budget.
+def _parse_pools(raw):
+    pools = {}
+    for pair in (raw or "").split(","):
+        name, _, slots = pair.partition("=")
+        name = name.strip()
+        if not name:
+            continue
+        try:
+            pools[name] = max(0, int(slots.strip()))
+        except (TypeError, ValueError):
+            # A typo should not take the whole setting with it, and a pool
+            # that failed to parse falls back to the default like any other.
+            continue
+    return pools
+
+
+QUERY_POOLS = _parse_pools(os.environ.get("SQLDESK_QUERY_POOLS", ""))
+
+#: What a pool nobody has configured is worth. Zero is unlimited, and it is
+#: the default on purpose: an upgrade must not suddenly cap an install that
+#: has been running a nightly batch of thirty refreshes for a year. Set it to
+#: put a ceiling under everything at once.
+QUERY_SLOTS_DEFAULT = int(os.environ.get("SQLDESK_QUERY_SLOTS_DEFAULT", "0"))
+
+#: How long a slot survives without being renewed. Longer than the gap between
+#: renewals by a wide margin, so a slow query does not drop its own slot; short
+#: enough that a worker killed mid-query frees it while somebody is still
+#: waiting.
+QUERY_SLOT_TTL_SECONDS = int(os.environ.get("SQLDESK_QUERY_SLOT_TTL_SECONDS", "120"))
+
+#: How long a query waits for room before giving up and saying so. A worker
+#: waiting is a worker doing nothing, so this is deliberately short: contention
+#: means the resource is busy, and telling somebody that quickly is better than
+#: holding a process to find out.
+QUERY_SLOT_WAIT_SECONDS = int(os.environ.get("SQLDESK_QUERY_SLOT_WAIT_SECONDS", "10"))
+
 # How long a running job is given to finish when its worker is told to stop --
 # a deploy, a scale-down, a node drain. Under the pod's 300 s grace period and
 # supervisord's 290 s, so the job finishes or fails on its own terms before
