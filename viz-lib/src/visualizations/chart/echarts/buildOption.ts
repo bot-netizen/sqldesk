@@ -1,5 +1,5 @@
 import escapeHtml from "@/lib/escapeHtml";
-import { each, extend, filter, isNil, map, max, reduce, some, sortBy, uniq } from "lodash";
+import { each, extend, filter, isNil, map, max, range, reduce, some, sortBy, uniq } from "lodash";
 import { AllColorPaletteArrays, resolveColorScheme } from "@/visualizations/ColorPalette";
 import { createNumberFormatter, formatSimpleTemplate } from "@/lib/value-format";
 import chooseTextColorForBackground from "@/lib/chooseTextColorForBackground";
@@ -11,6 +11,7 @@ import { BAR_LAYOUT, barCentreOffset, buildErrorBarSeries } from "./errorBars";
 import { applyWindow, addReferences, zoomComponents } from "./references";
 import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
 import { dashPattern } from "../lineDash";
+import { measureAxisIndex, panelBoxes, panelCount, seriesPanel } from "../panels";
 
 /** What ECharts asks for on a value axis when nobody tells it otherwise. */
 const ECHARTS_SPLIT_NUMBER = 5;
@@ -253,7 +254,8 @@ function buildCartesianSeries(
   options: any,
   xAxisType: string,
   categories: any[],
-  horizontal: boolean
+  horizontal: boolean,
+  panels: number
 ) {
   const stacking = options.series.stacking;
   const showLabels = options.showDataLabels;
@@ -324,6 +326,11 @@ function buildCartesianSeries(
       );
     }
 
+    // Which plot this series is drawn in, and which side of it. One panel and
+    // one side is the ordinary chart: panel 0, axis 0, exactly as before.
+    const panel = seriesPanel(series.name, options, panels);
+    const side = getSeriesAxisIndex(series.name, options);
+
     const built: any = {
       id: seriesId(series.name),
       name: overrides.name || series.name,
@@ -331,9 +338,13 @@ function buildCartesianSeries(
       data,
       // The measure axis carries the series' axis assignment; on its side that
       // is the x axis, and there is only ever one category axis.
+      //
+      // Upright, both indices are stated. The x axis is one per panel, so a
+      // series in the second panel has to name it or it lands on the first;
+      // the measure axis is the left-or-right pair of that same panel.
       ...(horizontal
-        ? { xAxisIndex: getSeriesAxisIndex(series.name, options), yAxisIndex: 0 }
-        : { yAxisIndex: getSeriesAxisIndex(series.name, options) }),
+        ? { xAxisIndex: side, yAxisIndex: 0 }
+        : { xAxisIndex: panel, yAxisIndex: measureAxisIndex(panel, side) }),
       itemStyle: { color },
       emphasis: { focus: "series" },
       // Performance: above these thresholds ECharts switches to a batched path
@@ -642,11 +653,17 @@ export default function buildOption(
       : map(chartData, (s: any) => String(s.name))
   );
 
+  // Stacked panels, and what rules them out. A pie has no grid to divide, a
+  // box plot is a distribution per category rather than a series over time,
+  // and a sideways bar chart already runs its categories down the axis the
+  // panels would cut -- so each of those is one panel whatever is saved.
+  const panels = isPie || isBox || horizontal ? 1 : panelCount(options);
+
   const series = isPie
     ? buildPieSeries(chartData, options, legend.right ? 25 : 0)
     : isBox
       ? buildBoxSeries(chartData, options, xAxisType, categories, (name, index) => seriesColor(options, name, index))
-      : buildCartesianSeries(chartData, options, xAxisType, categories, horizontal);
+      : buildCartesianSeries(chartData, options, xAxisType, categories, horizontal, panels);
 
   const zoom = isPie ? undefined : zoomComponents(options.zoom, horizontal);
   const slider = !!zoom && zoom.some((z: any) => z.type === "slider");
@@ -654,12 +671,23 @@ export default function buildOption(
   // labels the value axis can carry without crowding.
   const gridTop = 14;
   const gridBottom = (legend.below ? 36 : 10) + (slider && !horizontal ? 30 : 0);
-  const plotHeight = size && size.height ? size.height - gridTop - gridBottom - X_AXIS_HEIGHT : 0;
+  const measuredHeight = size && size.height ? size.height : 0;
+  // Where each panel sits. With one panel this is the whole band, and its
+  // height is what `plotHeight` has always been.
+  const boxes = panelBoxes(panels, {
+    top: gridTop,
+    bottom: gridBottom + X_AXIS_HEIGHT,
+    height: measuredHeight,
+  });
+  // Thinning labels is driven by measurement only: an unmeasured chart keeps
+  // every label, exactly as it did before panels existed. `panelBoxes` has to
+  // assume a height to divide, and that assumption must not reach the axes.
+  const panelPlotHeight = (index: number) => (measuredHeight ? boxes[index].height : 0);
 
   // One formatter for both value axes: valueAxis is called once per axis and
   // the formatter carries a numeral instance, so building it inside meant two.
   const formatAxisValue = createNumberFormatter(options.numberFormat);
-  const valueAxis = (axisOptions: any) => ({
+  const valueAxis = (axisOptions: any, plotHeight: number) => ({
     type: echartsAxisType(axisOptions.type) === "category" ? "value" : echartsAxisType(axisOptions.type),
     name: axisOptions.title ? axisOptions.title.text || axisOptions.title : undefined,
     nameLocation: "middle",
@@ -741,30 +769,74 @@ export default function buildOption(
   };
 
   if (!isPie) {
-    option.grid = {
+    const gridSides = {
       left: 12,
       right: (legend.right ? legend.width + 8 : 12) + (horizontal && slider ? 28 : 0),
-      // Nothing is ever drawn above the plot -- the legend goes to the right
-      // or below, never on top -- so this is breathing room and no more.
-      top: gridTop,
-      // Room for a legend below, and for a zoom slider under the axis.
-      bottom: gridBottom,
       containLabel: true,
     };
+    // One panel keeps the grid it has always had: pinned top and bottom, free
+    // to stretch between them. Stacked panels have to be told their heights,
+    // which is what `boxes` works out.
+    option.grid =
+      panels > 1
+        ? map(boxes, (box) => ({ ...gridSides, top: box.top, height: box.height }))
+        : {
+            ...gridSides,
+            // Nothing is ever drawn above the plot -- the legend goes to the
+            // right or below, never on top -- so this is breathing room and
+            // no more.
+            top: gridTop,
+            // Room for a legend below, and for a zoom slider under the axis.
+            bottom: gridBottom,
+          };
     if (zoom) {
+      // Every panel zooms together, because they share the x axis: zooming one
+      // and not the others would put the same instant in two places.
+      const spread = panels > 1 ? { xAxisIndex: range(panels) } : {};
       // The slider sits between the axis and the legend.
       option.dataZoom = zoom.map((z) =>
-        z.type === "slider" && !horizontal ? { ...z, bottom: legend.below ? 30 : 6 } : z
+        z.type === "slider" && !horizontal ? { ...z, ...spread, bottom: legend.below ? 30 : 6 } : { ...z, ...spread }
       );
     }
-    const measureAxes = (secondPosition: string) => [
-      valueAxis(options.yAxis[0]),
-      { ...valueAxis(options.yAxis[1] || options.yAxis[0]), position: secondPosition },
+    const measureAxes = (secondPosition: string, plotHeight: number) => [
+      valueAxis(options.yAxis[0], plotHeight),
+      { ...valueAxis(options.yAxis[1] || options.yAxis[0], plotHeight), position: secondPosition },
     ];
-    // Two measure axes either way: a series assigned to the second one needs an
-    // axis to sit on whichever way round the chart is drawn.
-    option.xAxis = horizontal ? measureAxes("top") : categoryAxis;
-    option.yAxis = horizontal ? [categoryAxis] : measureAxes("right");
+    if (panels > 1) {
+      option.xAxis = map(boxes, (unused, index) => ({
+        ...categoryAxis,
+        gridIndex: index,
+        // Labels and title on the bottom panel only. They describe an axis
+        // every panel shares, so repeating them spends three panels' worth of
+        // height saying one thing three times -- and the shared axis is the
+        // whole reason to stack the panels.
+        ...(index === panels - 1 ? {} : { name: undefined, axisLabel: { ...categoryAxis.axisLabel, show: false } }),
+      }));
+      // Left and right for every panel, in that order down the stack, so a
+      // series assigned to the right-hand axis still has one in its own panel.
+      option.yAxis = map(boxes, (unused, index) => index).flatMap((index) => {
+        const [left, right] = measureAxes("right", panelPlotHeight(index));
+        return [
+          // The chart-wide axis title belongs to the first panel only. Each
+          // panel measures a different thing, so repeating one title down the
+          // stack would label two of them wrongly.
+          { ...left, gridIndex: index, ...(index === 0 ? {} : { name: undefined }) },
+          { ...right, gridIndex: index, ...(index === 0 ? {} : { name: undefined }) },
+        ];
+      });
+    } else {
+      // Two measure axes either way: a series assigned to the second one needs
+      // an axis to sit on whichever way round the chart is drawn.
+      option.xAxis = horizontal ? measureAxes("top", panelPlotHeight(0)) : categoryAxis;
+      option.yAxis = horizontal ? [categoryAxis] : measureAxes("right", panelPlotHeight(0));
+    }
+    if (panels > 1) {
+      // One time cursor down the whole stack: pointing at a moment in the
+      // spend panel marks the same moment in the others. Without this each
+      // panel has a cursor of its own and the eye has to carry the position
+      // between them, which is what reading three separate charts already is.
+      option.axisPointer = { link: [{ xAxisIndex: "all" }] };
+    }
   }
 
   if (!isPie) {
@@ -778,6 +850,11 @@ export default function buildOption(
     categories,
     ids: map(option.series, "id"),
     zoom: options.zoom || "none",
+    // The panel count and which panel each series is in. Moving a series
+    // between panels moves it to a different grid, and merging that into a
+    // live chart would animate a line from one plot to another rather than
+    // redraw it where it now belongs.
+    panels: panels > 1 ? map(chartData, (one: any) => seriesPanel(one.name, options, panels)) : 1,
   });
 
   return { option, signature };

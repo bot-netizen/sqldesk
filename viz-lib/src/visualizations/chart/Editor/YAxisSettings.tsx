@@ -3,12 +3,18 @@ import { Section, Switch } from "@/components/visualizations/editor";
 import { EditorPropTypes } from "@/visualizations/prop-types";
 
 import AxisSettings from "./AxisSettings";
+import PanelSettings, { supportsPanels } from "./PanelSettings";
 
 export default function YAxisSettings({ options, onOptionsChange }: any) {
   const [leftYAxis, rightYAxis] = options.yAxis;
 
   return (
     <React.Fragment>
+      {/* Above the axes, because this decides how many of them there are:
+          every panel carries the left-and-right pair configured below, and
+          its own title. */}
+      {supportsPanels(options) && <PanelSettings options={options} onOptionsChange={onOptionsChange} />}
+
       <Section.Title>{!options.swappedAxes ? "Left Y Axis" : "X Axis"}</Section.Title>
 
       <Section>
