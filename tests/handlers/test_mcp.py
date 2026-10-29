@@ -2984,3 +2984,154 @@ class TestAlertsOverMcp(McpTestCase):
 
         self.assertIn("find_alerts", names)
         self.assertIn("explain_alert", names)
+
+
+class TestBuildingAnAlertOverMcp(McpTestCase):
+    """
+    An alert is not like a draft query. A draft sits inert until somebody
+    publishes it; an alert starts evaluating at once, and one with a
+    destination starts waking people up. So the safety model is the word
+    alerts already have: muted. The agent's alert records its history from the
+    first evaluation and tells nobody until a person has read it.
+    """
+
+    def call(self, name, arguments=None, user=None, api_key=None):
+        body = rpc("tools/call", {"name": name, "arguments": arguments or {}})
+        return json.loads(self.post(body, api_key=api_key, user=user).data)
+
+    def text(self, name, arguments=None):
+        return self.call(name, arguments)["result"]["content"][0]["text"]
+
+    def a_query(self, columns=("orders",), name="Orders per hour"):
+        query = self.factory.create_query(name=name, data_source=self.factory.data_source)
+        result = self.factory.create_query_result(
+            data={"columns": [{"name": c} for c in columns], "rows": [{c: 1 for c in columns}]},
+            data_source=self.factory.data_source,
+        )
+        query.latest_query_data = result
+        models.db.session.add(query)
+        models.db.session.commit()
+        return query
+
+    def args(self, query, **kwargs):
+        made = {"query_id": query.id, "column": "orders", "op": "<", "value": 100, "name": "Orders have dried up"}
+        made.update(kwargs)
+        return made
+
+    def test_an_alert_is_created_muted_and_with_nobody_subscribed(self):
+        query = self.a_query()
+
+        said = self.text("save_alert", self.args(query))
+
+        alert = models.Alert.query.one()
+        self.assertTrue(alert.options["muted"], "an agent's alert wakes nobody until a person says so")
+        self.assertEqual([], alert.subscriptions)
+        self.assertIn("MUTED", said)
+
+    def test_the_condition_is_stored_as_the_alert_evaluates_it(self):
+        query = self.a_query()
+
+        self.text("save_alert", self.args(query, column="orders", op=">=", value=5))
+
+        alert = models.Alert.query.one()
+        self.assertEqual("orders", alert.options["column"])
+        self.assertEqual(">=", alert.options["op"])
+        self.assertEqual(5, alert.options["value"])
+        # `evaluate` defaults a missing selector, but an alert saved without
+        # one broke the template renderer once already.
+        self.assertEqual("first", alert.options["selector"])
+
+    def test_it_says_where_to_unmute_it(self):
+        query = self.a_query()
+
+        said = self.text("save_alert", self.args(query))
+
+        alert = models.Alert.query.one()
+        self.assertIn("alerts/{}".format(alert.id), said)
+
+    def test_a_column_the_query_does_not_return_is_refused_by_name(self):
+        # The failure worth a refusal: an alert on a misspelt column
+        # evaluates to unknown for ever and looks exactly like one that is
+        # simply not firing.
+        query = self.a_query(columns=("order_count",))
+
+        said = self.call("save_alert", self.args(query, column="orders"))
+
+        self.assertIn("does not return a column called orders", said["error"]["message"])
+        self.assertIn("order_count", said["error"]["message"], "and says what it does return")
+        self.assertEqual(0, models.Alert.query.count())
+
+    def test_a_query_that_has_never_run_is_refused(self):
+        query = self.factory.create_query(name="Never run", data_source=self.factory.data_source)
+        models.db.session.commit()
+
+        said = self.call("save_alert", self.args(query))
+
+        self.assertIn("never run", said["error"]["message"])
+        self.assertEqual(0, models.Alert.query.count())
+
+    def test_an_operator_outside_the_six_is_refused(self):
+        query = self.a_query()
+
+        said = self.call("save_alert", self.args(query, op="is roughly"))
+
+        self.assertIn("`op` must be one of", said["error"]["message"])
+
+    def test_a_threshold_that_is_not_a_number_is_refused(self):
+        query = self.a_query()
+
+        said = self.call("save_alert", self.args(query, value="a hundred"))
+
+        self.assertIn("as a number", said["error"]["message"])
+
+    def test_a_query_this_key_cannot_read_is_refused_without_confirming_it(self):
+        other = self.factory.create_data_source(name="locked", group=self.factory.create_group(name="Locked"))
+        query = self.factory.create_query(name="Private", data_source=other)
+        models.db.session.commit()
+
+        said = self.call("save_alert", self.args(query))
+
+        self.assertIn("No query #{}".format(query.id), said["error"]["message"])
+        self.assertEqual(0, models.Alert.query.count())
+
+    def test_a_stream_is_refused_because_an_alert_on_one_could_never_fire(self):
+        # `streams_only` is patched rather than the source's type changed: a
+        # type with no runner registered in this image cannot even have a
+        # query saved against it, which is a different failure.
+        query = self.a_query()
+        with mock.patch.object(type(self.factory.data_source), "streams_only", property(lambda self: True)):
+            said = self.call("save_alert", self.args(query))
+
+        self.assertIn("cannot watch a stream", said["error"]["message"])
+        self.assertEqual(0, models.Alert.query.count())
+
+    def test_it_counts_against_the_daily_write_cap(self):
+        query = self.a_query()
+        with mock.patch("sqldesk.settings.MCP_WRITES_PER_DAY", 1):
+            self.text("save_alert", self.args(query, name="First"))
+            said = self.call("save_alert", self.args(query, name="Second"))
+
+        self.assertIn("daily limit", said["error"]["message"])
+        self.assertEqual(1, models.Alert.query.count())
+
+    def test_the_write_is_audited_like_every_other(self):
+        query = self.a_query()
+
+        self.text("save_alert", self.args(query))
+
+        event = models.McpEvent.query.filter(models.McpEvent.tool == "save_alert").one()
+        self.assertEqual("ok", event.outcome)
+        # The write note, not a summary of the arguments: what an audit of an
+        # agent's writes is actually asked.
+        self.assertIn("saved alert", event.detail)
+
+    def test_it_is_not_offered_to_an_oauth_session(self):
+        # Every write needs a personal API key; an OAuth session is mcp:read.
+        offered = [tool["name"] for tool in mcp._offered_tools(self.factory.user, by_api_key=False)]
+
+        self.assertNotIn("save_alert", offered)
+
+    def test_but_it_is_offered_to_a_key_whose_owner_may_use_alerts(self):
+        offered = [tool["name"] for tool in mcp._offered_tools(self.factory.user, by_api_key=True)]
+
+        self.assertIn("save_alert", offered)

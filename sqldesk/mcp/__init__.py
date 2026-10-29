@@ -316,6 +316,7 @@ WRITE_TOOLS = (
     "save_visualization",
     "save_dashboard",
     "propose_measure",
+    "save_alert",
 )
 
 
@@ -1989,6 +1990,35 @@ SAVE_DASHBOARD = {
 #: Offered to a personal API key whose owner may write queries. Not tied to
 #: MANAGE_CATALOG: saving a draft query is something any analyst does, and the
 #: permission that governs it is the one that governs it in the browser.
+SAVE_ALERT = {
+    "name": "save_alert",
+    "title": "Build an alert, muted",
+    "description": (
+        "Put a threshold on a saved query. The alert is created MUTED and with nobody subscribed: "
+        "it evaluates and records its history, and tells nobody until a person unmutes it and "
+        "chooses who to notify. Leave it muted for a day and explain_alert will say how often it "
+        "would have fired, which is how a threshold gets tuned before it wakes anybody."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "query_id": {"type": "integer", "description": "The saved query to watch. find_queries gives it."},
+            "column": {"type": "string", "description": "The column to read, which the query must return."},
+            "op": {
+                "type": "string",
+                "enum": [">", ">=", "<", "<=", "==", "!="],
+                "description": "How the value is compared with the threshold.",
+            },
+            "value": {"type": "number", "description": "The threshold."},
+            "name": {"type": "string", "description": "What it means when this fires, as a person would say it."},
+        },
+        "required": ["query_id", "column", "op", "value", "name"],
+    },
+    "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False},
+}
+
+WRITE_ALERT_TOOLS = (SAVE_ALERT,)
+
 WRITE_QUERY_TOOLS = (SAVE_QUERY, UPDATE_QUERY, SAVE_VISUALIZATION)
 
 #: Separate from the above because it is a different browser permission:
@@ -2481,6 +2511,11 @@ ALERT_VALUE_STALE_AFTER = datetime.timedelta(hours=24)
 #: The operators as somebody says them. The model stores both these and the
 #: spelled-out forms it accepted years ago, and a condition is worth more as
 #: `orders < 100` than as three option keys.
+#: The operators save_alert accepts. The model also honours three
+#: spelled-out forms kept for alerts saved years ago, but nothing new should
+#: be written in them, so they are not offered here.
+ALERT_OPS = (">", ">=", "<", "<=", "==", "!=")
+
 OP_WORDS = {
     "greater than": ">",
     "less than": "<",
@@ -2705,6 +2740,128 @@ def _alert_destination_lines(alert):
     return ["Notifies: {}".format(", ".join(where))]
 
 
+def may_write_alerts(user, by_api_key):
+    """
+    Whether this caller is offered save_alert.
+
+    A personal API key only, like every other write, and the permission the
+    browser checks for the alerts section. There is no separate "create
+    alert" permission to check: in the browser, being able to read a query
+    is what lets somebody put a threshold on it.
+    """
+    return bool(by_api_key) and user.has_permission("list_alerts")
+
+
+def tool_save_alert(user, org, arguments):
+    arguments = arguments or {}
+    name = (arguments.get("name") or "").strip()
+    column = (arguments.get("column") or "").strip()
+    op = arguments.get("op")
+    value = arguments.get("value")
+
+    if not name:
+        raise McpError(INVALID_PARAMS, "`name` is required: what it means when this fires.")
+    if not column:
+        raise McpError(INVALID_PARAMS, "`column` is required: the column to read.")
+    if op not in ALERT_OPS:
+        raise McpError(INVALID_PARAMS, "`op` must be one of {}.".format(", ".join(ALERT_OPS)))
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise McpError(INVALID_PARAMS, "`value` is the threshold, as a number.")
+
+    query = _alertable_query(user, org, arguments.get("query_id"))
+    _check_column_exists(query, column)
+    _within_the_daily_cap(user, org, "save_alert")
+
+    alert = models.Alert(
+        name=name[:255],
+        query_rel=query,
+        user=user,
+        options={
+            "column": column,
+            "op": op,
+            "value": value,
+            "selector": "first",
+            # The whole safety model, in one key. An alert is not like a
+            # draft query, which sits inert until somebody publishes it: an
+            # alert starts evaluating at once, and one with a destination
+            # starts waking people up. Muted is the alert vocabulary's own
+            # word for "running, telling nobody", so an agent's alert
+            # records its history from the first evaluation and notifies
+            # only once a person has read it and unmuted it.
+            "muted": True,
+        },
+    )
+    models.db.session.add(alert)
+    models.db.session.commit()
+
+    note_write("saved alert {} {!r} on query {}".format(alert.id, _short(name, 60), query.id))
+    return _text(
+        "Alert #{} on query #{}: {} {} {}. It is MUTED and nobody is subscribed, so it is "
+        "recording its history and telling nobody. Unmute it at alerts/{} and add a destination "
+        "there. explain_alert({}) will show what it would have done in the meantime.".format(
+            alert.id, query.id, column, op, value, alert.id, alert.id
+        )
+    )
+
+
+def _alertable_query(user, org, query_id):
+    """
+    The query this caller may put a threshold on, or a refusal saying why.
+
+    The browser's own rules: a query in this organisation they can read, and
+    not a stream. A stream is consumed only while somebody is watching it and
+    stores no result, so an alert on one would never fire -- which is worse
+    than one that cannot be made, because a person told no goes and builds
+    something that works.
+    """
+    if query_id is None:
+        raise McpError(INVALID_PARAMS, "`query_id` is required -- find_queries gives it.")
+    query = models.Query.query.filter(models.Query.id == query_id, models.Query.org == org).first()
+    if query is None or query.data_source_id is None:
+        raise McpError(INVALID_PARAMS, "No query #{} that this key can read.".format(query_id))
+
+    readable = {source.id for source in _readable_sources(user, org)}
+    if query.data_source_id not in readable:
+        # The same answer as for a query that is not there, for the reason
+        # explain_alert gives one: saying which confirms it exists.
+        raise McpError(INVALID_PARAMS, "No query #{} that this key can read.".format(query_id))
+
+    if query.data_source is not None and query.data_source.streams_only:
+        raise McpError(
+            INVALID_PARAMS,
+            "An alert cannot watch a stream. A stream is consumed only while somebody is looking "
+            "at it and stores no result for an alert to check.",
+        )
+    return query
+
+
+def _check_column_exists(query, column):
+    """
+    Refuse a column the query does not return.
+
+    This is the failure worth spending a refusal on: an alert on a misspelled
+    column evaluates to unknown for ever and looks, from the list, exactly
+    like one that is simply not firing. Checked against the query's last
+    result, because that is what the alert itself will read.
+    """
+    result = query.latest_query_data
+    if result is None:
+        raise McpError(
+            INVALID_PARAMS,
+            "Query #{} has never run, so there is nothing to check `column` against. Run it once "
+            "-- an alert reads the stored result, so a query that has never run has nothing for "
+            "an alert to watch either.".format(query.id),
+        )
+    columns = [c.get("name") for c in (result.data or {}).get("columns") or []]
+    if column not in columns:
+        raise McpError(
+            INVALID_PARAMS,
+            "Query #{} does not return a column called {}. It returns: {}.".format(
+                query.id, column, ", ".join(str(c) for c in columns) or "nothing"
+            ),
+        )
+
+
 HANDLERS = {
     "find_context": tool_find_context,
     "find_measures": tool_find_measures,
@@ -2723,6 +2880,7 @@ HANDLERS = {
     "save_visualization": tool_save_visualization,
     "save_dashboard": tool_save_dashboard,
     "propose_measure": tool_propose_measure,
+    "save_alert": tool_save_alert,
 }
 
 
@@ -2753,6 +2911,12 @@ def _may_call(name, user, by_api_key):
             "{} makes a dashboard, so it needs a personal API key from somebody who may create "
             "dashboards. OAuth sessions are read-only (mcp:read).".format(name),
         )
+    if name in (tool["name"] for tool in WRITE_ALERT_TOOLS) and not may_write_alerts(user, by_api_key):
+        raise McpError(
+            INVALID_PARAMS,
+            "{} builds an alert, so it needs a personal API key from somebody who may use alerts. "
+            "OAuth sessions are read-only (mcp:read).".format(name),
+        )
 
 
 def _offered_tools(user, by_api_key):
@@ -2772,6 +2936,8 @@ def _offered_tools(user, by_api_key):
         offered.extend(WRITE_QUERY_TOOLS)
     if may_write_dashboards(user, by_api_key):
         offered.extend(WRITE_DASHBOARD_TOOLS)
+    if may_write_alerts(user, by_api_key):
+        offered.extend(WRITE_ALERT_TOOLS)
     return offered
 
 
