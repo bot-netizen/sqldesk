@@ -225,6 +225,16 @@ class QueryExecutor:
         # Resolved once: `run` releases in a finally that must not depend on
         # the data source still being loadable by then.
         self.pool = pools.pool_for(self.data_source)
+        # Which share of the pool this query draws on. A scheduled refresh
+        # must not be able to starve somebody watching a dashboard, and an
+        # agent must not be able to starve either -- see pools.SHARES.
+        self.feature = (
+            "scheduled"
+            if is_scheduled_query
+            else "mcp"
+            if (metadata or {}).get("mcp")
+            else (metadata or {}).get("feature") or pools.DEFAULT_FEATURE
+        )
         self.is_scheduled_query = is_scheduled_query
         if self.is_scheduled_query:
             # Load existing tracker or create a new one if the job was created before code update:
@@ -379,6 +389,7 @@ class QueryExecutor:
                 weight=1,
                 owner=str(self.metadata.get("Username") or ""),
                 limit=limit,
+                feature=self.feature,
             )
             if refusal is None:
                 return None

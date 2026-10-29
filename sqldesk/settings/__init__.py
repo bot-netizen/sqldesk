@@ -736,6 +736,25 @@ def _parse_pools(raw):
     return pools
 
 
+def _parse_shares(raw):
+    """`interactive=50:100,mcp=0:25` into `{name: (floor, ceiling)}`."""
+    shares = {}
+    for pair in (raw or "").split(","):
+        name, _, span = pair.partition("=")
+        floor, _, ceiling = span.partition(":")
+        name = name.strip()
+        if not name:
+            continue
+        try:
+            shares[name] = (max(0, min(100, int(floor))), max(0, min(100, int(ceiling))))
+        except (TypeError, ValueError):
+            continue
+    return shares
+
+
+#: Override the built-in table in `sqldesk/pools.py`. Empty means use it.
+QUERY_POOL_SHARES = _parse_shares(os.environ.get("SQLDESK_QUERY_POOL_SHARES", ""))
+
 QUERY_POOLS = _parse_pools(os.environ.get("SQLDESK_QUERY_POOLS", ""))
 
 #: What a pool nobody has configured is worth. Zero is unlimited, and it is
