@@ -1,4 +1,4 @@
-import { includes, map, some, extend, fromPairs } from "lodash";
+import { includes, map, range, some, extend, fromPairs } from "lodash";
 import React, { useMemo, useCallback } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import Table from "antd/lib/table";
@@ -11,6 +11,8 @@ import { EditorPropTypes } from "@/visualizations/prop-types";
 import { Select } from "@/components/visualizations/editor";
 import ChartTypeSelect from "./ChartTypeSelect";
 import { LINE_DASHES, hasLineDash } from "../lineDash";
+import { panelCount, seriesPanel } from "../panels";
+import { supportsPanels } from "./PanelSettings";
 import getChartData from "../getChartData";
 
 const SortableBodyRow = sortableElement((props: any) => <tr {...props} />);
@@ -42,6 +44,31 @@ function getTableColumns(options: any, series: any[], updateSeriesOption: any, d
   ];
 
   if (!includes(["pie", "heatmap"], options.globalSeriesType)) {
+    // Which plot the series is drawn in. Only once there is more than one to
+    // choose between -- a column of "Panel 1" against a chart with one panel
+    // is a question nobody was asked.
+    const panels = panelCount(options);
+    if (panels > 1 && supportsPanels(options)) {
+      result.push({
+        title: "Panel",
+        dataIndex: "panel",
+        render: (unused, item) => (
+          <Select
+            data-test={`Chart.Series.${item.key}.Panel`}
+            dropdownMatchSelectWidth={false}
+            value={seriesPanel(item.key, options, panels)}
+            onChange={(value: any) => updateSeriesOption(item.key, "panel", value)}
+          >
+            {map(range(panels), (index) => (
+              <Select.Option key={index} value={index} data-test={`Chart.Series.Panel.${index}`}>
+                {index + 1}
+              </Select.Option>
+            ))}
+          </Select>
+        ),
+      });
+    }
+
     if (!options.swappedAxes) {
       result.push({
         title: "Y Axis",

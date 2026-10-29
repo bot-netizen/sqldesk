@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
-import { compact, isEmpty, invoke, map } from "lodash";
+import { compact, find, isEmpty, invoke, map } from "lodash";
 import cx from "classnames";
 import Menu from "antd/lib/menu";
 import { currentUser } from "@/services/auth";
@@ -16,6 +16,7 @@ import { FiltersType } from "@/components/Filters";
 import PlainButton from "@/components/PlainButton";
 import ExpandedWidgetDialog from "@/components/dashboards/ExpandedWidgetDialog";
 import EditParameterMappingsDialog from "@/components/dashboards/EditParameterMappingsDialog";
+import ChooseWidgetTabsDialog from "@/components/dashboards/ChooseWidgetTabsDialog";
 import VisualizationRenderer from "@/components/visualizations/VisualizationRenderer";
 import VisualizationDescription from "@/components/visualizations/VisualizationDescription";
 
@@ -23,7 +24,7 @@ import Widget from "./Widget";
 import LiveCountdown from "./LiveCountdown";
 import Spinner from "@/components/Spinner";
 
-function visualizationWidgetMenuOptions({ widget, canEditDashboard, onParametersEdit }) {
+function visualizationWidgetMenuOptions({ widget, canEditDashboard, onParametersEdit, onTabsEdit }) {
   const canViewQuery = currentUser.hasPermission("view_query");
   const canEditParameters = canEditDashboard && !isEmpty(invoke(widget, "query.getParametersDefs"));
   const widgetQueryResult = widget.getQueryResult();
@@ -59,7 +60,7 @@ function visualizationWidgetMenuOptions({ widget, canEditDashboard, onParameters
         "Download as Excel File"
       )}
     </Menu.Item>,
-    (canViewQuery || canEditParameters) && <Menu.Divider key="divider" />,
+    (canViewQuery || canEditParameters || canEditDashboard) && <Menu.Divider key="divider" />,
     canViewQuery && (
       <Menu.Item key="view_query">
         <Link href={widget.getQuery().getUrl(true, widget.visualization.id)}>View Query</Link>
@@ -68,6 +69,13 @@ function visualizationWidgetMenuOptions({ widget, canEditDashboard, onParameters
     canEditParameters && (
       <Menu.Item key="edit_parameters" onClick={onParametersEdit}>
         Edit Parameters
+      </Menu.Item>
+    ),
+    // Only for somebody who can change the dashboard: which views this widget
+    // offers is a property of the widget, not of the person reading it.
+    canEditDashboard && (
+      <Menu.Item key="choose_tabs" onClick={onTabsEdit}>
+        Choose Tabs
       </Menu.Item>
     ),
   ]);
@@ -273,6 +281,10 @@ class VisualizationWidget extends React.Component {
     this.state = {
       localParameters: props.widget.getLocalParameters(),
       localFilters: props.filters,
+      // Which tab is in front. Per viewer and not saved: a tab is a way of
+      // looking at a result, not a property of the dashboard, so one person
+      // reading the channel split should not move it for everybody else.
+      activeTabId: props.widget.visualization.id,
     };
   }
 
@@ -294,6 +306,13 @@ class VisualizationWidget extends React.Component {
     ExpandedWidgetDialog.showModal({ widget: this.props.widget, filters: this.state.localFilters });
   };
 
+  editTabs = () => {
+    ChooseWidgetTabsDialog.showModal({ widget: this.props.widget }).onClose(() => {
+      // The saved widget may no longer have the tab that was in front.
+      this.setState({ activeTabId: this.activeVisualization().id });
+    });
+  };
+
   editParameterMappings = () => {
     const { widget, getDashboard, onParametersChange, onParameterMappingsChange } = this.props;
     EditParameterMappingsDialog.showModal({
@@ -312,6 +331,50 @@ class VisualizationWidget extends React.Component {
     });
   };
 
+  /**
+   * The strip that chooses which of this widget's visualizations is shown.
+   *
+   * Drawn only when there is a choice. Every tab draws the result already
+   * fetched for this widget -- the server sends a tab only if it belongs to
+   * the same query -- so switching costs nothing but a redraw, which is the
+   * whole reason to prefer this to one widget per chart.
+   */
+  renderTabs() {
+    const { widget } = this.props;
+    const tabs = widget.getTabs();
+    if (tabs.length < 2) {
+      return null;
+    }
+
+    const { activeTabId } = this.state;
+    return (
+      <div className="widget-tabs" role="tablist" aria-label="Views of this query">
+        {map(tabs, (one) => (
+          <PlainButton
+            key={one.id}
+            role="tab"
+            type="button"
+            aria-selected={one.id === activeTabId}
+            className={cx("widget-tab", { active: one.id === activeTabId })}
+            onClick={() => this.setState({ activeTabId: one.id })}
+          >
+            {one.name}
+          </PlainButton>
+        ))}
+      </div>
+    );
+  }
+
+  /** The visualization in front, falling back to the widget's own. */
+  activeVisualization() {
+    const { widget } = this.props;
+    const { activeTabId } = this.state;
+    // A tab can disappear under a viewer who has it open, if somebody deletes
+    // that visualization while the dashboard is up. The widget's own is the
+    // one that cannot.
+    return find(widget.getTabs(), { id: activeTabId }) || widget.visualization;
+  }
+
   renderVisualization() {
     const { widget, filters } = this.props;
     const widgetQueryResult = widget.getQueryResult();
@@ -327,18 +390,33 @@ class VisualizationWidget extends React.Component {
             )}
           </div>
         );
-      case "done":
-        return (
-          <div className="body-row-auto scrollbox">
-            <VisualizationRenderer
-              visualization={widget.visualization}
-              queryResult={widgetQueryResult}
-              filters={filters}
-              onFiltersChange={this.onLocalFiltersChange}
-              context="widget"
-            />
-          </div>
+      case "done": {
+        const renderer = (
+          <VisualizationRenderer
+            visualization={this.activeVisualization()}
+            queryResult={widgetQueryResult}
+            filters={filters}
+            onFiltersChange={this.onLocalFiltersChange}
+            context="widget"
+          />
         );
+        const tabs = this.renderTabs();
+        // Without tabs, exactly the markup this has always emitted. Inside a
+        // widget the renderer is absolutely positioned to fill its nearest
+        // positioned ancestor, so a strip added as a plain sibling would be
+        // painted under the chart; the tabbed case gives the renderer a
+        // positioned box of its own that stops below the strip. Only the
+        // tabbed case gets the extra wrapper, so no existing widget's layout
+        // moves because this feature exists.
+        return tabs ? (
+          <div className="body-row-auto scrollbox widget-has-tabs">
+            {tabs}
+            <div className="widget-visualization-area">{renderer}</div>
+          </div>
+        ) : (
+          <div className="body-row-auto scrollbox">{renderer}</div>
+        );
+      }
       default:
         return (
           <div
@@ -376,6 +454,7 @@ class VisualizationWidget extends React.Component {
           widget,
           canEditDashboard: canEdit,
           onParametersEdit: this.editParameterMappings,
+          onTabsEdit: this.editTabs,
         })}
         header={
           <VisualizationWidgetHeader

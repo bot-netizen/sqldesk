@@ -73,11 +73,17 @@
         top: 0;
         border-top: 0;
         z-index: 1;
-        // Opaque, because the rows scroll underneath it -- but the token, not
-        // a hardcoded grey. A literal colour here is one no theme can reach,
-        // and with `!important` on it, one no theme can override either: it
-        // was the last white thing left on the dark wall display.
-        background: var(--color-surface-sunken) !important;
+        // Opaque, because the rows scroll underneath it -- but the surface the
+        // table is actually on, not the sunken one. A literal colour here is
+        // one no theme can reach, and with `!important` on it, one no theme
+        // can override either: it was the last white thing left on the dark
+        // wall display.
+        //
+        // It was `--color-surface-sunken`, which is why the header stayed
+        // cream after the fill was removed everywhere else -- this rule won
+        // on `!important` and nothing else could get past it. A header is not
+        // a recess; it sits on the card with the rows it labels.
+        background: var(--color-surface) !important;
       }
     }
   }

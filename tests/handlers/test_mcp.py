@@ -2,7 +2,7 @@ import datetime
 import json
 from unittest import mock
 
-from sqldesk import mcp, models, settings
+from sqldesk import mcp, models, settings, utils
 from sqldesk.handlers.mcp import MyMcpResource
 from tests import BaseTestCase
 
@@ -2327,6 +2327,157 @@ class TestDrawingAResultOverMcp(McpTestCase):
         self.assertIn("error", rv.json)
 
 
+class TestTheChartTypesAnAgentCanDraw(McpTestCase):
+    """
+    The nine types `save_visualization` offers, and what each one needs.
+
+    Three were added in 0.7.10 because the editor already offered them and
+    MCP did not: a box plot, a bubble chart and a heatmap. The nineteen other
+    registered visualizations are still browser-only, each carrying options of
+    its own that the schema here -- already the heaviest of the tools -- would
+    have to describe.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.author = self.factory.user
+        self.query = self.factory.create_query(
+            query_text="SELECT region, amount, tax, hour FROM orders", is_draft=True, user=self.author
+        )
+        models.db.session.commit()
+
+    def call(self, tool, arguments):
+        arguments.setdefault("query_id", self.query.id)
+        return self.post(rpc("tools/call", {"name": tool, "arguments": arguments}), user=self.author)
+
+    def draw(self, **arguments):
+        rv = self.call("save_visualization", arguments)
+        self.assertNotIn("error", rv.json, rv.json.get("error"))
+        self.assertFalse(rv.json["result"].get("isError"), rv.json["result"])
+        return models.Visualization.query.order_by(models.Visualization.id.desc()).first()
+
+    def refused(self, **arguments):
+        before = models.Visualization.query.count()
+        rv = self.call("save_visualization", arguments)
+        self.assertEqual(before, models.Visualization.query.count())
+        if "error" in rv.json:
+            return rv.json["error"]["message"]
+        self.assertTrue(rv.json["result"].get("isError"), rv.json["result"])
+        return rv.json["result"]["content"][0]["text"]
+
+    def offered_types(self):
+        rv = self.post(rpc("tools/list"), user=self.author)
+        tool = next(t for t in rv.json["result"]["tools"] if t["name"] == "save_visualization")
+        return tool["inputSchema"]["properties"]["chart_type"]["enum"]
+
+    def test_every_type_the_schema_offers_can_actually_be_drawn(self):
+        # The guard against the two lists drifting. A type in the enum that
+        # the handler refuses is a tool that lies about itself, and a model
+        # has no way to find out except by being refused.
+        needs = {
+            "bubble": {"size": "tax"},
+            "heatmap": {"y": ["hour"], "value": "amount"},
+        }
+        for chart_type in self.offered_types():
+            with self.subTest(chart_type=chart_type):
+                arguments = {"kind": "chart", "x": "region", "y": ["amount"], "chart_type": chart_type}
+                arguments.update(needs.get(chart_type, {}))
+                visualization = self.draw(**arguments)
+                self.assertEqual("CHART", visualization.type)
+
+    def test_the_schema_offers_what_the_handler_accepts_and_no_more(self):
+        self.assertEqual(list(mcp.CHART_TYPES), list(self.offered_types()))
+
+    def test_a_type_the_renderer_does_not_have_is_refused_by_name(self):
+        message = self.refused(kind="chart", x="region", y=["amount"], chart_type="sankey")
+
+        # Named, so the next attempt is informed rather than another guess.
+        self.assertIn("column", message)
+        self.assertIn("heatmap", message)
+
+    def test_a_box_plot_needs_nothing_a_line_chart_does_not(self):
+        visualization = self.draw(kind="chart", x="region", y=["amount"], chart_type="box")
+
+        self.assertEqual("box", visualization.options["globalSeriesType"])
+        self.assertEqual({"region": "x", "amount": "y"}, visualization.options["columnMapping"])
+
+    def test_a_box_plot_takes_several_measures(self):
+        # One distribution per column, which is the comparison it exists for.
+        visualization = self.draw(kind="chart", x="region", y=["amount", "tax"], chart_type="box")
+
+        self.assertEqual("y", visualization.options["columnMapping"]["tax"])
+
+    def test_a_bubble_chart_maps_its_size_column(self):
+        visualization = self.draw(kind="chart", x="region", y=["amount"], chart_type="bubble", size="tax")
+
+        self.assertEqual("bubble", visualization.options["globalSeriesType"])
+        self.assertEqual("size", visualization.options["columnMapping"]["tax"])
+
+    def test_a_bubble_chart_with_no_size_column_is_refused(self):
+        # Every bubble the same size is a scatter chart with a misleading
+        # name on it -- a chart that looks like it worked.
+        message = self.refused(kind="chart", x="region", y=["amount"], chart_type="bubble")
+
+        self.assertIn("size", message)
+
+    def test_a_heatmap_colours_its_grid_from_the_value_column(self):
+        visualization = self.draw(kind="chart", x="region", y=["hour"], chart_type="heatmap", value="amount")
+
+        self.assertEqual("heatmap", visualization.options["globalSeriesType"])
+        self.assertEqual({"region": "x", "hour": "y", "amount": "zVal"}, visualization.options["columnMapping"])
+
+    def test_a_heatmap_with_no_value_column_is_refused(self):
+        # It would draw a full grid of cells at the bottom of the ramp.
+        message = self.refused(kind="chart", x="region", y=["hour"], chart_type="heatmap")
+
+        self.assertIn("value", message)
+
+    def test_a_heatmaps_y_is_one_row_label_not_a_list_of_measures(self):
+        message = self.refused(kind="chart", x="region", y=["hour", "amount"], chart_type="heatmap", value="tax")
+
+        self.assertIn("one", message)
+
+    def test_a_heatmap_is_refused_a_series_column(self):
+        # Its grid is already two dimensional; a third is not a thing it draws.
+        message = self.refused(
+            kind="chart", x="region", y=["hour"], chart_type="heatmap", value="amount", series="channel"
+        )
+
+        self.assertIn("series", message)
+
+    def test_a_heatmap_reads_from_its_colour_scale_rather_than_a_legend(self):
+        visualization = self.draw(kind="chart", x="region", y=["hour"], chart_type="heatmap", value="amount")
+
+        self.assertFalse(visualization.options["legend"]["enabled"])
+
+    def test_the_three_new_types_still_land_on_a_draft_only(self):
+        published = self.factory.create_query(is_draft=False, user=self.author)
+        models.db.session.commit()
+
+        for chart_type, extra in (("box", {}), ("bubble", {"size": "tax"}), ("heatmap", {"value": "amount"})):
+            with self.subTest(chart_type=chart_type):
+                before = models.Visualization.query.count()
+                rv = self.post(
+                    rpc(
+                        "tools/call",
+                        {
+                            "name": "save_visualization",
+                            "arguments": dict(
+                                query_id=published.id,
+                                kind="chart",
+                                x="region",
+                                y=["hour"],
+                                chart_type=chart_type,
+                                **extra,
+                            ),
+                        },
+                    ),
+                    user=self.author,
+                )
+                self.assertIn("error", rv.json)
+                self.assertEqual(before, models.Visualization.query.count())
+
+
 class TestProposingAMeasureOverMcp(McpTestCase):
     def setUp(self):
         super().setUp()
@@ -2751,3 +2902,387 @@ class TestWhichDashboardsAreDescribed(McpTestCase):
         self.assertIn("completed orders only", found)
         line = next(one for one in found.splitlines() if "completed orders only" in one)
         self.assertIn("counter", line.lower(), "the description belongs to the counter, so the line is the counter's")
+
+
+class TestAlertsOverMcp(McpTestCase):
+    """
+    Debugging an alert is almost always one of four questions: why did it
+    fire, is it flapping, why did it *not* fire, and was anybody told. Before
+    0.7.9 an alert kept only its current state, so a tool here could have
+    answered "it is triggered" and almost nothing else. The fire history is
+    what makes the other three answerable, and this is what reads it.
+    """
+
+    def call(self, name, arguments=None, user=None):
+        body = rpc("tools/call", {"name": name, "arguments": arguments or {}})
+        return json.loads(self.post(body, user=user).data)
+
+    def text(self, name, arguments=None, user=None):
+        return self.call(name, arguments, user=user)["result"]["content"][0]["text"]
+
+    def an_alert(self, **kwargs):
+        options = {"column": "orders", "op": "<", "value": 100}
+        options.update(kwargs.pop("options", {}))
+        query = kwargs.pop("query", None) or self.factory.create_query(
+            name="Orders per hour", data_source=self.factory.data_source
+        )
+        alert = self.factory.create_alert(query_rel=query, options=options, **kwargs)
+        models.db.session.commit()
+        return alert
+
+    def fire(self, alert, state, value=None, notified=True, minutes_ago=0):
+        row = models.AlertFire(
+            alert_id=alert.id,
+            state=state,
+            value=None if value is None else str(value),
+            notified=notified,
+            created_at=utils.utcnow() - datetime.timedelta(minutes=minutes_ago),
+        )
+        models.db.session.add(row)
+        models.db.session.commit()
+        return row
+
+    def with_result(self, query, rows, retrieved_at=None):
+        result = self.factory.create_query_result(
+            data={"columns": [{"name": "orders"}], "rows": rows},
+            retrieved_at=retrieved_at or utils.utcnow(),
+            data_source=query.data_source,
+        )
+        query.latest_query_data = result
+        models.db.session.add(query)
+        models.db.session.commit()
+        return result
+
+    # --- find_alerts -----------------------------------------------------
+
+    def test_an_alert_is_found_by_its_name(self):
+        self.an_alert(name="Orders have dried up")
+
+        self.assertIn("Orders have dried up", self.text("find_alerts", {"question": "dried up"}))
+
+    def test_and_by_the_name_of_the_query_behind_it(self):
+        # Alerts are often named for the threshold while the subject somebody
+        # asks about is in the query's name.
+        self.an_alert(name="Below 100")
+
+        self.assertIn("Below 100", self.text("find_alerts", {"question": "orders per hour"}))
+
+    def test_the_condition_comes_back_as_words_rather_than_option_keys(self):
+        self.an_alert(name="Quiet", options={"column": "orders", "op": "<", "value": 100})
+
+        found = self.text("find_alerts", {"question": "quiet"})
+
+        self.assertIn("orders < 100", found)
+
+    def test_a_selector_is_shown_because_it_changes_what_is_measured(self):
+        self.an_alert(name="Peak", options={"column": "latency", "op": ">", "value": 2, "selector": "max"})
+
+        self.assertIn("max(latency) > 2", self.text("find_alerts", {"question": "peak"}))
+
+    def test_a_spelled_out_operator_reads_as_a_symbol(self):
+        # The model has accepted both forms for years; only one of them reads.
+        self.an_alert(name="Legacy", options={"column": "orders", "op": "less than", "value": 100})
+
+        self.assertIn("orders < 100", self.text("find_alerts", {"question": "legacy"}))
+
+    def test_the_fire_count_is_the_point_of_the_line(self):
+        alert = self.an_alert(name="Flapper")
+        for minutes in (10, 40, 70):
+            self.fire(alert, models.Alert.TRIGGERED_STATE, value=412, minutes_ago=minutes)
+
+        self.assertIn("3 fires in 24h", self.text("find_alerts", {"question": "flapper"}))
+
+    def test_a_fire_older_than_the_window_is_not_counted(self):
+        alert = self.an_alert(name="Quiet lately")
+        self.fire(alert, models.Alert.TRIGGERED_STATE, value=1, minutes_ago=60 * 25)
+
+        self.assertNotIn("fire in 24h", self.text("find_alerts", {"question": "quiet lately"}))
+
+    def test_muted_is_said_on_the_line(self):
+        # An alert evaluating and telling nobody looks identical to a quiet
+        # one, which is exactly the confusion worth spending a word on.
+        self.an_alert(name="Hushed", options={"column": "orders", "op": "<", "value": 1, "muted": True})
+
+        self.assertIn("MUTED", self.text("find_alerts", {"question": "hushed"}))
+
+    def test_an_alert_on_a_source_this_key_cannot_read_is_not_found(self):
+        other = self.factory.create_data_source(name="locked", group=self.factory.create_group(name="Locked"))
+        self.an_alert(name="Secret threshold", query=self.factory.create_query(name="Private", data_source=other))
+
+        self.assertIn("No alerts match", self.text("find_alerts", {"question": "secret threshold"}))
+
+    def test_nothing_matching_says_so_rather_than_answering_emptily(self):
+        self.assertIn("No alerts match", self.text("find_alerts", {"question": "payroll"}))
+
+    # --- explain_alert ---------------------------------------------------
+
+    def test_explain_gives_the_condition_and_the_query(self):
+        alert = self.an_alert(name="Orders low")
+
+        said = self.text("explain_alert", {"id": alert.id})
+
+        self.assertIn("Condition: orders < 100", said)
+        self.assertIn("Orders per hour", said)
+
+    def test_the_history_carries_the_value_each_change_was_decided_on(self):
+        alert = self.an_alert(name="Orders low")
+        self.fire(alert, models.Alert.TRIGGERED_STATE, value=412, minutes_ago=30)
+
+        said = self.text("explain_alert", {"id": alert.id})
+
+        self.assertIn("triggered at 412", said)
+
+    def test_a_change_nobody_was_told_about_says_so(self):
+        # The difference between "we missed the message" and "no message was
+        # ever sent", which is the first thing somebody asks.
+        alert = self.an_alert(name="Silent")
+        self.fire(alert, models.Alert.TRIGGERED_STATE, value=7, notified=False, minutes_ago=5)
+
+        self.assertIn("nobody notified", self.text("explain_alert", {"id": alert.id}))
+
+    def test_the_history_is_capped_so_a_month_of_flapping_cannot_fill_a_window(self):
+        alert = self.an_alert(name="Noisy")
+        for minute in range(30):
+            self.fire(alert, models.Alert.TRIGGERED_STATE, value=minute, minutes_ago=minute)
+
+        said = self.text("explain_alert", {"id": alert.id})
+
+        # Twenty lines of history, and a line saying there is more.
+        self.assertEqual(20, said.count("triggered at"))
+        self.assertIn("there may be more", said)
+
+    def test_the_current_value_comes_from_the_querys_last_run(self):
+        alert = self.an_alert(name="Orders low")
+        self.with_result(alert.query_rel, [{"orders": 412}])
+
+        self.assertIn("orders = 412", self.text("explain_alert", {"id": alert.id}))
+
+    def test_a_stale_result_is_refused_as_the_current_value(self):
+        # A threshold checked against a result three days old reads as an
+        # answer and sends somebody to the threshold when the real fault is
+        # that nothing has run.
+        alert = self.an_alert(name="Orders low")
+        self.with_result(alert.query_rel, [{"orders": 412}], retrieved_at=utils.utcnow() - datetime.timedelta(days=3))
+
+        said = self.text("explain_alert", {"id": alert.id})
+
+        self.assertIn("too old to read as the current value", said)
+        self.assertIn("3 days ago", said)
+
+    def test_a_query_that_has_never_run_says_so(self):
+        alert = self.an_alert(name="Brand new")
+
+        self.assertIn("never run", self.text("explain_alert", {"id": alert.id}))
+
+    def test_a_column_the_query_no_longer_returns_is_named(self):
+        # The alert cannot evaluate at all, and the reason is in the query's
+        # columns rather than in the threshold.
+        alert = self.an_alert(name="Renamed")
+        self.with_result(alert.query_rel, [{"order_count": 412}])
+
+        self.assertIn("no longer returns a column called orders", self.text("explain_alert", {"id": alert.id}))
+
+    def test_nobody_subscribed_is_worth_saying(self):
+        alert = self.an_alert(name="Shouting into a void")
+
+        self.assertIn("nobody is subscribed", self.text("explain_alert", {"id": alert.id}))
+
+    def test_a_destination_is_named_with_the_kind_it_is(self):
+        # "Slack" and "email" are different answers to "was anybody told",
+        # because one of them wakes a channel up.
+        alert = self.an_alert(name="Orders low")
+        self.factory.create_alert_subscription(alert=alert, user=self.factory.user)
+        models.db.session.commit()
+
+        self.assertIn("(slack)", self.text("explain_alert", {"id": alert.id}))
+
+    def test_a_subscription_with_no_destination_is_mail_to_that_person(self):
+        alert = self.an_alert(name="Orders low")
+        self.factory.create_alert_subscription(alert=alert, user=self.factory.user, destination=None)
+        models.db.session.commit()
+
+        said = self.text("explain_alert", {"id": alert.id})
+
+        self.assertIn("email to {}".format(self.factory.user.email), said)
+
+    def test_rearm_is_explained_because_it_looks_like_the_condition_clearing(self):
+        alert = self.an_alert(name="Throttled")
+        alert.rearm = 3600
+        models.db.session.add(alert)
+        models.db.session.commit()
+
+        self.assertIn("Rearm: 3600", self.text("explain_alert", {"id": alert.id}))
+
+    def test_an_alert_this_key_cannot_read_is_refused_without_confirming_it_exists(self):
+        other = self.factory.create_data_source(name="locked", group=self.factory.create_group(name="Locked"))
+        alert = self.an_alert(query=self.factory.create_query(name="Private", data_source=other))
+
+        said = self.call("explain_alert", {"id": alert.id})
+
+        # The same answer as for an id that does not exist: saying which would
+        # confirm an alert exists to somebody who may not see it.
+        self.assertIn("No alert #{}".format(alert.id), said["error"]["message"])
+
+    def test_an_id_that_does_not_exist_is_refused_the_same_way(self):
+        said = self.call("explain_alert", {"id": 999999})
+
+        self.assertIn("No alert #999999", said["error"]["message"])
+
+    def test_both_tools_are_offered_without_any_write_permission(self):
+        # They read; they join the nine that an OAuth session may call.
+        offered = json.loads(self.post(rpc("tools/list")).data)["result"]["tools"]
+        names = [tool["name"] for tool in offered]
+
+        self.assertIn("find_alerts", names)
+        self.assertIn("explain_alert", names)
+
+
+class TestBuildingAnAlertOverMcp(McpTestCase):
+    """
+    An alert is not like a draft query. A draft sits inert until somebody
+    publishes it; an alert starts evaluating at once, and one with a
+    destination starts waking people up. So the safety model is the word
+    alerts already have: muted. The agent's alert records its history from the
+    first evaluation and tells nobody until a person has read it.
+    """
+
+    def call(self, name, arguments=None, user=None, api_key=None):
+        body = rpc("tools/call", {"name": name, "arguments": arguments or {}})
+        return json.loads(self.post(body, api_key=api_key, user=user).data)
+
+    def text(self, name, arguments=None):
+        return self.call(name, arguments)["result"]["content"][0]["text"]
+
+    def a_query(self, columns=("orders",), name="Orders per hour"):
+        query = self.factory.create_query(name=name, data_source=self.factory.data_source)
+        result = self.factory.create_query_result(
+            data={"columns": [{"name": c} for c in columns], "rows": [{c: 1 for c in columns}]},
+            data_source=self.factory.data_source,
+        )
+        query.latest_query_data = result
+        models.db.session.add(query)
+        models.db.session.commit()
+        return query
+
+    def args(self, query, **kwargs):
+        made = {"query_id": query.id, "column": "orders", "op": "<", "value": 100, "name": "Orders have dried up"}
+        made.update(kwargs)
+        return made
+
+    def test_an_alert_is_created_muted_and_with_nobody_subscribed(self):
+        query = self.a_query()
+
+        said = self.text("save_alert", self.args(query))
+
+        alert = models.Alert.query.one()
+        self.assertTrue(alert.options["muted"], "an agent's alert wakes nobody until a person says so")
+        self.assertEqual([], alert.subscriptions)
+        self.assertIn("MUTED", said)
+
+    def test_the_condition_is_stored_as_the_alert_evaluates_it(self):
+        query = self.a_query()
+
+        self.text("save_alert", self.args(query, column="orders", op=">=", value=5))
+
+        alert = models.Alert.query.one()
+        self.assertEqual("orders", alert.options["column"])
+        self.assertEqual(">=", alert.options["op"])
+        self.assertEqual(5, alert.options["value"])
+        # `evaluate` defaults a missing selector, but an alert saved without
+        # one broke the template renderer once already.
+        self.assertEqual("first", alert.options["selector"])
+
+    def test_it_says_where_to_unmute_it(self):
+        query = self.a_query()
+
+        said = self.text("save_alert", self.args(query))
+
+        alert = models.Alert.query.one()
+        self.assertIn("alerts/{}".format(alert.id), said)
+
+    def test_a_column_the_query_does_not_return_is_refused_by_name(self):
+        # The failure worth a refusal: an alert on a misspelt column
+        # evaluates to unknown for ever and looks exactly like one that is
+        # simply not firing.
+        query = self.a_query(columns=("order_count",))
+
+        said = self.call("save_alert", self.args(query, column="orders"))
+
+        self.assertIn("does not return a column called orders", said["error"]["message"])
+        self.assertIn("order_count", said["error"]["message"], "and says what it does return")
+        self.assertEqual(0, models.Alert.query.count())
+
+    def test_a_query_that_has_never_run_is_refused(self):
+        query = self.factory.create_query(name="Never run", data_source=self.factory.data_source)
+        models.db.session.commit()
+
+        said = self.call("save_alert", self.args(query))
+
+        self.assertIn("never run", said["error"]["message"])
+        self.assertEqual(0, models.Alert.query.count())
+
+    def test_an_operator_outside_the_six_is_refused(self):
+        query = self.a_query()
+
+        said = self.call("save_alert", self.args(query, op="is roughly"))
+
+        self.assertIn("`op` must be one of", said["error"]["message"])
+
+    def test_a_threshold_that_is_not_a_number_is_refused(self):
+        query = self.a_query()
+
+        said = self.call("save_alert", self.args(query, value="a hundred"))
+
+        self.assertIn("as a number", said["error"]["message"])
+
+    def test_a_query_this_key_cannot_read_is_refused_without_confirming_it(self):
+        other = self.factory.create_data_source(name="locked", group=self.factory.create_group(name="Locked"))
+        query = self.factory.create_query(name="Private", data_source=other)
+        models.db.session.commit()
+
+        said = self.call("save_alert", self.args(query))
+
+        self.assertIn("No query #{}".format(query.id), said["error"]["message"])
+        self.assertEqual(0, models.Alert.query.count())
+
+    def test_a_stream_is_refused_because_an_alert_on_one_could_never_fire(self):
+        # `streams_only` is patched rather than the source's type changed: a
+        # type with no runner registered in this image cannot even have a
+        # query saved against it, which is a different failure.
+        query = self.a_query()
+        with mock.patch.object(type(self.factory.data_source), "streams_only", property(lambda self: True)):
+            said = self.call("save_alert", self.args(query))
+
+        self.assertIn("cannot watch a stream", said["error"]["message"])
+        self.assertEqual(0, models.Alert.query.count())
+
+    def test_it_counts_against_the_daily_write_cap(self):
+        query = self.a_query()
+        with mock.patch("sqldesk.settings.MCP_WRITES_PER_DAY", 1):
+            self.text("save_alert", self.args(query, name="First"))
+            said = self.call("save_alert", self.args(query, name="Second"))
+
+        self.assertIn("daily limit", said["error"]["message"])
+        self.assertEqual(1, models.Alert.query.count())
+
+    def test_the_write_is_audited_like_every_other(self):
+        query = self.a_query()
+
+        self.text("save_alert", self.args(query))
+
+        event = models.McpEvent.query.filter(models.McpEvent.tool == "save_alert").one()
+        self.assertEqual("ok", event.outcome)
+        # The write note, not a summary of the arguments: what an audit of an
+        # agent's writes is actually asked.
+        self.assertIn("saved alert", event.detail)
+
+    def test_it_is_not_offered_to_an_oauth_session(self):
+        # Every write needs a personal API key; an OAuth session is mcp:read.
+        offered = [tool["name"] for tool in mcp._offered_tools(self.factory.user, by_api_key=False)]
+
+        self.assertNotIn("save_alert", offered)
+
+    def test_but_it_is_offered_to_a_key_whose_owner_may_use_alerts(self):
+        offered = [tool["name"] for tool in mcp._offered_tools(self.factory.user, by_api_key=True)]
+
+        self.assertIn("save_alert", offered)

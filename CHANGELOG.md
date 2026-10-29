@@ -1,5 +1,75 @@
 # Changelog
 
+## 0.7.10
+
+Charts that can hold more than one idea, and an agent that can reach alerts.
+
+### Reading several things at once
+
+**Stacked panels.** A chart can be split into up to four plots sharing one x
+axis, one legend and one cursor — for series whose scales are too different to
+share an axis. Spend at ~1,400, a percent change at ~20 and a rate at ~5 have
+no single scale on which all three are readable; a second y axis handles two
+of them and a column of dashboard widgets shares no cursor. Each series picks
+its panel. Two settings and no more: per-panel titles and heights were built
+and cut for being more editor than the feature was worth.
+
+**One widget, several views.** A dashboard widget can offer any of its query's
+visualizations behind small buttons — revenue by region, by channel, by
+product, on one panel. Every view draws the result the widget already has, so
+the query is run once however many views it carries, where three separate
+widgets fetch and parse it three times. Views must belong to the widget's own
+query, which is what keeps that true and keeps a second query's rows from
+appearing behind a widget whose access was checked against the first.
+
+### Rows that share an x
+
+**The roll-up has a name and a choice.** Plotting a query keyed on more
+columns than the chart draws has always collapsed the repeats by adding them
+up, silently. That is right for money and wrong for a rate — the average of
+four conversion rates is a conversion rate, their sum is nothing at all. Sum,
+average, lowest, highest or a count of rows now, said out loud in the editor.
+`sum` stays the default, so no saved chart changes the numbers it draws.
+
+**An average divides by the rows that had a number**, not by the rows, and an
+x with no readings is a gap rather than a zero. A zero is a claim about the
+measure. `count` is the exception: an order with no total is still an order.
+
+### Alerts over MCP
+
+**An agent can read an alert.** `find_alerts` matches on the alert's name and
+the query's, and gives the condition in words, the state, how often it fired
+in the last 24 hours and whether it is muted. `explain_alert` adds the value
+the query last returned and when, the recent history with the value on each
+line and whether anybody was told, and the destinations.
+
+**And build one, which wakes nobody.** `save_alert` creates it muted with no
+subscribers. An alert is not a draft — it starts evaluating at once and one
+with a destination starts waking people — and muted is the same safety in the
+vocabulary alerts already have. It also buys a trial run: leave it muted a day
+and `explain_alert` says how often it would have fired.
+
+**Two refusals**, both about alerts that look like they work: a column the
+query does not return, named along with the ones it does, and a query that has
+never run.
+
+### More of the editor reachable from MCP
+
+**Box plots, bubble charts and heatmaps.** `save_visualization` wrote six
+chart types where the editor offered nine. A heatmap with no `value` draws a
+full grid at the bottom of its colour ramp and says nothing; a bubble chart
+with no `size` is a scatter chart with a misleading name. Both are refused by
+name rather than drawn.
+
+### Fixes
+
+**The table header is white.** 0.7.9 removed the header fill in two places and
+it stayed cream, because a third rule painted it — the sticky-header rule in
+the table visualization, with `!important`, which nothing the variables said
+could reach. It was verified on a rendered specimen, and a specimen has
+nothing to scroll, so it has no sticky header and the rule never applied.
+
+
 ## 0.7.9
 
 Mostly alerts, and mostly things that said one thing while doing another.

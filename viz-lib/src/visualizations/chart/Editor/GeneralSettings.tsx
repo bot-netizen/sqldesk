@@ -1,4 +1,4 @@
-import { isArray, map, mapValues, includes, some, each, difference, toNumber } from "lodash";
+import { find, isArray, map, mapValues, includes, some, each, difference, toNumber } from "lodash";
 import React, { useMemo } from "react";
 import { Section, Select, Checkbox, InputNumber, ContextHelp, Input } from "@/components/visualizations/editor";
 import { UpdateOptionsStrategy } from "@/components/visualizations/editor/createTabbedEditor";
@@ -6,6 +6,7 @@ import { EditorPropTypes } from "@/visualizations/prop-types";
 import { AllColorPalettes } from "@/visualizations/ColorPalette";
 import ChartTypeSelect from "./ChartTypeSelect";
 import ColumnMappingSelect from "./ColumnMappingSelect";
+import { ROLLUPS, rollupMode } from "../rollup";
 import { useDebouncedCallback } from "use-debounce/lib";
 
 function getAvailableColumnMappingTypes(options: any) {
@@ -165,6 +166,36 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
           onChange={handleColumnMappingChange}
         />
       ))}
+
+      {/*
+        Directly under the column mapping, because that is what causes it: a
+        query keyed on more columns than the chart plots returns several rows
+        per x, and something has to happen to them. It has always been a sum,
+        silently. Only the three types that roll up are asked -- a scatter is
+        a point cloud and keeps every row.
+      */}
+      {includes(["column", "line", "area"], options.globalSeriesType) && (
+        <Section>
+          <Select
+            label="When rows share an x"
+            data-test="Chart.Rollup"
+            value={rollupMode(options)}
+            onChange={(rollup: any) => onOptionsChange({ rollup })}
+          >
+            {map(ROLLUPS, ({ value, name }) => (
+              <Select.Option key={value} value={value} data-test={`Chart.Rollup.${value}`}>
+                {name}
+              </Select.Option>
+            ))}
+          </Select>
+          {/* What the chosen one means, under the control rather than inside
+              each option: a dropdown row with two lines in it is hard to read
+              and the sentence only matters for the one that is chosen. */}
+          <p className="value-options-help" data-test="Chart.Rollup.Help">
+            {(find(ROLLUPS, { value: rollupMode(options) }) || ROLLUPS[0]).help}
+          </p>
+        </Section>
+      )}
 
       {includes(["bubble"], options.globalSeriesType) && (
         <React.Fragment>

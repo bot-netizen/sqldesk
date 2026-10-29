@@ -1,12 +1,13 @@
 # Where the project is
 
-Last true on **2026-10-28**. Update this in the same commit as whatever
+Last true on **2026-10-29**. Update this in the same commit as whatever
 changed it.
 
 ## Released
 
 | Version | Name | When | Notes |
 |---|---|---|---|
+| 0.7.10 | **Prism** | 29 Oct 2026 | A chart splits into stacked panels sharing one cursor; a dashboard widget holds several of its query's visualizations behind buttons and still runs the query once; repeated x values roll up by sum, average, lowest, highest or count instead of silently adding; an agent can read, explain and build an alert; box, bubble and heatmap reachable from MCP; the table header is finally white |
 | 0.7.9 | **Alerts and Legibility** | 28 Oct 2026 | An alert remembers every fire and the value behind it; Slack templates escaped for Slack; table headers and data bars marked by something the eye can actually see; six dash patterns per series; avatars drawn locally instead of fetched from gravatar |
 | 0.7.8 | **Second Look** | 27 Oct 2026 | Twelve things reported from using 0.7.7: searching a list works at all, bars and table cells coloured by their own value, an agent that can draw and build a dashboard, and three reports that turned out to be nothing |
 | 0.7.7 | **Scale** | 25 Oct 2026 | Threaded web tier with ceilings, a worker of its own for the periodic queues, the image at 1.22 GB, an agent's exploration at 967 tokens, and a tag that cannot publish an untested image |

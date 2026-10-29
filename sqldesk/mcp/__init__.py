@@ -34,7 +34,7 @@ from sqlalchemy.orm import load_only
 from sqlglot import exp
 from sqlglot.tokens import TokenType
 
-from sqldesk import __version__, features, models, settings
+from sqldesk import __version__, features, models, settings, utils
 from sqldesk.ai.catalog.harvest import rebuild_card
 from sqldesk.ai.catalog.retrieve import context_for
 from sqldesk.ai.optimizer import analyze, dialect_for
@@ -187,6 +187,35 @@ TOOLS = [
         },
     },
     {
+        "name": "find_alerts",
+        "title": "Alerts, and how often they have gone off",
+        "description": (
+            "Search alerts by name and by the query behind them. Each one comes back with its "
+            "condition in words, where it stands now, and how many times it fired in the last 24 "
+            "hours -- which is what separates a threshold that is working from one that is too "
+            "tight."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"question": {"type": "string"}},
+            "required": ["question"],
+        },
+    },
+    {
+        "name": "explain_alert",
+        "title": "Why an alert is where it is",
+        "description": (
+            "One alert in full: its condition, the value its query last returned and when, its "
+            "recent history with the value on each line, and who gets told. Use this to answer why "
+            "it fired, why it did not, or whether it is flapping."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"id": {"type": "integer", "description": "The alert's id, from find_alerts."}},
+            "required": ["id"],
+        },
+    },
+    {
         "name": "explain_query",
         "title": "What a query will cost, before running it",
         "description": (
@@ -287,6 +316,7 @@ WRITE_TOOLS = (
     "save_visualization",
     "save_dashboard",
     "propose_measure",
+    "save_alert",
 )
 
 
@@ -1895,6 +1925,13 @@ PROPOSE_MEASURE = {
     "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True},
 }
 
+#: The chart types this tool can create, which is what the editor's own type
+#: list offers minus the twenty-odd registered visualizations that are not
+#: charts at all. Each of these nine is a column mapping and nothing else;
+#: anything needing options of its own is left to the browser, because the
+#: schema here is already the heaviest of the tools.
+CHART_TYPES = ("column", "bar", "line", "area", "pie", "scatter", "bubble", "heatmap", "box")
+
 SAVE_VISUALIZATION = {
     "name": "save_visualization",
     "title": "Add a chart to a draft query",
@@ -1915,16 +1952,21 @@ SAVE_VISUALIZATION = {
             "name": {"type": "string", "description": "What it is called on the query page."},
             "chart_type": {
                 "type": "string",
-                "enum": ["column", "bar", "line", "area", "pie", "scatter"],
-                "description": "For a chart. `bar` is a column chart on its side. Default column.",
+                "enum": CHART_TYPES,
+                "description": (
+                    "For a chart. `bar` is a column chart on its side. `bubble` also needs `size`; "
+                    "`heatmap` takes one `y` as the row label and needs `value`. Default column."
+                ),
             },
             "x": {"type": "string", "description": "For a chart: the column along the bottom."},
             "y": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "For a chart: the column or columns measured.",
+                "description": "For a chart: the column or columns measured. A heatmap takes one, its row label.",
             },
             "series": {"type": "string", "description": "For a chart: a column to split the series by."},
+            "size": {"type": "string", "description": "For a bubble chart: the column the bubble area comes from."},
+            "value": {"type": "string", "description": "For a heatmap: the column the colour comes from."},
             "column": {"type": "string", "description": "For a counter: the column to show."},
             "description": {"type": "string", "description": "What it shows, if the name does not say it."},
         },
@@ -1960,6 +2002,35 @@ SAVE_DASHBOARD = {
 #: Offered to a personal API key whose owner may write queries. Not tied to
 #: MANAGE_CATALOG: saving a draft query is something any analyst does, and the
 #: permission that governs it is the one that governs it in the browser.
+SAVE_ALERT = {
+    "name": "save_alert",
+    "title": "Build an alert, muted",
+    "description": (
+        "Put a threshold on a saved query. The alert is created MUTED and with nobody subscribed: "
+        "it evaluates and records its history, and tells nobody until a person unmutes it and "
+        "chooses who to notify. Leave it muted for a day and explain_alert will say how often it "
+        "would have fired, which is how a threshold gets tuned before it wakes anybody."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "query_id": {"type": "integer", "description": "The saved query to watch. find_queries gives it."},
+            "column": {"type": "string", "description": "The column to read, which the query must return."},
+            "op": {
+                "type": "string",
+                "enum": [">", ">=", "<", "<=", "==", "!="],
+                "description": "How the value is compared with the threshold.",
+            },
+            "value": {"type": "number", "description": "The threshold."},
+            "name": {"type": "string", "description": "What it means when this fires, as a person would say it."},
+        },
+        "required": ["query_id", "column", "op", "value", "name"],
+    },
+    "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False},
+}
+
+WRITE_ALERT_TOOLS = (SAVE_ALERT,)
+
 WRITE_QUERY_TOOLS = (SAVE_QUERY, UPDATE_QUERY, SAVE_VISUALIZATION)
 
 #: Separate from the above because it is a different browser permission:
@@ -2157,6 +2228,49 @@ def _drawable_query(user, org, query_id):
     return _editable_query(user, org, query_id)
 
 
+def _chart_columns(chart_type, x, ys, series, arguments):
+    """
+    Which query column plays which part in the chart.
+
+    `columnMapping` is what getChartData reads; a column named here that the
+    result does not have simply does not appear, so the refusals below are
+    about the parts that would otherwise produce a chart that looks like it
+    worked -- a heatmap with no colour, a bubble chart with no sizes.
+    """
+    mapping = {x: "x"}
+
+    if chart_type == "heatmap":
+        # A heatmap's y is the row label, not a measure: the grid is x by y
+        # and the number is the colour. Several y columns would be asking for
+        # several grids in one, and with no `value` every cell is drawn at the
+        # bottom of the ramp -- a full grid that says nothing.
+        if len(ys) != 1:
+            raise McpError(INVALID_PARAMS, "A heatmap takes one `y`: the row label. The number goes in `value`.")
+        value = (arguments.get("value") or "").strip()
+        if not value:
+            raise McpError(INVALID_PARAMS, "A heatmap needs `value`: the column the colour comes from.")
+        if series:
+            raise McpError(INVALID_PARAMS, "A heatmap has no series: its grid is `x` by `y`, coloured by `value`.")
+        mapping[ys[0]] = "y"
+        mapping[value] = "zVal"
+    else:
+        for column in ys:
+            mapping[column] = "y"
+
+    if chart_type == "bubble":
+        # Without a size column every bubble is drawn the same, which is a
+        # scatter chart with a misleading name on it.
+        size = (arguments.get("size") or "").strip()
+        if not size:
+            raise McpError(INVALID_PARAMS, "A bubble chart needs `size`: the column the bubble area comes from.")
+        mapping[size] = "size"
+
+    if series:
+        mapping[series] = "series"
+
+    return mapping
+
+
 def tool_save_visualization(user, org, arguments):
     arguments = arguments or {}
     query_id = arguments.get("query_id")
@@ -2180,15 +2294,11 @@ def tool_save_visualization(user, org, arguments):
             raise McpError(INVALID_PARAMS, "A chart needs `x` and at least one `y`.")
 
         chart_type = (arguments.get("chart_type") or "column").strip().lower()
-        if chart_type not in ("column", "bar", "line", "area", "pie", "scatter"):
-            raise McpError(INVALID_PARAMS, "`chart_type` is column, bar, line, area, pie or scatter.")
+        if chart_type not in CHART_TYPES:
+            raise McpError(INVALID_PARAMS, "`chart_type` is one of {}.".format(", ".join(CHART_TYPES)))
 
-        mapping = {x: "x"}
-        for column in ys:
-            mapping[column] = "y"
         series = (arguments.get("series") or "").strip()
-        if series:
-            mapping[series] = "series"
+        mapping = _chart_columns(chart_type, x, ys, series, arguments)
 
         options = {
             # `bar` is not a type of its own: it is a column chart with the
@@ -2199,8 +2309,11 @@ def tool_save_visualization(user, org, arguments):
             "seriesOptions": {},
             # A legend earns its space once there is more than one thing to
             # tell apart -- except on a pie, where the slices *are* the
-            # categories and the legend is how you read them at all.
-            "legend": {"enabled": chart_type == "pie" or len(ys) > 1 or bool(series)},
+            # categories and the legend is how you read them at all. A heatmap
+            # reads from its colour scale, which is not the legend.
+            "legend": {
+                "enabled": chart_type != "heatmap" and (chart_type == "pie" or len(ys) > 1 or bool(series)),
+            },
         }
         default_name = "{} by {}".format(", ".join(ys), x)
     elif kind == "counter":
@@ -2437,11 +2550,379 @@ def tool_propose_measure(user, org, arguments):
     )
 
 
+#: How many alerts a search answers with, and how much history one alert
+#: shows. The history cap is the lesson from 0.7.7's token work: an alert that
+#: has flapped for a month should not be able to fill a context window, and
+#: twenty lines is enough to see a shape.
+MAX_ALERTS_SHOWN = 20
+MAX_ALERT_HISTORY = 20
+
+#: Past this, the value an alert last saw is reported as stale rather than as
+#: the current one. A threshold checked against a result three days old is
+#: worse than saying the query has not run -- the first reads as an answer.
+ALERT_VALUE_STALE_AFTER = datetime.timedelta(hours=24)
+
+#: The operators as somebody says them. The model stores both these and the
+#: spelled-out forms it accepted years ago, and a condition is worth more as
+#: `orders < 100` than as three option keys.
+#: The operators save_alert accepts. The model also honours three
+#: spelled-out forms kept for alerts saved years ago, but nothing new should
+#: be written in them, so they are not offered here.
+ALERT_OPS = (">", ">=", "<", "<=", "==", "!=")
+
+OP_WORDS = {
+    "greater than": ">",
+    "less than": "<",
+    "equals": "==",
+}
+
+
+def _alert_condition(alert):
+    """
+    An alert's condition on one line, as somebody would say it.
+
+    `{"column": "orders", "op": "<", "value": 100}` is three keys that have to
+    be read together before they mean anything. `orders < 100` is the same
+    fact, already assembled.
+    """
+    options = alert.options or {}
+    column = options.get("column")
+    op = options.get("op")
+    value = options.get("value")
+    if not column or op is None:
+        return "no condition set"
+    # `selector` arrived after alerts already existed, so a missing one means
+    # the first row -- the same default `evaluate` applies.
+    selector = options.get("selector", "first")
+    measured = column if selector == "first" else "{}({})".format(selector, column)
+    return "{} {} {}".format(measured, OP_WORDS.get(op, op), value)
+
+
+def _visible_alerts(user, org):
+    """
+    The alerts this caller may see.
+
+    `Alert.all` is the alerts list's own rule -- an alert sits on a query, and
+    whoever cannot read that query's data source has no business reading the
+    alert on it. Scoped to the organisation as well, through the query, since
+    group ids are only meaningful inside one.
+    """
+    return models.Alert.all(user.group_ids).filter(models.Query.org_id == org.id)
+
+
+def _alert_age(alert, counts, now):
+    """The three things a list row says about where an alert stands."""
+    where = alert.state or models.Alert.UNKNOWN_STATE
+    fired = counts.get(alert.id, 0)
+    last = alert.last_triggered_at
+    parts = [where]
+    if fired:
+        parts.append("{} fire{} in 24h".format(fired, "" if fired == 1 else "s"))
+    if last is not None:
+        parts.append("last fired {}".format(_when(last, now)))
+    if (alert.options or {}).get("muted"):
+        # Worth saying on every line that has it: an alert that is evaluating
+        # and telling nobody looks identical to one that is quiet.
+        parts.append("MUTED")
+    return ", ".join(parts)
+
+
+def _when(moment, now=None):
+    """`3 hours ago`, for a timestamp a model has to weigh rather than parse."""
+    if moment is None:
+        return "never"
+    seconds = ((now or utils.utcnow()) - moment).total_seconds()
+    if seconds < 0:
+        return "just now"
+    for size, unit in ((86400, "day"), (3600, "hour"), (60, "minute")):
+        if seconds >= size:
+            count = int(seconds // size)
+            return "{} {}{} ago".format(count, unit, "" if count == 1 else "s")
+    return "under a minute ago"
+
+
+def tool_find_alerts(user, org, arguments):
+    question = ((arguments or {}).get("question") or "").strip()
+    if not question:
+        raise McpError(INVALID_PARAMS, "`question` is required.")
+    terms = _terms(question)
+
+    alerts = _visible_alerts(user, org)
+    if terms:
+        # The query's name as well as the alert's. Alerts are often named for
+        # the threshold ("orders below 100") while the thing somebody is
+        # asking about is the subject, which is in the query's name.
+        alerts = alerts.filter(
+            or_(
+                *[
+                    or_(
+                        models.Alert.name.ilike("%{}%".format(term)),
+                        models.Query.name.ilike("%{}%".format(term)),
+                    )
+                    for term in terms
+                ]
+            )
+        )
+    alerts = alerts.order_by(models.Alert.id.desc()).limit(MAX_ALERTS_SHOWN + 1).all()
+
+    if not alerts:
+        return _text("No alerts match that. list_data_sources shows what this key can read at all.")
+
+    more = len(alerts) > MAX_ALERTS_SHOWN
+    alerts = alerts[:MAX_ALERTS_SHOWN]
+
+    now = utils.utcnow()
+    counts = models.Alert.fire_counts([alert.id for alert in alerts], now=now)
+    lines = []
+    for alert in alerts:
+        lines.append(
+            "#{} {} -- {} ({}), on query #{} {}".format(
+                alert.id,
+                alert.name or "untitled",
+                _alert_condition(alert),
+                _alert_age(alert, counts, now),
+                alert.query_rel.id,
+                alert.query_rel.name,
+            )
+        )
+    if more:
+        lines.append("More than {} match; ask something narrower.".format(MAX_ALERTS_SHOWN))
+    lines.append("explain_alert(id) gives one of these in full, with its history.")
+    return _text("\n".join(lines))
+
+
+def tool_explain_alert(user, org, arguments):
+    alert_id = (arguments or {}).get("id")
+    if alert_id is None:
+        raise McpError(INVALID_PARAMS, "`id` is required -- find_alerts gives it.")
+
+    alert = _visible_alerts(user, org).filter(models.Alert.id == alert_id).first()
+    if alert is None:
+        # The same answer whether it does not exist or this key may not read
+        # the data source behind it. Saying which would confirm an alert
+        # exists to somebody who cannot see it.
+        raise McpError(INVALID_PARAMS, "No alert #{} that this key can read.".format(alert_id))
+
+    now = utils.utcnow()
+    query = alert.query_rel
+    lines = [
+        "#{} {}".format(alert.id, alert.name or "untitled"),
+        "Condition: {}".format(_alert_condition(alert)),
+        "State: {}".format(_alert_age(alert, models.Alert.fire_counts([alert.id], now=now), now)),
+    ]
+
+    if alert.rearm:
+        lines.append(
+            "Rearm: {} seconds -- it will not fire again until that has passed, so a gap in the "
+            "history below may be the rearm rather than the condition clearing.".format(alert.rearm)
+        )
+
+    lines.append("Query: #{} {}".format(query.id, query.name))
+    lines.extend(_alert_value_lines(alert, query, now))
+    lines.extend(_alert_history_lines(alert, now))
+    lines.extend(_alert_destination_lines(alert))
+    return _text("\n".join(lines))
+
+
+def _alert_value_lines(alert, query, now):
+    """
+    What the query last returned, and whether that is worth trusting.
+
+    The value is the whole point of the question "why did it not fire", and it
+    is also the easiest thing to be wrong about: a result from three days ago
+    presented as the current value reads as an answer, and sends somebody
+    looking at the threshold when the real fault is that nothing has run.
+    """
+    result = query.latest_query_data
+    if result is None:
+        return ["Value: the query has never run, so there is nothing to check the condition against."]
+
+    column = (alert.options or {}).get("column")
+    rows = (result.data or {}).get("rows") or []
+    retrieved = result.retrieved_at
+    age = _when(retrieved, now)
+
+    if not rows:
+        found = "the query returned no rows"
+    elif column not in rows[0]:
+        found = "the query no longer returns a column called {} -- the alert cannot evaluate".format(column)
+    else:
+        found = "{} = {}".format(column, rows[0][column])
+
+    if retrieved is not None and (now - retrieved) > ALERT_VALUE_STALE_AFTER:
+        return [
+            "Value: {}, but from {} -- too old to read as the current value. "
+            "Whatever this alert is doing, it is doing it on this result.".format(found, age)
+        ]
+    return ["Value: {} (from the run {})".format(found, age)]
+
+
+def _alert_history_lines(alert, now):
+    """The recent changes, newest first, with the value each was decided on."""
+    fires = alert.recent_fires(limit=MAX_ALERT_HISTORY)
+    if not fires:
+        return [
+            "History: nothing recorded. Alerts have kept a history since 0.7.9; before that only the current state was stored."
+        ]
+
+    lines = ["History, newest first:"]
+    for fire in fires:
+        said = "  {} {}".format(_when(fire.created_at, now), fire.state)
+        if fire.value is not None:
+            said += " at {}".format(fire.value)
+        if not fire.notified:
+            # Worth saying: a state change nobody was told about is the
+            # difference between "we missed it" and "nothing was sent".
+            said += " (nobody notified)"
+        lines.append(said)
+    if len(fires) == MAX_ALERT_HISTORY:
+        lines.append("  (the most recent {}; there may be more)".format(MAX_ALERT_HISTORY))
+    return lines
+
+
+def _alert_destination_lines(alert):
+    """Where it notifies, which answers "was anybody actually told"."""
+    subscriptions = models.AlertSubscription.all(alert.id).all()
+    if not subscriptions:
+        return ["Notifies: nobody is subscribed, so it changes state in silence."]
+    where = []
+    for subscription in subscriptions:
+        if subscription.destination:
+            where.append("{} ({})".format(subscription.destination.name, subscription.destination.type))
+        else:
+            where.append("email to {}".format(subscription.user.email))
+    return ["Notifies: {}".format(", ".join(where))]
+
+
+def may_write_alerts(user, by_api_key):
+    """
+    Whether this caller is offered save_alert.
+
+    A personal API key only, like every other write, and the permission the
+    browser checks for the alerts section. There is no separate "create
+    alert" permission to check: in the browser, being able to read a query
+    is what lets somebody put a threshold on it.
+    """
+    return bool(by_api_key) and user.has_permission("list_alerts")
+
+
+def tool_save_alert(user, org, arguments):
+    arguments = arguments or {}
+    name = (arguments.get("name") or "").strip()
+    column = (arguments.get("column") or "").strip()
+    op = arguments.get("op")
+    value = arguments.get("value")
+
+    if not name:
+        raise McpError(INVALID_PARAMS, "`name` is required: what it means when this fires.")
+    if not column:
+        raise McpError(INVALID_PARAMS, "`column` is required: the column to read.")
+    if op not in ALERT_OPS:
+        raise McpError(INVALID_PARAMS, "`op` must be one of {}.".format(", ".join(ALERT_OPS)))
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise McpError(INVALID_PARAMS, "`value` is the threshold, as a number.")
+
+    query = _alertable_query(user, org, arguments.get("query_id"))
+    _check_column_exists(query, column)
+    _within_the_daily_cap(user, org, "save_alert")
+
+    alert = models.Alert(
+        name=name[:255],
+        query_rel=query,
+        user=user,
+        options={
+            "column": column,
+            "op": op,
+            "value": value,
+            "selector": "first",
+            # The whole safety model, in one key. An alert is not like a
+            # draft query, which sits inert until somebody publishes it: an
+            # alert starts evaluating at once, and one with a destination
+            # starts waking people up. Muted is the alert vocabulary's own
+            # word for "running, telling nobody", so an agent's alert
+            # records its history from the first evaluation and notifies
+            # only once a person has read it and unmuted it.
+            "muted": True,
+        },
+    )
+    models.db.session.add(alert)
+    models.db.session.commit()
+
+    note_write("saved alert {} {!r} on query {}".format(alert.id, _short(name, 60), query.id))
+    return _text(
+        "Alert #{} on query #{}: {} {} {}. It is MUTED and nobody is subscribed, so it is "
+        "recording its history and telling nobody. Unmute it at alerts/{} and add a destination "
+        "there. explain_alert({}) will show what it would have done in the meantime.".format(
+            alert.id, query.id, column, op, value, alert.id, alert.id
+        )
+    )
+
+
+def _alertable_query(user, org, query_id):
+    """
+    The query this caller may put a threshold on, or a refusal saying why.
+
+    The browser's own rules: a query in this organisation they can read, and
+    not a stream. A stream is consumed only while somebody is watching it and
+    stores no result, so an alert on one would never fire -- which is worse
+    than one that cannot be made, because a person told no goes and builds
+    something that works.
+    """
+    if query_id is None:
+        raise McpError(INVALID_PARAMS, "`query_id` is required -- find_queries gives it.")
+    query = models.Query.query.filter(models.Query.id == query_id, models.Query.org == org).first()
+    if query is None or query.data_source_id is None:
+        raise McpError(INVALID_PARAMS, "No query #{} that this key can read.".format(query_id))
+
+    readable = {source.id for source in _readable_sources(user, org)}
+    if query.data_source_id not in readable:
+        # The same answer as for a query that is not there, for the reason
+        # explain_alert gives one: saying which confirms it exists.
+        raise McpError(INVALID_PARAMS, "No query #{} that this key can read.".format(query_id))
+
+    if query.data_source is not None and query.data_source.streams_only:
+        raise McpError(
+            INVALID_PARAMS,
+            "An alert cannot watch a stream. A stream is consumed only while somebody is looking "
+            "at it and stores no result for an alert to check.",
+        )
+    return query
+
+
+def _check_column_exists(query, column):
+    """
+    Refuse a column the query does not return.
+
+    This is the failure worth spending a refusal on: an alert on a misspelled
+    column evaluates to unknown for ever and looks, from the list, exactly
+    like one that is simply not firing. Checked against the query's last
+    result, because that is what the alert itself will read.
+    """
+    result = query.latest_query_data
+    if result is None:
+        raise McpError(
+            INVALID_PARAMS,
+            "Query #{} has never run, so there is nothing to check `column` against. Run it once "
+            "-- an alert reads the stored result, so a query that has never run has nothing for "
+            "an alert to watch either.".format(query.id),
+        )
+    columns = [c.get("name") for c in (result.data or {}).get("columns") or []]
+    if column not in columns:
+        raise McpError(
+            INVALID_PARAMS,
+            "Query #{} does not return a column called {}. It returns: {}.".format(
+                query.id, column, ", ".join(str(c) for c in columns) or "nothing"
+            ),
+        )
+
+
 HANDLERS = {
     "find_context": tool_find_context,
     "find_measures": tool_find_measures,
     "find_queries": tool_find_queries,
     "find_dashboards": tool_find_dashboards,
+    "find_alerts": tool_find_alerts,
+    "explain_alert": tool_explain_alert,
     "explain_query": tool_explain_query,
     "run_query": tool_run_query,
     "expand_table": tool_expand_table,
@@ -2453,6 +2934,7 @@ HANDLERS = {
     "save_visualization": tool_save_visualization,
     "save_dashboard": tool_save_dashboard,
     "propose_measure": tool_propose_measure,
+    "save_alert": tool_save_alert,
 }
 
 
@@ -2483,6 +2965,12 @@ def _may_call(name, user, by_api_key):
             "{} makes a dashboard, so it needs a personal API key from somebody who may create "
             "dashboards. OAuth sessions are read-only (mcp:read).".format(name),
         )
+    if name in (tool["name"] for tool in WRITE_ALERT_TOOLS) and not may_write_alerts(user, by_api_key):
+        raise McpError(
+            INVALID_PARAMS,
+            "{} builds an alert, so it needs a personal API key from somebody who may use alerts. "
+            "OAuth sessions are read-only (mcp:read).".format(name),
+        )
 
 
 def _offered_tools(user, by_api_key):
@@ -2502,6 +2990,8 @@ def _offered_tools(user, by_api_key):
         offered.extend(WRITE_QUERY_TOOLS)
     if may_write_dashboards(user, by_api_key):
         offered.extend(WRITE_DASHBOARD_TOOLS)
+    if may_write_alerts(user, by_api_key):
+        offered.extend(WRITE_ALERT_TOOLS)
     return offered
 
 

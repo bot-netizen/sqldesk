@@ -4,6 +4,7 @@ import {
   each,
   pick,
   extend,
+  isArray,
   isObject,
   truncate,
   keys,
@@ -108,6 +109,10 @@ class Widget {
     // anything to draw.
     if (this.visualization) {
       preloadVisualization(this.visualization.type);
+      // The tabs too. A tab is one click away and draws a result that is
+      // already in hand, so waiting on a chunk download at that point would
+      // be the only slow thing about switching.
+      each(this.tab_visualizations || [], (one) => preloadVisualization(one.type));
     }
 
     const visualizationOptions = calculatePositionOptions(this);
@@ -139,6 +144,24 @@ class Widget {
     }
 
     return this.query;
+  }
+
+  /**
+   * The visualizations this widget can show, its own first.
+   *
+   * Every one of them draws this widget's single query result -- the server
+   * only serializes a tab that belongs to the same query -- which is the
+   * point of tabs over three widgets: the query is fetched and parsed once
+   * instead of once per chart.
+   *
+   * A widget with nothing extra returns the one, and the strip is not drawn.
+   */
+  getTabs() {
+    if (!this.visualization) {
+      return [];
+    }
+    const extras = isArray(this.tab_visualizations) ? this.tab_visualizations : [];
+    return [this.visualization, ...extras];
   }
 
   getQueryResult() {
