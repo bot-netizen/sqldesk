@@ -80,6 +80,11 @@ def _write_without_a_new_version(dashboard, **fields):
 
 
 class DashboardListResource(BaseResource):
+    #: Which side of `is_archived` this resource lists. The archive subclasses
+    #: and flips it, so the two cannot drift: tags, folders, kind, ordering
+    #: and pagination are written once.
+    archived = False
+
     @require_permission("list_dashboards")
     def get(self):
         """
@@ -101,9 +106,15 @@ class DashboardListResource(BaseResource):
                 self.current_user.group_ids,
                 self.current_user.id,
                 search_term,
+                archived=self.archived,
             )
         else:
-            results = models.Dashboard.all(self.current_org, self.current_user.group_ids, self.current_user.id)
+            results = models.Dashboard.all(
+                self.current_org,
+                self.current_user.group_ids,
+                self.current_user.id,
+                archived=self.archived,
+            )
 
         results = filter_by_tags(results, models.Dashboard.tags)
 
@@ -209,6 +220,20 @@ class MyDashboardsResource(BaseResource):
         page = request.args.get("page", 1, type=int)
         page_size = request.args.get("page_size", 25, type=int)
         return paginate(ordered_results, page, page_size, DashboardSerializer)
+
+
+class DashboardArchiveResource(DashboardListResource):
+    """
+    The dashboards somebody archived.
+
+    There has been an `is_archived` flag and an Archive action since the
+    fork, and no way to see what had been archived: no list, no endpoint, no
+    entry in the sidebar. An archived dashboard was reachable only by
+    remembering its address, which is a poor place to keep the one you might
+    want back. Queries have had `/queries/archive` all along.
+    """
+
+    archived = True
 
 
 class DashboardResource(BaseResource):

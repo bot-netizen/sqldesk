@@ -19,6 +19,7 @@ from sqldesk.handlers.dashboard_folders import (
     DashboardFolderResource,
 )
 from sqldesk.handlers.dashboards import (
+    DashboardArchiveResource,
     DashboardFavoriteListResource,
     DashboardForkResource,
     DashboardListResource,
@@ -187,6 +188,8 @@ api.add_org_resource(
 api.add_org_resource(AlertListResource, "/api/alerts", endpoint="alerts")
 
 api.add_org_resource(DashboardListResource, "/api/dashboards", endpoint="dashboards")
+# Before `/api/dashboards/<dashboard_id>`, or "archive" is read as a slug.
+api.add_org_resource(DashboardArchiveResource, "/api/dashboards/archive", endpoint="dashboard_archive")
 api.add_org_resource(DashboardResource, "/api/dashboards/<dashboard_id>", endpoint="dashboard")
 api.add_org_resource(
     PublicDashboardResource,

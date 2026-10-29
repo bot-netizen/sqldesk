@@ -40,14 +40,17 @@ import "./dashboard-list.css";
   never both. The views repeat inside each half, so "my streaming dashboards"
   is Mine reached from the streaming half and has one home.
 
-  No Archived, here or in the ordinary half: archiving a dashboard hides it
-  everywhere and there has never been a list of what was hidden. A real gap,
-  and a different one -- see plan/0.8-plan.md.
+  Archived is one of them, as of 0.8. Before that, archiving a dashboard hid
+  it everywhere and there was no list of what had been hidden -- the flag and
+  the Archive action both existed, and the only way back to an archived
+  dashboard was remembering its address. Queries have had theirs since the
+  fork.
 */
 const VIEWS = [
   { key: "all", title: "All", icon: () => <Sidebar.MenuIcon icon="zmdi zmdi-view-quilt" /> },
   { key: "favorites", title: "Favorites", icon: () => <Sidebar.MenuIcon icon="fa fa-star" /> },
   { key: "my", title: "Mine", icon: () => <Sidebar.ProfileImage user={currentUser} /> },
+  { key: "archive", title: "Archived", icon: () => <Sidebar.MenuIcon icon="fa fa-archive" /> },
 ];
 
 export const STREAMING_BASE = "dashboards/streaming";
@@ -276,6 +279,7 @@ const DashboardListPage = itemsList(
           all: Dashboard.query.bind(Dashboard),
           my: Dashboard.myDashboards.bind(Dashboard),
           favorites: Dashboard.favorites.bind(Dashboard),
+          archive: Dashboard.archive.bind(Dashboard),
         }[currentPage];
         // On all three, not just the unfiltered one. `kind` used to ride on
         // All alone, so Mine and Favorites quietly showed both kinds and
@@ -315,6 +319,14 @@ routes.register(
     render: (pageProps) => <DashboardListPage {...pageProps} currentPage="my" kind="saved" />,
   })
 );
+routes.register(
+  "Dashboards.Archive",
+  routeWithUserSession({
+    path: "/dashboards/archive",
+    title: "Archived Dashboards",
+    render: (pageProps) => <DashboardListPage {...pageProps} currentPage="archive" kind="saved" />,
+  })
+);
 
 // The streaming half: the same page and the same views, against the other
 // half of the set.
@@ -334,6 +346,14 @@ routes.register(
     render: (pageProps) => (
       <DashboardListPage {...pageProps} currentPage="favorites" kind="streaming" orderByField="starred_at" />
     ),
+  })
+);
+routes.register(
+  "Dashboards.StreamingArchive",
+  routeWithUserSession({
+    path: "/dashboards/streaming/archive",
+    title: "Archived Streaming Dashboards",
+    render: (pageProps) => <DashboardListPage {...pageProps} currentPage="archive" kind="streaming" />,
   })
 );
 routes.register(

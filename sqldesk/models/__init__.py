@@ -1824,7 +1824,17 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
         )
 
     @classmethod
-    def all(cls, org, group_ids, user_id):
+    def all(cls, org, group_ids, user_id, archived=False):
+        """
+        Dashboards this person can see.
+
+        `archived` selects which side of the flag, rather than widening the
+        result: `False` is the index, `True` is the archive. There has never
+        been a way to ask for the second -- the flag and the Archive action
+        both existed, and an archived dashboard was reachable only by
+        remembering its address. Queries have had their archive since the
+        fork; this is the matching half.
+        """
         query = (
             Dashboard.query.options(joinedload(Dashboard.user).load_only("id", "name", "details", "email"))
             .distinct(cls.lowercase_name, Dashboard.created_at, Dashboard.slug)
@@ -1833,7 +1843,7 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
             .outerjoin(Query)
             .outerjoin(DataSourceGroup, Query.data_source_id == DataSourceGroup.data_source_id)
             .filter(
-                Dashboard.is_archived.is_(False),
+                Dashboard.is_archived.is_(archived),
                 (DataSourceGroup.group_id.in_(group_ids) | (Dashboard.user_id == user_id)),
                 Dashboard.org == org,
             )
@@ -1844,9 +1854,9 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
         return query
 
     @classmethod
-    def search(cls, org, groups_ids, user_id, search_term):
+    def search(cls, org, groups_ids, user_id, search_term, archived=False):
         # TODO: switch to FTS
-        return cls.all(org, groups_ids, user_id).filter(cls.name.ilike("%{}%".format(search_term)))
+        return cls.all(org, groups_ids, user_id, archived=archived).filter(cls.name.ilike("%{}%".format(search_term)))
 
     @classmethod
     def search_by_user(cls, term, user, limit=None):

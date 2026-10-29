@@ -1,3 +1,4 @@
+from sqldesk.handlers.dashboards import DashboardArchiveResource, DashboardListResource
 from sqldesk.models import AccessPermission, ApiKey, Dashboard, db
 from sqldesk.permissions import ACCESS_TYPE_MODIFY
 from sqldesk.serializers import serialize_dashboard
@@ -273,3 +274,85 @@ class TestDashboardShareResourceDelete(BaseTestCase):
 
         res = self.make_request("delete", "/api/dashboards/{}/share".format(dashboard.id), user=user)
         self.assertEqual(res.status_code, 200)
+
+
+class TestTheDashboardArchive(BaseTestCase):
+    """
+    `/api/dashboards/archive`.
+
+    There has been an is_archived flag and an Archive action since the fork,
+    and no way to see what had been archived -- an archived dashboard was
+    reachable only by remembering its address, which is a poor place to keep
+    the one you might want back.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.live = self.factory.create_dashboard(name="Still in use", is_draft=False)
+        self.gone = self.factory.create_dashboard(name="Archived one", is_draft=False, is_archived=True)
+        db.session.commit()
+
+    def names(self, path="/api/dashboards/archive", **params):
+        rv = self.make_request("get", path, **params)
+        self.assertEqual(200, rv.status_code, rv.data[:300])
+        return [one["name"] for one in rv.json["results"]]
+
+    def test_the_archive_lists_what_was_archived(self):
+        self.assertEqual(["Archived one"], self.names())
+
+    def test_and_nothing_that_is_still_in_use(self):
+        self.assertNotIn("Still in use", self.names())
+
+    def test_the_index_is_unchanged_by_the_archive_existing(self):
+        names = self.names("/api/dashboards")
+
+        self.assertIn("Still in use", names)
+        self.assertNotIn("Archived one", names)
+
+    def test_the_archive_can_be_searched(self):
+        self.factory.create_dashboard(name="Another archived", is_draft=False, is_archived=True)
+        db.session.commit()
+
+        self.assertEqual(["Archived one"], self.names(path="/api/dashboards/archive?q=Archived one"))
+
+    def test_searching_the_archive_does_not_reach_the_index(self):
+        self.assertEqual([], self.names(path="/api/dashboards/archive?q=Still in use"))
+
+    def test_archiving_moves_a_dashboard_between_the_two(self):
+        self.assertIn("Still in use", self.names("/api/dashboards"))
+
+        rv = self.make_request("delete", "/api/dashboards/{}".format(self.live.id))
+        self.assertEqual(200, rv.status_code, rv.data[:300])
+
+        self.assertNotIn("Still in use", self.names("/api/dashboards"))
+        self.assertIn("Still in use", self.names())
+
+    def test_somebody_elses_dashboard_is_not_in_your_archive(self):
+        # The archive is the index's other half, so it answers to the same
+        # permission rule rather than a looser one.
+        other_org = self.factory.create_org()
+        other_user = self.factory.create_user(org=other_org)
+        self.factory.create_dashboard(name="Theirs", is_draft=False, is_archived=True, org=other_org, user=other_user)
+        db.session.commit()
+
+        self.assertNotIn("Theirs", self.names())
+
+    def test_it_is_the_index_with_the_flag_flipped_rather_than_a_second_listing(self):
+        # Shared on purpose: the permission, the tag and folder filters, the
+        # kind filter, the ordering and the pagination are written once. A
+        # reimplemented archive is how one of those quietly stops matching.
+        self.assertTrue(issubclass(DashboardArchiveResource, DashboardListResource))
+        self.assertFalse(DashboardListResource.archived)
+        self.assertTrue(DashboardArchiveResource.archived)
+        self.assertEqual(DashboardListResource.get, DashboardArchiveResource.get)
+
+    def test_a_folder_filter_works_on_the_archive_too(self):
+        # It comes free from sharing the handler, and is worth an assertion
+        # because that is exactly what would be lost by reimplementing it.
+        folder = self.factory.create_dashboard_folder() if hasattr(self.factory, "create_dashboard_folder") else None
+        if folder is None:
+            self.skipTest("this install has no dashboard folders")
+        self.gone.folder_id = folder.id
+        db.session.commit()
+
+        self.assertEqual(["Archived one"], self.names(path="/api/dashboards/archive?folder={}".format(folder.id)))

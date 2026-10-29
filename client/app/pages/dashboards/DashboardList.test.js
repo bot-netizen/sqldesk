@@ -114,11 +114,17 @@ describe("the dashboards list", () => {
       "dashboards/streaming",
       "dashboards/streaming/favorites",
       "dashboards/streaming/my",
+      "dashboards/streaming/archive",
     ]);
   });
 
   test("and in the ordinary half they are the paths they always were", () => {
-    expect(viewsFor("saved").map((view) => view.href)).toEqual(["dashboards", "dashboards/favorites", "dashboards/my"]);
+    expect(viewsFor("saved").map((view) => view.href)).toEqual([
+      "dashboards",
+      "dashboards/favorites",
+      "dashboards/my",
+      "dashboards/archive",
+    ]);
   });
 
   // A folder page names no half, and must not be shown the streaming one.
