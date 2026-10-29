@@ -40,7 +40,12 @@ function ChooseWidgetTabsDialog({ dialog, widget }) {
     Query.get({ id: queryId })
       .then((query) => {
         if (!cancelled) {
-          setAvailable(filter(query.visualizations, (one) => one.id !== widget.visualization.id));
+          // Charts only, the same rule the server stores by. Offering a
+          // counter here would write a tab the server then drops, which
+          // reads as the dialog having silently failed.
+          setAvailable(
+            filter(query.visualizations, (one) => one.id !== widget.visualization.id && one.type === "CHART")
+          );
         }
       })
       .catch(() => {
@@ -94,7 +99,8 @@ function ChooseWidgetTabsDialog({ dialog, widget }) {
       {available === null && <Spinner />}
       {available !== null && available.length === 0 && (
         <p className="text-muted" data-test="NoOtherVisualizations">
-          This query has no other visualizations. Add one on the query page and it will appear here.
+          This query has no other charts. Add one on the query page and it will appear here — tabs are for charts,
+          because a counter is one number and a table is already a grid of them.
         </p>
       )}
       {map(available || [], (one) => (

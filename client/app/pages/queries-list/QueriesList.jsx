@@ -113,16 +113,22 @@ function getListColumns(dataSourceNames, controllerRef) {
       {
         title: "Name",
         field: "name",
-        width: null,
+        // No width, so this column takes whatever the others do not. The
+        // alerts list has always done it this way; queries carried fixed
+        // widths on every secondary column instead -- 990px of them -- and
+        // under table-layout: auto a declared width is a preference, so the
+        // surplus on a wide screen was shared out proportionally. Source and
+        // Owner grew while the name, which is the column people read and the
+        // one carrying the tags, wrapped to two lines.
       }
     ),
     Columns.custom(
       (text, item) => <span className="queries-list-source">{dataSourceNames[item.data_source_id] || "\u2014"}</span>,
-      { title: "Source", width: 150 }
+      { title: "Source", width: "1%" }
     ),
     // Not sortable: health is derived on the client from three fields, so
     // there is no single column the backend could order by.
-    Columns.custom((text, item) => <QueryHealth query={item} />, { title: "Status", width: 130 }),
+    Columns.custom((text, item) => <QueryHealth query={item} />, { title: "Status", width: "1%" }),
     // Both order on the latest result's own columns, which all_queries()
     // already joins and loads -- see the order map in handlers/queries.py.
     Columns.custom.sortable(
@@ -130,7 +136,7 @@ function getListColumns(dataSourceNames, controllerRef) {
       {
         title: "Rows",
         field: "row_count",
-        width: 110,
+        width: "1%",
         className: "text-right",
       }
     ),
@@ -139,7 +145,7 @@ function getListColumns(dataSourceNames, controllerRef) {
       {
         title: "Runtime",
         field: "runtime",
-        width: 120,
+        width: "1%",
         className: "text-right",
       }
     ),
@@ -150,13 +156,13 @@ function getListColumns(dataSourceNames, controllerRef) {
           {item.user.name}
         </span>
       ),
-      { title: "Owner", width: 190 }
+      { title: "Owner", width: "1%" }
     ),
     Columns.timeAgo.sortable({
       title: "Last run",
       field: "retrieved_at",
       orderByField: "executed_at",
-      width: 150,
+      width: "1%",
     }),
     Columns.custom.sortable(
       (text, item) => (
@@ -167,7 +173,7 @@ function getListColumns(dataSourceNames, controllerRef) {
       {
         title: "Schedule",
         field: "schedule",
-        width: 140,
+        width: "1%",
       }
     ),
   ];

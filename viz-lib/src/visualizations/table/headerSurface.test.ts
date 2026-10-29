@@ -76,7 +76,12 @@ describe("the table visualization's header surface", () => {
   test("the header is marked by weight and a rule instead", () => {
     const header = declarations(source, ".ant-table-thead > tr > th {");
 
-    expect(header).toMatch(/font-weight:\s*700/);
+    // A weight above the rows' own, not a specific one. 700 was asked for
+    // and then asked back down; what the guard is for is that the header is
+    // still marked at all, which is what went wrong before.
+    const weight = header.match(/font-weight:\s*(\d+)/);
+    expect(weight).not.toBeNull();
+    expect(Number(weight![1])).toBeGreaterThan(400);
     expect(header).toMatch(/border-bottom:\s*2px/);
   });
 });

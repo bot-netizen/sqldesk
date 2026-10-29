@@ -29,7 +29,10 @@
     // sentence case at the body size: upper case with tracking would widen
     // `customer_lifetime_value` and read worse, which is why this differs
     // from the curated labels on the list pages.
-    font-weight: 700;
+    // 0.7.9 asked for weight because the header was invisible; 0.7.10 gave
+    // it 700 and that was more than the page wanted. The rule underneath is
+    // doing most of the separating, so the type does not have to shout.
+    font-weight: 500;
     color: var(--color-text, #1c1b1a);
     border-bottom: 2px solid var(--color-text-subtle, #b5afa6);
     // Keeps the column names on one line, so the header cannot grow taller

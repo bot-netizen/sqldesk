@@ -1,7 +1,9 @@
 import React from "react";
-import { shallow } from "enzyme";
-import VisualizationWidget from "./VisualizationWidget";
+import { shallow, mount as mountFull } from "enzyme";
+import VisualizationWidget, { VisualizationWidgetHeader } from "./VisualizationWidget";
+import QueryLink from "@/components/QueryLink";
 import VisualizationRenderer from "@/components/visualizations/VisualizationRenderer";
+import Widget from "./Widget";
 
 jest.mock("@/services/auth", () => ({ currentUser: { hasPermission: () => false } }));
 jest.mock("@/services/recordEvent", () => jest.fn());
@@ -19,8 +21,8 @@ const BY_REGION = { id: 2, name: "By region", type: "CHART", options: {} };
 const BY_CHANNEL = { id: 7, name: "By channel", type: "CHART", options: {} };
 const BY_PRODUCT = { id: 9, name: "By product", type: "CHART", options: {} };
 
-function fakeWidget(extras = []) {
-  const visualization = { ...BY_REGION, query: { id: 3 } };
+function fakeWidget(extras = [], type = "CHART") {
+  const visualization = { ...BY_REGION, type, query: { id: 3, name: "5 min vs last week" } };
   return {
     id: 1,
     options: {},
@@ -130,5 +132,76 @@ describe("VisualizationWidget tabs", () => {
 
       expect(wrapper.find(VisualizationRenderer).props().visualization.id).toBe(BY_REGION.id);
     });
+  });
+});
+
+/*
+  Asked for on 2026-10-29, from using 0.7.10.
+*/
+describe("VisualizationWidget tabs: what they apply to", () => {
+  test("a counter gets no buttons however many views are attached", () => {
+    // One number. A strip of buttons over it is chrome around nothing.
+    const wrapper = mount(fakeWidget([BY_CHANNEL, BY_PRODUCT], "COUNTER"));
+
+    expect(wrapper.find(".widget-tabs")).toHaveLength(0);
+  });
+
+  test("a table gets none either, being already a grid of numbers", () => {
+    const wrapper = mount(fakeWidget([BY_CHANNEL], "TABLE"));
+
+    expect(wrapper.find(".widget-tabs")).toHaveLength(0);
+  });
+
+  test("a counter still draws its visualization", () => {
+    // Refusing the buttons must not refuse the widget.
+    const wrapper = mount(fakeWidget([BY_CHANNEL], "COUNTER"));
+
+    expect(wrapper.find(VisualizationRenderer).props().visualization.id).toBe(BY_REGION.id);
+  });
+
+  test("a chart still gets them", () => {
+    const wrapper = mount(fakeWidget([BY_CHANNEL], "CHART"));
+
+    expect(wrapper.find(".widget-tabs")).toHaveLength(1);
+  });
+});
+
+describe("VisualizationWidget tabs: what the panel is called", () => {
+  function header(widget) {
+    // The header is its own component, so it can be rendered on its own and
+    // asked what it handed the title link.
+    return mountFull(
+      <VisualizationWidgetHeader
+        widget={widget}
+        parameters={[]}
+        isEditing={false}
+        onParametersUpdate={() => {}}
+        onParametersEdit={() => {}}
+      />
+    );
+  }
+
+  test("a tabbed panel is titled by its query, because the buttons carry the rest", () => {
+    // "5 min vs last week" across the top, "By channel" on a button. Putting
+    // the visualization name in both says one thing twice and leaves the
+    // query -- the thing that distinguishes this panel -- unnamed.
+    const link = header(fakeWidget([BY_CHANNEL])).find(QueryLink);
+
+    expect(link.props().preferQueryName).toBe(true);
+  });
+
+  test("a widget with one visualization is titled as it always was", () => {
+    // Five widgets over one query would otherwise carry that query's name
+    // five times, which is why the visualization's name wins here.
+    const link = header(fakeWidget()).find(QueryLink);
+
+    expect(link.props().preferQueryName).toBe(false);
+  });
+
+  test("a counter with views attached is still titled the old way", () => {
+    // It has no buttons, so nothing else is carrying the name.
+    const link = header(fakeWidget([BY_CHANNEL], "COUNTER")).find(QueryLink);
+
+    expect(link.props().preferQueryName).toBe(false);
   });
 });

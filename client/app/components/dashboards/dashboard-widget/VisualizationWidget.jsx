@@ -24,6 +24,23 @@ import Widget from "./Widget";
 import LiveCountdown from "./LiveCountdown";
 import Spinner from "@/components/Spinner";
 
+/**
+ * Whether this widget shows a strip of buttons.
+ *
+ * Charts only. A counter is one number and a table is already a grid of
+ * them, so a row of buttons over either is chrome around nothing -- and the
+ * thing tabs are for, several readings of one result, only arises when the
+ * readings are charts. The server stores by the same rule.
+ */
+export function hasTabs(widget) {
+  return widget.visualization.type === "CHART" && widget.getTabs().length > 1;
+}
+
+/** Whether somebody may be offered the choice at all. */
+function mayHaveTabs(widget) {
+  return widget.visualization.type === "CHART";
+}
+
 function visualizationWidgetMenuOptions({ widget, canEditDashboard, onParametersEdit, onTabsEdit }) {
   const canViewQuery = currentUser.hasPermission("view_query");
   const canEditParameters = canEditDashboard && !isEmpty(invoke(widget, "query.getParametersDefs"));
@@ -60,7 +77,7 @@ function visualizationWidgetMenuOptions({ widget, canEditDashboard, onParameters
         "Download as Excel File"
       )}
     </Menu.Item>,
-    (canViewQuery || canEditParameters || canEditDashboard) && <Menu.Divider key="divider" />,
+    (canViewQuery || canEditParameters || (canEditDashboard && mayHaveTabs(widget))) && <Menu.Divider key="divider" />,
     canViewQuery && (
       <Menu.Item key="view_query">
         <Link href={widget.getQuery().getUrl(true, widget.visualization.id)}>View Query</Link>
@@ -73,7 +90,7 @@ function visualizationWidgetMenuOptions({ widget, canEditDashboard, onParameters
     ),
     // Only for somebody who can change the dashboard: which views this widget
     // offers is a property of the widget, not of the person reading it.
-    canEditDashboard && (
+    canEditDashboard && mayHaveTabs(widget) && (
       <Menu.Item key="choose_tabs" onClick={onTabsEdit}>
         Choose Tabs
       </Menu.Item>
@@ -133,7 +150,12 @@ export function VisualizationWidgetHeader({
       <div className={cx("t-header widget clearfix", { "t-header-filtered": filtersInline })}>
         <div className="th-title">
           <p>
-            <QueryLink query={widget.getQuery()} visualization={widget.visualization} readOnly={!canViewQuery} />
+            <QueryLink
+              query={widget.getQuery()}
+              visualization={widget.visualization}
+              readOnly={!canViewQuery}
+              preferQueryName={hasTabs(widget)}
+            />
           </p>
           {/*
             The chart's own description, written for the chart. Not the
@@ -341,10 +363,10 @@ class VisualizationWidget extends React.Component {
    */
   renderTabs() {
     const { widget } = this.props;
-    const tabs = widget.getTabs();
-    if (tabs.length < 2) {
+    if (!hasTabs(widget)) {
       return null;
     }
+    const tabs = widget.getTabs();
 
     const { activeTabId } = this.state;
     return (

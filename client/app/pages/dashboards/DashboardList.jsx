@@ -100,7 +100,8 @@ function getListColumns(controllerRef) {
       {
         title: "Name",
         field: "name",
-        width: null,
+        // Same shape as the queries and alerts lists: no width, so the name
+        // takes what the others leave. These three move together.
       }
     ),
     // Panels and the distinct queries behind them. Two panels charting the same
@@ -118,7 +119,7 @@ function getListColumns(controllerRef) {
           </span>
         </span>
       ),
-      { title: "Content", width: 190 }
+      { title: "Content", width: "1%" }
     ),
     Columns.custom(
       (text, item) => (
@@ -127,12 +128,12 @@ function getListColumns(controllerRef) {
           {item.user.name}
         </span>
       ),
-      { title: "Owner", width: 190 }
+      { title: "Owner", width: "1%" }
     ),
     Columns.timeAgo.sortable({
       title: "Created",
       field: "created_at",
-      width: 150,
+      width: "1%",
     }),
   ];
 }

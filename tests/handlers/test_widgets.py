@@ -261,6 +261,84 @@ class TestAWidgetWithTabs(BaseTestCase):
         self.assertEqual([self.by_channel.id], saved["tabs"])
 
 
+class TestTabsAreForCharts(BaseTestCase):
+    """
+    Asked for on 2026-10-29: "dont use tabs on counters only on chart
+    visualization".
+
+    A counter is one number and a table is already a grid of them. The thing
+    tabs are for -- several readings of one result -- only arises when the
+    readings are charts, and a strip of buttons over a single number is
+    chrome around nothing.
+
+    Enforced here as well as in the browser, so a tab cannot be written by
+    hand through the API and then sit on a dashboard with no way to remove it.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.dashboard = self.factory.create_dashboard()
+        self.query = self.factory.create_query()
+        self.chart = self.factory.create_visualization(query_rel=self.query, type="CHART")
+        self.other_chart = self.factory.create_visualization(query_rel=self.query, type="CHART", name="By channel")
+        self.counter = self.factory.create_visualization(query_rel=self.query, type="COUNTER", name="Total")
+        self.table = self.factory.create_visualization(query_rel=self.query, type="TABLE", name="Rows")
+        models.db.session.commit()
+
+    def create(self, visualization, tabs):
+        rv = self.make_request(
+            "post",
+            "/api/widgets",
+            data={
+                "visualization_id": visualization.id,
+                "dashboard_id": self.dashboard.id,
+                "options": {"tabs": [one.id for one in tabs]},
+                "width": 1,
+            },
+        )
+        self.assertEqual(200, rv.status_code, rv.data[:300])
+        return models.Widget.query.get(rv.json["id"])
+
+    def test_a_chart_widget_keeps_its_chart_tabs(self):
+        widget = self.create(self.chart, [self.other_chart])
+
+        self.assertEqual([self.other_chart.id], widget.options.get("tabs"))
+
+    def test_a_counter_widget_is_given_none(self):
+        widget = self.create(self.counter, [self.other_chart])
+
+        self.assertNotIn("tabs", widget.options)
+
+    def test_a_table_widget_is_given_none(self):
+        widget = self.create(self.table, [self.other_chart])
+
+        self.assertNotIn("tabs", widget.options)
+
+    def test_a_chart_cannot_tab_to_a_counter(self):
+        widget = self.create(self.chart, [self.counter, self.other_chart])
+
+        self.assertEqual([self.other_chart.id], widget.options.get("tabs"))
+
+    def test_a_chart_cannot_tab_to_a_table(self):
+        widget = self.create(self.chart, [self.table])
+
+        self.assertNotIn("tabs", widget.options)
+
+    def test_a_counter_already_carrying_tabs_sends_none(self):
+        # A row written before this rule existed must not come back as a tab
+        # nobody can get rid of.
+        from sqldesk.serializers import serialize_widget
+
+        widget = self.factory.create_widget(
+            dashboard=self.dashboard,
+            visualization=self.counter,
+            options={"tabs": [self.other_chart.id]},
+        )
+        models.db.session.commit()
+
+        self.assertEqual([], serialize_widget(widget)["tab_visualizations"])
+
+
 class TestWhatATabbedWidgetSends(BaseTestCase):
     """
     What the dashboard payload carries for a tabbed widget.

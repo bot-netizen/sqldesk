@@ -271,6 +271,12 @@ def _serialize_widget_tabs(widget):
     deleted while a widget still names it, and a dashboard is not the place to
     discover that.
     """
+    # Charts only, both ends. The tabs are filtered by type below; this is
+    # the widget's own, and without it a counter saved before that rule
+    # existed still sends its tabs and shows a strip nobody can remove.
+    if widget.visualization.type != "CHART":
+        return []
+
     ids = (widget.options or {}).get("tabs")
     if not isinstance(ids, list) or not ids:
         return []
@@ -280,6 +286,10 @@ def _serialize_widget_tabs(widget):
         for row in models.Visualization.query.filter(
             models.Visualization.id.in_([one for one in ids if isinstance(one, int)]),
             models.Visualization.query_id == widget.visualization.query_id,
+            # Charts only, the same rule the handler stores by. Asserted here
+            # as well so a row written before that rule existed does not come
+            # back as a tab nobody can remove.
+            models.Visualization.type == "CHART",
         )
     }
     return [serialize_visualization(found[one], with_query=False) for one in ids if one in found]
