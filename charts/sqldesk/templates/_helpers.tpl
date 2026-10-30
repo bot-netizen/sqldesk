@@ -211,6 +211,20 @@ reached only one of them is the kind of difference nobody finds quickly.
       key: screenshot-token
       optional: true
 {{- end }}
+{{- if .Values.notebooks.enabled }}
+# Where Python cells run. Without it they say so on the cell rather than
+# failing when somebody presses Run, so this is the whole of turning them on.
+- name: SQLDESK_NOTEBOOK_EXECUTOR_URL
+  value: {{ printf "http://%s-executor:5000" (include "sqldesk.fullname" .) | quote }}
+# Shown to the interpreter with every request, so nothing else on the cluster
+# can run code on it.
+- name: SQLDESK_NOTEBOOK_EXECUTOR_TOKEN
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "sqldesk.secretName" . }}
+      key: executor-token
+      optional: true
+{{- end }}
 {{- if .Values.uploads.enabled }}
 - name: SQLDESK_UPLOAD_LIFETIME_DAYS
   value: {{ dig "lifecycle" "lifetimeDays" 7 .Values.uploads | quote }}

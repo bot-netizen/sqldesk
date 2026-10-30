@@ -313,6 +313,112 @@ def get_activity(org_id, minutes=60):
     }
 
 
+def get_audit(org_id, days=30, limit=10):
+    """
+    Who has been expensive this month, rather than this hour.
+
+    `get_activity` answers "what is happening now" and is read while something
+    is wrong. This answers "where did the month go", which is a different
+    question asked at a different time -- and until now nothing read `events`
+    as a history at all, though every execution has been written there since
+    the fork.
+
+    Counted from the same rows and the same index as the hourly view, so the
+    two cannot disagree about what an execution is. A run through the
+    scheduler is not in here: `events` records what a person asked for, which
+    is what an audit is about.
+    """
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    where = (
+        Event.org_id == org_id,
+        Event.action == "execute_query",
+        Event.created_at >= since,
+    )
+    executions = Event.query.filter(*where)
+    counted = func.count().label("executions")
+
+    by_user = (
+        db.session.query(User.id, User.name, counted)
+        .select_from(Event)
+        .join(User, User.id == Event.user_id)
+        .filter(*where)
+        .group_by(User.id, User.name)
+        .order_by(desc(counted))
+        .limit(limit)
+        .all()
+    )
+
+    # By data source, which is the half that says *where* the money went: a
+    # thousand runs against a cached Postgres and a thousand against a
+    # warehouse that bills per scan are not the same month.
+    by_source = (
+        db.session.query(Event.object_id, counted)
+        .filter(*where, Event.object_type == "data_source")
+        .group_by(Event.object_id)
+        .order_by(desc(counted))
+        .limit(limit)
+        .all()
+    )
+    source_names = _names(DataSource, [int(i) for i, _ in by_source if str(i).isdigit()])
+
+    # And by query, so a dashboard refreshing something expensive every minute
+    # is visible as itself rather than as its owner's total.
+    by_query = (
+        db.session.query(Event.additional_properties["query_id"].astext.label("query_id"), counted)
+        .filter(*where, Event.additional_properties["query_id"].astext.isnot(None))
+        .group_by("query_id")
+        .order_by(desc(counted))
+        .limit(limit)
+        .all()
+    )
+    query_names = _names(Query, [int(i) for i, _ in by_query if str(i).isdigit()])
+
+    day = func.date_trunc("day", Event.created_at).label("day")
+    per_day = db.session.query(day, func.count()).filter(*where).group_by(day).order_by(day).all()
+
+    total = executions.count()
+    cached = executions.filter(Event.additional_properties["cache"].astext == "hit").count()
+    return {
+        "window_days": days,
+        "executions": total,
+        # None rather than 0 when nothing ran, as the hourly view does: a ratio
+        # of no executions is not a cache missing everything.
+        "cache_hit_ratio": (cached / total) if total else None,
+        "from_cache": cached,
+        "top_users": [{"id": uid, "name": name, "executions": n} for uid, name, n in by_user],
+        "top_data_sources": [
+            {"id": _as_int(i), "name": source_names.get(_as_int(i), "deleted"), "executions": n} for i, n in by_source
+        ],
+        "top_queries": [_a_query(i, n, query_names) for i, n in by_query],
+        "per_day": [[at.date().isoformat(), n] for at, n in per_day],
+    }
+
+
+def _a_query(value, executions, names):
+    """
+    One row of the by-query breakdown.
+
+    Three cases, and the first version collapsed two of them: a saved query, a
+    saved query that has since been deleted, and a run that never had one. The
+    third arrives as the string "adhoc", which `int()` cannot read -- so it
+    became `None`, `None` is in no lookup, and five ad-hoc runs were reported
+    on the page as a deleted query.
+    """
+    found = _as_int(value)
+    if found is None:
+        # Reported as itself: somebody running the editor fifty times is real
+        # information about a month, and it is not a missing query.
+        return {"id": None, "name": "ad-hoc", "executions": executions}
+    return {"id": found, "name": names.get(found, "deleted"), "executions": executions}
+
+
+def _as_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def get_overview(org_id):
     queues = rq_queues()
     workers = rq_workers()

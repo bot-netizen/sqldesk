@@ -38,6 +38,7 @@ describe("admin Layout", () => {
       "Storage Status",
       "Running Queries",
       "Streaming Queries",
+      "Audit",
       "Outdated Queries",
       "MCP",
     ]);

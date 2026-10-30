@@ -125,6 +125,7 @@ an image of its own is the renderer.</p>
   <tr><td>Streams</td><td><code>streams.enabled</code></td><td class="ok">off</td><td>A worker deployment, ~280 MB per process, one process per topic that may consume at once. The shared volume.</td></tr>
   <tr><td>Uploads</td><td><code>uploads.enabled</code></td><td class="ok">off</td><td>The shared volume (5 Gi by default).</td></tr>
   <tr><td>Rendering</td><td><code>rendering.enabled</code></td><td class="ok">off</td><td>A second image, several hundred MB of Chromium, and memory in spikes.</td></tr>
+  <tr><td>Notebooks (Python cells)</td><td><code>notebooks.enabled</code></td><td class="ok">off</td><td>A second image and a pod holding one session per notebook in use. SQL cells need none of it.</td></tr>
   <tr><td>Bundled Postgres</td><td><code>postgres.enabled</code></td><td>on</td><td>Turn it <em>off</em> and point <code>postgres.external</code> at a managed database for anything real.</td></tr>
   <tr><td>Bundled Redis</td><td><code>redis.enabled</code></td><td>on</td><td>No volume: it holds queues, locks and a cache.</td></tr>
   <tr><td>Periodic worker</td><td><code>periodicWorker.enabled</code></td><td>on</td><td>One small process. Off puts its queues back on the query worker.</td></tr>
@@ -329,6 +330,23 @@ what a script or a headless setup should use.</p>
 <p>Both need the <strong>renderer add-on</strong> &mdash; there is nothing to send without a picture &mdash;
 and the <em>Send dashboards</em> permission, which an administrator grants to a group. Where no renderer is
 configured the feature is not offered at all, rather than offered and failing.</p>
+<h3 id="notebooks">The interpreter, and why it reaches nothing</h3>
+<p><code>notebooks.enabled=true</code> adds a second image and a pod. SQL cells in notebooks need none
+of it; this is for Python cells, which run there rather than in the worker &mdash; the worker being the
+process that holds every data source&rsquo;s decrypted credentials.</p>
+<p>With <code>networkPolicy.enabled=true</code> the chart gives it <strong>ingress from this release and
+no egress at all</strong>. That costs the feature nothing: a code cell&rsquo;s data arrives from an
+earlier cell in the same notebook, so there is no API it needs to call and no data source it needs to
+open. It is the rare case where the safe configuration is also the complete one.</p>
+<p>The memory limit is the real per-session ceiling &mdash; an address-space rlimit small enough to be
+useful stops pandas and DuckDB loading at all &mdash; so size it as
+<code>notebooks.maxSessions</code> &times; what one notebook should be allowed.</p>
+<p>For Spark, set <code>notebooks.spark.remote</code> <em>and</em>
+<code>notebooks.spark.egress</code> together: the first without the second leaves every Spark cell
+unable to connect, and the guarantee changes from &ldquo;cannot reach anything&rdquo; to &ldquo;cannot
+reach anything but the cluster&rdquo;. <a href="notebooks.html#spark">The notebooks page</a> has the
+rest.</p>
+
 <p>The renderer is a separate optional container (<code>rendering.enabled=true</code> in the chart, or the
 commented-out service in <code>compose.prod.yaml</code>). It reaches the application by the internal
 service name, not the public address, so it does not have to get through whatever is in front of you:</p>

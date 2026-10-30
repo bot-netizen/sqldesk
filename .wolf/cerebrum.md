@@ -36,6 +36,20 @@ budget_tokens: 2000
 <!-- Mistakes made and corrected. Each entry prevents the same mistake recurring. -->
 <!-- Format: [YYYY-MM-DD] Description of what went wrong and what to do instead. -->
 
+- **[2026-10-30] A command's exit status, not the tail of its output, is what
+  says whether it worked.** `docker compose build ... | tail -6 && next` takes
+  `tail`'s status, which is always 0 -- so a build that failed reported
+  success and the verification after it ran against the *previous* image,
+  proving something about code that had never been built. Redirect to a file
+  and check `$?`. The same shape: a `grep`-filtered lint whose "exit 0" came
+  from grep rather than eslint.
+- **[2026-10-30] One backend suite at a time, and check before starting
+  one.** Two pytest runs share the `tests` database and tear its schema down
+  between tests, so each makes the other fail with `UndefinedTable` on
+  unrelated tables. Both runs' results are void, not just the second. `pgrep
+  -fl pytest` must be empty first. (This is the standing rule in memory; it
+  is here because I broke it anyway, by starting a quick check while a long
+  suite was still running in the background.)
 - **[2026-10-30] Run the linters CI pins, at the version CI pins, not the
   ones installed locally.** Two red builds in a row came from this. `black`
   24.x (local) splits a long generator expression that `black` 23.1.0 (CI's

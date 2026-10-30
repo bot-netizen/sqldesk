@@ -229,6 +229,59 @@ rendering:
     requests: { cpu: 200m, memory: 512Mi }
     limits: { memory: 2Gi }
 
+# Python cells in notebooks, which run in an interpreter of their own.
+#
+# Off by default: it is another pod, and most installs want SQL cells only --
+# which need nothing here. On, it also tells the server where the interpreter
+# is, and Python cells stop saying that this install has none.
+notebooks:
+  enabled: false
+  image:
+    repository: ghcr.io/bot-netizen/sqldesk-executor
+    # Defaults to the chart's appVersion. A Spark build is a different image
+    # of the same version -- see Dockerfile.executor.
+    tag: ""
+  # What SQLDesk shows the interpreter, so nothing else on the cluster can run
+  # code on it. Generated and kept when left empty.
+  token: ""
+  # One. A session is a child process of one pod, so a notebook's variables
+  # live in whichever pod answered first, and a second replica would send the
+  # next cell somewhere that has never heard of them. Scale the pod, not the
+  # count.
+  replicas: 1
+  # Sessions at once, and when an idle one is ended. maxSessions x the memory
+  # limit below is the ceiling this pod can be asked for.
+  maxSessions: 8
+  idleSeconds: 900
+  # Wall clock for one cell. The interpreter has its own CPU ceiling; this is
+  # for a cell that is merely stuck.
+  runSeconds: 300
+  # The real per-session ceiling. An address-space rlimit small enough to be
+  # useful stops pandas and DuckDB loading at all, so this is the mechanism --
+  # see executor/runner.py for the measurements.
+  resources:
+    requests: { cpu: 200m, memory: 512Mi }
+    limits: { memory: 2Gi }
+  spark:
+    # A Spark Connect endpoint, e.g. sc://spark-connect:15002. Empty means
+    # cells get pandas and no cluster.
+    remote: ""
+    # Egress rules for the interpreter, which has none by default. Setting
+    # `remote` without opening a path to it leaves every Spark cell failing to
+    # connect, so these are written together:
+    #
+    #   egress:
+    #     - to:
+    #         - namespaceSelector: {}
+    #           podSelector:
+    #             matchLabels: { app: spark-connect }
+    #       ports:
+    #         - { protocol: TCP, port: 15002 }
+    #     - ports:   # DNS, because a Connect endpoint is a name
+    #         - { protocol: UDP, port: 53 }
+    #         - { protocol: TCP, port: 53 }
+    egress: []
+
 # Exactly one. Two schedulers would double-schedule everything, so this is
 # not a number to raise.
 scheduler:

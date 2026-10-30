@@ -224,8 +224,36 @@ development machine it filled the disk and took Postgres with it.</p>
   <tr><td><code>SQLDESK_STREAM_ROW_BUDGET</code></td><td>Rows of raw events kept per stream, 5 million by default. The window follows from this and the rate.</td></tr>
   <tr><td><code>SQLDESK_STREAM_EVENTS_PER_SECOND</code></td><td>Events a second stored from one stream, 5,000 by default. Past it they are sampled and every chart says so. <code>0</code> removes the ceiling, which is how a worker becomes the slowest part of a cluster.</td></tr>
   <tr><td><code>SQLDESK_STREAM_ACTIVE_MINUTES</code></td><td>How long after somebody last looked a stream keeps consuming, 15 by default. <code>0</code> turns streams off entirely.</td></tr>
+  <tr><td><code>SQLDESK_METRICS_TOKEN</code></td><td>A bearer token a Prometheus scraper shows at <code>/metrics</code>. Empty &mdash; the default &mdash; means the endpoint is not mounted at all. See <a href="#metrics">below</a>.</td></tr>
+  <tr><td><code>SQLDESK_NOTEBOOK_EXECUTOR_URL</code></td><td>Where the <a href="notebooks.html#interpreter">interpreter</a> for Python cells is. Empty means Python cells say so rather than running.</td></tr>
+  <tr><td><code>SQLDESK_NOTEBOOK_EXECUTOR_TOKEN</code></td><td>What SQLDesk shows that interpreter. Both sides must match.</td></tr>
   <tr><td><code>SQLDESK_DUCKDB_STORAGE_COMPATIBILITY</code></td><td>The storage format DuckDB writes, <code>v1.5.0</code> by default so a stream window or uploaded database stays readable by 0.7.x. <code>latest</code> takes the newer format and makes going back a one-way door. See <a href="#duckdb-format">below</a>.</td></tr>
 </table>
+
+<h2 id="metrics">Scraping SQLDesk</h2>
+<p>Set <code>SQLDESK_METRICS_TOKEN</code> and <code>/metrics</code> answers a scraper that shows it as a
+bearer token. Unset &mdash; the default &mdash; the endpoint is <strong>not mounted</strong>, and a wrong
+token gets the same 404 as no token: which half was wrong is not a scanner&rsquo;s business.</p>
+<p>What it reports is what SQLDesk is about to run out of, read at the moment of the scrape rather than
+accumulated:</p>
+<ul>
+  <li><code>sqldesk_queue_depth</code> and <code>sqldesk_queue_started</code>, per queue &mdash; the first
+  thing to look at when SQLDesk feels slow and the warehouse is fine.</li>
+  <li><code>sqldesk_workers</code>, <code>sqldesk_workers_in_state</code> and the job counters &mdash;
+  saturation. Queue depth alone cannot tell a cluster keeping up from one with no workers at all.</li>
+  <li><code>sqldesk_query_pool_in_use</code> against <code>sqldesk_query_pool_limit</code>, per pool.</li>
+  <li><code>sqldesk_stream_slots_in_use</code> against its limit, where a slot is a topic rather than a
+  viewer.</li>
+  <li><code>sqldesk_db_connections_in_use</code> against <code>sqldesk_db_pool_limit</code> &mdash; the
+  thing most likely to fall over, and the thing nothing could see before.</li>
+</ul>
+<p>Two things worth knowing when you build a dashboard on it. The database numbers describe <strong>the
+process that answered</strong>, because a SQLAlchemy pool is per process &mdash; with several web workers
+the useful view is the maximum across them. And a pool with no limit has <em>no</em>
+<code>_limit</code> series rather than a zero, because a zero there would read as &ldquo;no room at
+all&rdquo;, which is its opposite.</p>
+<p>A scrape that cannot read one source still returns the others: during an incident, half the truth is
+worth more than an error page.</p>
 
 <h2 id="duckdb-format">Upgrading to 0.8: the DuckDB file format</h2>
 <p>0.8 ships DuckDB 2.0, and DuckDB 2.0 writes a database file that DuckDB 1.5.6

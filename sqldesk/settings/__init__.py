@@ -647,6 +647,17 @@ MCP_MAX_QUERY_COST = float(os.environ.get("SQLDESK_MCP_MAX_QUERY_COST", "0"))
 #: is the one estimate here that is money rather than a proxy for it.
 MCP_MAX_QUERY_BYTES = int(os.environ.get("SQLDESK_MCP_MAX_QUERY_BYTES", "0"))
 
+#: A bearer token a Prometheus scraper shows at `/metrics`. Empty means the
+#: endpoint is not mounted at all -- off rather than refusing, because an
+#: endpoint that exists and says no is one more thing to explain.
+#:
+#: What it exposes is queue depth, worker saturation, pool use and database
+#: connections, read at the moment of the scrape. The labels carry pool and
+#: queue names, which carry data source names, which is the other reason it is
+#: behind a token.
+METRICS_TOKEN = os.environ.get("SQLDESK_METRICS_TOKEN", "")
+
+
 # --- Notebooks -------------------------------------------------------------
 #
 # A notebook is a chain of cells where everything else in SQLDesk ends in one

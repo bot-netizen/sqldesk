@@ -93,6 +93,7 @@ class TestTheDeploymentDefaults(unittest.TestCase):
             ("streams.enabled", ("streams", "enabled")),
             ("uploads.enabled", ("uploads", "enabled")),
             ("rendering.enabled", ("rendering", "enabled")),
+            ("notebooks.enabled", ("notebooks", "enabled")),
         ):
             at = values
             for key in path:

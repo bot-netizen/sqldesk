@@ -1934,6 +1934,42 @@
         "serializers",
         "notebooks"
       ]
+    },
+    {
+      "id": "bug-113",
+      "error_message": "A failed `docker compose build` reported success, and the command after it ran against the previous image",
+      "root_cause": "`docker compose build ... | tail -6 && docker compose run ...` takes the exit status of `tail`, which is always 0. The build's failure (pyspark pulling a numpy with no wheel) scrolled past in the piped output and the `&&` proceeded, so the verification ran on the image from the previous build and 'proved' something about code that had never been built.",
+      "fix": "Redirect to a file and check the real status: `docker compose build ... > out.txt 2>&1; echo $?`. The same applies to any `cmd | tail && next`. PIPESTATUS is the other answer, and is easy to get wrong under zsh.",
+      "tags": [
+        "docker",
+        "shell",
+        "verification",
+        "false-green"
+      ]
+    },
+    {
+      "id": "bug-114",
+      "error_message": "psycopg2.errors.UndefinedTable: table \"uploaded_files\" does not exist, on DROP TABLE, in tests that had just passed",
+      "root_cause": "Two pytest runs against the same `tests` database at once -- a long background suite plus a second one started while it ran. Each tears the schema down between tests, so the other's tables vanish mid-run. Nothing says so; the failures look like unrelated breakage in whatever happened to be running.",
+      "fix": "One backend suite at a time. Before starting one, `pgrep -fl pytest` must be empty. The results of BOTH overlapping runs are void, not just the second -- the 42 failures from the first were re-run clean afterwards.",
+      "tags": [
+        "tests",
+        "postgres",
+        "concurrency",
+        "false-red"
+      ]
+    },
+    {
+      "id": "bug-115",
+      "error_message": "A `for args in \"--set a --set b\"` loop reported every helm render as FAILED while each worked by hand",
+      "root_cause": "zsh does not word-split unquoted parameter expansions the way bash does, so `helm template $args` passed one long argument instead of several. Separately, an unquoted `[0]` in a --set path is a zsh glob and aborts the command with 'no matches found'.",
+      "fix": "Write the commands out, or `${=args}` in zsh. Quote any --set path containing brackets. This is the third time zsh's globbing has produced a wrong answer in this project; see also the unquoted --include=*.py and rm -f open*.duckdb.",
+      "tags": [
+        "shell",
+        "zsh",
+        "helm",
+        "false-red"
+      ]
     }
   ],
   "applied_observations": {
@@ -2011,5 +2047,5 @@
     "0017eda3-f957-4ace-ab30-29371e05a9e2": true,
     "f8dab580-bd41-4f43-af0c-70f3d70a3d24": true
   },
-  "next_id": 113
+  "next_id": 116
 }

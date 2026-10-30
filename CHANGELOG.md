@@ -1,5 +1,115 @@
 # Changelog
 
+## 0.8.0 (unreleased)
+
+Notebooks: the work a saved query cannot hold, where everything else here ends
+in one SELECT.
+
+### Notebooks
+
+**A chain of cells, in SQL and in Python.** Pull this, join it to that,
+reshape it, look — with the data source permissions and the result store you
+already have. People do that work in Jupyter today, and when they do, the
+warehouse never hears about it: the lineage, the permissions and the
+scheduling all stop at the edge of somebody's laptop.
+
+**Cells are named, never numbered.** A later cell refers to this one by name —
+a relation in SQL, a dataframe in Python — so inserting, deleting and
+reordering leave every reference pointing at what it meant.
+
+**A SQL cell either queries a data source or reads earlier cells, never
+both**, and says which before you run it. A warehouse has never heard of a
+cell called `orders`, and SQLDesk is not going to push four million rows into
+it to pretend otherwise.
+
+**A Python cell computes; it cannot query.** It reads an earlier cell's output
+and nothing else. That is the strongest decision in the design, for what it
+removes: no credential ever reaches the interpreter, because there is nothing
+for it to reach.
+
+**Stale is shown and never corrected for you.** Every run records which cells
+it read, so a cell whose inputs have re-run since says so — and is left
+exactly as it was. The number on the screen is still the number that was
+computed; re-running it is your decision. Staleness carries down the chain. A
+cell whose input was *deleted* says something different, because that one
+cannot be reproduced at all.
+
+**Three lifetimes, kept apart.** The output on the page is a truncated slice
+in Postgres, which is why reopening a notebook draws instantly and attaches
+nothing. The handoff between cells is the whole result, in a DuckDB file of
+the notebook's own, thrown away and rebuilt by re-running. The record of each
+run is tiny and kept for ever, because that is what makes staleness
+answerable.
+
+**A chart on any cell that produced a table**, with the same editor and the
+same chart types as a query.
+
+**Python runs in a container of its own**, never in the worker — which is the
+process holding every data source's decrypted credentials. Off by default.
+Deny it egress and give it a memory limit, and the sandbox is the container
+rather than a promise.
+
+**And optionally on a Spark cluster**, over Spark Connect. `spark` in a cell
+opens a session the first time something reaches through it, so opening a
+notebook and running pandas-only cells open nothing. A returned Spark
+DataFrame is collected within a bound, and a result over it is refused with a
+sentence rather than quietly cut down.
+
+Who may use notebooks is a permission an administrator grants per group.
+
+### Warehouses have a ceiling
+
+**Query pools.** Each data source draws from a pool with a budget, so fifty
+widgets refreshing at once cannot open fifty connections to a warehouse that
+allows ten. Two data sources on one warehouse can share a named pool. A budget
+of zero is the kill switch. A notebook's SQL cell takes a slot like any other
+query — the limit does not get larger because something was typed into a
+notebook.
+
+### Streaming dashboards say what they are doing
+
+**Each panel says what its own topic is doing.** The refresh is per dashboard
+and the events are per widget, so a single "● Live · every 2 seconds" badge
+describes the redraw and nothing about whether data is arriving: a chart that
+stopped twenty minutes ago looked exactly like one keeping up. A panel's
+corner now carries the rate, or `paused`, or — loudest, and never silent —
+that the stream is sampled and the number is therefore an estimate.
+
+**And the board is honest when its panels disagree**: "2 of 3 streams
+consuming" rather than one badge that implies they agree.
+
+### Running it
+
+**A Prometheus endpoint.** `/metrics` reports queue depth, worker saturation,
+query-pool use, stream slots and database connections, read at the moment of
+the scrape. Behind a bearer token and unmounted without one. StatsD still
+works; this is the shape a cluster already scrapes.
+
+**Archived dashboards are somewhere you can look.** Queries have had an
+archive since the fork; dashboards never got the matching half.
+
+**DuckDB 2.0**, which uploads, stream windows and notebooks all sit on. It
+writes a file format 0.7.x cannot open, so `SQLDESK_DUCKDB_STORAGE_COMPATIBILITY`
+keeps writing the old one by default and going back stays possible. One SQL
+change to know about: the single-arrow lambda `x -> x + 1` is re-enabled for
+now, and DuckDB removes it in 2.1.
+
+### Fixes
+
+**An alert to Slack says the number.** It carried the alert's name and a link
+and left the value out, which is the one thing somebody woken by it needs.
+
+**Email is no longer sent automatically** to an alert's subscribers when
+another destination is configured.
+
+### Upgrading from 0.7.10
+
+Notebooks add three tables; run the migration as usual. Nothing else changes
+shape.
+
+If you use uploads or streams, read the DuckDB note above before rolling back
+to 0.7.x: files written by 0.8 with `latest` set cannot be opened by it.
+
 ## 0.7.10
 
 Charts that can hold more than one idea, and an agent that can reach alerts.

@@ -1,0 +1,77 @@
+/*
+  The audit page: three small tables, two numbers and a strip of days.
+
+  Deliberately plain. It is read once a month, usually to answer somebody
+  else's question, and anything decorative here is something to scroll past.
+*/
+
+.admin-audit {
+  .audit-controls {
+    margin-bottom: 16px;
+  }
+
+  .audit-totals {
+    display: flex;
+    align-items: flex-end;
+    gap: 32px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+  }
+
+  .audit-total {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .audit-total-number {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.1;
+  }
+
+  .audit-total-label {
+    font-size: 12px;
+    color: var(--color-text-muted);
+  }
+
+  /* Days, as bars. One series of small integers; what somebody is looking
+     for is a step, not a value. */
+  .audit-sparkline {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 2px;
+    flex: 1 1 auto;
+    height: 48px;
+    min-width: 120px;
+  }
+
+  /*
+    A bar is at most this wide, so a window with two days in it draws two
+    bars rather than two half-page blocks. Without the cap, one day of data
+    filled the strip end to end and read as a progress bar -- which is what
+    it looked like the first time this page had anything on it.
+  */
+  .audit-sparkline-bar {
+    flex: 0 1 12px;
+    min-width: 2px;
+    background: var(--color-action);
+    border-radius: 1px;
+  }
+
+  .audit-tables {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (max-width: 767px) {
+  .admin-audit .audit-totals {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+}

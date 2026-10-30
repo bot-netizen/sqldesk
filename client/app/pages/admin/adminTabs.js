@@ -69,6 +69,15 @@ const TABS = [
       "The row budget and the events-per-second ceiling for each topic are set here.",
   },
   {
+    key: "audit",
+    title: "Audit",
+    path: "admin/audit",
+    description:
+      "Where the month went, rather than what is happening now: executions by person, by data source and by query, over any window up to a year. " +
+      "Overview answers the same question about the last hour and is read while something is wrong; this is read afterwards. " +
+      "A scheduled refresh is not counted — these are the things people asked for.",
+  },
+  {
     key: "outdated_queries",
     title: "Outdated Queries",
     path: "admin/queries/outdated",

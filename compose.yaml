@@ -24,6 +24,9 @@ x-sqldesk-environment: &sqldesk-environment
   SQLDESK_MAIL_SERVER: "email"
   SQLDESK_MAIL_PORT: 1025
   SQLDESK_ENFORCE_CSRF: "true"
+  # Set SQLDESK_METRICS_TOKEN in your shell and `/metrics` answers a scraper
+  # showing it. Empty -- the default -- leaves the endpoint unmounted.
+  SQLDESK_METRICS_TOKEN: "${SQLDESK_METRICS_TOKEN:-}"
   SQLDESK_NOTEBOOK_EXECUTOR_URL: "http://executor:5000"
   SQLDESK_NOTEBOOK_EXECUTOR_TOKEN: "dev-executor-token"
   SQLDESK_GUNICORN_TIMEOUT: 60
