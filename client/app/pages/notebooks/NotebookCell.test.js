@@ -1,5 +1,6 @@
 import React from "react";
-import { shallow } from "enzyme";
+import { shallow, mount as mountFully } from "enzyme";
+import { act } from "react-dom/test-utils";
 import NotebookCell, { CellOutput } from "./NotebookCell";
 
 jest.mock("@/services/notebook", () => ({
@@ -14,6 +15,8 @@ jest.mock("@/services/notification", () => ({ warning: jest.fn(), success: jest.
 jest.mock("@/components/queries/editor-components", () => ({
   getEditorComponents: () => ({ QueryEditor: () => null }),
 }));
+jest.mock("@/components/visualizations/visualizationComponents", () => ({ Renderer: () => null }));
+jest.mock("./CellVisualizationDialog", () => ({ showModal: jest.fn(() => ({ onClose: () => {} })) }));
 
 const Notebook = require("@/services/notebook");
 
@@ -72,6 +75,28 @@ describe("a cell that cannot run", () => {
     const page = mount(aCell({ cannot_run: "orders has not run yet." }));
 
     expect(page.find('[data-test="RunCell"]').prop("disabled")).toBe(true);
+  });
+
+  it("stops saying a cell is empty the moment something is typed into it", () => {
+    // The refusal describes the cell as saved, and a cell saves on blur. Left
+    // alone, this told somebody who had just typed SQL that the cell had none,
+    // with Run disabled, until they clicked somewhere else.
+    const page = mount(aCell({ source: "", cannot_run: "This cell has no SQL in it yet.", cannot_run_code: "empty" }));
+
+    expect(page.find('[data-test="RunCell"]').prop("disabled")).toBe(true);
+    page.find('[className="notebook-cell-editor"]').simulate("change", "SELECT 1");
+
+    expect(page.find('[data-test="RunCell"]').prop("disabled")).toBe(false);
+    expect(page.find('[data-test="CannotRun"]').exists()).toBe(false);
+  });
+
+  it("keeps every other refusal while somebody types, because typing does not fix them", () => {
+    const page = mount(aCell({ source: "", cannot_run: "orders has not run yet.", cannot_run_code: "unrun_input" }));
+
+    page.find('[className="notebook-cell-editor"]').simulate("change", "SELECT count(*) FROM orders");
+
+    expect(page.find('[data-test="RunCell"]').prop("disabled")).toBe(true);
+    expect(page.find('[data-test="CannotRun"]').exists()).toBe(true);
   });
 
   it("and a runnable cell has Run enabled", () => {
@@ -145,6 +170,75 @@ describe("running one", () => {
   });
 });
 
+describe("the chart button", () => {
+  /*
+    Mounted, because the rows arrive in an effect and a shallow render does
+    not run effects -- so every one of these would pass without the button
+    ever being considered.
+  */
+  async function withOutput(cell, rows) {
+    Notebook.cellResult.mockResolvedValueOnce({
+      data: { columns: [{ name: "id" }], rows },
+      handed_on: rows.length,
+    });
+    let page;
+    await act(async () => {
+      page = mountFully(
+        <NotebookCell
+          cell={cell}
+          notebookId={5}
+          dataSources={[]}
+          canEdit
+          onChanged={jest.fn()}
+          onRemoved={jest.fn()}
+          onRunningChanged={jest.fn()}
+        />
+      );
+    });
+    page.update();
+    return page;
+  }
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it("is offered once a cell has produced a table and its rows are loaded", async () => {
+    const page = await withOutput(aCell({ last_run_at: "x", latest_result_id: 7, options: { produced: "table" } }), [
+      { id: 1 },
+    ]);
+
+    expect(page.find('[data-test="VisualizeCell"]').exists()).toBe(true);
+  });
+
+  it("is not offered for a cell that produced text, which nothing can chart", async () => {
+    const page = await withOutput(aCell({ last_run_at: "x", latest_result_id: 7, options: { produced: "text" } }), [
+      { id: 1 },
+    ]);
+
+    expect(page.find('[data-test="VisualizeCell"]').exists()).toBe(false);
+  });
+
+  it("is not offered before the rows have arrived", async () => {
+    Notebook.cellResult.mockResolvedValueOnce(null);
+    let page;
+    await act(async () => {
+      page = mountFully(
+        <NotebookCell
+          cell={aCell({ last_run_at: "x", latest_result_id: 7, options: { produced: "table" } })}
+          notebookId={5}
+          dataSources={[]}
+          canEdit
+          onChanged={jest.fn()}
+          onRemoved={jest.fn()}
+          onRunningChanged={jest.fn()}
+        />
+      );
+    });
+    page.update();
+
+    expect(page.find('[data-test="VisualizeCell"]').exists()).toBe(false);
+  });
+});
+
 describe("a python cell", () => {
   it("is edited as python and offers no data source", () => {
     const page = mount(aCell({ kind: "python", source: "orders.head()", data_source_id: null }));
@@ -207,6 +301,37 @@ describe("the output", () => {
 
     expect(output.find("Table").exists()).toBe(false);
     expect(output.text()).toContain("looked at it");
+  });
+
+  it("draws the chart instead of the table once a cell has one", () => {
+    const output = shallow(
+      <CellOutput
+        cell={aCell({ last_run_at: "x", options: { visualization: { type: "CHART", name: "By city", options: {} } } })}
+        produced="table"
+        result={{ data: { columns: [{ name: "id" }], rows: [{ id: 1 }] } }}
+        onRemoveChart={jest.fn()}
+      />
+    );
+
+    expect(output.find("Table").exists()).toBe(false);
+    expect(output.find("Renderer").exists()).toBe(true);
+    // And a way back, because a chart of the wrong column is the usual
+    // outcome of the first attempt.
+    expect(output.find('[data-test="RemoveChart"]').exists()).toBe(true);
+  });
+
+  it("offers no way back when nothing can take one", () => {
+    const output = shallow(
+      <CellOutput
+        cell={aCell({ last_run_at: "x", options: { visualization: { type: "CHART", name: "By city", options: {} } } })}
+        produced="table"
+        result={{ data: { columns: [{ name: "id" }], rows: [{ id: 1 }] } }}
+        onRemoveChart={null}
+      />
+    );
+
+    expect(output.find('[data-test="RemoveChart"]').exists()).toBe(false);
+    expect(output.find("Renderer").exists()).toBe(true, "the chart went with the button");
   });
 
   it("says a cell produced text even before its output has loaded", () => {

@@ -10,6 +10,8 @@ import { map, size } from "lodash";
 
 import { getEditorComponents } from "@/components/queries/editor-components";
 import Notebook from "@/services/notebook";
+import CellVisualizationDialog from "./CellVisualizationDialog";
+import { Renderer } from "@/components/visualizations/visualizationComponents";
 import { fetchDataFromJob } from "@/services/query-result";
 import notification from "@/services/notification";
 
@@ -127,9 +129,41 @@ export default function NotebookCell({
     });
   }, [notebookId]);
 
+  /*
+    The chart editor, on this cell's own output.
+
+    Opened with the rows that are on the page -- the truncated slice, not the
+    whole handoff. That is what a chart should be drawn from anyway: a chart of
+    four million points is a smear, and the editor would have to pull all of
+    them through the browser to make it.
+  */
+  const visualize = useCallback(() => {
+    const data = (result && result.data) || null;
+    if (!data) {
+      return;
+    }
+    CellVisualizationDialog.showModal({ cell, data }).onClose((visualization) =>
+      save({ options: { ...(cell.options || {}), visualization } })
+    );
+  }, [cell, result, save]);
+
+  const removeChart = useCallback(() => {
+    save({ options: { ...(cell.options || {}), visualization: null } });
+  }, [cell, save]);
+
   const remove = useCallback(() => {
     Notebook.deleteCell(notebookId, cell.id).then(() => onRemoved(cell));
   }, [notebookId, cell, onRemoved]);
+
+  /*
+    The refusal, as it applies to what is on the screen rather than to what is
+    saved. A cell saves when the editor loses focus, so somebody who has just
+    typed into an empty cell would otherwise be told it is empty, with Run
+    disabled, until they clicked somewhere else.
+  */
+  const typedSomething = !!(source || "").trim();
+  const blocked = cell.cannot_run && !(cell.cannot_run_code === "empty" && typedSomething);
+  const notice = blocked ? cell.cannot_run : null;
 
   const stale = cell.stale_because_of || [];
   const missing = cell.missing_inputs || [];
@@ -178,17 +212,16 @@ export default function NotebookCell({
             Stop
           </Button>
         ) : (
-          <Tooltip title={cell.cannot_run || null}>
-            <Button
-              size="small"
-              type="primary"
-              onClick={run}
-              disabled={!!cell.cannot_run || !!running}
-              data-test="RunCell"
-            >
+          <Tooltip title={notice}>
+            <Button size="small" type="primary" onClick={run} disabled={!!blocked || !!running} data-test="RunCell">
               Run
             </Button>
           </Tooltip>
+        )}
+        {canEdit && produced === "table" && result && (
+          <Button size="small" type="text" onClick={visualize} data-test="VisualizeCell">
+            {(cell.options || {}).visualization ? "Edit chart" : "Chart"}
+          </Button>
         )}
         {canEdit && (
           <Button size="small" type="text" onClick={remove} data-test="RemoveCell">
@@ -197,9 +230,7 @@ export default function NotebookCell({
         )}
       </div>
 
-      {cell.cannot_run && (
-        <Alert className="notebook-cell-notice" type="info" showIcon message={cell.cannot_run} data-test="CannotRun" />
-      )}
+      {notice && <Alert className="notebook-cell-notice" type="info" showIcon message={notice} data-test="CannotRun" />}
       {missing.length > 0 && (
         <Alert
           className="notebook-cell-notice"
@@ -231,7 +262,7 @@ export default function NotebookCell({
 
       {error && <Alert className="notebook-cell-notice" type="error" showIcon message={error} data-test="CellError" />}
       {cell.last_run_at && !error && (
-        <CellOutput notebookId={notebookId} cell={cell} produced={produced} result={result} />
+        <CellOutput cell={cell} produced={produced} result={result} onRemoveChart={removeChart} />
       )}
     </div>
   );
@@ -262,7 +293,7 @@ NotebookCell.defaultProps = {
   shown are the truncated slice the server stored for display; the whole result
   is in the notebook's own store, which is what the next cell reads.
 */
-export function CellOutput({ cell, produced, result }) {
+export function CellOutput({ cell, produced, result, onRemoveChart }) {
   // `result` is the endpoint's answer -- `{id, data, row_count, handed_on}` --
   // so the rows are one level in. Reading it as the rows themselves drew an
   // empty table and an empty printout, which is what the test caught.
@@ -290,6 +321,23 @@ export function CellOutput({ cell, produced, result }) {
     render: (value) =>
       value === null || value === undefined ? <span className="notebook-cell-null">null</span> : String(value),
   }));
+  const chart = (cell.options || {}).visualization;
+  if (chart) {
+    return (
+      <div className="notebook-cell-output notebook-cell-output-chart" data-test="CellOutput">
+        <div className="notebook-cell-chart-header">
+          <span className="notebook-cell-chart-name">{chart.name}</span>
+          {onRemoveChart && (
+            <Button size="small" type="text" onClick={onRemoveChart} data-test="RemoveChart">
+              Show the table instead
+            </Button>
+          )}
+        </div>
+        <Renderer type={chart.type} data={data} options={chart.options} visualizationName={chart.name} />
+      </div>
+    );
+  }
+
   const shown = size(data.rows);
   return (
     <div className="notebook-cell-output" data-test="CellOutput">
@@ -319,6 +367,7 @@ CellOutput.propTypes = {
   cell: PropTypes.object.isRequired,
   produced: PropTypes.string,
   result: PropTypes.object,
+  onRemoveChart: PropTypes.func,
 };
 
-CellOutput.defaultProps = { produced: null, result: null };
+CellOutput.defaultProps = { produced: null, result: null, onRemoveChart: null };

@@ -83,6 +83,23 @@ def reads(cell, cells):
     return references(cell.source, names)
 
 
+#: Why a cell cannot run, as a name the page can reason about rather than a
+#: sentence it would have to parse.
+#:
+#: EMPTY is the one that earns this. The sentence comes from the server, so it
+#: describes the cell as *saved* -- and a cell saves when the editor loses
+#: focus. Without a name to match on, typing SQL into a new cell left Run
+#: disabled and "This cell has no SQL in it yet" on screen until you clicked
+#: somewhere else, which is a page arguing with what somebody can see.
+EMPTY = "empty"
+NO_INTERPRETER = "no_interpreter"
+CANNOT_QUERY = "cannot_query"
+BOTH_SOURCES = "both_sources"
+NOTHING_TO_READ = "nothing_to_read"
+UNRUN_INPUT = "unrun_input"
+TEXT_INPUT = "text_input"
+
+
 def why_it_cannot_run(cell, cells=None):
     """
     The sentence to show on the cell, or None if it is runnable.
@@ -91,60 +108,75 @@ def why_it_cannot_run(cell, cells=None):
     interpreter, which is what makes it something the page can show while
     somebody is still typing.
     """
+    problem = what_stops_it(cell, cells)
+    return problem[1] if problem else None
+
+
+def what_stops_it(cell, cells=None):
+    """`(name, sentence)`, or None. The name is for the page; the sentence is
+    for the person."""
     cells = cells if cells is not None else (cell.notebook.cells if cell.notebook else [])
     above = earlier(cell, cells)
 
     if cell.kind == models.NotebookCell.PYTHON:
         if not interpreter.configured():
             return (
+                NO_INTERPRETER,
                 "Python cells need an interpreter, and this install has none configured. "
-                "An administrator can turn on the executor, or a SQL cell can do this work."
+                "An administrator can turn on the executor, or a SQL cell can do this work.",
             )
         if not (cell.source or "").strip():
-            return "This cell has no code in it yet."
+            return (EMPTY, "This cell has no code in it yet.")
         if not above:
-            return "A Python cell computes; it cannot query. Put a SQL cell above it to fetch the data."
+            return (
+                CANNOT_QUERY,
+                "A Python cell computes; it cannot query. Put a SQL cell above it to fetch the data.",
+            )
         read = interpreter.references(cell.source, [one.name for one in above])
         unusable = _without_a_table(above, read)
         if unusable:
-            return _no_table_sentence(unusable)
+            return (TEXT_INPUT, _no_table_sentence(unusable))
         never_ran = [name for name in read if _never_ran(above, name)]
         if never_ran:
-            return _unrun_sentence(never_ran)
+            return (UNRUN_INPUT, _unrun_sentence(never_ran))
         return None
 
     if not (cell.source or "").strip():
-        return "This cell has no SQL in it yet."
+        return (EMPTY, "This cell has no SQL in it yet.")
 
     read = references(cell.source, [one.name for one in above])
 
     if cell.data_source_id:
         if read:
             return (
+                BOTH_SOURCES,
                 "This cell queries {}, which has never heard of {}. A cell can read a data source "
                 "or earlier cells, not both -- remove the data source to read {}.".format(
                     cell.data_source.name if cell.data_source else "a data source",
                     ", ".join(read),
                     read[0],
-                )
+                ),
             )
         return None
 
     if not read:
         names = ", ".join(one.name for one in above)
         return (
-            "This cell has no data source, so it can only read earlier cells -- and it refers to none. "
-            "Pick a data source, or read one of: {}.".format(names)
-            if above
-            else "This cell has no data source and there is no cell above it to read."
+            NOTHING_TO_READ,
+            (
+                "This cell has no data source, so it can only read earlier cells -- and it refers to none. "
+                "Pick a data source, or read one of: {}.".format(names)
+                if above
+                else "This cell has no data source and there is no cell above it to read."
+            ),
         )
 
     never_ran = [name for name in read if _never_ran(above, name)]
     if never_ran:
-        return _unrun_sentence(never_ran)
+        return (UNRUN_INPUT, _unrun_sentence(never_ran))
     unusable = _without_a_table(above, read)
     if unusable:
-        return _no_table_sentence(unusable)
+        return (TEXT_INPUT, _no_table_sentence(unusable))
     return None
 
 

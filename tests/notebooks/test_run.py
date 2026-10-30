@@ -180,6 +180,52 @@ class TestWhyItCannotRun(NotebookTestCase):
         self.assertIn("cannot query", problem)
 
 
+class TestTheNameOfTheRefusal(NotebookTestCase):
+    """
+    Each refusal carries a name as well as a sentence.
+
+    The page needs the name for one case it cannot get right otherwise: the
+    sentence describes the cell as *saved*, and a cell saves when its editor
+    loses focus, so somebody who has just typed into an empty cell must not be
+    told it is empty. Matching on English would be the alternative.
+    """
+
+    def test_an_empty_cell_is_named_empty(self):
+        cell = self.cell("orders", "   ", data_source=self.factory.data_source)
+
+        self.assertEqual(runner.EMPTY, runner.what_stops_it(cell)[0])
+
+    def test_a_cell_reading_an_unrun_cell_is_named_for_that(self):
+        self.cell("orders", "SELECT 1", position=0, data_source=self.factory.data_source)
+        second = self.cell("summary", "SELECT count(*) FROM orders", position=1)
+
+        self.assertEqual(runner.UNRUN_INPUT, runner.what_stops_it(second)[0])
+
+    def test_a_cell_with_a_data_source_and_a_reference_is_named_for_that(self):
+        self.cell("orders", "SELECT 1", position=0, data_source=self.factory.data_source, ran=True)
+        second = self.cell("summary", "SELECT count(*) FROM orders", position=1, data_source=self.factory.data_source)
+
+        self.assertEqual(runner.BOTH_SOURCES, runner.what_stops_it(second)[0])
+
+    def test_a_python_cell_without_an_interpreter_is_named_for_that(self):
+        self.cell("orders", "SELECT 1", position=0, data_source=self.factory.data_source, ran=True)
+        code = self.cell("shaped", "orders.head()", position=1, kind=models.NotebookCell.PYTHON)
+
+        with mock.patch("sqldesk.settings.NOTEBOOK_EXECUTOR_URL", ""):
+            self.assertEqual(runner.NO_INTERPRETER, runner.what_stops_it(code)[0])
+
+    def test_a_runnable_cell_is_stopped_by_nothing(self):
+        cell = self.cell("orders", "SELECT 1", data_source=self.factory.data_source)
+
+        self.assertIsNone(runner.what_stops_it(cell))
+
+    def test_the_sentence_is_the_same_one_why_it_cannot_run_gives(self):
+        """One source of truth; the other is a view of it."""
+        cell = self.cell("orders", "   ", data_source=self.factory.data_source)
+
+        self.assertEqual(runner.why_it_cannot_run(cell), runner.what_stops_it(cell)[1])
+
+
 class TestRunningASqlCell(NotebookTestCase):
     def test_the_whole_result_is_handed_on_and_a_slice_is_displayed(self):
         """

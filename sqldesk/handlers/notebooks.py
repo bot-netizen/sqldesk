@@ -70,6 +70,7 @@ def serialize_notebook(notebook, with_cells=False, user=None):
 
 def serialize_cell(cell, cells=None, stale=None, missing=None):
     cells = cells if cells is not None else cell.notebook.cells
+    stopped = cell_runner.what_stops_it(cell, cells)
     one = {
         "id": cell.id,
         "notebook_id": cell.notebook_id,
@@ -81,9 +82,13 @@ def serialize_cell(cell, cells=None, stale=None, missing=None):
         "latest_result_id": cell.latest_result_id,
         "last_run_at": cell.last_run_at,
         "options": cell.options or {},
-        # The two sentences the page shows instead of letting somebody press
-        # Run and find out.
-        "cannot_run": cell_runner.why_it_cannot_run(cell, cells),
+        # The sentence the page shows instead of letting somebody press Run
+        # and find out -- and the name of the reason beside it, so the page can
+        # reason about it without parsing English. It needs that for one case:
+        # this describes the cell as *saved*, and somebody who has just typed
+        # into an empty cell should not be told it is empty.
+        "cannot_run": stopped[1] if stopped else None,
+        "cannot_run_code": stopped[0] if stopped else None,
         "reads": cell_runner.reads(cell, cells),
     }
     if stale:
