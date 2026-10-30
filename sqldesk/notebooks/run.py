@@ -22,12 +22,14 @@ Nothing here writes back to a data source. 0.8 is read-and-look.
 """
 
 import logging
+import os
 import re
 import time
 from datetime import datetime
 
-from sqldesk import models, settings
+from sqldesk import models
 from sqldesk.models import db
+from sqldesk.notebooks import interpreter
 from sqldesk.notebooks.store import Store
 from sqldesk.utils import gen_query_hash, utcnow
 
@@ -66,6 +68,21 @@ def earlier(cell, cells):
     return [other for other in cells if other.position < cell.position and other.id != cell.id]
 
 
+def reads(cell, cells):
+    """
+    The cells this one reads, however its language says so.
+
+    SQL names a relation after FROM or JOIN; Python just uses the variable. The
+    two are different enough that one regex for both would either miss half the
+    SQL or call every variable a reference.
+    """
+    above = earlier(cell, cells)
+    names = [one.name for one in above]
+    if cell.kind == models.NotebookCell.PYTHON:
+        return interpreter.references(cell.source, names)
+    return references(cell.source, names)
+
+
 def why_it_cannot_run(cell, cells=None):
     """
     The sentence to show on the cell, or None if it is runnable.
@@ -78,13 +95,22 @@ def why_it_cannot_run(cell, cells=None):
     above = earlier(cell, cells)
 
     if cell.kind == models.NotebookCell.PYTHON:
-        if not settings.NOTEBOOK_EXECUTOR_URL:
+        if not interpreter.configured():
             return (
                 "Python cells need an interpreter, and this install has none configured. "
                 "An administrator can turn on the executor, or a SQL cell can do this work."
             )
+        if not (cell.source or "").strip():
+            return "This cell has no code in it yet."
         if not above:
             return "A Python cell computes; it cannot query. Put a SQL cell above it to fetch the data."
+        read = interpreter.references(cell.source, [one.name for one in above])
+        unusable = _without_a_table(above, read)
+        if unusable:
+            return _no_table_sentence(unusable)
+        never_ran = [name for name in read if _never_ran(above, name)]
+        if never_ran:
+            return _unrun_sentence(never_ran)
         return None
 
     if not (cell.source or "").strip():
@@ -115,12 +141,49 @@ def why_it_cannot_run(cell, cells=None):
 
     never_ran = [name for name in read if _never_ran(above, name)]
     if never_ran:
-        return "{} {} not run yet, so there is nothing to read from {}.".format(
-            ", ".join(never_ran),
-            "has" if len(never_ran) == 1 else "have",
-            "it" if len(never_ran) == 1 else "them",
-        )
+        return _unrun_sentence(never_ran)
+    unusable = _without_a_table(above, read)
+    if unusable:
+        return _no_table_sentence(unusable)
     return None
+
+
+def _unrun_sentence(names):
+    return "{} {} not run yet, so there is nothing to read from {}.".format(
+        ", ".join(names),
+        "has" if len(names) == 1 else "have",
+        "it" if len(names) == 1 else "them",
+    )
+
+
+def _no_table_sentence(names):
+    """
+    A cell that ran and produced text rather than a table.
+
+    Worth its own sentence. "Has not run yet" would be a lie, and silence would
+    leave somebody re-running a cell that will never give them a relation --
+    the Zeppelin failure of finding the limit by hitting it.
+    """
+    return "{} produced text rather than a table, so there is nothing to read from {}.".format(
+        ", ".join(names), "it" if len(names) == 1 else "them"
+    )
+
+
+#: Recorded on a cell when it runs, so the question "is there a relation to
+#: read here" is answerable from Postgres rather than by opening the store.
+TABLE = "table"
+TEXT = "text"
+
+
+def _without_a_table(cells, names):
+    by_name = {one.name: one for one in cells}
+    return [
+        name
+        for name in names
+        if by_name.get(name) is not None
+        and by_name[name].last_run_at is not None
+        and (by_name[name].options or {}).get("produced") == TEXT
+    ]
 
 
 def _never_ran(cells, name):
@@ -182,7 +245,7 @@ def run_sql_cell(cell, user, run_query=None):
         store.close()
 
     run.runtime = time.monotonic() - started
-    cell.latest_result = _displayed(cell, columns, rows, run.runtime, origin_data_source(cell, cells))
+    _record(cell, columns, rows, run.runtime, origin_data_source(cell, cells), TABLE)
     cell.last_run_at = utcnow()
     run.state = models.NotebookRun.OK
     run.rows = total
@@ -192,6 +255,125 @@ def run_sql_cell(cell, user, run_query=None):
     # None. The commit belongs to the handler, as everywhere else.
     db.session.flush()
     return run
+
+
+def run_python_cell(cell, user, interpreter_for=None):
+    """
+    Run one Python cell on the interpreter, and land what comes back.
+
+    The shape is the same as a SQL cell and the differences are all at the
+    boundary: the inputs it reads are pushed over as Parquet, the code runs
+    somewhere else, and what returns is either a dataframe -- which becomes
+    this cell's handoff, so a later cell can read it -- or text, which is only
+    ever something to look at.
+
+    `interpreter_for` is injectable so a test can run this path without a
+    container, the same reason `run_sql_cell` takes `run_query`.
+    """
+    notebook = cell.notebook
+    cells = notebook.cells
+    problem = why_it_cannot_run(cell, cells)
+    if problem:
+        raise CannotRun(problem)
+
+    read = reads(cell, cells)
+    record = models.NotebookRun(
+        notebook=notebook,
+        cell=cell,
+        user=user,
+        state=models.NotebookRun.RUNNING,
+        inputs=read,
+        started_at=utcnow(),
+    )
+    db.session.add(record)
+    db.session.flush()
+
+    store = Store(notebook.store_path())
+    started = time.monotonic()
+    try:
+        talker = interpreter_for() if interpreter_for else interpreter.Interpreter()
+        session_id = talker.session_for(notebook)
+        try:
+            columns, rows, total, produced = _on_the_interpreter(cell, store, talker, session_id, read)
+        except interpreter.Gone:
+            # The interpreter reaped the session while nobody was looking --
+            # its idle timeout, or a restart. A fresh one with the inputs
+            # shipped again is the same notebook, because every input is
+            # another cell's output (§4.1) and all of them are still here.
+            logger.info("notebook %s lost its session; opening another", notebook.id)
+            talker.detach(notebook)
+            session_id = talker.session_for(notebook)
+            columns, rows, total, produced = _on_the_interpreter(cell, store, talker, session_id, read)
+    except interpreter.NoInterpreter as e:
+        raise CannotRun(str(e))
+    except Exception as e:
+        logger.warning("notebook cell %s failed on the interpreter: %s", cell.id, e)
+        record.state = models.NotebookRun.FAILED
+        record.error = str(e)
+        record.finished_at = utcnow()
+        record.runtime = time.monotonic() - started
+        db.session.add(record)
+        db.session.flush()
+        return record
+    finally:
+        store.close()
+
+    record.runtime = time.monotonic() - started
+    _record(cell, columns, rows, record.runtime, origin_data_source(cell, cells), produced)
+    cell.last_run_at = utcnow()
+    record.state = models.NotebookRun.OK
+    record.rows = total
+    record.finished_at = utcnow()
+    db.session.add_all([cell, record])
+    db.session.flush()
+    return record
+
+
+def _on_the_interpreter(cell, store, talker, session_id, read):
+    """
+    Ship, run, and bring the answer back.
+
+    Separate because it is the part that is retried when a session has gone:
+    everything in it is safe to do twice.
+    """
+    talker.ship(cell.notebook, session_id, store, read)
+    answer = talker.run(session_id, cell.source)
+    if not answer.get("ok"):
+        raise RuntimeError(_cell_error(answer))
+
+    if answer.get("result_id"):
+        fetched = os.path.join(store.directory, "{}.parquet".format(answer["result_id"]))
+        try:
+            talker.fetch(session_id, answer["result_id"], fetched)
+            store.hand_off_parquet(cell.name, fetched)
+        finally:
+            try:
+                os.remove(fetched)
+            except OSError:
+                pass
+        columns, rows, total = store.display_slice(cell.name)
+        return columns, rows, total, TABLE
+
+    # Text, not a table. Kept in the same place as every other result so the
+    # page has one way to show a cell's output -- but nothing downstream can
+    # read it, which is what `produced` records.
+    return _as_text(answer), [{"output": _printed(answer)}], None, TEXT
+
+
+def _cell_error(answer):
+    """The cell's own error, with whatever it printed before failing."""
+    said = answer.get("error") or "The cell failed."
+    printed = (answer.get("stdout") or "").strip()
+    return "{}\n\n{}".format(said, printed) if printed else said
+
+
+def _printed(answer):
+    parts = [part for part in ((answer.get("stdout") or "").rstrip(), answer.get("value") or "") if part]
+    return "\n".join(parts)
+
+
+def _as_text(answer):
+    return [{"name": "output", "friendly_name": "output", "type": "string"}]
 
 
 def _from_a_data_source(cell, user, store, run_query):
@@ -245,15 +427,46 @@ def origin_data_source(cell, cells):
         seen.add(one.id)
         if one.data_source_id:
             return one.data_source
-        above = earlier(one, cells)
-        by_name = {other.name: other for other in above}
-        for name in references(one.source, [other.name for other in above]):
+        by_name = {other.name: other for other in earlier(one, cells)}
+        # `reads`, not the SQL regex: a Python cell refers to `orders` by bare
+        # name, so matching FROM and JOIN here broke the chain at the first
+        # code cell and left its result with no data source at all.
+        for name in reads(one, cells):
             found = upwards(by_name.get(name))
             if found is not None:
                 return found
         return None
 
-    return upwards(cell)
+    found = upwards(cell)
+    if found is not None:
+        return found
+
+    # A cell that reads nothing -- `total = 1 + 1`, or a print -- has no
+    # lineage to follow, and `query_results.data_source_id` is NOT NULL. The
+    # nearest data source above it is the answer: it over-attributes, in that
+    # the output holds none of that warehouse's data, and that is the safe
+    # direction. Permission on a result is read through its data source, so
+    # null would not be "open to everyone" -- `QueryResult.groups` would raise
+    # on it, turning a permission question into a 500.
+    for one in reversed(earlier(cell, cells)):
+        if one.data_source_id:
+            return one.data_source
+    return None
+
+
+def _record(cell, columns, rows, runtime, data_source, produced):
+    """
+    What the page shows, and whether a later cell can read this one.
+
+    `produced` is kept on the cell so "is there a relation here" is answerable
+    without opening the notebook's store -- which the page asks on every
+    keystroke while somebody types a reference.
+    """
+    cell.latest_result = _displayed(cell, columns, rows, runtime, data_source)
+    options = dict(cell.options or {})
+    options["produced"] = produced
+    cell.options = options
+    return cell.latest_result
 
 
 def _displayed(cell, columns, rows, runtime, data_source):
