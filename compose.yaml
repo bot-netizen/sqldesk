@@ -8,6 +8,12 @@ x-sqldesk-service: &sqldesk-service
     - .:/app
   env_file:
     - .env
+  # Both networks: the ordinary one, and the interpreter's. A container on an
+  # internal network cannot be reached from outside it, so sharing it is the
+  # only way the server can call the executor at all.
+  networks:
+    - default
+    - sqldesk-executor
 x-sqldesk-environment: &sqldesk-environment
   SQLDESK_HOST: http://localhost:5001
   SQLDESK_LOG_LEVEL: "INFO"
@@ -18,6 +24,8 @@ x-sqldesk-environment: &sqldesk-environment
   SQLDESK_MAIL_SERVER: "email"
   SQLDESK_MAIL_PORT: 1025
   SQLDESK_ENFORCE_CSRF: "true"
+  SQLDESK_NOTEBOOK_EXECUTOR_URL: "http://executor:5000"
+  SQLDESK_NOTEBOOK_EXECUTOR_TOKEN: "dev-executor-token"
   SQLDESK_GUNICORN_TIMEOUT: 60
   # Set secret keys in the .env file
 services:
@@ -92,3 +100,42 @@ services:
       - "1080:1080"
       - "1025:1025"
     restart: unless-stopped
+  # The optional interpreter, for Python cells in notebooks.
+  #
+  # Behind a profile, so an ordinary `make up` does not start it -- and a
+  # notebook without it says so on the Python cell rather than failing when
+  # somebody runs one. Start it with `docker compose --profile notebooks up`.
+  #
+  # Two limits that are not decoration. `internal: true` on its network is what
+  # makes "no egress" true rather than stated: a cell takes its data from an
+  # earlier cell, so the interpreter has nothing legitimate to reach, and here
+  # it cannot reach anything at all. `mem_limit` is the per-session ceiling,
+  # because an address-space rlimit small enough to be useful stops pandas and
+  # DuckDB loading -- the measurements are in executor/runner.py.
+  executor:
+    build:
+      context: .
+      dockerfile: Dockerfile.executor
+    profiles: ["notebooks"]
+    environment:
+      EXECUTOR_TOKEN: "dev-executor-token"
+    mem_limit: 2g
+    networks:
+      - sqldesk-executor
+    restart: unless-stopped
+
+networks:
+  default: {}
+  # Internal: no gateway, so nothing on this network can route off the host.
+  #
+  # Being honest about what that does and does not buy. The executor cannot
+  # reach the internet, a cloud metadata address or anything else on the
+  # machine -- which is the whole of what it would want if it were trying to
+  # exfiltrate a result. It *can* reach the SQLDesk server, because the server
+  # has to be on this network to call it, and there is no way round that in
+  # Compose. That is acceptable only because of the design decision underneath
+  # all of this: the executor holds no credential, so what it can reach it
+  # cannot authenticate to. In Kubernetes, use a NetworkPolicy with no egress
+  # rule and the exception disappears.
+  sqldesk-executor:
+    internal: true

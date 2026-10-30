@@ -659,6 +659,12 @@ MCP_MAX_QUERY_BYTES = int(os.environ.get("SQLDESK_MCP_MAX_QUERY_BYTES", "0"))
 #: container to run and most installs want SQL cells only.
 NOTEBOOK_EXECUTOR_URL = os.environ.get("SQLDESK_NOTEBOOK_EXECUTOR_URL", "")
 
+#: What the executor checks requests against. Not a credential of anybody's --
+#: it only says "this is the SQLDesk that interpreter serves", so that a
+#: process which happens to reach it cannot run code on it. Nothing a cell can
+#: read: the interpreter throws its environment away before any cell runs.
+NOTEBOOK_EXECUTOR_TOKEN = os.environ.get("SQLDESK_NOTEBOOK_EXECUTOR_TOKEN", "")
+
 #: Rows one cell may hand to the next. The handoff is a file, so this is not
 #: about Postgres -- it is the number that sizes everything downstream: the
 #: Parquet shipped to an interpreter and the dataframe it builds from it. Past

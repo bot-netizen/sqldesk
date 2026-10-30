@@ -36,6 +36,18 @@ budget_tokens: 2000
 <!-- Mistakes made and corrected. Each entry prevents the same mistake recurring. -->
 <!-- Format: [YYYY-MM-DD] Description of what went wrong and what to do instead. -->
 
+- **[2026-10-30] Run the linters CI pins, at the version CI pins, not the
+  ones installed locally.** Two red builds in a row came from this. `black`
+  24.x (local) splits a long generator expression that `black` 23.1.0 (CI's
+  pin, `.github/workflows/ci.yml`) collapses onto one line, so a file I
+  "verified clean" failed `backend-lint` and skipped the whole backend suite
+  behind it. The host has no Python 3.13, and 23.1.0 crashes on 3.14 with
+  `module 'ast' has no attribute 'Str'` -- so run it in a container:
+  `docker run --rm -v "$PWD:/src" -w /src python:3.13-slim sh -c 'pip -q
+  install black==23.1.0 ruff==0.0.287 && black --check . && ruff check .'`.
+  The same applies to eslint: `lint:ci` adds `--max-warnings 0` and
+  `--output-file`, so a warning is fatal *and* invisible in the job log.
+  Running the suites I changed is not the same as running the ones CI runs.
 - **[2026-10-29] A unit test cannot see CSS, so verify a UI change by
   rendering it.** Three times now the same shape of bug shipped or nearly
   shipped: the table header stayed cream because a third rule painted it with

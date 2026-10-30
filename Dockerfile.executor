@@ -1,0 +1,59 @@
+# The optional interpreter.
+#
+# Built and run only by people who want Python cells in their notebooks. The
+# SQLDesk image does not change by a byte -- and more to the point, the RQ
+# worker does not become a process that runs arbitrary code while holding every
+# data source's decrypted credentials. No sandbox applied afterwards is worth
+# the sentence describing that.
+#
+# Small on purpose: pandas and DuckDB are what a Python cell is for, and
+# nothing else is installed. Both are already SQLDesk's own dependencies at
+# these versions, so this adds no library the project did not already carry.
+#
+# No pyarrow. DuckDB's Parquet reader and writer are native, and data crosses
+# this boundary as Parquet in both directions -- so the 40 MB pyarrow would add
+# buys nothing here.
+FROM python:3.13-slim-bookworm
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir \
+      pandas==2.3.3 \
+      duckdb==2.0.0 \
+      flask==3.0.3 \
+      gunicorn==23.0.0 \
+ && rm -rf /root/.cache/pip
+
+COPY executor/service.py executor/runner.py /app/
+
+# A process that runs somebody else's code is the last thing that should be
+# root. The child it spawns inherits this user, and `RLIMIT_NPROC` of 0 in the
+# child means that child cannot spawn anything further.
+RUN useradd --create-home --uid 1000 interpreter
+USER interpreter
+
+ENV PORT=5000
+EXPOSE 5000
+
+# **Deny this container egress.** Everything above limits what a cell can
+# spend; this is what limits where it can reach. The design makes it free:
+# a code cell takes its data from an earlier cell (§4.1), so the interpreter
+# has no API to call, no data source to open and no legitimate reason to make
+# a single outbound connection. In Kubernetes that is a NetworkPolicy with no
+# egress rule; in Docker Compose, an internal network.
+#
+# **Give this container a memory limit.** It is the per-session ceiling: an
+# `RLIMIT_AS` small enough to be useful stops pandas and DuckDB loading at all
+# (the numbers are in `runner.limits`), so the cgroup is the mechanism that
+# works. A cell that exceeds it has its child killed, and the service reports
+# that the interpreter ran out of memory.
+#
+# One worker, four threads. A session is a child process of this worker, so
+# more workers would mean sessions split across processes that cannot see each
+# other's -- a notebook would reach a different interpreter per request and its
+# variables would be gone. Scale with a bigger container, not more workers.
+#
+# The timeout is longer than EXECUTOR_RUN_SECONDS, so that a slow cell is ended
+# by the deadline that can explain itself rather than by gunicorn killing the
+# worker and every other notebook's session with it.
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "4", "--timeout", "360", "service:app"]

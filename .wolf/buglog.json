@@ -1849,6 +1849,67 @@
         "streams",
         "uploads"
       ]
+    },
+    {
+      "id": "bug-106",
+      "error_message": "DuckDB 2.0 tests failed in CI: storage version 64 not > 68; single-arrow lambda accepted; Avro timestamp naive",
+      "root_cause": "The duckdb pin was changed in pyproject.toml only. Dockerfile runs `uv sync --frozen`, which uses uv.lock verbatim and does not check pyproject, so every build kept installing 1.5.6 without any warning. Local verification had pip-installed 2.0.0 over the image, hiding it.",
+      "fix": "`uv lock --upgrade-package duckdb` to move uv.lock to 2.0.0 (diff is that version and its hashes only), then rebuild the image. Any dependency change needs the lock regenerated; `--frozen` makes pyproject alone decorative.",
+      "tags": [
+        "duckdb",
+        "uv",
+        "dependencies",
+        "docker",
+        "ci"
+      ]
+    },
+    {
+      "id": "bug-107",
+      "error_message": "FileNotFoundError: No such file or directory: '<notebook dir>/<cell>.handoff.json'",
+      "root_cause": "notebooks/store.py hand_off() opened its scratch JSON file before touching self.connection, and the connection property is what creates the notebook's directory. Only ever failed on a notebook's very first cell, since every later cell found the directory already there.",
+      "fix": "Take `self.connection` at the top of hand_off and use that handle for the CREATE TABLE, so the directory exists before the scratch file is opened. tests/notebooks/test_store.py::test_the_first_cell_of_a_brand_new_notebook_can_write covers it.",
+      "tags": [
+        "notebooks",
+        "duckdb",
+        "filesystem"
+      ]
+    },
+    {
+      "id": "bug-108",
+      "error_message": "Stop on an idle notebook session ended the session and lost every variable",
+      "root_cause": "executor/service.py Session.interrupt() sent SIGINT whenever the session was alive. With no cell running the child is blocked in pipe.recv(), where SIGINT raises KeyboardInterrupt and serve() returns -- so the process exits. Design 4.6 says stop cancels the current cell, not the notebook.",
+      "fix": "interrupt() returns False without signalling when self.running is false: nothing to cancel. Covered by tests/test_executor.py::TestStopping::test_stopping_an_idle_notebook_does_not_throw_it_away. Found because a test was flaky, not because the test was aimed at it.",
+      "tags": [
+        "notebooks",
+        "executor",
+        "signals",
+        "flaky-test"
+      ]
+    },
+    {
+      "id": "bug-109",
+      "error_message": "import pandas -> KeyboardInterrupt (no stack, no message) inside the executor child",
+      "root_cause": "setrlimit on RLIMIT_NPROC or RLIMIT_AS set low. Both count things numpy's BLAS needs at import -- threads for NPROC, reserved address space for AS -- and OpenBLAS's pthread_create failure surfaces in Python as KeyboardInterrupt, which is indistinguishable from a user pressing stop. Measured in this image: NPROC 0 or 64 breaks pandas, 128 works and caps processes at ~34; RLIMIT_AS 512MB kills the process before imports finish, 2048MB breaks pandas, 4096MB works.",
+      "fix": "Both limits default to off in executor/service.py, with the numbers recorded in executor/runner.py:limits. The container's memory limit (compose mem_limit, Kubernetes limits) is the per-session ceiling; a kill there is reported as the interpreter running out of memory. EXECUTOR_MAX_PROCESSES and EXECUTOR_MEMORY_MB remain as opt-in knobs with the thresholds documented.",
+      "tags": [
+        "notebooks",
+        "executor",
+        "rlimit",
+        "pandas",
+        "measurement"
+      ]
+    },
+    {
+      "id": "bug-110",
+      "error_message": "TestStopping intermittently saw session.alive True with dead_reason None",
+      "root_cause": "Two things. The test shared one Flask test client between the thread running the busy cell and the thread sending the stop, and a test client is not thread-safe. And `running` is set before the code reaches the child, so a stop could land while the child was still idle and take the polite path instead of the one under test.",
+      "fix": "A separate test client per thread, and the cell touches a file in the session directory once it is genuinely in its loop; the test waits for that file before stopping. Three consecutive random-order runs of tests/test_executor.py pass.",
+      "tags": [
+        "tests",
+        "threading",
+        "flask",
+        "flaky-test"
+      ]
     }
   ],
   "applied_observations": {
@@ -1926,5 +1987,5 @@
     "0017eda3-f957-4ace-ab30-29371e05a9e2": true,
     "f8dab580-bd41-4f43-af0c-70f3d70a3d24": true
   },
-  "next_id": 106
+  "next_id": 111
 }
