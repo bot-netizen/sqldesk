@@ -5,7 +5,7 @@
       "error_message": "Significant refactor of widgets.py",
       "file": "sqldesk/handlers/widgets.py",
       "root_cause": "12 lines replaced/restructured",
-      "fix": "Rewrote 24→29 lines (12 removed)",
+      "fix": "Rewrote 24\u219229 lines (12 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -23,7 +23,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/serializers/__init__.py",
       "root_cause": "9 lines replaced/restructured",
-      "fix": "Rewrote 14→5 lines (9 removed)",
+      "fix": "Rewrote 14\u21925 lines (9 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -41,7 +41,7 @@
       "error_message": "Significant refactor of dashboards.py",
       "file": "sqldesk/handlers/dashboards.py",
       "root_cause": "18 lines replaced/restructured",
-      "fix": "Rewrote 20→3 lines (18 removed)",
+      "fix": "Rewrote 20\u21923 lines (18 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -59,7 +59,7 @@
       "error_message": "Significant refactor of test_kind_partition.py",
       "file": "tests/handlers/test_kind_partition.py",
       "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 11→15 lines (5 removed)",
+      "fix": "Rewrote 11\u219215 lines (5 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -76,8 +76,8 @@
     {
       "error_message": "CSS fix: key, href",
       "file": "client/app/pages/queries-list/QueriesList.jsx",
-      "root_cause": "key: \"archive\", → \"archive\", title: \"Archived\", icon: () => <Sidebar.MenuIcon icon=\"fa fa-archive\" />; href: \"queries/archive\", → view.key === \"all\" ? base : `${base",
-      "fix": "Changed key: \"archive\", → \"archive\", title: \"Archived\", icon: () => <Sidebar.MenuIcon icon=\"fa fa-archive\" />; href: \"queries/archive\", → view.key === \"all\" ? base : `${base",
+      "root_cause": "key: \"archive\", \u2192 \"archive\", title: \"Archived\", icon: () => <Sidebar.MenuIcon icon=\"fa fa-archive\" />; href: \"queries/archive\", \u2192 view.key === \"all\" ? base : `${base",
+      "fix": "Changed key: \"archive\", \u2192 \"archive\", title: \"Archived\", icon: () => <Sidebar.MenuIcon icon=\"fa fa-archive\" />; href: \"queries/archive\", \u2192 view.key === \"all\" ? base : `${base",
       "tags": [
         "auto-detected",
         "style-fix",
@@ -95,7 +95,7 @@
       "error_message": "Significant refactor of QueriesList.jsx",
       "file": "client/app/pages/queries-list/QueriesList.jsx",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 7→14 lines (2 removed)",
+      "fix": "Rewrote 7\u219214 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -113,7 +113,7 @@
       "error_message": "Significant refactor of query.js",
       "file": "client/app/services/query.js",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 6→20 lines (2 removed)",
+      "fix": "Rewrote 6\u219220 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -130,8 +130,8 @@
     {
       "error_message": "CSS fix: render",
       "file": "client/app/pages/streams/streams.routes.jsx",
-      "root_cause": "render: () => <Redirect to=\"admin/streams\" />, → () =>",
-      "fix": "Changed render: () => <Redirect to=\"admin/streams\" />, → () =>",
+      "root_cause": "render: () => <Redirect to=\"admin/streams\" />, \u2192 () =>",
+      "fix": "Changed render: () => <Redirect to=\"admin/streams\" />, \u2192 () =>",
       "tags": [
         "auto-detected",
         "style-fix",
@@ -275,7 +275,7 @@
       "error_message": "Significant refactor of index.jsx",
       "file": "client/app/components/ApplicationArea/index.jsx",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 9→28 lines (3 removed)",
+      "fix": "Rewrote 9\u219228 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -311,7 +311,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/mcp/__init__.py",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 5→7 lines (3 removed)",
+      "fix": "Rewrote 5\u21927 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -329,7 +329,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/mcp/__init__.py",
       "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 16→48 lines (5 removed)",
+      "fix": "Rewrote 16\u219248 lines (5 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -347,7 +347,7 @@
       "error_message": "Significant refactor of prometheus.py",
       "file": "sqldesk/query_runner/prometheus.py",
       "root_cause": "15 lines replaced/restructured",
-      "fix": "Rewrote 22→53 lines (15 removed)",
+      "fix": "Rewrote 22\u219253 lines (15 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -382,7 +382,7 @@
     {
       "error_message": "Missing error handling in prometheus.py",
       "file": "sqldesk/query_runner/prometheus.py",
-      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
       "fix": "Added try/catch block",
       "tags": [
         "auto-detected",
@@ -400,7 +400,7 @@
     {
       "error_message": "Missing error handling in sample_value()",
       "file": "sqldesk/query_runner/prometheus.py",
-      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
       "fix": "Added try/catch block",
       "tags": [
         "auto-detected",
@@ -418,7 +418,7 @@
     {
       "error_message": "Missing error handling in api_error()",
       "file": "sqldesk/query_runner/prometheus.py",
-      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
       "fix": "Added try/catch block",
       "tags": [
         "auto-detected",
@@ -437,7 +437,7 @@
       "error_message": "Significant refactor of prometheus.py",
       "file": "sqldesk/query_runner/prometheus.py",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 4→6 lines (2 removed)",
+      "fix": "Rewrote 4\u21926 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -455,7 +455,7 @@
       "error_message": "Wrong operator: == should be !=",
       "file": "sqldesk/query_runner/prometheus.py",
       "root_cause": "Used \"==\" instead of \"!=\"",
-      "fix": "Changed operator == → !=",
+      "fix": "Changed operator == \u2192 !=",
       "tags": [
         "auto-detected",
         "operator-fix",
@@ -473,7 +473,7 @@
       "error_message": "Significant refactor of test_prometheus.py",
       "file": "tests/query_runner/test_prometheus.py",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 7→30 lines (3 removed)",
+      "fix": "Rewrote 7\u219230 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -491,7 +491,7 @@
       "error_message": "Significant refactor of prometheus.py",
       "file": "sqldesk/query_runner/prometheus.py",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 20→35 lines (3 removed)",
+      "fix": "Rewrote 20\u219235 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -508,7 +508,7 @@
     {
       "error_message": "Missing error handling in _timeout()",
       "file": "sqldesk/query_runner/prometheus.py",
-      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
       "fix": "Added try/catch block",
       "tags": [
         "auto-detected",
@@ -699,7 +699,7 @@
       "error_message": "Significant refactor of Dockerfile",
       "file": "Dockerfile",
       "root_cause": "9 lines replaced/restructured",
-      "fix": "Rewrote 35→140 lines (9 removed)",
+      "fix": "Rewrote 35\u2192140 lines (9 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -825,7 +825,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/mcp/__init__.py",
       "root_cause": "14 lines replaced/restructured",
-      "fix": "Rewrote 17→21 lines (14 removed)",
+      "fix": "Rewrote 17\u219221 lines (14 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -843,7 +843,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/mcp/__init__.py",
       "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 7→8 lines (5 removed)",
+      "fix": "Rewrote 7\u21928 lines (5 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -861,7 +861,7 @@
       "error_message": "Significant refactor of index.html",
       "file": "docs/index.html",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 9→21 lines (4 removed)",
+      "fix": "Rewrote 9\u219221 lines (4 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -979,7 +979,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/settings/__init__.py",
       "root_cause": "7 lines replaced/restructured",
-      "fix": "Rewrote 9→15 lines (7 removed)",
+      "fix": "Rewrote 9\u219215 lines (7 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1014,8 +1014,8 @@
     {
       "error_message": "CSS fix: chrome",
       "file": "client/app/components/items-list/components/ListPageControls.jsx",
-      "root_cause": "chrome: Filter holds the → search is server-side",
-      "fix": "Changed chrome: Filter holds the → search is server-side",
+      "root_cause": "chrome: Filter holds the \u2192 search is server-side",
+      "fix": "Changed chrome: Filter holds the \u2192 search is server-side",
       "tags": [
         "auto-detected",
         "style-fix",
@@ -1033,7 +1033,7 @@
       "error_message": "Significant refactor of ListPageControls.jsx",
       "file": "client/app/components/items-list/components/ListPageControls.jsx",
       "root_cause": "17 lines replaced/restructured",
-      "fix": "Rewrote 42→28 lines (17 removed)",
+      "fix": "Rewrote 42\u219228 lines (17 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1051,7 +1051,7 @@
       "error_message": "Significant refactor of ListPageControls.less",
       "file": "client/app/components/items-list/components/ListPageControls.less",
       "root_cause": "10 lines replaced/restructured",
-      "fix": "Rewrote 17→27 lines (10 removed)",
+      "fix": "Rewrote 17\u219227 lines (10 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1069,7 +1069,7 @@
       "error_message": "Significant refactor of ListPageControls.test.js",
       "file": "client/app/components/items-list/components/ListPageControls.test.js",
       "root_cause": "15 lines replaced/restructured",
-      "fix": "Rewrote 34→21 lines (15 removed)",
+      "fix": "Rewrote 34\u219221 lines (15 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1087,7 +1087,7 @@
       "error_message": "Significant refactor of ItemsFetcher.js",
       "file": "client/app/components/items-list/classes/ItemsFetcher.js",
       "root_cause": "17 lines replaced/restructured",
-      "fix": "Rewrote 42→62 lines (17 removed)",
+      "fix": "Rewrote 42\u219262 lines (17 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1159,7 +1159,7 @@
       "error_message": "Significant refactor of buildOption.threshold.test.ts",
       "file": "viz-lib/src/visualizations/chart/echarts/buildOption.threshold.test.ts",
       "root_cause": "10 lines replaced/restructured",
-      "fix": "Rewrote 13→39 lines (10 removed)",
+      "fix": "Rewrote 13\u219239 lines (10 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1213,7 +1213,7 @@
       "error_message": "Significant refactor of cellFormat.ts",
       "file": "viz-lib/src/visualizations/table/cellFormat.ts",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 9→49 lines (3 removed)",
+      "fix": "Rewrote 9\u219249 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1366,7 +1366,7 @@
       "error_message": "Significant refactor of test_data_sources.py",
       "file": "tests/models/test_data_sources.py",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 4→12 lines (2 removed)",
+      "fix": "Rewrote 4\u219212 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1420,7 +1420,7 @@
       "error_message": "Wrong operator: != should be ==",
       "file": "sqldesk/handlers/authentication.py",
       "root_cause": "Used \"!=\" instead of \"==\"",
-      "fix": "Changed operator != → ==",
+      "fix": "Changed operator != \u2192 ==",
       "tags": [
         "auto-detected",
         "operator-fix",
@@ -1438,7 +1438,7 @@
       "error_message": "Significant refactor of test_mcp.py",
       "file": "tests/handlers/test_mcp.py",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 6→48 lines (2 removed)",
+      "fix": "Rewrote 6\u219248 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1474,7 +1474,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/models/__init__.py",
       "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 27→37 lines (5 removed)",
+      "fix": "Rewrote 27\u219237 lines (5 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1510,7 +1510,7 @@
       "error_message": "Significant refactor of slack.py",
       "file": "sqldesk/destinations/slack.py",
       "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 11→13 lines (5 removed)",
+      "fix": "Rewrote 11\u219213 lines (5 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1528,7 +1528,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/models/__init__.py",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 3→9 lines (3 removed)",
+      "fix": "Rewrote 3\u21929 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1564,7 +1564,7 @@
       "error_message": "Significant refactor of users.py",
       "file": "sqldesk/models/users.py",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 7→21 lines (4 removed)",
+      "fix": "Rewrote 7\u219221 lines (4 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1616,7 +1616,7 @@
       "error_message": "Significant refactor of buildOption.ts",
       "file": "viz-lib/src/visualizations/chart/echarts/buildOption.ts",
       "root_cause": "11 lines replaced/restructured",
-      "fix": "Rewrote 26→71 lines (11 removed)",
+      "fix": "Rewrote 26\u219271 lines (11 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1688,7 +1688,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/mcp/__init__.py",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 12→17 lines (3 removed)",
+      "fix": "Rewrote 12\u219217 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1706,7 +1706,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/mcp/__init__.py",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 24→53 lines (4 removed)",
+      "fix": "Rewrote 24\u219253 lines (4 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1724,7 +1724,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/mcp/__init__.py",
       "root_cause": "28 lines replaced/restructured",
-      "fix": "Rewrote 34→4 lines (28 removed)",
+      "fix": "Rewrote 34\u21924 lines (28 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1742,7 +1742,7 @@
       "error_message": "Significant refactor of VisualizationWidget.jsx",
       "file": "client/app/components/dashboards/dashboard-widget/VisualizationWidget.jsx",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 13→27 lines (4 removed)",
+      "fix": "Rewrote 13\u219227 lines (4 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1760,7 +1760,7 @@
       "error_message": "Significant refactor of rollup.ts",
       "file": "viz-lib/src/visualizations/chart/rollup.ts",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 12→13 lines (3 removed)",
+      "fix": "Rewrote 12\u219213 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1778,7 +1778,7 @@
       "error_message": "Significant refactor of rollup.ts",
       "file": "viz-lib/src/visualizations/chart/rollup.ts",
       "root_cause": "13 lines replaced/restructured",
-      "fix": "Rewrote 30→19 lines (13 removed)",
+      "fix": "Rewrote 30\u219219 lines (13 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1796,7 +1796,7 @@
       "error_message": "Significant refactor of buildOption.ts",
       "file": "viz-lib/src/visualizations/chart/echarts/buildOption.ts",
       "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 33→53 lines (5 removed)",
+      "fix": "Rewrote 33\u219253 lines (5 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1809,6 +1809,46 @@
       "last_seen": "2026-10-29T15:42:07.413Z",
       "occurrences": 1,
       "related_bugs": []
+    },
+    {
+      "id": "bug-104",
+      "status": "fixed",
+      "related_bugs": [],
+      "occurrences": 1,
+      "timestamp": "2026-10-30T05:39:00.356453Z",
+      "last_seen": "2026-10-30T05:39:00.356453Z",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "error_message": "AssertionError: expected call not found -- test_slack_notify_calls_requests_post",
+      "file": "tests/handlers/test_destinations.py",
+      "root_cause": "851eabb78 replaced the Slack payload with Block Kit inside an attachment (color/blocks/fallback) but the test still asserted the old shape (text/fields) as byte-exact JSON. The file was never run when that change was made, so the branch carried a failing test until a full suite run surfaced it.",
+      "fix": "Rewrote the test to assert by meaning: the colour, the fallback carrying the reading, a bold leading headline, a verbatim custom body, and both links in the footnotes. Added a second test for the screenshot note a webhook cannot carry. Six mutants confirm each assertion has teeth.",
+      "tags": [
+        "slack",
+        "alerts",
+        "test-drift",
+        "exact-payload-assertion"
+      ]
+    },
+    {
+      "id": "bug-105",
+      "status": "fixed",
+      "related_bugs": [],
+      "occurrences": 1,
+      "timestamp": "2026-10-30T05:39:00.356453Z",
+      "last_seen": "2026-10-30T05:39:00.356453Z",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "error_message": "BinderException: Deprecated lambda arrow (->) detected | IOException: Trying to read a database file with version number 69, but we can only read versions between 64 and 68",
+      "file": "sqldesk/query_runner/__init__.py",
+      "root_cause": "DuckDB 2.0 made the PEG parser the default, which refuses the single-arrow lambda every earlier version accepted, and it writes storage version 69 which the 1.5.6 in 0.7.x cannot open. Neither is in our code: one breaks a user's saved query, the other strands an operator who rolls back.",
+      "fix": "LEGACY_LAMBDA re-enables the old spelling on every connection we open, applied before lock_configuration (the only order that works). storage_config() asks for v1.5.0 via DUCKDB_STORAGE_COMPATIBILITY so files stay readable by 0.7.x; `latest` opts out. Opening a file read-write does not rewrite it, so existing uploads are untouched.",
+      "tags": [
+        "duckdb",
+        "upgrade",
+        "storage-format",
+        "sql-compatibility",
+        "streams",
+        "uploads"
+      ]
     }
   ],
   "applied_observations": {
@@ -1886,5 +1926,5 @@
     "0017eda3-f957-4ace-ab30-29371e05a9e2": true,
     "f8dab580-bd41-4f43-af0c-70f3d70a3d24": true
   },
-  "next_id": 104
+  "next_id": 106
 }

@@ -3,7 +3,6 @@ import { shallow, mount as mountFull } from "enzyme";
 import VisualizationWidget, { VisualizationWidgetHeader } from "./VisualizationWidget";
 import QueryLink from "@/components/QueryLink";
 import VisualizationRenderer from "@/components/visualizations/VisualizationRenderer";
-import Widget from "./Widget";
 
 jest.mock("@/services/auth", () => ({ currentUser: { hasPermission: () => false } }));
 jest.mock("@/services/recordEvent", () => jest.fn());
