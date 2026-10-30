@@ -92,6 +92,22 @@ function getActionsColumn(controllerRef) {
           okText: "Archive",
         }}
         onDelete={(query) => Query.delete({ id: query.id }).then(() => controllerRef.current.update())}
+        permanentDeleteConfirm={{
+          title: "Delete query permanently",
+          content: (
+            <React.Fragment>
+              <div className="m-b-5">This cannot be undone.</div>
+              <div>
+                The query, its visualizations, any dashboard widget drawn from them and its alerts all go. Its results
+                stay — they belong to the data source and other queries may be showing them.
+              </div>
+            </React.Fragment>
+          ),
+          okText: "Delete",
+        }}
+        onPermanentDelete={(query) =>
+          Query.deletePermanently({ id: query.id }).then(() => controllerRef.current.update())
+        }
       />
     ),
     { title: "", width: "1%", className: "p-l-0" }

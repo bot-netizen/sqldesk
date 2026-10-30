@@ -789,6 +789,30 @@ def should_schedule_next(previous_iteration, now, interval, time=None, day_of_we
     return now > next_iteration
 
 
+def _forget_about(obj):
+    """
+    Drop the rows that point at this object without a foreign key.
+
+    Favourites and version history use a generic reference -- a type name and
+    an id -- so the database cannot cascade them and nothing complains when
+    they are left behind. An orphaned favourite is a star on somebody's list
+    that opens nothing.
+
+    **The two name the type differently**, which is the trap here: a favourite
+    stores the class name (`Query`), and a change stores the table name
+    (`queries`). Both conventions are long-standing and each is read in
+    several places, so this reads each one the way its own code does rather
+    than picking a winner. Checked by a test, because the wrong string here
+    deletes nothing and says nothing.
+    """
+    Favorite.query.filter(Favorite.object_type == obj.__class__.__name__, Favorite.object_id == obj.id).delete(
+        synchronize_session=False
+    )
+    Change.query.filter(Change.object_type == obj.__tablename__, Change.object_id == obj.id).delete(
+        synchronize_session=False
+    )
+
+
 @gfk_type
 @generic_repr(
     "id",
@@ -883,6 +907,50 @@ class Query(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model):
 
         if user:
             self.record_changes(user)
+
+    def delete_permanently(self):
+        """
+        Remove this query and everything that only existed because of it.
+
+        Archiving hides a query and already throws away its widgets and its
+        alerts, so "archived" was never the reversible thing it sounds like.
+        This is the honest version of what people were asking for when they
+        archived something to get rid of it.
+
+        What goes: its visualizations, the dashboard widgets drawn from them,
+        its alerts and their subscriptions, its verification, and anybody's
+        favourite or version history of it.
+
+        What stays, deliberately:
+
+        - **its results.** `query_results` is keyed by the SQL and the data
+          source and shared by every query that asks the same thing; deleting
+          them would take rows another query is still showing.
+        - **its events.** The audit is a record of what people did, and it
+          reads a deleted thing as "deleted" rather than losing the month.
+
+        Returns what it removed, so the page can say so.
+        """
+        removed = {
+            "visualizations": len(self.visualizations),
+            "widgets": sum(len(vis.widgets) for vis in self.visualizations),
+            "alerts": len(self.alerts),
+        }
+
+        # The schedule first: a query being deleted must not be picked up by
+        # the refresh pass between here and the commit.
+        self.schedule = None
+
+        for vis in self.visualizations:
+            for widget in vis.widgets:
+                db.session.delete(widget)
+            db.session.delete(vis)
+        for alert in self.alerts:
+            db.session.delete(alert)
+
+        _forget_about(self)
+        db.session.delete(self)
+        return removed
 
     def regenerate_api_key(self):
         self.api_key = generate_token(40)
@@ -1876,6 +1944,31 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
             .order_by(tag_column)
         )
         return query
+
+    def delete_permanently(self):
+        """
+        Remove this dashboard and everything that only existed because of it.
+
+        Its widgets go; the queries and visualizations behind them do not --
+        a widget is a *placement*, and the chart it shows belongs to a query
+        that may well be on three other dashboards. Its subscriptions go,
+        because a schedule to send a dashboard that is not there is a job that
+        fails every morning. Favourites and version history go, since nothing
+        in the database would have cleared them.
+
+        Returns what it removed, so the page can say so.
+        """
+        widgets = self.widgets.all()
+        removed = {"widgets": len(widgets), "subscriptions": len(self.subscriptions)}
+
+        for widget in widgets:
+            db.session.delete(widget)
+        for subscription in self.subscriptions:
+            db.session.delete(subscription)
+
+        _forget_about(self)
+        db.session.delete(self)
+        return removed
 
     @classmethod
     def favorites(cls, user, base_query=None):

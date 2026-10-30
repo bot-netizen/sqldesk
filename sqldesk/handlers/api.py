@@ -25,6 +25,7 @@ from sqldesk.handlers.dashboards import (
     DashboardListResource,
     DashboardLiveResource,
     DashboardLiveWatchResource,
+    DashboardPermanentDeleteResource,
     DashboardResource,
     DashboardShareResource,
     DashboardTagsResource,
@@ -86,6 +87,7 @@ from sqldesk.handlers.queries import (
     QueryFavoriteListResource,
     QueryForkResource,
     QueryListResource,
+    QueryPermanentDeleteResource,
     QueryRecentResource,
     QueryRefreshResource,
     QueryRegenerateApiKeyResource,
@@ -241,6 +243,15 @@ api.add_org_resource(
     DataSourceUploadKeepResource,
     "/api/data_sources/<data_source_id>/uploads/<upload_id>/keep",
     endpoint="data_source_upload_keep",
+)
+
+api.add_org_resource(
+    QueryPermanentDeleteResource, "/api/queries/<query_id>/permanent", endpoint="query_permanent_delete"
+)
+api.add_org_resource(
+    DashboardPermanentDeleteResource,
+    "/api/dashboards/<dashboard_id>/permanent",
+    endpoint="dashboard_permanent_delete",
 )
 
 api.add_org_resource(NotebookListResource, "/api/notebooks", endpoint="notebooks")

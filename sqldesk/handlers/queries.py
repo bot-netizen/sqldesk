@@ -541,6 +541,37 @@ class QueryResource(BaseResource):
         models.db.session.commit()
 
 
+class QueryPermanentDeleteResource(BaseResource):
+    """
+    Delete a query outright, rather than hiding it.
+
+    Its own path rather than a flag on the archive endpoint, because the two
+    are not variations of one action: archiving is reversible for the query
+    itself, and this is not reversible at all. A query that was archived can
+    be deleted from here as well -- that is the usual route, since people
+    archive things to get rid of them and then find the archive full.
+    """
+
+    @require_permission("edit_query")
+    def delete(self, query_id):
+        query = get_object_or_404(models.Query.get_by_id_and_org, query_id, self.current_org)
+        require_admin_or_owner(query.user_id)
+
+        # Recorded before it goes: the audit keeps the name, because
+        # afterwards there is nothing left to look it up from.
+        self.record_event(
+            {
+                "action": "delete",
+                "object_id": query_id,
+                "object_type": "query",
+                "name": query.name,
+            }
+        )
+        removed = query.delete_permanently()
+        models.db.session.commit()
+        return {"deleted": removed}
+
+
 class QueryRegenerateApiKeyResource(BaseResource):
     @require_permission("edit_query")
     def post(self, query_id):

@@ -374,6 +374,35 @@ class DashboardResource(BaseResource):
         return d
 
 
+class DashboardPermanentDeleteResource(BaseResource):
+    """
+    Delete a dashboard outright, rather than hiding it.
+
+    Its own path rather than a flag on the archive endpoint: archiving is
+    reversible and this is not, and the two should not be one request apart
+    with a query string between them.
+    """
+
+    @require_permission("edit_dashboard")
+    def delete(self, dashboard_id):
+        dashboard = get_object_or_404(models.Dashboard.get_by_id_and_org, dashboard_id, self.current_org)
+        require_object_modify_permission(dashboard, self.current_user)
+
+        # Recorded before it goes, with the name: afterwards there is nothing
+        # left to look it up from.
+        self.record_event(
+            {
+                "action": "delete",
+                "object_id": dashboard.id,
+                "object_type": "dashboard",
+                "name": dashboard.name,
+            }
+        )
+        removed = dashboard.delete_permanently()
+        models.db.session.commit()
+        return {"deleted": removed}
+
+
 class PublicDashboardResource(BaseResource):
     decorators = BaseResource.decorators + [csp_allows_embeding]
 

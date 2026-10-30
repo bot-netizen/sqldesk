@@ -82,6 +82,14 @@ function getActionsColumn(controllerRef) {
           okText: "Archive",
         }}
         onDelete={(dashboard) => Dashboard.delete({ id: dashboard.id }).then(() => controllerRef.current.update())}
+        permanentDeleteConfirm={{
+          title: "Delete dashboard permanently",
+          content: `“${item.name}” and its widgets go, and this cannot be undone. The queries and charts behind those widgets stay — they may be on other dashboards.`,
+          okText: "Delete",
+        }}
+        onPermanentDelete={(dashboard) =>
+          Dashboard.deletePermanently({ id: dashboard.id }).then(() => controllerRef.current.update())
+        }
       />
     ),
     { title: "", width: "1%", className: "p-l-0" }

@@ -400,7 +400,12 @@ const QueryService = {
   query: (params) => axios.get("api/queries", { params }).then(mapResults),
   get: (data) => axios.get(`api/queries/${data.id}`, data).then(getQuery),
   save: (data) => axios.post(saveOrCreateUrl(data), data).then(getQuery),
+  // Archives it: the long-standing meaning of DELETE here, kept because every
+  // caller and every saved link assumes it.
   delete: (data) => axios.delete(`api/queries/${data.id}`),
+  // And removes it outright. Its own path, because archiving is reversible
+  // for the query itself and this is not reversible at all.
+  deletePermanently: (data) => axios.delete(`api/queries/${data.id}/permanent`),
   recent: (params) => axios.get(`api/queries/recent`, { params }).then((data) => map(data, getQuery)),
   archive: (params) => axios.get(`api/queries/archive`, { params }).then(mapResults),
   myQueries: (params) => axios.get("api/queries/my", { params }).then(mapResults),

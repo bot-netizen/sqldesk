@@ -175,7 +175,12 @@ const DashboardService = {
   getByToken: ({ token }) =>
     axios.get(`api/dashboards/public/${token}`, { params: { api_key: token } }).then(transformResponse),
   save: (data) => axios.post(saveOrCreateUrl(data), data).then(transformResponse),
+  // Archives it, as it always has.
   delete: ({ id }) => axios.delete(`api/dashboards/${id}`).then(transformResponse),
+  // And removes it outright, with its widgets and its subscriptions. The
+  // charts behind those widgets stay: a widget is a placement, and the
+  // visualization it shows belongs to a query that may be on other boards.
+  deletePermanently: ({ id }) => axios.delete(`api/dashboards/${id}/permanent`),
   query: (params) => axios.get("api/dashboards", { params }).then(transformResponse),
   recent: (params) => axios.get("api/dashboards/recent", { params }).then(transformResponse),
   // What somebody archived. The index's other half -- same filters, same
