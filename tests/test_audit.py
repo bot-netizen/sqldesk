@@ -234,3 +234,66 @@ class TestWhoMayRead(AuditTestCase):
         db.session.commit()
 
         self.assertEqual(1, self.ask(admin, "?days=-5").json["window_days"])
+
+
+class TestNotebookCells(AuditTestCase):
+    """
+    A notebook SQL cell is somebody asking a warehouse a question, so the
+    audit counts it as one.
+
+    Notebooks and the audit are both new, and were built without reference to
+    each other -- so an install whose people worked in notebooks saw an empty
+    audit while the page promised "where the month went". Found by running a
+    notebook on the deployed cluster and looking at the audit afterwards.
+    """
+
+    def a_cell_run(self, when=None, user=None):
+        event = ran(self.org, user or self.factory.user, self.source, when=when)
+        event.additional_properties = {"cache": "miss", "query_id": "notebook", "notebook_id": 1, "cell": "orders"}
+        return event
+
+    def test_it_is_counted_in_the_month(self):
+        self.a_cell_run()
+        db.session.commit()
+
+        self.assertEqual(1, get_audit(self.org.id)["executions"])
+
+    def test_it_is_named_rather_than_counted_as_the_editor(self):
+        """
+        A month spent in notebooks and a month spent in the editor are
+        different months. Collapsing them into "ad-hoc" is the same mistake as
+        reporting an ad-hoc run as a deleted query, one level along.
+        """
+        self.a_cell_run()
+        db.session.commit()
+
+        top = get_audit(self.org.id)["top_queries"]
+
+        self.assertEqual([{"id": None, "name": "notebook cell", "executions": 1}], top)
+
+    def test_the_editor_and_a_notebook_are_two_rows_not_one(self):
+        editor = ran(self.org, self.factory.user, self.source)
+        editor.additional_properties = {"cache": "miss", "query_id": "adhoc"}
+        self.a_cell_run()
+        db.session.commit()
+
+        top = get_audit(self.org.id)["top_queries"]
+        named = {one["name"]: one["executions"] for one in top}
+
+        self.assertEqual({"ad-hoc": 1, "notebook cell": 1}, named)
+
+    def test_it_counts_towards_the_person_who_ran_it(self):
+        self.a_cell_run()
+        db.session.commit()
+
+        top = get_audit(self.org.id)["top_users"]
+
+        self.assertEqual(1, top[0]["executions"])
+
+    def test_it_counts_towards_its_data_source(self):
+        self.a_cell_run()
+        db.session.commit()
+
+        top = get_audit(self.org.id)["top_data_sources"]
+
+        self.assertEqual(self.source.name, top[0]["name"])

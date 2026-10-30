@@ -203,6 +203,11 @@ def _no_table_sentence(names):
 
 #: Recorded on a cell when it runs, so the question "is there a relation to
 #: read here" is answerable from Postgres rather than by opening the store.
+#: What the audit's by-query breakdown is given for a notebook cell. Not an
+#: id and not the editor's "adhoc": a cell and the editor are different things
+#: and an admin reading the page wants to tell them apart.
+NOTEBOOK_CELL = "notebook"
+
 TABLE = "table"
 TEXT = "text"
 
@@ -428,8 +433,42 @@ def _as_text(answer):
     return [{"name": "output", "friendly_name": "output", "type": "string"}]
 
 
+def _as_an_execution(cell, user):
+    """
+    A SQL cell is somebody asking a warehouse a question, so the audit counts
+    it as one.
+
+    Written here rather than enqueued: this already runs in a worker inside a
+    transaction, and a job that queues a job to write one row is a round trip
+    for nothing. The shape is the editor's, so the two cannot disagree about
+    what an execution is -- `query_id` is the marker the by-query breakdown
+    reads, and notebook cells get their own name there rather than being
+    counted as the editor.
+    """
+    try:
+        models.Event.record(
+            {
+                "org_id": cell.notebook.org_id,
+                "user_id": user.id if user and not user.is_api_user() else None,
+                "action": "execute_query",
+                "object_type": "data_source",
+                "object_id": cell.data_source_id,
+                "query_id": NOTEBOOK_CELL,
+                "query": cell.source or "",
+                "cache": "miss",
+                "notebook_id": cell.notebook_id,
+                "cell": cell.name,
+                "timestamp": time.time(),
+            }
+        )
+    except Exception:
+        # An audit row is not worth failing somebody's cell over.
+        logger.warning("could not record the execution of notebook cell %s", cell.id, exc_info=True)
+
+
 def _from_a_data_source(cell, user, store, run_query):
     """The ordinary path, and the only place a warehouse is touched."""
+    _as_an_execution(cell, user)
     call = run_query or (lambda source, sql, who: source.query_runner.run_query(sql, who))
     data, error = call(cell.data_source, cell.source, user)
     if error:

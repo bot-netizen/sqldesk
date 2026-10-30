@@ -352,3 +352,73 @@ class TestRunningASqlCell(NotebookTestCase):
         self.assertIsNotNone(record.finished_at)
         self.assertIsNotNone(record.runtime)
         self.assertEqual(1, record.rows)
+
+
+class TestTheAuditSeesACellRun(NotebookTestCase):
+    """
+    The other half of the audit's view of notebooks.
+
+    `tests/test_audit.py` checks the page names a cell run correctly given the
+    event; this checks the event is written at all, which is the half that was
+    missing. Notebooks and the audit are both new and were built without
+    reference to each other, so an install whose people worked in notebooks
+    saw an empty audit while the page promised "where the month went".
+    """
+
+    def executions(self):
+        return models.Event.query.filter(models.Event.action == "execute_query").all()
+
+    def a_run(self, name="orders", source="SELECT 1"):
+        cell = self.cell(name, source, data_source=self.factory.data_source)
+        runner.run_sql_cell(cell, self.factory.user, run_query=answering(result([{"id": 1}])))
+        db.session.flush()
+        return cell
+
+    def test_a_sql_cell_against_a_warehouse_records_one(self):
+        self.a_run()
+
+        events = self.executions()
+
+        self.assertEqual(1, len(events))
+        self.assertEqual("notebook", events[0].additional_properties["query_id"])
+        self.assertEqual(str(self.factory.data_source.id), str(events[0].object_id))
+
+    def test_it_says_which_notebook_and_which_cell(self):
+        cell = self.a_run()
+
+        properties = self.executions()[0].additional_properties
+
+        self.assertEqual(cell.notebook_id, properties["notebook_id"])
+        self.assertEqual("orders", properties["cell"])
+
+    def test_it_is_attributed_to_whoever_ran_it(self):
+        self.a_run()
+
+        self.assertEqual(self.factory.user.id, self.executions()[0].user_id)
+
+    def test_a_cell_reading_earlier_cells_records_nothing(self):
+        """
+        No warehouse was touched. Counting it would inflate a month with work
+        that never left the notebook's own store.
+        """
+        self.a_run()
+        reading = self.cell("counted", "SELECT count(*) AS n FROM orders", position=1)
+
+        runner.run_sql_cell(reading, self.factory.user)
+        db.session.flush()
+
+        # The one from `a_run`, and not a second.
+        self.assertEqual(1, len(self.executions()))
+
+    def test_a_cell_that_fails_is_still_counted(self):
+        """
+        The editor counts an execution when somebody asks, not when it
+        succeeds -- a month of failing queries is a month of work asked for,
+        and an audit that hid them would be the wrong shape.
+        """
+        cell = self.cell("broken", "SELECT nonsense", data_source=self.factory.data_source)
+
+        runner.run_sql_cell(cell, self.factory.user, run_query=answering(None, "no such column"))
+        db.session.flush()
+
+        self.assertEqual(1, len(self.executions()))

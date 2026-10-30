@@ -18,6 +18,10 @@ from sqldesk.models import (
     db,
 )
 
+# The marker a notebook cell writes into its execution event, imported from
+# the side that writes it so the two cannot drift.
+from sqldesk.notebooks.run import NOTEBOOK_CELL
+
 
 def get_redis_status():
     info = redis_connection.info()
@@ -398,12 +402,17 @@ def _a_query(value, executions, names):
     """
     One row of the by-query breakdown.
 
-    Three cases, and the first version collapsed two of them: a saved query, a
-    saved query that has since been deleted, and a run that never had one. The
-    third arrives as the string "adhoc", which `int()` cannot read -- so it
-    became `None`, `None` is in no lookup, and five ad-hoc runs were reported
-    on the page as a deleted query.
+    Four cases, and the first version collapsed two of them: a saved query, a
+    saved query that has since been deleted, a notebook cell, and a run that
+    never had a query at all. The last arrives as the string "adhoc", which
+    `int()` cannot read -- so it became `None`, `None` is in no lookup, and
+    five ad-hoc runs were reported on the page as a deleted query.
     """
+    if value == NOTEBOOK_CELL:
+        # Named rather than counted as the editor: a month spent in notebooks
+        # and a month spent in the editor are different months, and an audit
+        # that cannot tell them apart says less than it looks like it does.
+        return {"id": None, "name": "notebook cell", "executions": executions}
     found = _as_int(value)
     if found is None:
         # Reported as itself: somebody running the editor fifty times is real
