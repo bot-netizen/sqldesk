@@ -12,6 +12,8 @@ import TimeAgo from "@/components/TimeAgo";
 import Timer from "@/components/Timer";
 import { Moment } from "@/components/proptypes";
 import QueryLink from "@/components/QueryLink";
+import StreamMarker from "@/pages/dashboards/components/StreamMarker";
+import { useStreamFor } from "@/pages/dashboards/hooks/useRunningStreams";
 import { FiltersType } from "@/components/Filters";
 import PlainButton from "@/components/PlainButton";
 import ExpandedWidgetDialog from "@/components/dashboards/ExpandedWidgetDialog";
@@ -123,6 +125,9 @@ export function VisualizationWidgetHeader({
   onParametersEdit,
 }) {
   const canViewQuery = currentUser.hasPermission("view_query");
+  // What this panel's own topic is doing, out of the dashboard's one request.
+  // Null on every panel of every ordinary dashboard, which is most of them.
+  const stream = useStreamFor(widget.getQuery());
 
   /*
     A widget's own filter goes on the title's row. Under it, `Parameters`
@@ -156,6 +161,12 @@ export function VisualizationWidgetHeader({
               readOnly={!canViewQuery}
               preferQueryName={hasTabs(widget)}
             />
+            {/*
+              What this panel's own topic is doing, beside its name. Nothing
+              at all on a panel that is not drawn from a running stream, which
+              is every panel on every ordinary dashboard.
+            */}
+            <StreamMarker stream={stream} />
           </p>
           {/*
             The chart's own description, written for the chart. Not the

@@ -1,0 +1,108 @@
+/*
+  A panel's topic, in the panel's corner, and the same thing for the board.
+
+  Quiet by default and loud only when it has to be. A dashboard of eight
+  panels each wearing a status chip is a dashboard nobody reads, so the
+  ordinary case -- consuming, not sampled -- is grey and small, and the two
+  cases that change how you read the chart take colour.
+*/
+
+.stream-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  padding: 0 7px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  vertical-align: middle;
+
+  .stream-marker-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-good);
+    animation: stream-marker-pulse 1.8s ease-in-out infinite;
+  }
+
+  /*
+    Sampled is the one that must never be missed: the number on the chart is
+    an estimate, and a reader who does not know that is being misled.
+  */
+  &.stream-marker-sampled {
+    background: var(--color-warning-wash);
+    color: var(--color-warning);
+
+    .stream-marker-dot {
+      background: currentColor;
+    }
+  }
+
+  /*
+    And not consuming is the one that is otherwise invisible: a chart that
+    stopped twenty minutes ago looks exactly like one that is keeping up.
+  */
+  &.stream-marker-paused {
+    color: var(--color-text-secondary);
+
+    .stream-marker-dot {
+      background: var(--color-text-subtle);
+      animation: none;
+    }
+  }
+}
+
+.stream-rollup {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  vertical-align: middle;
+
+  /* They disagree, which is exactly when a single badge would mislead. */
+  &.stream-rollup-partial {
+    color: var(--color-warning);
+    font-weight: 600;
+  }
+
+  .stream-rollup-sampling {
+    color: var(--color-warning);
+    font-weight: 600;
+  }
+}
+
+@keyframes stream-marker-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* A dot that pulses is motion somebody may have asked not to see. */
+@media (prefers-reduced-motion: reduce) {
+  .stream-marker .stream-marker-dot {
+    animation: none;
+  }
+}
+
+/*
+  On a phone a panel's title already wraps; the marker goes under it rather
+  than squeezing the name into two characters.
+*/
+@media (max-width: 767px) {
+  .stream-marker {
+    margin-left: 0;
+  }
+}
