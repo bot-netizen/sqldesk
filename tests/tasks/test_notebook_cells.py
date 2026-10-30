@@ -142,7 +142,7 @@ class TestWhatTheJobReports(CellJobTestCase):
                 cell.latest_result_id = 4242
                 answer = run_cell(cell.id, self.factory.user.id)
 
-        self.assertEqual(4242, answer["query_result_id"])
+        self.assertEqual(4242, answer, "serialize_job reads the return value as the result id")
 
     def test_a_failed_run_reports_the_error_the_cell_recorded(self):
         cell = self.a_cell(data_source=self.factory.data_source)

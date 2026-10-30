@@ -69,6 +69,7 @@ from sqldesk.handlers.mcp import McpAuditResource, MyMcpResource
 from sqldesk.handlers.notebooks import (
     CellListResource,
     CellResource,
+    CellResultResource,
     CellRunResource,
     NotebookListResource,
     NotebookResource,
@@ -247,6 +248,9 @@ api.add_org_resource(NotebookResource, "/api/notebooks/<notebook_id>", endpoint=
 api.add_org_resource(CellListResource, "/api/notebooks/<notebook_id>/cells", endpoint="notebook_cells")
 api.add_org_resource(CellResource, "/api/notebooks/<notebook_id>/cells/<cell_id>", endpoint="notebook_cell")
 api.add_org_resource(CellRunResource, "/api/notebooks/<notebook_id>/cells/<cell_id>/run", endpoint="notebook_cell_run")
+api.add_org_resource(
+    CellResultResource, "/api/notebooks/<notebook_id>/cells/<cell_id>/result", endpoint="notebook_cell_result"
+)
 api.add_org_resource(NotebookStopResource, "/api/notebooks/<notebook_id>/stop", endpoint="notebook_stop")
 api.add_org_resource(NotebookSessionResource, "/api/notebooks/<notebook_id>/session", endpoint="notebook_session")
 

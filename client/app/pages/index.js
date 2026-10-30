@@ -11,11 +11,13 @@
 import "./home/Home";
 import "./dashboards/DashboardList";
 import "./queries-list/QueriesList";
+import "./notebooks/NotebookList";
 
 import "./dashboards/dashboards.routes";
 import "./queries/queries.routes";
 import "./alert/alerts.routes";
 import "./admin/admin.routes";
 import "./mcp/mcp.routes";
+import "./notebooks/notebooks.routes";
 import "./streams/streams.routes";
 import "./settings.routes";

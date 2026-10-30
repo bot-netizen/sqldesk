@@ -1,0 +1,181 @@
+/*
+  A notebook page: a column of cells, each a card.
+
+  Everything here uses the application's own tokens rather than fixed colours,
+  so the page follows the theme like every other page -- including dark, where
+  a hard-coded white card is the thing that gives it away.
+*/
+
+.notebook-page {
+  padding: 16px 24px 64px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.notebook-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.notebook-header-spacer {
+  flex: 1 1 auto;
+}
+
+.notebook-title {
+  h3 {
+    margin: 0;
+  }
+}
+
+.notebook-description {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+}
+
+.notebook-draft {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: var(--radius-chip);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  vertical-align: middle;
+}
+
+.notebook-back {
+  align-self: center;
+  white-space: nowrap;
+}
+
+.notebook-interpreter {
+  align-self: center;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+
+  &.notebook-interpreter-on {
+    color: var(--color-good);
+  }
+
+  &.notebook-interpreter-off {
+    opacity: 0.75;
+  }
+}
+
+.notebook-empty,
+.notebook-load-error {
+  margin: 24px 0;
+}
+
+.notebook-cells {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.notebook-cell {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  overflow: hidden;
+
+  /*
+    A code cell is marked on its edge rather than by a different background.
+    Two cell colours down a long page is noise; one stripe says "this one runs
+    somewhere else" and stays out of the way.
+  */
+  &.notebook-cell-python {
+    border-left: 3px solid var(--color-action);
+  }
+}
+
+.notebook-cell-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
+  flex-wrap: wrap;
+}
+
+.notebook-cell-name {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.notebook-cell-kind {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.notebook-cell-reads {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.notebook-cell-source-select {
+  min-width: 160px;
+}
+
+.notebook-cell-spacer {
+  flex: 1 1 auto;
+}
+
+.notebook-cell-notice {
+  margin: 8px 10px 0;
+}
+
+.notebook-cell-editor {
+  height: 160px;
+  min-height: 120px;
+}
+
+.notebook-cell-output {
+  border-top: 1px solid var(--color-border);
+  padding: 8px 10px;
+  overflow: auto;
+}
+
+.notebook-cell-output-text {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  max-height: 320px;
+}
+
+.notebook-cell-output-count {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.notebook-cell-output-empty {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.notebook-cell-null {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* A phone reads a notebook rather than edits one, but it must still read. */
+@media (max-width: 767px) {
+  .notebook-page {
+    padding: 12px 16px 48px;
+  }
+
+  .notebook-cell-editor {
+    height: 120px;
+  }
+}

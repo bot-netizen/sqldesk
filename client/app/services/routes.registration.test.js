@@ -37,6 +37,9 @@ const EXPECTED = [
   ["Queries.Edit", "/queries/:queryId/source"],
   ["Queries.View", "/queries/:queryId"],
   ["Visualizations.ViewShared", "/embed/query/:queryId/visualization/:visualizationId"],
+  // Notebooks: the list is a landing page, the notebook itself is a chunk.
+  ["Notebooks.List", "/notebooks"],
+  ["Notebooks.View", "/notebooks/:notebookId"],
   ["Alerts.List", "/alerts"],
   ["Alerts.New", "/alerts/new"],
   ["Alerts.Edit", "/alerts/:alertId/edit"],

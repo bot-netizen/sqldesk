@@ -359,6 +359,54 @@ def _rename_in_the_store(notebook, old, new):
         store.close()
 
 
+class CellResultResource(BaseResource):
+    """
+    What a cell produced, for the page to draw.
+
+    Fetched per cell rather than inlined into the notebook: the slice is capped
+    at a thousand rows, and a notebook of twenty cells would otherwise be
+    megabytes of JSON before anybody had looked at anything. One small request
+    per cell, in parallel, is what makes reopening feel instant.
+
+    The data source's permission is checked here, not the notebook's. A reader
+    who may open a published notebook may still be someone who was never
+    allowed that warehouse, and a stored result is that warehouse's data.
+    """
+
+    @require_feature(features.USE_NOTEBOOKS)
+    def get(self, notebook_id, cell_id):
+        notebook = _notebook(notebook_id, self.current_org, self.current_user)
+        cell = _cell(notebook, cell_id)
+        if not cell.latest_result_id:
+            abort(404, message="This cell has not produced anything yet.")
+        result = get_object_or_404(models.QueryResult.get_by_id_and_org, cell.latest_result_id, self.current_org)
+        if result.data_source is not None:
+            require_access(result.data_source, self.current_user, view_only)
+        return {
+            "id": result.id,
+            "data": result.data,
+            "row_count": result.row_count,
+            "runtime": result.runtime,
+            "retrieved_at": result.retrieved_at,
+            # What the cell handed on, which is the number the slice is a
+            # slice *of* -- so the page can say "first 1,000 of 4.2 million"
+            # rather than implying a thousand was the whole answer.
+            "handed_on": _rows_handed_on(cell),
+        }
+
+
+def _rows_handed_on(cell):
+    latest = (
+        models.NotebookRun.query.filter(
+            models.NotebookRun.cell_id == cell.id,
+            models.NotebookRun.state == models.NotebookRun.OK,
+        )
+        .order_by(models.NotebookRun.id.desc())
+        .first()
+    )
+    return latest.rows if latest else None
+
+
 class CellRunResource(BaseResource):
     @require_feature(features.USE_NOTEBOOKS)
     def post(self, notebook_id, cell_id):

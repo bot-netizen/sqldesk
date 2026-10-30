@@ -132,6 +132,7 @@ function useNavbarActiveState() {
         ],
         currentRoute.id
       ),
+      notebooks: includes(["Notebooks.List", "Notebooks.View"], currentRoute.id),
       alerts: includes(["Alerts.List", "Alerts.New", "Alerts.View", "Alerts.Edit"], currentRoute.id),
       catalog: currentRoute.id === "Catalog",
       settings: includes(SETTINGS_ROUTES, currentRoute.id),
@@ -180,8 +181,9 @@ export default function DesktopNavbar() {
   const canCreateQuery = currentUser.hasPermission("create_query");
   const canCreateDashboard = currentUser.hasPermission("create_dashboard");
   const canCreateAlert = currentUser.hasPermission("list_alerts");
-  const canCreate = canCreateQuery || canCreateDashboard || canCreateAlert;
+  const canCreate = canCreateQuery || canCreateDashboard || canCreateAlert || currentUser.can("use_notebooks");
   const canUseStreams = currentUser.can("use_streams") || currentUser.can("manage_streams");
+  const canUseNotebooks = currentUser.can("use_notebooks");
 
   const createMenu = (
     <Menu className="desktop-navbar-dropdown-menu">
@@ -201,6 +203,13 @@ export default function DesktopNavbar() {
         <Menu.Item key="new-streaming-query">
           <Link href="streams/query" data-test="CreateStreamingQueryMenuItem">
             New Streaming Query
+          </Link>
+        </Menu.Item>
+      )}
+      {canUseNotebooks && (
+        <Menu.Item key="new-notebook">
+          <Link href="notebooks" data-test="CreateNotebookMenuItem">
+            New Notebook
           </Link>
         </Menu.Item>
       )}
@@ -355,6 +364,16 @@ export default function DesktopNavbar() {
               Queries
             </NavLink>
           ))}
+        {/*
+          After Queries, because that is what it is the long form of: the work
+          a saved query cannot hold, where everything else here ends in one
+          SELECT. Shown only to a group an administrator gave it to.
+        */}
+        {canUseNotebooks && (
+          <NavLink href="notebooks" active={activeState.notebooks}>
+            Notebooks
+          </NavLink>
+        )}
         {/*
           Beside the others rather than under Admin: describing a table is
           the work of whoever knows what it is for, and an administrator

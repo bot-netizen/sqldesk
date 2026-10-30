@@ -35,9 +35,10 @@ def run_cell(cell_id, user_id):
     """
     Run one cell and leave its result where the page will find it.
 
-    Returns what the job serializer needs: the id of the result to show, or the
-    error to show instead. Raising would make every refusal look like a crash
-    in the logs, and "this cell cannot run yet" is not a crash.
+    Returns what the job serializer needs: the id of the result to show, or
+    `{"error": ...}` to show instead -- the two shapes `serialize_job` reads.
+    Raising would make every refusal look like a crash in the logs, and "this
+    cell cannot run yet" is not a crash.
     """
     cell = models.NotebookCell.query.get(cell_id)
     if cell is None:
@@ -70,8 +71,13 @@ def run_cell(cell_id, user_id):
 
     models.db.session.commit()
     if record.state == models.NotebookRun.FAILED:
-        return {"error": record.error, "notebook_run_id": record.id}
-    return {"query_result_id": cell.latest_result_id, "notebook_run_id": record.id}
+        return {"error": record.error}
+    # The id itself, not a dict around it: `serialize_job` puts whatever a job
+    # returns into `query_result_id`, so anything richer would hand the page a
+    # dict where it reads an id. What else the page needs -- staleness, what a
+    # cell now reads -- it gets by refetching the notebook, which it has to do
+    # anyway because a run changes the cells below this one.
+    return cell.latest_result_id
 
 
 def _run(cell, user):
