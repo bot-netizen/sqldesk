@@ -1910,6 +1910,30 @@
         "flask",
         "flaky-test"
       ]
+    },
+    {
+      "id": "bug-111",
+      "error_message": "Enzyme shallow(): a page that loads data in useEffect renders nothing, and tests report empty",
+      "root_cause": "enzyme-adapter-react-16's shallow renderer does not run useEffect. A page whose data load lives in an effect therefore never loads under shallow, so assertions about what it shows fail -- and assertions about what it does NOT show pass vacuously.",
+      "fix": "mount() inside `await act(async () => {...})`, then page.update(). Shallow stays fine for presentational components with no effects. client/app/pages/notebooks/Notebook.test.js is the worked example.",
+      "tags": [
+        "frontend",
+        "tests",
+        "enzyme",
+        "hooks"
+      ]
+    },
+    {
+      "id": "bug-112",
+      "error_message": "A job returning a dict handed the page a dict where it reads a result id",
+      "root_cause": "sqldesk/serializers/__init__.py:serialize_job assigns `query_result_id = job.result` for any non-error result. A task that returns a richer dict therefore puts that whole dict into the field the client reads as an id.",
+      "fix": "A cell job returns `cell.latest_result_id` on success and `{\"error\": ...}` on failure -- the only two shapes serialize_job reads. Anything else the page needs it gets by refetching the object.",
+      "tags": [
+        "backend",
+        "rq",
+        "serializers",
+        "notebooks"
+      ]
     }
   ],
   "applied_observations": {
@@ -1987,5 +2011,5 @@
     "0017eda3-f957-4ace-ab30-29371e05a9e2": true,
     "f8dab580-bd41-4f43-af0c-70f3d70a3d24": true
   },
-  "next_id": 111
+  "next_id": 113
 }
