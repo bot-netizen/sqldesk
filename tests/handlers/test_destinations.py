@@ -264,9 +264,7 @@ def test_slack_notify_sends_block_kit_inside_an_attachment():
     assert blocks[0]["text"]["text"] == "*Orders: 87, below 100*", "the headline is not first, or not bold"
     # Exactly as written. A custom body is not ours to append to.
     assert any(b.get("text", {}).get("text") == "Test custom body" for b in blocks), "the body was not carried"
-    footnotes = " ".join(
-        element["text"] for b in blocks if b["type"] == "context" for element in b["elements"]
-    )
+    footnotes = " ".join(element["text"] for b in blocks if b["type"] == "context" for element in b["elements"])
     assert f"{host}/alerts/{alert.id}" in footnotes
     assert f"{host}/queries/{query.id}" in footnotes
 
