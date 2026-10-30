@@ -65,7 +65,7 @@ TYPES_MAP = {
 }
 
 
-def _duckdb_type(declared):
+def duckdb_type(declared):
     """A column's SQLDesk type, from whatever DuckDB called it.
 
     Two things had to change here, and the first had been wrong for a long time.
@@ -349,7 +349,7 @@ class DuckDB(BaseSQLQueryRunner):
         try:
             cursor = self.con.cursor()
             cursor.execute(query)
-            columns = self.fetch_columns([(d[0], _duckdb_type(d[1])) for d in cursor.description])
+            columns = self.fetch_columns([(d[0], duckdb_type(d[1])) for d in cursor.description])
             rows = [dict(zip((col["name"] for col in columns), row)) for row in cursor.fetchall()]
             data = {"columns": columns, "rows": rows}
             return data, None

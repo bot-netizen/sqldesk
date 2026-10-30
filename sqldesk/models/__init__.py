@@ -2040,6 +2040,23 @@ class Notebook(TimestampMixin, BelongsToOrgMixin, db.Model):
         """
         return "notebook-{}".format(self.id)
 
+    def directory(self):
+        """
+        A directory of its own, under the uploads sandbox.
+
+        Its own rather than one shared by the org's notebooks, and that is a
+        boundary rather than tidiness. DuckDB's `allowed_directories` is not a
+        fence -- it is the *carve-out* from `enable_external_access = false`,
+        so whatever sits in the directory a cell is sealed into stays readable
+        by that cell's SQL. One directory for every notebook would mean a cell
+        here could ATTACH the handoff of a notebook built on a data source its
+        author cannot see.
+        """
+        return os.path.join(settings.UPLOAD_ROOT, str(self.org_id), "notebooks", self.store_name)
+
+    def store_path(self):
+        return os.path.join(self.directory(), "handoff.duckdb")
+
 
 class NotebookCell(TimestampMixin, db.Model):
     """

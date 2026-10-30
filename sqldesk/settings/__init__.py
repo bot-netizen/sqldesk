@@ -647,6 +647,30 @@ MCP_MAX_QUERY_COST = float(os.environ.get("SQLDESK_MCP_MAX_QUERY_COST", "0"))
 #: is the one estimate here that is money rather than a proxy for it.
 MCP_MAX_QUERY_BYTES = int(os.environ.get("SQLDESK_MCP_MAX_QUERY_BYTES", "0"))
 
+# --- Notebooks -------------------------------------------------------------
+#
+# A notebook is a chain of cells where everything else in SQLDesk ends in one
+# SELECT. Its intermediates are large and disposable, so they live in a DuckDB
+# file per notebook rather than in Postgres. See sqldesk/notebooks.
+
+#: Where the Python interpreter lives, if this install has one. Empty means
+#: no Python cells: they say so on the cell rather than failing when run, and
+#: the picker says what the kind needs. Off by default because it is another
+#: container to run and most installs want SQL cells only.
+NOTEBOOK_EXECUTOR_URL = os.environ.get("SQLDESK_NOTEBOOK_EXECUTOR_URL", "")
+
+#: Rows one cell may hand to the next. The handoff is a file, so this is not
+#: about Postgres -- it is the number that sizes everything downstream: the
+#: Parquet shipped to an interpreter and the dataframe it builds from it. Past
+#: this the honest answer is a SQL cell that aggregates.
+NOTEBOOK_ROW_BUDGET = int(os.environ.get("SQLDESK_NOTEBOOK_ROW_BUDGET", "5000000"))
+
+#: Rows of a cell's result kept for display, in `query_results`, as JSON in
+#: one Postgres column. Small on purpose: this is the half somebody reads on
+#: the page, and the whole result is a table away in the notebook's own store.
+NOTEBOOK_DISPLAY_ROWS = int(os.environ.get("SQLDESK_NOTEBOOK_DISPLAY_ROWS", "1000"))
+
+
 # --- Streams ---------------------------------------------------------------
 #
 # A stream is a window, not a pipeline: SQLDesk keeps minutes of raw events and

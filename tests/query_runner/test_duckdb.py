@@ -11,7 +11,7 @@ from sqldesk.query_runner import (
     TYPE_INTEGER,
     TYPE_STRING,
 )
-from sqldesk.query_runner.duckdb import DuckDB, _duckdb_type
+from sqldesk.query_runner.duckdb import DuckDB, duckdb_type
 
 
 class TestDuckDBSchema(TestCase):
@@ -423,8 +423,8 @@ class TestColumnTypes(TestCase):
         self.assertNotIsInstance(code, str)
         with self.assertRaises(Exception):
             code.upper()
-        self.assertEqual(_duckdb_type(code), TYPE_INTEGER)
+        self.assertEqual(duckdb_type(code), TYPE_INTEGER)
 
     def test_an_unknown_type_is_a_string_rather_than_nothing(self):
-        self.assertEqual(_duckdb_type("SOME_FUTURE_TYPE"), TYPE_STRING)
-        self.assertIsNone(_duckdb_type(None))
+        self.assertEqual(duckdb_type("SOME_FUTURE_TYPE"), TYPE_STRING)
+        self.assertIsNone(duckdb_type(None))
