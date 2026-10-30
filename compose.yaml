@@ -116,9 +116,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.executor
+      args:
+        # Point this at a Spark Connect server and Python cells get `spark`.
+        # Off by default; see Dockerfile.executor for why the version has to
+        # match the cluster.
+        WITH_SPARK: "${SQLDESK_EXECUTOR_WITH_SPARK:-false}"
+        SPARK_VERSION: "${SQLDESK_SPARK_VERSION:-3.5.3}"
+        # 3.11 for Spark 3.5, which is the most that Spark supports; the
+        # Dockerfile has the measurement for what happens otherwise.
+        PYTHON_VERSION: "${SQLDESK_EXECUTOR_PYTHON:-3.13}"
     profiles: ["notebooks"]
     environment:
       EXECUTOR_TOKEN: "dev-executor-token"
+      EXECUTOR_SPARK_REMOTE: "${SQLDESK_SPARK_REMOTE:-}"
     mem_limit: 2g
     networks:
       - sqldesk-executor
@@ -138,4 +148,12 @@ networks:
   # cannot authenticate to. In Kubernetes, use a NetworkPolicy with no egress
   # rule and the exception disappears.
   sqldesk-executor:
+    # **This becomes false the moment Spark is configured.** A Connect client
+    # has to reach the cluster, so an executor with SQLDESK_SPARK_REMOTE set
+    # needs a route to it: put this network on the cluster's, or drop
+    # `internal` and rely on the host's firewall. The guarantee then changes
+    # from "cannot reach anything" to "cannot reach anything but the cluster",
+    # and it is worth writing down that the second one is only as true as
+    # whatever enforces it. In Kubernetes it is a NetworkPolicy whose only
+    # egress rule is the Spark service, which says it exactly.
     internal: true

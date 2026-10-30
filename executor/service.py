@@ -35,6 +35,7 @@ import time
 import uuid
 from multiprocessing import get_context
 
+import spark
 from flask import Flask, Response, jsonify, request
 from runner import INPUT, PING, RUN, serve
 
@@ -248,7 +249,10 @@ def _gate():
 def ping():
     with _sessions_lock:
         live = sum(1 for s in _sessions.values() if s.alive)
-    return jsonify({"ok": True, "sessions": live, "capacity": MAX_SESSIONS})
+    # `spark` says whether cells here can reach a cluster. Whether one is
+    # *attached* is deliberately not reported: the session opens on first use
+    # inside a child, and asking every child would make a health check do work.
+    return jsonify({"ok": True, "sessions": live, "capacity": MAX_SESSIONS, "spark": spark.configured()})
 
 
 @app.route("/sessions", methods=["POST"])

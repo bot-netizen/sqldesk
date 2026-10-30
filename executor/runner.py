@@ -39,6 +39,8 @@ import resource
 import sys
 import traceback
 
+import spark
+
 #: What the parent sends. Small and positional, because this travels over a
 #: pipe and a protocol nobody can see is a protocol nobody can debug.
 INPUT = "input"
@@ -173,6 +175,12 @@ def _frame_out(value, path):
         import pandas
     except ImportError:
         return None
+    if spark.is_a_spark_frame(value):
+        # The one moment the cluster's result has to fit in this container.
+        # `collect` refuses rather than truncating: a notebook that quietly
+        # showed the first million rows of a billion would be worse than one
+        # that said no.
+        value = spark.collect(value)
     if not isinstance(value, pandas.DataFrame):
         return None
     connection = duckdb.connect()
@@ -275,6 +283,11 @@ def serve(pipe, options):
     import builtins
 
     namespace = {"__name__": "__notebook__", "__builtins__": builtins}
+    # `spark` only when this executor has a cluster, and even then only as a
+    # handle: the session opens the first time a cell reaches through it, so a
+    # notebook nobody has run Spark in has opened nothing.
+    if spark.configured():
+        namespace["spark"] = spark.Handle()
 
     while True:
         try:

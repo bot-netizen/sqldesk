@@ -72,6 +72,7 @@
       <a href="visualizations.html">Visualizations</a>
       <a href="dashboards.html">Dashboards and textboxes</a>
       <a href="streams.html">Streams</a>
+      <a href="notebooks.html">Notebooks</a>
       <a href="alerts.html">Alerts</a>
       <h4>AI</h4>
       <a href="mcp.html">MCP</a>
@@ -158,6 +159,7 @@ Settings &rarr; Groups, and anyone in that group has them.</p>
   <tr><td><code>manage_catalog</code></td><td>Describe tables and columns, agree or deny proposed measures, export the semantic layer. Puts <strong>Catalog</strong> in the top row.</td><td>MCP is on</td></tr>
   <tr><td><code>use_streams</code></td><td>Start a stream and watch it. Starting one takes a slot; watching somebody else's running stream needs no permission at all.</td><td>Streams are on</td></tr>
   <tr><td><code>manage_streams</code></td><td>Choose which of a cluster's topics may be queried, and how much of each is kept. Puts <strong>Streaming Data Sources</strong> beside Data Sources in Settings.</td><td>Streams are on</td></tr>
+  <tr><td><code>use_notebooks</code></td><td>Chain SQL and Python cells together, where a saved query ends in one SELECT. Puts <strong>Notebooks</strong> in the top row. Python cells additionally need an <a href="notebooks.html#interpreter">interpreter</a>, which is a deployment decision rather than a permission.</td><td>Always</td></tr>
   <tr><td><code>manage_live_dashboards</code></td><td>Make a dashboard live, so the server refreshes it for everyone looking.</td><td>Always</td></tr>
   <tr><td><code>keep_uploads</code></td><td>Stop an uploaded file expiring, so it stays until somebody deletes it.</td><td>Files expire at all</td></tr>
   <tr><td><code>use_mcp</code></td><td>Connect a client over MCP, and see what yours has been doing under <strong>My MCP</strong>.</td><td>MCP is on</td></tr>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notebooks — SQLDesk docs</title>
+<meta name="description" content="Notebooks in SQLDesk: SQL and Python cells chained together, where a saved query ends in one SELECT.">
+<meta property="og:title" content="Notebooks — SQLDesk docs">
+<meta property="og:description" content="Notebooks in SQLDesk: SQL and Python cells chained together, where a saved query ends in one SELECT.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://sqldesk.org/guide/notebooks.html">
+<meta property="og:image" content="https://sqldesk.org/assets/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SQLDesk: one place for everything you do with data">
+<meta property="og:site_name" content="SQLDesk">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sqldesk.org/assets/social-card.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230a7c93' stroke-width='4'%3E%3Ccircle cx='60' cy='60' r='55.5'/%3E%3C/g%3E%3Cg fill='%230a7c93'%3E%3Crect x='34' y='70' width='12' height='15' rx='1.5'/%3E%3Crect x='48' y='56' width='12' height='29' rx='1.5'/%3E%3Crect x='62' y='63' width='12' height='22' rx='1.5'/%3E%3Crect x='76' y='50' width='12' height='35' rx='1.5'/%3E%3Crect x='30' y='84' width='62' height='5.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../assets/site.css">
+<script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="../index.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="4"><circle cx="60" cy="60" r="55.5"/></g>
+        <g fill="currentColor">
+          <rect x="34" y="70" width="12" height="15" rx="1.5"/><rect x="48" y="56" width="12" height="29" rx="1.5"/>
+          <rect x="62" y="63" width="12" height="22" rx="1.5"/><rect x="76" y="50" width="12" height="35" rx="1.5"/>
+          <rect x="30" y="84" width="62" height="5.5" rx="2.75"/>
+        </g>
+      </svg>
+      SQLDesk
+    </a>
+    <nav>
+      <a href="../index.html">Overview</a>
+      <a href="../guide/overview.html" aria-current="page">Docs</a>
+      <a href="../blog/index.html">Blog</a>
+      <a href="../releases.html">Releases</a>
+      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+      <button class="theme-toggle" type="button" data-theme-toggle
+              aria-label="Switch to dark mode" title="Switch to dark mode">
+        <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.7 5.7 0 1 0 7.1 7.1Z"/>
+        </svg>
+        <svg class="sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="3.1"/>
+          <path d="M8 1v1.6M8 13.4V15M15 8h-1.6M2.6 8H1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1M12.9 12.9l-1.1-1.1M4.2 4.2 3.1 3.1"/>
+        </svg>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap doc-layout">
+  <nav class="doc-nav" aria-label="Documentation">
+      <h4>Start here</h4>
+      <a href="overview.html">Overview</a>
+      <a href="concepts.html">Concepts</a>
+      <a href="architecture.html">Architecture</a>
+      <h4>Using SQLDesk</h4>
+      <a href="connectors.html">Data sources</a>
+      <a href="queries.html">Queries and parameters</a>
+      <a href="visualizations.html">Visualizations</a>
+      <a href="dashboards.html">Dashboards and textboxes</a>
+      <a href="streams.html">Streams</a>
+      <a href="notebooks.html" aria-current="page">Notebooks</a>
+      <a href="alerts.html">Alerts</a>
+      <h4>AI</h4>
+      <a href="mcp.html">MCP</a>
+      <h4>Running it</h4>
+      <a href="administration.html">Administration</a>
+      <a href="deploying.html">Deploying</a>
+      <h4>Reference</h4>
+      <a href="../releases.html">Releases</a>
+  </nav>
+  <main class="doc-body">
+<h1>Notebooks</h1>
+<p class="lede">A chain of cells, where everything else in SQLDesk ends in one SELECT. Pull this, join it
+to that, reshape it, look &mdash; with the data source permissions, the result store and the scheduler
+you already have.</p>
+
+<h2 id="why">What a notebook is for</h2>
+<p>The work a saved query cannot hold. People do it in Jupyter today, and when they do, the warehouse
+never hears about it: the lineage, the permissions and the scheduling all stop at the edge of somebody&rsquo;s
+laptop. A notebook keeps that work where the rest of your data lives.</p>
+<p>A notebook is a <strong>draft</strong> until you publish it, the same promise queries and dashboards
+make. What you are still building is not in anybody else&rsquo;s list.</p>
+
+<h2 id="cells">Cells</h2>
+<p>Cells are <strong>named, never numbered</strong>. A later cell refers to this one by name &mdash; as a
+relation in SQL, as a dataframe in Python &mdash; so inserting, deleting and reordering leave every
+reference pointing at what it meant. A name is letters, digits and underscores, not starting with a digit,
+because it has to be legal as a table name and as a variable at the same time.</p>
+
+<h3 id="sql-cells">A SQL cell</h3>
+<p>A SQL cell is one of two things, and which one it is follows from whether you give it a data source:</p>
+<ul>
+  <li><strong>With a data source</strong> it queries that warehouse, under the permissions that data
+  source already has. A notebook is not a way round them.</li>
+  <li><strong>With no data source</strong> it reads <strong>earlier cells</strong>, which are relations:
+  <code>SELECT count(*) FROM orders</code> where <code>orders</code> is the cell above.</li>
+</ul>
+<p>It cannot be both, and the cell says so before you run it. A warehouse has never heard of a cell called
+<code>orders</code>, and SQLDesk is not going to push four million rows into it to pretend otherwise.</p>
+
+<h3 id="python-cells">A Python cell</h3>
+<p>A Python cell <strong>computes; it cannot query</strong>. It reads an earlier cell&rsquo;s output as a
+pandas dataframe under that cell&rsquo;s own name, and nothing else. That is the strongest rule in the
+design, for what it removes: no credential ever reaches the interpreter, because there is nothing for it to
+reach. Anything that needs the warehouse needs a SQL cell above it.</p>
+<p>Variables persist between cells, as they do in Jupyter: <code>df</code> assigned in one cell is still
+there five cells later. If the last line of a cell is an expression, its value is the cell&rsquo;s output
+&mdash; a dataframe becomes a relation later cells can read, and anything else is text to look at.</p>
+<p>Python cells need an <a href="#interpreter">interpreter</a>, which is off by default. Without one, the
+cell says so rather than failing when somebody runs it.</p>
+
+<h2 id="stale">Stale, and why nothing is corrected for you</h2>
+<p>A notebook with a session is a notebook that can rot: the number in cell four was computed from cell
+one, cell one has been edited and re-run twice since, and nothing on the page says so. That is the normal
+failure of every notebook tool with hidden state.</p>
+<p>So every run records which cells it read, and a cell whose inputs have re-run since is marked
+<strong>stale</strong> &mdash; and <em>left exactly as it was</em>. The number on the screen is still the
+number that was computed; re-running it is your decision. Staleness carries: if A feeds B and B feeds C,
+re-running A marks both.</p>
+<p>A cell whose input was <strong>deleted</strong> says something different, because it is a different
+problem: that one cannot be reproduced at all, where a stale one only needs re-running.</p>
+
+<h2 id="results">What is kept, and what is thrown away</h2>
+<p>Three things, with three different lifetimes:</p>
+<ul>
+  <li>the <strong>output on the page</strong> &mdash; a truncated slice, kept with the notebook, which is
+  why reopening one draws instantly and attaches nothing;</li>
+  <li>the <strong>handoff</strong> between cells &mdash; the whole result, in a
+  <a href="architecture.html#duckdb">DuckDB</a> file of the notebook&rsquo;s own, thrown away and rebuilt
+  by re-running;</li>
+  <li>the <strong>record of each run</strong> &mdash; which cells it read, how long it took, how many rows
+  &mdash; kept for ever, because that is what makes staleness answerable.</li>
+</ul>
+<p>The table under a cell shows the slice and says what it is a slice of: <em>first 1,000 of 4,200,000
+rows</em>. The next cell reads the whole thing, not what you can see.</p>
+<p>Archiving a notebook keeps all of it except the handoff, which re-running rebuilds.</p>
+
+<h2 id="charts">A chart on a cell</h2>
+<p>Any cell that produced a table can carry a visualization, with the same editor and the same chart types
+as a query. It is drawn from the rows on the page rather than the whole handoff &mdash; a chart of four
+million points is a smear.</p>
+<p>A cell&rsquo;s chart cannot yet become a dashboard widget. Refreshing a widget backed by cell seven
+means running cells one to seven, on an interpreter, on a dashboard&rsquo;s refresh interval &mdash; that
+is a scheduling design rather than a widget, and it is not in this release.</p>
+
+<h2 id="running">Running and stopping</h2>
+<p>A cell runs on a worker, like a query, and a SQL cell takes a <strong>query slot</strong> from its data
+source&rsquo;s pool like any other query &mdash; the warehouse&rsquo;s connection limit does not get larger
+because something was typed into a notebook.</p>
+<p><strong>Stop</strong> cancels the cell that is running and does not start the next. It does not throw the
+notebook away: the variables earlier cells assigned are still there afterwards. A cell that ignores the
+interruption entirely is ended after a few seconds, and the page says that is what happened.</p>
+
+<h2 id="interpreter">Turning Python cells on</h2>
+<p>Python runs in a container of its own &mdash; never in the worker, which is the process holding every
+data source&rsquo;s decrypted credentials. It is built and run only by installs that want it:</p>
+<pre><code>docker compose --profile notebooks up executor</code></pre>
+<p>Then point SQLDesk at it with <code>SQLDESK_NOTEBOOK_EXECUTOR_URL</code> and give both sides the same
+<code>SQLDESK_NOTEBOOK_EXECUTOR_TOKEN</code>. <strong>Deny that container egress</strong> and give it a
+memory limit: the design makes the first free, since a code cell has nothing it needs to reach, and the
+second is the real ceiling on what one cell can spend.</p>
+<p>Who may use notebooks at all is a <strong>permission an administrator grants per group</strong>, under
+Groups, like the other features.</p>
+
+<h3 id="spark">Python on a Spark cluster</h3>
+<p>Build the interpreter with a Spark Connect client and point it at your cluster:</p>
+<pre><code>docker compose build \
+  --build-arg WITH_SPARK=true \
+  --build-arg SPARK_VERSION=3.5.3 executor</code></pre>
+<p>with <code>EXECUTOR_SPARK_REMOTE=sc://your-gateway:15002</code>. The version has to
+<strong>match the cluster</strong>: Spark Connect&rsquo;s client and server are versioned together, and a
+mismatch shows up as a protocol error on the first call rather than at build time.</p>
+<p>Python cells then have <code>spark</code>, which opens a session on the cluster the first time a cell
+reaches through it &mdash; opening a notebook, and running cells that never mention it, open nothing.</p>
+<p>A Spark DataFrame returned by a cell is <strong>collected</strong> to become that cell&rsquo;s handoff,
+which is the one moment the cluster&rsquo;s answer has to fit in one container. It is bounded, and a result
+over the bound is refused with a sentence rather than quietly cut down &mdash; a notebook that showed you
+the first million rows of a billion without saying so would be worse than one that said no. Aggregate in
+Spark before returning.</p>
+<p>Note what changes when Spark is configured: the interpreter now needs a route to the cluster, so
+&ldquo;no egress&rdquo; becomes &ldquo;egress to the cluster only&rdquo; &mdash; and that is only as true as
+whatever enforces it. In Kubernetes, a NetworkPolicy whose single egress rule is the Spark service says it
+exactly.</p>
+
+<h2 id="limits">What a notebook will not do</h2>
+<ul>
+  <li><strong>Write back to a data source.</strong> This release is read-and-look.</li>
+  <li><strong>Let a code cell query.</strong> Data comes from an earlier cell or not at all.</li>
+  <li><strong>Run on a schedule.</strong> Cells run when somebody runs them.</li>
+  <li><strong>Put a cell on a dashboard.</strong> See <a href="#charts">charts</a> for why.</li>
+</ul>
+  
+<div class="doc-next"><a class="btn btn-ghost" href="streams.html">&larr; Streams</a><a class="btn btn-primary" href="alerts.html">Alerts &rarr;</a></div>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><a href="../index.html">&larr; Back to overview</a> &nbsp;&middot;&nbsp;
+       <a href="../releases.html">Releases</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk">Source</a> &nbsp;&middot;&nbsp;
+       <a href="https://github.com/bot-netizen/sqldesk/blob/main/LICENSE">Apache 2.0</a></p>
+  </div>
+</footer>
+
+<script src="../assets/theme.js" defer></script>
+</body>
+</html>

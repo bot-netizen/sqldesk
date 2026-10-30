@@ -13,18 +13,45 @@
 # No pyarrow. DuckDB's Parquet reader and writer are native, and data crosses
 # this boundary as Parquet in both directions -- so the 40 MB pyarrow would add
 # buys nothing here.
-FROM python:3.13-slim-bookworm
+# The Python this runs on, because Spark pins it.
+#
+# 3.13 for the plain interpreter. **Spark 3.5 supports Python 3.8 to 3.11**,
+# and on 3.13 its dependency resolution lands on a numpy with no wheel for the
+# platform and tries to compile one, which fails -- measured, not guessed. So
+# a Spark build passes `--build-arg PYTHON_VERSION=3.11` with Spark 3.5, and
+# whatever its own release notes say for a later Spark.
+ARG PYTHON_VERSION=3.13
+FROM python:${PYTHON_VERSION}-slim-bookworm
 
 WORKDIR /app
+
+# Spark is off by default and costs nothing when it is off.
+#
+# `SPARK_VERSION` has to match the cluster: Spark Connect's client and server
+# are versioned together, and a mismatched client fails at the first call with
+# a protocol error rather than at build time. Build with
+# `--build-arg WITH_SPARK=true --build-arg SPARK_VERSION=<your cluster's>`.
+#
+# The connect extra, not all of pyspark: this container is a *client*. It needs
+# the protocol and the DataFrame API, not a JVM, not Hadoop, and not the
+# several hundred megabytes those bring.
+ARG WITH_SPARK=false
+ARG SPARK_VERSION=3.5.3
+# Repeated after FROM: an ARG before the first FROM belongs to no stage, so
+# this is the one the RUN below can see.
+ARG PYTHON_VERSION
 
 RUN pip install --no-cache-dir \
       pandas==2.3.3 \
       duckdb==2.0.0 \
       flask==3.0.3 \
       gunicorn==23.0.0 \
+ && if [ "$WITH_SPARK" = "true" ]; then \
+      pip install --no-cache-dir "pyspark[connect]==${SPARK_VERSION}"; \
+    fi \
  && rm -rf /root/.cache/pip
 
-COPY executor/service.py executor/runner.py /app/
+COPY executor/service.py executor/runner.py executor/spark.py /app/
 
 # A process that runs somebody else's code is the last thing that should be
 # root. The child it spawns inherits this user, and `RLIMIT_NPROC` of 0 in the
@@ -41,6 +68,11 @@ EXPOSE 5000
 # has no API to call, no data source to open and no legitimate reason to make
 # a single outbound connection. In Kubernetes that is a NetworkPolicy with no
 # egress rule; in Docker Compose, an internal network.
+#
+# With Spark it becomes one rule rather than none: a Connect client has to
+# reach the cluster. Allow egress to the Connect server and nothing else --
+# and note that "nothing else" is then only as true as the policy enforcing
+# it, where before it was a property of having no route at all.
 #
 # **Give this container a memory limit.** It is the per-session ceiling: an
 # `RLIMIT_AS` small enough to be useful stops pandas and DuckDB loading at all
