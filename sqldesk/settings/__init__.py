@@ -310,6 +310,24 @@ UPLOAD_UNLOAD_AFTER_DAYS = int(os.environ.get("SQLDESK_UPLOAD_UNLOAD_AFTER_DAYS"
 #: upload time with the numbers in the message, because "quota exceeded" with
 #: no figures is a message nobody can act on.
 UPLOAD_QUOTA_MB = int(os.environ.get("SQLDESK_UPLOAD_QUOTA_MB", "5120"))
+
+#: The storage format DuckDB writes, for every file we create.
+#:
+#: DuckDB 2.0 writes storage version 69; 1.5.6, which 0.7.x shipped, reads
+#: only 64 to 68. So a stream window or an uploaded database that 0.8 has
+#: written is one 0.7.10 cannot open, and an operator who upgraded and wanted
+#: to go back would find every stream store unreadable. Kafka is the source of
+#: truth for those, so nothing is *lost* -- but "delete these files before you
+#: roll back" is a sentence no release should need.
+#:
+#: Writing the older format costs nothing measurable and keeps the upgrade
+#: reversible, so it is the default. An install that will never go back can
+#: set this to `latest` and have whatever 2.0 improved about the format; it is
+#: a one-way door the moment they do.
+#:
+#: Only applies to files DuckDB *writes*. Opening one read-write does not
+#: rewrite it, which is what keeps somebody's own uploaded database intact.
+DUCKDB_STORAGE_COMPATIBILITY = os.environ.get("SQLDESK_DUCKDB_STORAGE_COMPATIBILITY", "v1.5.0")
 # Time limit (in seconds) for scheduled queries. Set this to -1 to execute without a time limit.
 # Time limit (in seconds) for adhoc queries. Set this to -1 to execute without
 # a time limit.

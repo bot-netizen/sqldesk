@@ -222,7 +222,45 @@ development machine it filled the disk and took Postgres with it.</p>
   <tr><td><code>SQLDESK_STREAM_ROW_BUDGET</code></td><td>Rows of raw events kept per stream, 5 million by default. The window follows from this and the rate.</td></tr>
   <tr><td><code>SQLDESK_STREAM_EVENTS_PER_SECOND</code></td><td>Events a second stored from one stream, 5,000 by default. Past it they are sampled and every chart says so. <code>0</code> removes the ceiling, which is how a worker becomes the slowest part of a cluster.</td></tr>
   <tr><td><code>SQLDESK_STREAM_ACTIVE_MINUTES</code></td><td>How long after somebody last looked a stream keeps consuming, 15 by default. <code>0</code> turns streams off entirely.</td></tr>
+  <tr><td><code>SQLDESK_DUCKDB_STORAGE_COMPATIBILITY</code></td><td>The storage format DuckDB writes, <code>v1.5.0</code> by default so a stream window or uploaded database stays readable by 0.7.x. <code>latest</code> takes the newer format and makes going back a one-way door. See <a href="#duckdb-format">below</a>.</td></tr>
 </table>
+
+<h2 id="duckdb-format">Upgrading to 0.8: the DuckDB file format</h2>
+<p>0.8 ships DuckDB 2.0, and DuckDB 2.0 writes a database file that DuckDB 1.5.6
+&mdash; what 0.7.x shipped &mdash; refuses to open. That matters in exactly one place: the files
+SQLDesk writes for itself, which are <strong>stream windows</strong> and any
+<strong>uploaded database</strong>.</p>
+<p>By default it does not matter at all, because
+<code>SQLDESK_DUCKDB_STORAGE_COMPATIBILITY</code> is set to <code>v1.5.0</code> and those files keep
+the older format. Upgrade, decide you preferred 0.7.10, and go back: everything still opens.</p>
+<p>Two things are worth knowing either way:</p>
+<ul>
+  <li><strong>A file you already had is not rewritten.</strong> Opening one read-write does not
+  change its format &mdash; only writing to it does. So your own uploaded <code>.duckdb</code>
+  database is left exactly as it was unless SQLDesk writes to it.</li>
+  <li><strong>A stream window is disposable by design.</strong> Kafka is the source of truth, so the
+  worst case was never lost data &mdash; it was &ldquo;delete these files before you roll back&rdquo;,
+  which is a sentence no release should need.</li>
+</ul>
+<p>Set it to <code>latest</code> if this install is never going back, and you get whatever 2.0
+improved about the format. It is a one-way door from the moment you do.</p>
+
+<h3 id="duckdb-lambdas">One change you may see in a query</h3>
+<p>DuckDB 2.0 made a new SQL parser the default, and that parser refuses the
+single-arrow lambda every earlier version accepted:</p>
+<pre><code>-- refused by DuckDB 2.0 on its own
+SELECT list_transform(items, x -&gt; x * 2) FROM events;
+
+-- the current spelling
+SELECT list_transform(items, lambda x: x * 2) FROM events;</code></pre>
+<p>SQLDesk re-enables the old spelling on every DuckDB connection it opens, so a query that ran in
+0.7.10 still runs. <strong>That is a reprieve, not a fix</strong> &mdash; DuckDB removes both the
+syntax and the flag that re-enables it in 2.1, so a query using the single arrow should be changed
+now rather than when it breaks.</p>
+<p>One other difference shows up in stream windows: a timestamp field now lands as
+<code>TIMESTAMP WITH TIME ZONE</code> where it used to land as a naive <code>TIMESTAMP</code>.
+That is the more correct reading &mdash; the offset was previously being dropped &mdash; and windows
+created before the upgrade keep the column they already have.</p>
 
 <h2 id="pools">Query pools: capping what a warehouse is given</h2>
 <p>How many queries run at once has always been an accident of deployment: the number of worker

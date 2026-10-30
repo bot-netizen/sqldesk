@@ -64,12 +64,46 @@ class TestTheWindow(BaseTestCase):
         self.assertEqual(2, result.stored)
         types = dict(self.store.columns())
         self.assertEqual("BIGINT", types["id"])
-        self.assertEqual("TIMESTAMP", types["at"])
+        # With the zone, because an Avro `timestamp-millis` *is* a UTC
+        # instant. DuckDB 1.5.6 inferred a naive TIMESTAMP from the same JSON
+        # and silently dropped the offset; 2.0 keeps it. `TYPES_MAP` already
+        # maps this to TYPE_DATETIME, so nothing downstream sees a difference.
+        self.assertEqual("TIMESTAMP WITH TIME ZONE", types["at"])
         self.assertEqual("DATE", types["day"])
         self.assertEqual("DOUBLE", types["amount"])
         self.assertEqual(
             [(1, "WEST"), (2, "WEST")],
             self.store.connection.execute("SELECT id, region FROM events ORDER BY id").fetchall(),
+        )
+
+    def test_a_window_from_the_previous_release_still_takes_flushes(self):
+        """
+        The upgrade path. A store created under 0.7.10 has `at` as a naive
+        TIMESTAMP, fixed by its first flush and never re-inferred -- and under
+        2.0 the same messages now infer TIMESTAMP WITH TIME ZONE. The insert
+        casts to the table's own type, so the column stays as it was and the
+        rows still land; without that this would be a conversion error on
+        every flush, and the consumer would die on each restart.
+        """
+        decoder = self.read_as_avro()
+        # Fix the columns the way the old release would have.
+        self.store.connection.execute(
+            'CREATE TABLE events (_received_at TIMESTAMP, "id" BIGINT, "at" TIMESTAMP, '
+            '"day" DATE, "amount" DOUBLE, "region" VARCHAR, "score" DOUBLE)'
+        )
+        self.store._table_exists = True
+
+        result = consumer.flush_once(self.stream, self.store, [order(1), order(2)], decoder=decoder)
+
+        self.assertEqual(2, result.stored)
+        self.assertEqual("TIMESTAMP", dict(self.store.columns())["at"])
+        self.assertEqual(
+            [(1, "WEST"), (2, "WEST")],
+            self.store.connection.execute("SELECT id, region FROM events ORDER BY id").fetchall(),
+        )
+        self.assertIsNotNone(
+            self.store.connection.execute('SELECT "at" FROM events LIMIT 1').fetchone()[0],
+            "the timestamp was dropped on the way in",
         )
 
     def test_messages_that_do_not_decode_are_counted_as_malformed(self):

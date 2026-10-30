@@ -4,6 +4,7 @@ import re
 from contextlib import contextmanager
 
 from sqldesk.query_runner import (
+    LEGACY_LAMBDA,
     TYPE_BOOLEAN,
     TYPE_DATE,
     TYPE_DATETIME,
@@ -15,6 +16,7 @@ from sqldesk.query_runner import (
     deferred,
     installed,
     register,
+    storage_config,
 )
 
 logger = logging.getLogger(__name__)
@@ -208,12 +210,24 @@ class DuckDB(BaseSQLQueryRunner):
             return False
 
     def _open_connection(self):
-        con = duckdb.connect(self.dbpath)
+        # The storage format matters here for somebody else's file: a user may
+        # point `dbpath` at a DuckDB database of their own, and a view written
+        # into it by 2.0 is a file their own DuckDB 1.x would stop opening.
+        # Opening alone does not rewrite one, so this only bites when we write
+        # -- and this keeps what we write readable where it was before.
+        con = duckdb.connect(self.dbpath, config=storage_config())
         # Extensions first: installing one needs the network and a directory
         # of its own, both of which the lines below take away.
         self._load_extensions(con)
         if self.upload_dir:
             con.execute("SET allowed_directories = ?", [[self.upload_dir]])
+        try:
+            con.execute(LEGACY_LAMBDA)
+        except Exception:
+            # Gone in DuckDB 2.1, along with the syntax it re-enables. An
+            # upload is still perfectly queryable without it, so this must not
+            # be the thing that stops the connection opening.
+            logger.info("this DuckDB does not accept %r; single-arrow lambdas will be refused", LEGACY_LAMBDA)
         con.execute("SET enable_external_access = false")
         con.execute("SET autoinstall_known_extensions = false")
         con.execute("SET autoload_known_extensions = false")
