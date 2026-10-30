@@ -39,5 +39,9 @@ export default {
   load: () => import(/* webpackChunkName: "viz-counter" */ "./components"),
 
   defaultColumns: 8,
-  defaultRows: 10,
+  // Six, not ten. A stat is a number and a label; ten rows is 250 pixels of
+  // mostly air, and a row of them pushed everything else below the fold.
+  // Asked for directly after a dashboard built over MCP came out all strips
+  // and empty tiles.
+  defaultRows: 6,
 };

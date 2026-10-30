@@ -2287,12 +2287,22 @@ class TestDrawingAResultOverMcp(McpTestCase):
         self.assertTrue(dashboard.is_draft)
         self.assertEqual(self.author.id, dashboard.user_id)
 
-        # Two to a row, in the order given. Without a position every widget
-        # sits at the origin, stacked on top of the others.
+        # Laid out in the order given, and **sized by what each one holds** --
+        # the same table the browser uses when somebody drags a widget on. Six
+        # rows for everything was 150 pixels: three rows of a table, and a
+        # chart reduced to a strip.
         placed = {widget.visualization_id: widget.options["position"] for widget in dashboard.widgets}  # noqa: B020
+
+        # A stat is small and a table is tall; the old layout made them equal.
+        self.assertEqual(6, placed[first.id]["sizeY"])
+        self.assertEqual(28, placed[second.id]["sizeY"])
+        self.assertEqual(16, placed[third.id]["sizeY"])
+
+        # The stat and the table share the top row -- 8 columns and 12 fit in
+        # 24 -- and the chart drops below the taller of them.
         self.assertEqual({"col": 0, "row": 0}, {k: placed[first.id][k] for k in ("col", "row")})
-        self.assertEqual({"col": 12, "row": 0}, {k: placed[second.id][k] for k in ("col", "row")})
-        self.assertEqual({"col": 0, "row": 6}, {k: placed[third.id][k] for k in ("col", "row")})
+        self.assertEqual({"col": 8, "row": 0}, {k: placed[second.id][k] for k in ("col", "row")})
+        self.assertEqual({"col": 0, "row": 28}, {k: placed[third.id][k] for k in ("col", "row")})
 
     def test_the_reply_says_where_to_find_the_dashboard(self):
         visualization = self.draw(kind="table")

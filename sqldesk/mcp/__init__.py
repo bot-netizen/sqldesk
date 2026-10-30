@@ -38,6 +38,7 @@ from sqldesk import __version__, features, models, settings, utils
 from sqldesk.ai.catalog.harvest import rebuild_card
 from sqldesk.ai.catalog.retrieve import context_for
 from sqldesk.ai.optimizer import analyze, dialect_for
+from sqldesk.mcp import layout
 from sqldesk.permissions import has_access, not_view_only, view_only
 from sqldesk.query_runner import (
     LANGUAGE_PYTHON,
@@ -2204,14 +2205,6 @@ def may_write_dashboards(user, by_api_key):
     return bool(by_api_key) and user.has_permission("create_dashboard")
 
 
-#: Two to a row on the 24-column grid, at the size the browser gives a new
-#: widget. Laid out rather than guessed at: a widget with no position is
-#: placed at the origin, so a dashboard of five would be five widgets stacked
-#: exactly on top of each other.
-GRID_COLUMNS = 24
-WIDGET_WIDTH = 12
-WIDGET_HEIGHT = 6
-
 #: Enough to build something, few enough that a runaway agent cannot bury a
 #: dashboard list. The daily cap counts each of these calls as one write.
 MAX_WIDGETS = 20
@@ -2409,6 +2402,7 @@ def tool_save_dashboard(user, org, arguments):
     models.db.session.add(dashboard)
     models.db.session.flush()
 
+    places = layout.positions([one.type for one in found])
     for index, visualization in enumerate(found):
         models.db.session.add(
             models.Widget(
@@ -2418,13 +2412,10 @@ def tool_save_dashboard(user, org, arguments):
                 # the browser writes 1 and reads `options.position`.
                 width=1,
                 options={
-                    "position": {
-                        "col": (index % 2) * WIDGET_WIDTH,
-                        "row": (index // 2) * WIDGET_HEIGHT,
-                        "sizeX": WIDGET_WIDTH,
-                        "sizeY": WIDGET_HEIGHT,
-                        "autoHeight": False,
-                    },
+                    # Sized by what it holds, the same way the browser sizes a
+                    # widget somebody drags on: a table is not a chart and
+                    # neither is a stat. See sqldesk/mcp/layout.py.
+                    "position": places[index],
                     "parameterMappings": {},
                 },
             )

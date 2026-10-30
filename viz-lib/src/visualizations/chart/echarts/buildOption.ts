@@ -78,6 +78,48 @@ export function categoryLabelRotation(categories: any[]): number {
   return needed > 700 ? 45 : 0;
 }
 
+/**
+ * The min and max somebody typed into the axis editor, if they typed any.
+ *
+ * The editor has written `rangeMin` and `rangeMax` into the options since the
+ * fork and **nothing ever read them**, so setting either did nothing at all --
+ * on every chart type, not only the bubble chart it was noticed on.
+ *
+ * `isFinite` rather than a truthiness check, because 0 is a perfectly ordinary
+ * bound and the obvious `axisOptions.rangeMin ? ...` would drop it. Each side
+ * is independent: a minimum of 0 with no maximum leaves the top automatic,
+ * which is what somebody pinning an axis to zero actually wants.
+ */
+/** An axis title, however it was saved. */
+function nameOf(axisOptions: any) {
+  if (!axisOptions || !axisOptions.title) {
+    return undefined;
+  }
+  return axisOptions.title.text || axisOptions.title || undefined;
+}
+
+/**
+ * Room for a rotated axis name, outside whatever the labels take.
+ *
+ * `containLabel` reserves space for the tick *labels* and not for the axis
+ * name, which ECharts draws `nameGap` further out again -- so on a chart whose
+ * labels are short ("0", "25", "50") the name was simply cut off by the edge
+ * of the canvas. Matching `nameGap` guarantees it lands inside, at the cost of
+ * that much plot width on a chart that has a title to show.
+ */
+const AXIS_NAME_ROOM = 36;
+
+function bounds(axisOptions: any) {
+  const out: { min?: number; max?: number } = {};
+  if (isFinite(axisOptions.rangeMin)) {
+    out.min = Number(axisOptions.rangeMin);
+  }
+  if (isFinite(axisOptions.rangeMax)) {
+    out.max = Number(axisOptions.rangeMax);
+  }
+  return out;
+}
+
 function paletteFor(options: any): string[] {
   const scheme = resolveColorScheme(options.color_scheme);
   // @ts-expect-error indexing a literal by a string
@@ -704,7 +746,7 @@ export default function buildOption(
   const formatAxisValue = createNumberFormatter(options.numberFormat);
   const valueAxis = (axisOptions: any, plotHeight: number) => ({
     type: echartsAxisType(axisOptions.type) === "category" ? "value" : echartsAxisType(axisOptions.type),
-    name: axisOptions.title ? axisOptions.title.text || axisOptions.title : undefined,
+    name: nameOf(axisOptions),
     nameLocation: "middle",
     nameGap: 36,
     splitNumber: valueAxisSplitNumber(plotHeight),
@@ -712,14 +754,20 @@ export default function buildOption(
     // numerous, like long currency values on a narrow axis.
     axisLabel: { formatter: formatAxisValue, hideOverlap: true },
     scale: !options.series.stacking && !hasBars,
+    ...bounds(axisOptions),
   });
 
   const categoryAxis = {
     type: xAxisType,
     data: xAxisType === "category" ? categories : undefined,
-    name: options.xAxis.title ? options.xAxis.title.text || options.xAxis.title : undefined,
+    name: nameOf(options.xAxis),
     nameLocation: "middle",
     nameGap: 30,
+    // The x axis takes a range too, where it is numeric or a time -- a
+    // scatter or a bubble chart is the case somebody asks for it. On a
+    // category axis ECharts reads min and max as *indexes* into the
+    // categories, which is never what anybody typing a value meant.
+    ...(xAxisType === "category" ? {} : bounds(options.xAxis)),
     axisLabel: {
       show: options.xAxis.labels ? options.xAxis.labels.enabled : true,
       // Every bar gets its own label. ECharts' default drops whichever ones
@@ -784,9 +832,18 @@ export default function buildOption(
   };
 
   if (!isPie) {
+    // Which sides carry an axis name, which is what decides whether they need
+    // room for one. Sideways the axes swap: the measures run along the
+    // bottom, and the category axis -- described by the x axis settings --
+    // is the one on the left.
+    const leftName = horizontal ? nameOf(options.xAxis) : nameOf(options.yAxis[0]);
+    const rightName = horizontal ? undefined : nameOf(options.yAxis[1] || options.yAxis[0]);
     const gridSides = {
-      left: 12,
-      right: (legend.right ? legend.width + 8 : 12) + (horizontal && slider ? 28 : 0),
+      left: 12 + (leftName ? AXIS_NAME_ROOM : 0),
+      right:
+        (legend.right ? legend.width + 8 : 12) +
+        (horizontal && slider ? 28 : 0) +
+        (rightName && !legend.right ? AXIS_NAME_ROOM : 0),
       containLabel: true,
     };
     // One panel keeps the grid it has always had: pinned top and bottom, free
