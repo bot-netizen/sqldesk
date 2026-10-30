@@ -1,5 +1,5 @@
 import escapeHtml from "@/lib/escapeHtml";
-import { each, extend, filter, isNil, map, max, range, reduce, some, sortBy, uniq } from "lodash";
+import { each, extend, filter, isNil, map, max, min, range, reduce, some, sortBy, uniq } from "lodash";
 import { AllColorPaletteArrays, resolveColorScheme } from "@/visualizations/ColorPalette";
 import { createNumberFormatter, formatSimpleTemplate } from "@/lib/value-format";
 import chooseTextColorForBackground from "@/lib/chooseTextColorForBackground";
@@ -556,6 +556,27 @@ function heatRamp(options: any): string[] {
   return HEAT_RAMPS[options.colorScheme] || DEFAULT_HEAT_RAMP;
 }
 
+/**
+ * The ends of a heatmap's colour scale.
+ *
+ * From the data by default, which is the whole point: anchored at zero, a
+ * grid of values between 980 and 1000 comes out one flat colour, and the
+ * chart says nothing. `heatmapFromZero` puts the old behaviour back for the
+ * case where zero is meaningful -- counts, where an empty cell should read as
+ * empty rather than as "the lowest of these".
+ *
+ * A grid whose values are all the same has no range to spread a ramp across;
+ * widening it by one keeps ECharts out of a degenerate scale and leaves every
+ * cell the same colour, which is the truth about that data.
+ */
+function heatRange(cells: any[], options: any) {
+  const values = map(cells, (cell: any) => cell[2]);
+  const highest = values.length ? (max(values) as number) : 0;
+  const lowest = values.length ? (min(values) as number) : 0;
+  const zMin = options.heatmapFromZero ? Math.min(0, lowest) : lowest;
+  return zMin === highest ? { zMin, zMax: highest + 1 } : { zMin, zMax: highest };
+}
+
 function buildHeatmap(chartData: any[], options: any) {
   const formatNumber = createNumberFormatter(options.numberFormat);
   const points = chartData.flatMap((series: any) => series.data);
@@ -575,13 +596,33 @@ function buildHeatmap(chartData: any[], options: any) {
     yCategories = yCategories.slice().reverse();
   }
 
-  const data = map(points, (p: any) => [
+  const cells = map(points, (p: any) => [
     xCategories.indexOf(String(p.x)),
     yCategories.indexOf(String(p.y)),
     cleanNumber(p.zVal) || 0,
   ]);
-  const zMax = max(map(data, (d: any) => d[2])) || 0;
   const ramp = heatRamp(options);
+  const { zMin, zMax } = heatRange(cells, options);
+
+  /*
+    Each cell carries its own label colour.
+
+    One colour for every label was the bug: it was chosen for the *darkest*
+    end of the ramp, so on any scale that runs light-to-dark half the labels
+    were drawn in a colour meant for the other half and could not be read.
+    The ramp is spread evenly across the range, so the nearest stop is a good
+    enough guess at the colour a cell will actually be -- near enough to
+    choose black or white against.
+  */
+  const span = zMax - zMin || 1;
+  const data = map(cells, (cell: any) => ({
+    value: cell,
+    label: {
+      color: chooseTextColorForBackground(
+        ramp[Math.min(ramp.length - 1, Math.max(0, Math.round(((cell[2] - zMin) / span) * (ramp.length - 1))))]
+      ),
+    },
+  }));
 
   const series = [
     {
@@ -592,15 +633,17 @@ function buildHeatmap(chartData: any[], options: any) {
       label: {
         show: !!options.showDataLabels,
         formatter: (params: any) => formatNumber(params.value[2]),
-        // Keep labels legible against whichever end of the ramp they land on.
-        color: chooseTextColorForBackground(ramp[ramp.length - 1]),
       },
+      // A hairline between cells, so two neighbours of nearly the same colour
+      // read as two cells rather than one blur. White rather than a grey,
+      // because it reads as a gap at every point on every ramp.
+      itemStyle: { borderColor: "#fff", borderWidth: 1 },
       emphasis: { itemStyle: { borderColor: "#000", borderWidth: 1 } },
       progressive: 1000,
     },
   ];
 
-  return { series, xCategories, yCategories, zMax, ramp };
+  return { series, xCategories, yCategories, zMin, zMax, ramp, formatNumber };
 }
 
 export default function buildOption(
@@ -613,7 +656,7 @@ export default function buildOption(
   const horizontal = !!options.swappedAxes;
 
   if (isHeatmap) {
-    const { series, xCategories, yCategories, zMax, ramp } = buildHeatmap(chartData, options);
+    const { series, xCategories, yCategories, zMin, zMax, ramp, formatNumber } = buildHeatmap(chartData, options);
     const categoryAxis = (data: any[]) => ({ type: "category", data, splitArea: { show: true } });
     const option: any = {
       ...ECHARTS_MOTION,
@@ -627,13 +670,17 @@ export default function buildOption(
       tooltip: {
         trigger: "item",
         confine: true,
+        // The chart's own number format, as the cell labels already use: a
+        // tooltip reading 1234.5678 beside a label reading 1,235 is two
+        // answers to one question.
         formatter: (params: any) =>
           `${escapeHtml(xCategories[params.value[0]])} / ${escapeHtml(yCategories[params.value[1]])}: ${escapeHtml(
-            params.value[2]
+            formatNumber(params.value[2])
           )}`,
       },
       visualMap: {
-        min: 0,
+        // From the data rather than from zero -- see `heatRange`.
+        min: zMin,
         max: zMax,
         calculable: true,
         orient: "horizontal",

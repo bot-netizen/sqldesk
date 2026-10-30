@@ -1,6 +1,6 @@
 import { map } from "lodash";
 import React from "react";
-import { Section, Select, ColorPicker } from "@/components/visualizations/editor";
+import { Section, Select, ColorPicker, Switch } from "@/components/visualizations/editor";
 import { EditorPropTypes } from "@/visualizations/prop-types";
 import ColorPalette from "@/visualizations/ColorPalette";
 
@@ -43,6 +43,29 @@ export default function HeatmapColorsSettings({ options, onOptionsChange }: any)
             </Select.Option>
           ))}
         </Select>
+      </Section>
+
+      {/*
+        Where the colour scale starts.
+
+        From the data by default, because anchored at zero a grid of values
+        between 980 and 1000 comes out one flat colour and says nothing. On,
+        for the case where zero is meaningful -- counts, where an empty cell
+        should read as empty rather than as "the lowest of these".
+      */}
+      <Section>
+        {/* @ts-expect-error ts-migrate(2745) FIXME: This JSX tag's 'children' prop expects type 'never... Remove this comment to see the full error message */}
+        <Switch
+          // @ts-expect-error ts-migrate(2322) FIXME: Type 'string' is not assignable to type 'never'.
+          id="chart-editor-heatmap-from-zero"
+          data-test="Chart.Colors.Heatmap.FromZero"
+          // @ts-expect-error ts-migrate(2322) FIXME: Type 'any' is not assignable to type 'never'.
+          defaultChecked={options.heatmapFromZero}
+          // @ts-expect-error ts-migrate(2322) FIXME: Type '(heatmapFromZero: any) => any' is not assign... Remove this comment to see the full error message
+          onChange={(heatmapFromZero: any) => onOptionsChange({ heatmapFromZero })}
+        >
+          Start the colour scale at zero
+        </Switch>
       </Section>
 
       {options.colorScheme === "Custom..." && (
