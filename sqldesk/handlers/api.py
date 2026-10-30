@@ -66,6 +66,15 @@ from sqldesk.handlers.groups import (
     GroupResource,
 )
 from sqldesk.handlers.mcp import McpAuditResource, MyMcpResource
+from sqldesk.handlers.notebooks import (
+    CellListResource,
+    CellResource,
+    CellRunResource,
+    NotebookListResource,
+    NotebookResource,
+    NotebookSessionResource,
+    NotebookStopResource,
+)
 from sqldesk.handlers.permissions import (
     CheckPermissionResource,
     ObjectPermissionsListResource,
@@ -232,6 +241,14 @@ api.add_org_resource(
     "/api/data_sources/<data_source_id>/uploads/<upload_id>/keep",
     endpoint="data_source_upload_keep",
 )
+
+api.add_org_resource(NotebookListResource, "/api/notebooks", endpoint="notebooks")
+api.add_org_resource(NotebookResource, "/api/notebooks/<notebook_id>", endpoint="notebook")
+api.add_org_resource(CellListResource, "/api/notebooks/<notebook_id>/cells", endpoint="notebook_cells")
+api.add_org_resource(CellResource, "/api/notebooks/<notebook_id>/cells/<cell_id>", endpoint="notebook_cell")
+api.add_org_resource(CellRunResource, "/api/notebooks/<notebook_id>/cells/<cell_id>/run", endpoint="notebook_cell_run")
+api.add_org_resource(NotebookStopResource, "/api/notebooks/<notebook_id>/stop", endpoint="notebook_stop")
+api.add_org_resource(NotebookSessionResource, "/api/notebooks/<notebook_id>/session", endpoint="notebook_session")
 
 api.add_org_resource(StreamListResource, "/api/streams", endpoint="streams")
 api.add_org_resource(

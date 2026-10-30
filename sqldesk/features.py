@@ -84,6 +84,7 @@ SEND_DASHBOARDS = "send_dashboards"
 KEEP_UPLOADS = "keep_uploads"
 MANAGE_STREAMS = "manage_streams"
 USE_STREAMS = "use_streams"
+USE_NOTEBOOKS = "use_notebooks"
 
 #: Every feature, whether or not this install offers it.
 FEATURES = (
@@ -91,6 +92,11 @@ FEATURES = (
         MANAGE_LIVE_DASHBOARDS,
         "Make dashboards live",
         "Turn a dashboard live, so it refreshes on the server for everyone watching it.",
+    ),
+    Feature(
+        USE_NOTEBOOKS,
+        "Use notebooks",
+        "Chain SQL and Python cells together, where a saved query ends in one SELECT.",
     ),
     Feature(
         USE_MCP,
