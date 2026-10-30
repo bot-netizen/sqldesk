@@ -340,3 +340,60 @@ describe("the output", () => {
     expect(output.text()).toContain("produced text");
   });
 });
+
+/*
+  What the cell printed, shown with whatever it produced.
+
+  A cell that prints its diagnostics and then shows a dataframe lost the
+  printing entirely -- the server only carried it when it arrived *instead of*
+  a table. These assert the page shows both, and does not show the same lines
+  twice when the printing is the output.
+*/
+describe("what the cell printed", () => {
+  const table = { columns: [{ name: "id" }], rows: [{ id: 1 }] };
+
+  it("shows it above the table", () => {
+    const output = shallow(
+      <CellOutput cell={aCell({ last_run_at: "x" })} produced="table" result={{ data: table, printed: "rows: 42" }} />
+    );
+
+    expect(output.find('[data-test="CellPrinted"]').text()).toBe("rows: 42");
+    expect(output.find("Table").exists()).toBe(true);
+  });
+
+  it("shows nothing at all when the cell printed nothing", () => {
+    const output = shallow(
+      <CellOutput cell={aCell({ last_run_at: "x" })} produced="table" result={{ data: table, printed: null }} />
+    );
+
+    expect(output.find('[data-test="CellPrinted"]').exists()).toBe(false);
+  });
+
+  it("does not repeat it when the printing is itself the output", () => {
+    // `produced === "text"` puts the printing in the single `output` column,
+    // so showing `printed` too would draw the same lines twice.
+    const output = shallow(
+      <CellOutput
+        cell={aCell({ last_run_at: "x" })}
+        produced="text"
+        result={{ data: { columns: [{ name: "output" }], rows: [{ output: "looked at it" }] }, printed: "looked at it" }}
+      />
+    );
+
+    expect(output.find('[data-test="CellPrinted"]').exists()).toBe(false);
+    expect(output.find('[data-test="CellOutput"]').text()).toContain("looked at it");
+  });
+
+  it("shows it above a chart too, where the table is replaced", () => {
+    const output = shallow(
+      <CellOutput
+        cell={aCell({ last_run_at: "x", options: { visualization: { name: "Chart", type: "CHART", options: {} } } })}
+        produced="table"
+        result={{ data: table, printed: "fitted in 0.4s" }}
+      />
+    );
+
+    expect(output.find('[data-test="CellPrinted"]').text()).toBe("fitted in 0.4s");
+    expect(output.find("Renderer").exists()).toBe(true);
+  });
+});

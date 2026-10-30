@@ -2234,6 +2234,10 @@ class NotebookRun(TimestampMixin, db.Model):
     runtime = Column(db.Float, nullable=True)
     rows = Column(db.Integer, nullable=True)
     error = Column(db.Text, nullable=True)
+    #: What the cell printed, kept whether or not it also produced a table.
+    #: A cell that prints its diagnostics and then shows a dataframe used to
+    #: lose the printing, which is most of what `print` is for in a notebook.
+    printed = Column(db.Text, nullable=True)
 
     __tablename__ = "notebook_runs"
 

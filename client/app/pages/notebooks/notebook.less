@@ -153,6 +153,25 @@
   max-height: 320px;
 }
 
+/*
+  What the cell printed, above whatever it produced. Set apart from the table
+  so it reads as the cell talking rather than as data, and scrollable on its
+  own: a cell that prints per row should not push its table off the screen.
+*/
+.notebook-cell-printed {
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  max-height: 180px;
+  overflow: auto;
+  color: var(--text-secondary, #5b6372);
+  background: var(--surface-sunken, #f6f7f9);
+  border-left: 2px solid var(--border-subtle, #d9dde3);
+  border-radius: 2px;
+}
+
 .notebook-cell-output-chart {
   /* Tall enough for a chart to be a chart rather than a strip. */
   min-height: 280px;

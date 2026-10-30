@@ -299,6 +299,11 @@ export function CellOutput({ cell, produced, result, onRemoveChart }) {
   // empty table and an empty printout, which is what the test caught.
   const data = (result && result.data) || null;
   const handedOn = result && result.handed_on;
+  // What the cell printed on the way to its table. A cell that prints what it
+  // is doing and then shows a dataframe gets both, rather than having to pick
+  // -- for `produced === "text"` the printing *is* the output, so it is not
+  // shown twice.
+  const printed = produced === "text" ? null : (result && result.printed) || null;
   if (!data) {
     return (
       <div className="notebook-cell-output notebook-cell-output-empty" data-test="CellOutput">
@@ -321,10 +326,16 @@ export function CellOutput({ cell, produced, result, onRemoveChart }) {
     render: (value) =>
       value === null || value === undefined ? <span className="notebook-cell-null">null</span> : String(value),
   }));
+  const printout = printed ? (
+    <pre className="notebook-cell-printed" data-test="CellPrinted">
+      {printed}
+    </pre>
+  ) : null;
   const chart = (cell.options || {}).visualization;
   if (chart) {
     return (
       <div className="notebook-cell-output notebook-cell-output-chart" data-test="CellOutput">
+        {printout}
         <div className="notebook-cell-chart-header">
           <span className="notebook-cell-chart-name">{chart.name}</span>
           {onRemoveChart && (
@@ -341,6 +352,7 @@ export function CellOutput({ cell, produced, result, onRemoveChart }) {
   const shown = size(data.rows);
   return (
     <div className="notebook-cell-output" data-test="CellOutput">
+      {printout}
       <Table
         size="small"
         columns={columns}

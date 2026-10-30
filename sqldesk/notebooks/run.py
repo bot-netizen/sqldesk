@@ -326,7 +326,7 @@ def run_python_cell(cell, user, interpreter_for=None):
         talker = interpreter_for() if interpreter_for else interpreter.Interpreter()
         session_id = talker.session_for(notebook)
         try:
-            columns, rows, total, produced = _on_the_interpreter(cell, store, talker, session_id, read)
+            columns, rows, total, produced, printed = _on_the_interpreter(cell, store, talker, session_id, read)
         except interpreter.Gone:
             # The interpreter reaped the session while nobody was looking --
             # its idle timeout, or a restart. A fresh one with the inputs
@@ -335,7 +335,7 @@ def run_python_cell(cell, user, interpreter_for=None):
             logger.info("notebook %s lost its session; opening another", notebook.id)
             talker.detach(notebook)
             session_id = talker.session_for(notebook)
-            columns, rows, total, produced = _on_the_interpreter(cell, store, talker, session_id, read)
+            columns, rows, total, produced, printed = _on_the_interpreter(cell, store, talker, session_id, read)
     except interpreter.NoInterpreter as e:
         raise CannotRun(str(e))
     except Exception as e:
@@ -355,6 +355,7 @@ def run_python_cell(cell, user, interpreter_for=None):
     cell.last_run_at = utcnow()
     record.state = models.NotebookRun.OK
     record.rows = total
+    record.printed = _capped(printed)
     record.finished_at = utcnow()
     db.session.add_all([cell, record])
     db.session.flush()
@@ -384,12 +385,16 @@ def _on_the_interpreter(cell, store, talker, session_id, read):
             except OSError:
                 pass
         columns, rows, total = store.display_slice(cell.name)
-        return columns, rows, total, TABLE
+        # The printing comes back too, rather than instead: a cell that prints
+        # what it is doing and then shows a dataframe should not have to
+        # choose between the two.
+        return columns, rows, total, TABLE, (answer.get("stdout") or "").rstrip()
 
     # Text, not a table. Kept in the same place as every other result so the
     # page has one way to show a cell's output -- but nothing downstream can
-    # read it, which is what `produced` records.
-    return _as_text(answer), [{"output": _printed(answer)}], None, TEXT
+    # read it, which is what `produced` records. The printing is already in
+    # the single `output` column here, so it is not repeated.
+    return _as_text(answer), [{"output": _printed(answer)}], None, TEXT, ""
 
 
 def _cell_error(answer):
@@ -397,6 +402,21 @@ def _cell_error(answer):
     said = answer.get("error") or "The cell failed."
     printed = (answer.get("stdout") or "").strip()
     return "{}\n\n{}".format(said, printed) if printed else said
+
+
+#: How much of a cell's printing is kept. A loop that prints per row can
+#: produce megabytes, and this is fetched again on every poll while the cell
+#: runs -- so it is truncated at the top, keeping the end, which is where
+#: somebody printing progress is looking.
+PRINTED_LIMIT = 20000
+
+
+def _capped(printed):
+    if not printed:
+        return None
+    if len(printed) <= PRINTED_LIMIT:
+        return printed
+    return "[earlier output dropped]\n" + printed[-PRINTED_LIMIT:]
 
 
 def _printed(answer):

@@ -520,3 +520,94 @@ class _LikeRequests:
 
     def json(self):
         return self._answer.get_json()
+
+
+class TestWhatTheCellPrinted(PythonCellTestCase):
+    """
+    A cell that prints *and* produces a table.
+
+    The printing used to be carried only when it arrived instead of a table,
+    so the commonest shape in a notebook -- print the shape, then show the
+    frame -- threw the printing away. Found by running a Python cell on the
+    deployed executor and noticing the `print` had gone.
+    """
+
+    def a_printing_cell(self, stdout, rows=((1, "Toronto"),)):
+        self.a_sql_cell_that_ran("orders", [{"id": 1, "city": "Toronto"}])
+        code = self.cell("shaped", "print('rows:', len(orders))\norders.head(1)", position=1)
+        stand_in = Stand_in(
+            answers=[{"ok": True, "stdout": stdout, "value": None, "result_id": "d" * 32}],
+            frame=self.parquet(list(rows)),
+        )
+        record = runner.run_python_cell(code, self.factory.user, interpreter_for=lambda: stand_in)
+        return code, record
+
+    def test_it_is_kept_alongside_the_table(self):
+        code, record = self.a_printing_cell("rows: 1\n")
+
+        self.assertEqual(models.NotebookRun.OK, record.state)
+        self.assertEqual(runner.TABLE, code.options["produced"])
+        self.assertEqual("rows: 1", record.printed)
+
+    def test_the_table_is_still_the_handoff_a_later_cell_reads(self):
+        """The printing is shown, not handed on: it must not shadow the frame."""
+        code, _ = self.a_printing_cell("chatter\n", rows=[(1, "Toronto"), (2, "Ottawa")])
+
+        store = Store(self.notebook.store_path(), read_only=True)
+        try:
+            self.assertEqual(2, store.row_count("shaped"))
+        finally:
+            store.close()
+
+    def test_a_cell_that_printed_nothing_records_nothing(self):
+        _, record = self.a_printing_cell("")
+
+        self.assertIsNone(record.printed)
+
+    def test_whitespace_only_printing_counts_as_nothing(self):
+        _, record = self.a_printing_cell("\n\n   \n")
+
+        self.assertIsNone(record.printed)
+
+    def test_a_cell_that_prints_per_row_is_truncated_from_the_top(self):
+        """
+        A loop printing a line per row can produce megabytes, and this is
+        fetched again on every poll. The end is kept, because that is where
+        somebody printing progress is looking.
+        """
+        flood = "".join("line {}\n".format(n) for n in range(200000))
+        _, record = self.a_printing_cell(flood)
+
+        self.assertLess(len(record.printed), runner.PRINTED_LIMIT + 100)
+        self.assertIn("earlier output dropped", record.printed)
+        self.assertTrue(record.printed.rstrip().endswith("line 199999"))
+
+    def test_text_output_does_not_record_it_twice(self):
+        """
+        When a cell produces text the printing already *is* the output, in the
+        single `output` column. Recording it again would have the page show
+        the same lines above and below each other.
+        """
+        self.a_sql_cell_that_ran("orders", [{"id": 1, "city": "Toronto"}])
+        code = self.cell("shaped", "print('looked at it')\n42", position=1)
+        stand_in = Stand_in(answers=[{"ok": True, "stdout": "looked at it\n", "value": "42", "result_id": None}])
+
+        record = runner.run_python_cell(code, self.factory.user, interpreter_for=lambda: stand_in)
+
+        self.assertEqual(runner.TEXT, code.options["produced"])
+        self.assertIsNone(record.printed)
+        self.assertIn("looked at it", code.latest_result.data["rows"][0]["output"])
+
+    def test_a_failed_cell_keeps_its_printing_in_the_error(self):
+        """Where it already was, and where somebody debugging will look."""
+        self.a_sql_cell_that_ran("orders", [{"id": 1, "city": "Toronto"}])
+        code = self.cell("shaped", "print('got this far')\nboom", position=1)
+        stand_in = Stand_in(
+            answers=[{"ok": False, "error": "NameError: boom", "stdout": "got this far\n", "result_id": None}]
+        )
+
+        record = runner.run_python_cell(code, self.factory.user, interpreter_for=lambda: stand_in)
+
+        self.assertEqual(models.NotebookRun.FAILED, record.state)
+        self.assertIn("NameError: boom", record.error)
+        self.assertIn("got this far", record.error)

@@ -387,6 +387,7 @@ class CellResultResource(BaseResource):
         result = get_object_or_404(models.QueryResult.get_by_id_and_org, cell.latest_result_id, self.current_org)
         if result.data_source is not None:
             require_access(result.data_source, self.current_user, view_only)
+        handed_on = _latest_good_run(cell)
         return {
             "id": result.id,
             "data": result.data,
@@ -396,12 +397,15 @@ class CellResultResource(BaseResource):
             # What the cell handed on, which is the number the slice is a
             # slice *of* -- so the page can say "first 1,000 of 4.2 million"
             # rather than implying a thousand was the whole answer.
-            "handed_on": _rows_handed_on(cell),
+            "handed_on": handed_on.rows if handed_on else None,
+            # What the cell printed on its way to this result, so a cell can
+            # show its workings and its table at once.
+            "printed": handed_on.printed if handed_on else None,
         }
 
 
-def _rows_handed_on(cell):
-    latest = (
+def _latest_good_run(cell):
+    return (
         models.NotebookRun.query.filter(
             models.NotebookRun.cell_id == cell.id,
             models.NotebookRun.state == models.NotebookRun.OK,
@@ -409,7 +413,6 @@ def _rows_handed_on(cell):
         .order_by(models.NotebookRun.id.desc())
         .first()
     )
-    return latest.rows if latest else None
 
 
 class CellRunResource(BaseResource):

@@ -431,3 +431,89 @@ class _AJob:
 
     def save_meta(self):
         return None
+
+
+class TestWhatTheResultEndpointSays(NotebookApiTestCase):
+    """
+    The per-cell result, which the page fetches once per cell rather than
+    inlined into the notebook.
+
+    Two of its fields are not in the stored result and are read from the run
+    record instead: how many rows were handed on (so the page can say "first
+    1,000 of 4.2 million" rather than implying a thousand was all of it), and
+    what the cell printed on its way there.
+    """
+
+    def a_cell_with_a_result(self, rows=None, handed_on=None, printed=None, state=None):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook, kind=models.NotebookCell.PYTHON, source="orders.head(1)", ran=True)
+        # A real data source, not None: `query_results.data_source_id` is NOT
+        # NULL, which is why a cell's result records the warehouse its chain
+        # started at even when the cell itself is Python.
+        cell.latest_result = models.QueryResult.store_result(
+            self.factory.org.id,
+            self.factory.data_source,
+            "hash",
+            "orders.head(1)",
+            {"columns": [{"name": "id"}], "rows": rows if rows is not None else [{"id": 1}]},
+            0.1,
+            db.func.now(),
+        )
+        db.session.add(
+            models.NotebookRun(
+                notebook=notebook,
+                cell=cell,
+                user=self.factory.user,
+                state=state or models.NotebookRun.OK,
+                rows=handed_on,
+                printed=printed,
+            )
+        )
+        db.session.add(cell)
+        db.session.commit()
+        return notebook, cell
+
+    def fetch(self, notebook, cell, user=None):
+        return self.make_request(
+            "get",
+            "/api/notebooks/{}/cells/{}/result".format(notebook.id, cell.id),
+            user=user or self.factory.user,
+        )
+
+    def test_it_carries_what_the_cell_printed(self):
+        notebook, cell = self.a_cell_with_a_result(printed="rows: 42")
+
+        answer = self.fetch(notebook, cell)
+
+        self.assertEqual(200, answer.status_code)
+        self.assertEqual("rows: 42", answer.json["printed"])
+
+    def test_it_carries_the_number_of_rows_handed_on(self):
+        notebook, cell = self.a_cell_with_a_result(handed_on=4200000)
+
+        answer = self.fetch(notebook, cell)
+
+        self.assertEqual(4200000, answer.json["handed_on"])
+
+    def test_both_are_null_when_there_is_no_successful_run_to_read_them_from(self):
+        notebook, cell = self.a_cell_with_a_result(printed="never got here", state=models.NotebookRun.FAILED)
+
+        answer = self.fetch(notebook, cell)
+
+        self.assertIsNone(answer.json["printed"])
+        self.assertIsNone(answer.json["handed_on"])
+
+    def test_the_rows_themselves_are_still_there(self):
+        notebook, cell = self.a_cell_with_a_result(rows=[{"id": 7}])
+
+        answer = self.fetch(notebook, cell)
+
+        self.assertEqual([{"id": 7}], answer.json["data"]["rows"])
+
+    def test_a_cell_that_has_produced_nothing_is_a_404_rather_than_an_empty_result(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook, kind=models.NotebookCell.PYTHON)
+
+        answer = self.fetch(notebook, cell)
+
+        self.assertEqual(404, answer.status_code)
