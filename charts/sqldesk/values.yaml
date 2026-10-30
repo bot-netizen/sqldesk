@@ -229,6 +229,17 @@ rendering:
     requests: { cpu: 200m, memory: 512Mi }
     limits: { memory: 2Gi }
 
+# A Prometheus endpoint at /metrics, for a cluster that scrapes.
+#
+# Off unless a token is set: the endpoint is not mounted at all without one,
+# and the labels carry pool and queue names, which carry data source names.
+# Generated and kept when `generate` is true and no token is given.
+metrics:
+  token: ""
+  # Make one and keep it, the way the renderer's and the interpreter's tokens
+  # are made. A scrape config then reads it out of the release's secret.
+  generate: false
+
 # Python cells in notebooks, which run in an interpreter of their own.
 #
 # Off by default: it is another pod, and most installs want SQL cells only --

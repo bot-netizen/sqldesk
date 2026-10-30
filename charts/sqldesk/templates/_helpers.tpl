@@ -211,6 +211,16 @@ reached only one of them is the kind of difference nobody finds quickly.
       key: screenshot-token
       optional: true
 {{- end }}
+{{- if or .Values.metrics.token .Values.metrics.generate }}
+# What a Prometheus scraper shows at /metrics. Without it the endpoint is not
+# mounted, which is the default.
+- name: SQLDESK_METRICS_TOKEN
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "sqldesk.secretName" . }}
+      key: metrics-token
+      optional: true
+{{- end }}
 {{- if .Values.notebooks.enabled }}
 # Where Python cells run. Without it they say so on the cell rather than
 # failing when somebody presses Run, so this is the whole of turning them on.
