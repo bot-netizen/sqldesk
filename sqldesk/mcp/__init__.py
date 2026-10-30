@@ -1980,9 +1980,10 @@ SAVE_DASHBOARD = {
     "name": "save_dashboard",
     "title": "Put visualizations on a draft dashboard",
     "description": (
-        "Make a draft dashboard from visualizations that already exist, two to a row in the order "
-        "given. It is a draft: it reaches nobody's list until a person opens it and publishes it. "
-        "Use save_visualization first to get the ids."
+        "Make a draft dashboard from visualizations that already exist, in the order given and each "
+        "at the size its kind wants -- a table is tall, a stat is small. It is a draft: it reaches "
+        "nobody's list until a person opens it and publishes it. Use save_visualization first to "
+        "get the ids."
     ),
     "inputSchema": {
         "type": "object",
@@ -2438,10 +2439,9 @@ def tool_save_dashboard(user, org, arguments):
         )
 
     return _text(
-        "Saved as draft dashboard {}, at dashboards/{}-{}, with {} widget(s) two to a row. It is a draft: open "
-        "it in SQLDesk and publish it to put it on the Dashboards list.".format(
-            dashboard.id, dashboard.id, dashboard.slug, len(found)
-        )
+        "Saved as draft dashboard {}, at dashboards/{}-{}, with {} widget(s), each sized for what it "
+        "holds. It is a draft: open it in SQLDesk and publish it to put it on the Dashboards "
+        "list.".format(dashboard.id, dashboard.id, dashboard.slug, len(found))
     )
 
 
