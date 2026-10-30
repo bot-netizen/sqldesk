@@ -222,61 +222,89 @@ def test_slack_asks_for_the_unescaped_rendering():
     alert.subject_for.assert_called_with(escape=False)
 
 
-def test_slack_notify_calls_requests_post():
-    # `body_for`/`subject_for` rather than the `custom_*` properties: Slack is
-    # not HTML, so it asks for the unescaped rendering. The properties still
-    # exist and still mean the escaped form, for the destinations that send
-    # HTML or plain text.
+def test_slack_notify_sends_block_kit_inside_an_attachment():
+    # Blocks are what Slack renders properly now; the attachment is the only
+    # thing that still draws the coloured bar down the side. Asserted by
+    # meaning rather than as byte-exact JSON -- the point of this message is
+    # that somebody woken by it can read the number without opening a
+    # browser, and an exact-payload assertion goes stale on every wording
+    # change while proving none of that.
     alert = mock.Mock(spec_set=["id", "name", "subject_for", "body_for", "render_template"])
     alert.id = 1
     alert.name = "Test Alert"
-    alert.subject_for = mock.Mock(return_value="Test custom subject")
+    alert.subject_for = mock.Mock(return_value="Orders: 87, below 100")
     alert.body_for = mock.Mock(return_value="Test custom body")
-
     alert.render_template = mock.Mock(return_value={"Rendered": "template"})
+
     query = mock.Mock()
     query.id = 1
-
-    user = mock.Mock()
-    app = mock.Mock()
     host = "https://localhost:5000"
     options = {"url": "https://slack.com/api/api.test"}
-    metadata = {"Scheduled": False}
-
-    new_state = Alert.TRIGGERED_STATE
-    destination = Slack(options)
 
     with mock.patch("sqldesk.destinations.slack.requests.post") as mock_post:
-        mock_response = mock.Mock()
-        mock_response.status_code = 204
-        mock_post.return_value = mock_response
-
-        destination.notify(alert, query, user, new_state, app, host, metadata, options)
-
-        query_link = f"{host}/queries/{query.id}"
-        alert_link = f"{host}/alerts/{alert.id}"
-
-        expected_payload = {
-            "attachments": [
-                {
-                    "text": "Test custom subject",
-                    "color": "#c0392b",
-                    "fields": [
-                        {"title": "Query", "type": "mrkdwn", "value": query_link},
-                        {"title": "Alert", "type": "mrkdwn", "value": alert_link},
-                        {"title": "Description", "value": "Test custom body"},
-                    ],
-                }
-            ]
-        }
-
-        mock_post.assert_called_once_with(
-            "https://slack.com/api/api.test",
-            data=json.dumps(expected_payload).encode(),
-            timeout=5.0,
+        mock_post.return_value = mock.Mock(status_code=200)
+        Slack(options).notify(
+            alert, query, mock.Mock(), Alert.TRIGGERED_STATE, mock.Mock(), host, {"Scheduled": False}, options
         )
 
-        assert mock_response.status_code == 204
+    mock_post.assert_called_once()
+    args, kwargs = mock_post.call_args
+    assert args[0] == options["url"]
+    assert kwargs["timeout"] == 5.0
+    payload = json.loads(kwargs["data"].decode())
+
+    attachment = payload["attachments"][0]
+    # Red for a threshold crossed: the state is readable before the words are.
+    assert attachment["color"] == "#c0392b"
+    # What a notification preview and a screen reader get, so it has to carry
+    # the reading rather than the word "triggered".
+    assert attachment["fallback"] == "Orders: 87, below 100"
+
+    blocks = attachment["blocks"]
+    assert blocks[0]["text"]["text"] == "*Orders: 87, below 100*", "the headline is not first, or not bold"
+    # Exactly as written. A custom body is not ours to append to.
+    assert any(b.get("text", {}).get("text") == "Test custom body" for b in blocks), "the body was not carried"
+    footnotes = " ".join(
+        element["text"] for b in blocks if b["type"] == "context" for element in b["elements"]
+    )
+    assert f"{host}/alerts/{alert.id}" in footnotes
+    assert f"{host}/queries/{query.id}" in footnotes
+
+
+def test_slack_says_a_picture_exists_that_it_cannot_carry():
+    # A webhook cannot upload, so an alert on a chart arrives without it.
+    # Saying so beats dropping it silently, which reads as the alert being
+    # broken.
+    alert = mock.Mock(spec_set=["id", "name", "subject_for", "body_for", "render_template"])
+    alert.id = 1
+    alert.name = "Test Alert"
+    alert.subject_for = mock.Mock(return_value="subject")
+    alert.body_for = mock.Mock(return_value="")
+    query = mock.Mock()
+    query.id = 1
+    options = {"url": "https://slack.com/api/api.test"}
+
+    with mock.patch("sqldesk.destinations.slack.requests.post") as mock_post:
+        mock_post.return_value = mock.Mock(status_code=200)
+        Slack(options).notify(
+            alert,
+            query,
+            mock.Mock(),
+            Alert.TRIGGERED_STATE,
+            mock.Mock(),
+            "https://localhost:5000",
+            {"screenshots": ["one.png"]},
+            options,
+        )
+
+    payload = json.loads(mock_post.call_args.kwargs["data"].decode())
+    text = " ".join(
+        element["text"]
+        for b in payload["attachments"][0]["blocks"]
+        if b["type"] == "context"
+        for element in b["elements"]
+    )
+    assert "webhook cannot carry one" in text
 
 
 def test_webex_notify_calls_requests_post():
