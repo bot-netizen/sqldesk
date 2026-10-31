@@ -6,10 +6,16 @@
   a hard-coded white card is the thing that gives it away.
 */
 
+/*
+  No max-width, and the same padding tokens the lists use.
+
+  It was capped at 1200px and centred, which left a band of dead space on a
+  wide display while the cells inside were still squeezing their tables and
+  charts -- the same thing `.list-page-shell` already refuses to do, and for
+  the same reason: here the content is the width.
+*/
 .notebook-page {
-  padding: 16px 24px 64px;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: var(--sp-6) var(--sp-7) var(--sp-7);
 }
 
 /*
