@@ -713,8 +713,15 @@ class PublicNotebookResource(BaseResource):
     is no Run here.
     """
 
-    @require_feature(features.USE_NOTEBOOKS)
     def get(self, token):
+        # No `require_feature` here, and that is the point: the feature is
+        # granted to *groups*, and somebody arriving on a public link is in
+        # none. The checks that matter are the two below -- the organisation
+        # still allows public links, and this notebook is still published --
+        # plus the install-wide one, because a notebook cannot exist at all
+        # unless notebooks were switched on to make it.
+        if not features.offered(features.USE_NOTEBOOKS):
+            abort(404, message="No such notebook.")
         if self.current_org.get_setting("disable_public_urls"):
             abort(400, message="Public URLs are disabled.")
 

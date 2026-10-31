@@ -1272,3 +1272,36 @@ class TestSharingANotebook(NotebookApiTestCase):
         answer = self.make_request("get", "/api/notebooks/{}".format(notebook.id), user=self.factory.user)
 
         self.assertIsNone(answer.json["public_url"])
+
+    def test_the_link_works_for_somebody_in_no_group_at_all(self):
+        """
+        The one the suite's own mock was hiding.
+
+        `NotebookApiTestCase` patches `features.can` to True, so every other
+        test here sails past the feature gate. A real reader on a public link
+        is an `ApiUser` in no group, `can()` is False for them, and the
+        endpoint answered 403 — found by following the link against the
+        deployed cluster rather than by trusting the tests.
+
+        So this one unpatches it: what should gate a public link is whether
+        the install has notebooks at all, not whether a group was granted
+        them.
+        """
+        notebook = self.published()
+        self.a_cell(notebook, name="orders", ran=True)
+        token = self.share(notebook).json["api_key"]
+
+        with mock.patch("sqldesk.features.can", return_value=False):
+            answer = self.make_request("get", "/api/notebooks/public/{}".format(token), user=False)
+
+        self.assertEqual(200, answer.status_code)
+        self.assertEqual("orders", answer.json["cells"][0]["name"])
+
+    def test_it_is_not_served_where_the_install_has_notebooks_switched_off(self):
+        notebook = self.published()
+        token = self.share(notebook).json["api_key"]
+
+        with mock.patch("sqldesk.features.offered", return_value=False):
+            answer = self.make_request("get", "/api/notebooks/public/{}".format(token), user=False)
+
+        self.assertEqual(404, answer.status_code)

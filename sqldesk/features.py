@@ -153,6 +153,18 @@ def by_name(name):
     return None
 
 
+def offered(name):
+    """
+    Whether this install has the feature at all, with nobody in mind.
+
+    The half of `can` that is not about a person: a public link has no group
+    to have been granted anything, but it still should not open a notebook
+    on an install where notebooks are switched off.
+    """
+    feature = by_name(name)
+    return bool(feature and feature.enabled)
+
+
 def can(user, name):
     """
     Whether this person may use a feature.
