@@ -313,43 +313,67 @@ describe("the header's actions", () => {
     expect(Notebook.runAll).toHaveBeenCalledTimes(1);
   });
 
-  it("offers a PDF to everybody, because reading is not editing", async () => {
-    const page = await open(fixture({ can_edit: false }));
-
-    expect(page.find('[data-test="ExportPdf"]').exists()).toBe(true);
-  });
-
-  it("offers Share on a published notebook", async () => {
-    const page = await open(fixture({ is_draft: false }));
+  it("puts everything that hands this notebook to somebody behind one button", async () => {
+    // The dashboard's shape: a link, a PDF and an image in one menu, rather
+    // than a row of buttons that each do a bit of sharing.
+    const page = await open(fixture());
 
     expect(page.find('[data-test="ShareNotebook"]').exists()).toBe(true);
   });
 
-  it("does not offer Share on a draft", async () => {
-    // What you are still building is not a thing to hand out a link to.
-    const page = await open(fixture({ is_draft: true }));
+  it("offers sharing to a reader too, because reading is not editing", async () => {
+    const page = await open(fixture({ can_edit: false }));
 
-    expect(page.find('[data-test="ShareNotebook"]').exists()).toBe(false);
+    expect(page.find('[data-test="ShareNotebook"]').exists()).toBe(true);
   });
 
-  it("makes a link when there is none", async () => {
-    const page = await open(fixture({ public_url: null }));
+  it("captures the cells, not the page around them", async () => {
+    // No header, no navigation, and folded cells stay folded -- a notebook
+    // somebody tidied is the report they meant to send.
+    const page = await open(fixture());
+    const target = page.find("ShareNotebookButton").prop("getExportTarget")();
 
-    await act(async () => {
-      page.find('[data-test="ShareNotebook"]').first().simulate("click");
-    });
-
-    expect(Notebook.share).toHaveBeenCalledWith(5);
+    expect(target.className).toContain("notebook-cells");
   });
 
-  it("revokes the link when there is one, rather than making a second", async () => {
-    const page = await open(fixture({ public_url: "http://x/notebooks/public/abc" }));
+  it("lets the notebook be renamed by clicking its name", async () => {
+    const page = await open(fixture({ name: "Quarter" }));
 
     await act(async () => {
-      page.find('[data-test="ShareNotebook"]').first().simulate("click");
+      page.find('[data-test="NotebookName"]').first().simulate("click");
+    });
+    page.update();
+    // `find` twice without an update in between hands the second call a
+    // stale element, whose blur commits the draft as it was before the
+    // change -- which equals the old name, so nothing is saved and the test
+    // passes or fails for the wrong reason.
+    await act(async () => {
+      page.find("input.notebook-name-input").simulate("change", { target: { value: "Quarterly rollup" } });
+    });
+    page.update();
+    await act(async () => {
+      page.find("input.notebook-name-input").simulate("blur");
     });
 
-    expect(Notebook.unshare).toHaveBeenCalledWith(5);
-    expect(Notebook.share).not.toHaveBeenCalled();
+    expect(Notebook.save).toHaveBeenCalledWith(5, { name: "Quarterly rollup" });
+  });
+
+  it("keeps the old name when the box is emptied", async () => {
+    // A notebook with no name is a row nobody finds again.
+    const page = await open(fixture({ name: "Quarter" }));
+
+    await act(async () => {
+      page.find('[data-test="NotebookName"]').first().simulate("click");
+    });
+    page.update();
+    await act(async () => {
+      page.find("input.notebook-name-input").simulate("change", { target: { value: "   " } });
+    });
+    page.update();
+    await act(async () => {
+      page.find("input.notebook-name-input").simulate("blur");
+    });
+
+    expect(Notebook.save).not.toHaveBeenCalled();
   });
 });

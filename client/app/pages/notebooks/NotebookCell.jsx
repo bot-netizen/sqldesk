@@ -6,12 +6,23 @@ import Button from "antd/lib/button";
 import Select from "antd/lib/select";
 import Tooltip from "antd/lib/tooltip";
 import Table from "antd/lib/table";
+import Tabs from "antd/lib/tabs";
+import PlusOutlinedIcon from "@ant-design/icons/PlusOutlined";
+import CloseOutlinedIcon from "@ant-design/icons/CloseOutlined";
 import { map, size } from "lodash";
+
+import Dropdown from "antd/lib/dropdown";
+import Menu from "antd/lib/menu";
+import CodeOutlinedIcon from "@ant-design/icons/CodeOutlined";
+import TableOutlinedIcon from "@ant-design/icons/TableOutlined";
+import DownloadOutlinedIcon from "@ant-design/icons/DownloadOutlined";
+import MoreOutlinedIcon from "@ant-design/icons/MoreOutlined";
 
 import { getEditorComponents } from "@/components/queries/editor-components";
 import Notebook from "@/services/notebook";
 import CellVisualizationDialog from "./CellVisualizationDialog";
 import CellFigure from "./CellFigure";
+import EditableTitle from "./EditableTitle";
 import { Renderer } from "@/components/visualizations/visualizationComponents";
 import { fetchDataFromJob } from "@/services/query-result";
 import notification from "@/services/notification";
@@ -174,6 +185,25 @@ export default function NotebookCell({
     [cell, save]
   );
 
+  /*
+    What a cell can do that is not wanted often enough to spend a slot on.
+
+    Remove is here because deleting the cell every other cell below refers
+    to should take two clicks, not one next to Run.
+  */
+  const moreMenu = (
+    <Menu>
+      {produced === "table" && result && (
+        <Menu.Item key="chart" onClick={visualize} data-test="VisualizeCell">
+          {(cell.options || {}).visualization ? "Edit the chart" : "Add a chart"}
+        </Menu.Item>
+      )}
+      <Menu.Item key="remove" danger onClick={remove} data-test="RemoveCell">
+        Remove this cell
+      </Menu.Item>
+    </Menu>
+  );
+
   const collapsed = !!(cell.options || {}).collapsed;
   const hideCode = !!(cell.options || {}).hideCode;
   const hideOutput = !!(cell.options || {}).hideOutput;
@@ -213,9 +243,6 @@ export default function NotebookCell({
           canEdit={canEdit}
           onChange={(title) => title !== (cell.title || "") && save({ title })}
         />
-        <span className="notebook-cell-name" data-test="CellName">
-          {cell.name}
-        </span>
 
         <RunsOn
           cell={cell}
@@ -242,32 +269,45 @@ export default function NotebookCell({
           </Tooltip>
         )}
         {/*
-          Code and output hide separately, which is the whole point: reading a
-          finished notebook and writing one want opposite things on screen.
-          Somebody presenting a result wants the SQL gone; somebody debugging
-          wants the table gone and the query in front of them.
+          Icons, not words.
+
+          Five labelled controls per cell is most of a cell header, and on a
+          notebook of thirty cells it is most of the page. Run keeps its word
+          because it is the one somebody looks for; the rest are icons with
+          tooltips, and the two that are rarely wanted sit under a menu.
+
+          Code and output hide separately, which is the point of having both:
+          reading a finished notebook and writing one want opposite things on
+          screen -- somebody presenting a result wants the SQL gone, somebody
+          debugging wants the table gone and the query in front of them.
         */}
         {!collapsed && (
-          <Button
-            size="small"
-            type="text"
-            onClick={() => setOption({ hideCode: !hideCode })}
-            data-test="ToggleCode"
-            aria-pressed={!hideCode}
-          >
-            {hideCode ? "Show code" : "Hide code"}
-          </Button>
+          <Tooltip title={hideCode ? "Show the code" : "Hide the code"}>
+            <Button
+              size="small"
+              type="text"
+              className="notebook-cell-icon"
+              icon={<CodeOutlinedIcon />}
+              onClick={() => setOption({ hideCode: !hideCode })}
+              data-test="ToggleCode"
+              aria-pressed={!hideCode}
+              aria-label={hideCode ? "Show the code" : "Hide the code"}
+            />
+          </Tooltip>
         )}
         {!collapsed && cell.last_run_at && (
-          <Button
-            size="small"
-            type="text"
-            onClick={() => setOption({ hideOutput: !hideOutput })}
-            data-test="ToggleOutput"
-            aria-pressed={!hideOutput}
-          >
-            {hideOutput ? "Show output" : "Hide output"}
-          </Button>
+          <Tooltip title={hideOutput ? "Show the output" : "Hide the output"}>
+            <Button
+              size="small"
+              type="text"
+              className="notebook-cell-icon"
+              icon={<TableOutlinedIcon />}
+              onClick={() => setOption({ hideOutput: !hideOutput })}
+              data-test="ToggleOutput"
+              aria-pressed={!hideOutput}
+              aria-label={hideOutput ? "Show the output" : "Hide the output"}
+            />
+          </Tooltip>
         )}
         {/*
           The whole result, for somebody moving data rather than looking at
@@ -277,25 +317,29 @@ export default function NotebookCell({
         {!collapsed && produced === "table" && cell.last_run_at && (
           <Tooltip title="Download every row — not the slice shown here.">
             <a
-              className="notebook-cell-download"
+              className="notebook-cell-icon notebook-cell-download"
               href={Notebook.downloadUrl(notebookId, cell.id)}
               download
               data-test="DownloadCell"
+              aria-label="Download every row"
             >
-              Download
+              <DownloadOutlinedIcon />
             </a>
           </Tooltip>
         )}
-        {canEdit && produced === "table" && result && (
-          <Button size="small" type="text" onClick={visualize} data-test="VisualizeCell">
-            {(cell.options || {}).visualization ? "Edit chart" : "Chart"}
-          </Button>
-        )}
         {canEdit && (
-          <Button size="small" type="text" onClick={remove} data-test="RemoveCell">
-            Remove
-          </Button>
+          <Dropdown overlay={moreMenu} trigger={["click"]} placement="bottomRight">
+            <Button
+              size="small"
+              type="text"
+              className="notebook-cell-icon"
+              icon={<MoreOutlinedIcon />}
+              data-test="CellMenu"
+              aria-label="More for this cell"
+            />
+          </Dropdown>
         )}
+
       </div>
 
       {/*
@@ -347,7 +391,13 @@ export default function NotebookCell({
         <Alert className="notebook-cell-notice" type="error" showIcon message={error} data-test="CellError" />
       )}
       {!collapsed && !hideOutput && cell.last_run_at && !error && (
-        <CellOutput cell={cell} produced={produced} result={result} onRemoveChart={removeChart} />
+        <CellOutput
+          cell={cell}
+          produced={produced}
+          result={result}
+          onRemoveChart={removeChart}
+          onAddVisualization={canEdit ? visualize : null}
+        />
       )}
     </div>
   );
@@ -412,7 +462,7 @@ export function RunsOn({ cell, dataSources, canEdit, cluster, onChange }) {
   return (
     <span className="notebook-cell-runs-on" data-test="RunsOn">
       <Select size="small" value={value} onChange={change} className="notebook-cell-runs-on-select" dropdownMatchSelectWidth={false}>
-        <Select.OptGroup label="Query a warehouse">
+        <Select.OptGroup label="Query a data source">
           {map(dataSources, (source) => (
             <Select.Option key={source.id} value={`${SOURCE_PREFIX}${source.id}`}>
               {source.name}
@@ -476,58 +526,16 @@ export function describeWhatItRunsOn(cell, dataSources, cluster) {
   to know they type `orders` to read it.
 */
 export function CellTitle({ cell, canEdit, onChange }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(cell.title || "");
-
-  useEffect(() => setDraft(cell.title || ""), [cell.id, cell.title]);
-
-  const commit = useCallback(() => {
-    setEditing(false);
-    onChange(draft.trim());
-  }, [draft, onChange]);
-
-  if (!canEdit) {
-    return cell.title ? (
-      <span className="notebook-cell-title" data-test="CellTitle">
-        {cell.title}
-      </span>
-    ) : null;
-  }
-
-  if (editing) {
-    return (
-      <input
-        className="notebook-cell-title-input"
-        value={draft}
-        autoFocus
-        placeholder="Name this step"
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            commit();
-          }
-          if (e.key === "Escape") {
-            setDraft(cell.title || "");
-            setEditing(false);
-          }
-        }}
-        data-test="CellTitleInput"
-      />
-    );
-  }
-
   return (
-    <span
-      className={cx("notebook-cell-title", { "notebook-cell-title-unset": !cell.title })}
-      onClick={() => setEditing(true)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && setEditing(true)}
-      data-test="CellTitle"
-    >
-      {cell.title || "Name this step"}
-    </span>
+    <EditableTitle
+      value={cell.title || ""}
+      placeholder="Name this step"
+      canEdit={canEdit}
+      onChange={onChange}
+      className="notebook-cell-title"
+      inputClassName="notebook-cell-title-input"
+      dataTest="CellTitle"
+    />
   );
 }
 
@@ -568,7 +576,7 @@ export function summarise(cell, produced) {
   shown are the truncated slice the server stored for display; the whole result
   is in the notebook's own store, which is what the next cell reads.
 */
-export function CellOutput({ cell, produced, result, onRemoveChart }) {
+export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisualization }) {
   // `result` is the endpoint's answer -- `{id, data, row_count, handed_on}` --
   // so the rows are one level in. Reading it as the rows themselves drew an
   // empty table and an empty printout, which is what the test caught.
@@ -627,28 +635,23 @@ export function CellOutput({ cell, produced, result, onRemoveChart }) {
       {printed}
     </pre>
   ) : null;
-  const chart = (cell.options || {}).visualization;
-  if (chart) {
-    return (
-      <div className="notebook-cell-output notebook-cell-output-chart" data-test="CellOutput">
-        {printout}
-        <div className="notebook-cell-chart-header">
-          <span className="notebook-cell-chart-name">{chart.name}</span>
-          {onRemoveChart && (
-            <Button size="small" type="text" onClick={onRemoveChart} data-test="RemoveChart">
-              Show the table instead
-            </Button>
-          )}
-        </div>
-        <Renderer type={chart.type} data={data} options={chart.options} visualizationName={chart.name} />
-      </div>
-    );
-  }
+  /*
+    The table and the chart as tabs, the way a query's results are.
 
+    A chart used to *replace* the table, with a "Show the table instead"
+    link to get back -- which made the chart feel like a mode rather than a
+    view of the same rows. Tabs say what it is: one result, looked at two
+    ways, and switching costs nothing because both draw the rows already on
+    the page.
+
+    "Add a visualization" is offered only where one can be made: a cell that
+    printed, or produced a picture, has no relation to chart.
+  */
+  const chart = (cell.options || {}).visualization;
   const shown = size(data.rows);
-  return (
-    <div className="notebook-cell-output" data-test="CellOutput">
-      {printout}
+
+  const table = (
+    <>
       <Table
         size="small"
         columns={columns}
@@ -667,6 +670,54 @@ export function CellOutput({ cell, produced, result, onRemoveChart }) {
           {`first ${shown.toLocaleString()} of ${handedOn.toLocaleString()} rows — the whole result is what the next cell reads`}
         </div>
       )}
+    </>
+  );
+
+  const addVisualization = onAddVisualization ? (
+    <Button type="link" size="small" onClick={onAddVisualization} data-test="AddVisualization">
+      <PlusOutlinedIcon /> {chart ? "Change the chart" : "Add a visualization"}
+    </Button>
+  ) : null;
+
+  return (
+    <div className="notebook-cell-output" data-test="CellOutput">
+      {printout}
+      <Tabs
+        type="card"
+        size="small"
+        className="notebook-cell-tabs"
+        defaultActiveKey={chart ? "chart" : "table"}
+        tabBarExtraContent={addVisualization}
+        animated={false}
+        data-test="CellOutputTabs"
+      >
+        <Tabs.TabPane tab="Table" key="table">
+          {table}
+        </Tabs.TabPane>
+        {chart && (
+          <Tabs.TabPane
+            tab={
+              <span data-test="CellChartTab">
+                {chart.name}
+                {onRemoveChart && (
+                  <CloseOutlinedIcon
+                    className="notebook-cell-tab-remove"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveChart();
+                    }}
+                    data-test="RemoveChart"
+                    aria-label="Remove this chart"
+                  />
+                )}
+              </span>
+            }
+            key="chart"
+          >
+            <Renderer type={chart.type} data={data} options={chart.options} visualizationName={chart.name} />
+          </Tabs.TabPane>
+        )}
+      </Tabs>
     </div>
   );
 }
@@ -676,6 +727,7 @@ CellOutput.propTypes = {
   produced: PropTypes.string,
   result: PropTypes.object,
   onRemoveChart: PropTypes.func,
+  onAddVisualization: PropTypes.func,
 };
 
-CellOutput.defaultProps = { produced: null, result: null, onRemoveChart: null };
+CellOutput.defaultProps = { produced: null, result: null, onRemoveChart: null, onAddVisualization: null };

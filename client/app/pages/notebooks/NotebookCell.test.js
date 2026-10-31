@@ -1,7 +1,8 @@
 import React from "react";
 import { shallow, mount as mountFully } from "enzyme";
 import { act } from "react-dom/test-utils";
-import NotebookCell, { CellOutput, CellTitle, RunsOn, describeWhatItRunsOn, summarise } from "./NotebookCell";
+import NotebookCell, { CellOutput, RunsOn, describeWhatItRunsOn, summarise } from "./NotebookCell";
+import EditableTitle from "./EditableTitle";
 
 jest.mock("@/services/notebook", () => ({
   saveCell: jest.fn(() => Promise.resolve({})),
@@ -203,11 +204,14 @@ describe("the chart button", () => {
   beforeEach(() => jest.clearAllMocks());
 
   it("is offered once a cell has produced a table and its rows are loaded", async () => {
+    // From the output's own tab bar, where somebody looking at a table is
+    // already looking. The cell menu carries it too, which the menu test
+    // below covers.
     const page = await withOutput(aCell({ last_run_at: "x", latest_result_id: 7, options: { produced: "table" } }), [
       { id: 1 },
     ]);
 
-    expect(page.find('[data-test="VisualizeCell"]').exists()).toBe(true);
+    expect(page.find('[data-test="AddVisualization"]').exists()).toBe(true);
   });
 
   it("is not offered for a cell that produced text, which nothing can chart", async () => {
@@ -215,7 +219,7 @@ describe("the chart button", () => {
       { id: 1 },
     ]);
 
-    expect(page.find('[data-test="VisualizeCell"]').exists()).toBe(false);
+    expect(page.find('[data-test="AddVisualization"]').exists()).toBe(false);
   });
 
   it("is not offered before the rows have arrived", async () => {
@@ -304,7 +308,10 @@ describe("the output", () => {
     expect(output.text()).toContain("looked at it");
   });
 
-  it("draws the chart instead of the table once a cell has one", () => {
+  it("offers the chart beside the table rather than instead of it", () => {
+    // It used to replace the table, with a link to get back, which made a
+    // chart feel like a mode. One result, two tabs, and switching costs
+    // nothing because both draw the rows already on the page.
     const output = shallow(
       <CellOutput
         cell={aCell({ last_run_at: "x", options: { visualization: { type: "CHART", name: "By city", options: {} } } })}
@@ -314,11 +321,19 @@ describe("the output", () => {
       />
     );
 
-    expect(output.find("Table").exists()).toBe(false);
+    const tabs = output.find("Tabs");
+    expect(tabs.exists()).toBe(true);
+    // The chart is what opens, because a cell that has one was given one on
+    // purpose.
+    expect(tabs.prop("defaultActiveKey")).toBe("chart");
+    expect(output.find("Table").exists()).toBe(true);
     expect(output.find("Renderer").exists()).toBe(true);
     // And a way back, because a chart of the wrong column is the usual
-    // outcome of the first attempt.
-    expect(output.find('[data-test="RemoveChart"]').exists()).toBe(true);
+    // outcome of the first attempt. Mounted from the TabPane's `tab` prop:
+    // that is a prop holding an element, and shallow does not render into
+    // props -- the same trap as an antd Dropdown's overlay.
+    const chartTab = output.find("TabPane").filterWhere((one) => one.key() === "chart");
+    expect(mountFully(<div>{chartTab.prop("tab")}</div>).find('[data-test="RemoveChart"]').exists()).toBe(true);
   });
 
   it("offers no way back when nothing can take one", () => {
@@ -406,51 +421,59 @@ describe("what the cell printed", () => {
   also does and for the same reason: somebody who folds a notebook into a
   readable report has done work, and that work is for whoever opens it next.
 */
-describe("the title a person gives a step", () => {
-  it("falls back to the cell's name when there is none", () => {
-    const title = shallow(<CellTitle cell={aCell({ title: null })} canEdit onChange={jest.fn()} />);
+describe("a name you change by clicking it", () => {
+  function title(props = {}) {
+    return mountFully(<EditableTitle canEdit onChange={jest.fn()} placeholder="Name this step" {...props} />);
+  }
 
-    expect(title.find('[data-test="CellTitle"]').text()).toBe("Name this step");
+  it("shows the placeholder when there is no name", () => {
+    expect(title({ value: "" }).find('[data-test="EditableTitleInput"]').exists()).toBe(false);
+    expect(title({ value: "" }).text()).toBe("Name this step");
   });
 
-  it("shows the title once there is one", () => {
-    const title = shallow(<CellTitle cell={aCell({ title: "Orders, cleaned" })} canEdit onChange={jest.fn()} />);
-
-    expect(title.find('[data-test="CellTitle"]').text()).toBe("Orders, cleaned");
+  it("shows the name once there is one", () => {
+    expect(title({ value: "Orders, cleaned" }).text()).toBe("Orders, cleaned");
   });
 
   it("saves what was typed, trimmed", () => {
     const onChange = jest.fn();
-    const title = shallow(<CellTitle cell={aCell({ title: null })} canEdit onChange={onChange} />);
-    title.find('[data-test="CellTitle"]').simulate("click");
-    title.find('[data-test="CellTitleInput"]').simulate("change", { target: { value: "  Orders  " } });
-    title.find('[data-test="CellTitleInput"]').simulate("blur");
+    const made = title({ value: "", onChange });
+    made.find('[data-test="EditableTitle"]').first().simulate("click");
+    made.find("input").simulate("change", { target: { value: "  Orders  " } });
+    made.find("input").simulate("blur");
 
     expect(onChange).toHaveBeenCalledWith("Orders");
   });
 
   it("abandons the edit on Escape, keeping what was there", () => {
     const onChange = jest.fn();
-    const title = shallow(<CellTitle cell={aCell({ title: "Orders" })} canEdit onChange={onChange} />);
-    title.find('[data-test="CellTitle"]').simulate("click");
-    title.find('[data-test="CellTitleInput"]').simulate("change", { target: { value: "Something else" } });
-    title.find('[data-test="CellTitleInput"]').simulate("keydown", { key: "Escape" });
+    const made = title({ value: "Orders", onChange });
+    made.find('[data-test="EditableTitle"]').first().simulate("click");
+    made.find("input").simulate("change", { target: { value: "Something else" } });
+    made.find("input").simulate("keydown", { key: "Escape" });
 
     expect(onChange).not.toHaveBeenCalled();
-    expect(title.find('[data-test="CellTitle"]').text()).toBe("Orders");
+    expect(made.text()).toBe("Orders");
+  });
+
+  it("saves nothing when the name did not actually change", () => {
+    const onChange = jest.fn();
+    const made = title({ value: "Orders", onChange });
+    made.find('[data-test="EditableTitle"]').first().simulate("click");
+    made.find("input").simulate("blur");
+
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("offers no editing at all to somebody who may not edit", () => {
-    const title = shallow(<CellTitle cell={aCell({ title: "Orders" })} canEdit={false} onChange={jest.fn()} />);
-    title.find('[data-test="CellTitle"]').simulate("click");
+    const made = title({ value: "Orders", canEdit: false });
+    made.find('[data-test="EditableTitle"]').first().simulate("click");
 
-    expect(title.find('[data-test="CellTitleInput"]').exists()).toBe(false);
+    expect(made.find("input").exists()).toBe(false);
   });
 
   it("shows nothing rather than a prompt to a reader who cannot set one", () => {
-    const title = shallow(<CellTitle cell={aCell({ title: null })} canEdit={false} onChange={jest.fn()} />);
-
-    expect(title.isEmptyRender()).toBe(true);
+    expect(title({ value: "", canEdit: false }).isEmptyRender()).toBe(true);
   });
 });
 

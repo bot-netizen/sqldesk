@@ -164,11 +164,25 @@
   min-width: 160px;
 }
 
-.notebook-cell-name {
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: 12px;
+/*
+  Icons, not words.
+
+  Five labelled controls per cell was most of a cell header, and on a
+  notebook of thirty cells most of the page. Sized to the row so they read as
+  one strip rather than five buttons.
+*/
+.notebook-cell-icon {
+  width: 28px;
+  min-width: 28px;
+  padding: 0;
   color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    color: var(--color-text);
+  }
 }
 
 /* A fold control, sized to the row rather than to a button. */
@@ -400,12 +414,9 @@
   download handles Content-Disposition.
 */
 .notebook-cell-download {
-  font-size: 13px;
-  padding: 0 7px;
-  color: var(--color-text);
+  height: 24px;
 
   &:hover {
-    color: var(--color-primary, #2b7ddb);
     text-decoration: none;
   }
 }
@@ -565,4 +576,64 @@
     page-break-inside: avoid;
     min-height: 0;
   }
+}
+
+/*
+  The result, as tabs.
+
+  A chart used to replace the table with a link to get back, which made it
+  feel like a mode. One result, looked at two ways.
+*/
+.notebook-cell-tabs {
+  .ant-tabs-nav {
+    margin: 0;
+    padding: 0 8px;
+  }
+
+  .ant-tabs-tab {
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+
+  .ant-tabs-content-holder {
+    padding-top: 8px;
+  }
+}
+
+.notebook-cell-tab-remove {
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+
+  &:hover {
+    color: var(--color-danger, #c1392b);
+  }
+}
+
+/* The notebook's own name, clicked to change. */
+.notebook-name {
+  cursor: text;
+  padding: 1px 6px;
+  margin: -1px -6px;
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--color-surface-sunken);
+  }
+}
+
+.notebook-name-input {
+  font: inherit;
+  padding: 1px 6px;
+  margin: -1px -6px;
+  border: 1px solid var(--color-primary, #2b7ddb);
+  border-radius: 4px;
+  background: var(--color-surface-raised, #fff);
+  min-width: 320px;
+  max-width: 100%;
+}
+
+.notebook-title-unset {
+  color: var(--color-text-muted);
+  font-style: italic;
 }

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-31T12:45:54.752Z",
-    "fileCount": 704,
+    "lastScanned": "2026-10-31T18:53:59.836Z",
+    "fileCount": 706,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "145db240e0eba53e8a81e3527b0b825b12cf9564f654bd1c9a6a4af8ddca2e2b",
-    "storeUpdatedAt": "2026-10-31T12:45:54.771Z",
-    "rootHash": "dcc751133a27169b"
+    "renderedHash": "b30703d4e0a8bc6e6bac29eaad6becc831835d0f65abe113566fd3ec09e37c61",
+    "storeUpdatedAt": "2026-10-31T18:53:59.861Z",
+    "rootHash": "26990bcc2f4e853c"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -18266,6 +18266,42 @@
           "startLine": 34,
           "endLine": 100,
           "tokens": 664
+        }
+      ]
+    },
+    "client/app/pages/notebooks/EditableTitle.jsx": {
+      "description": "EditableTitle",
+      "tokens": 730,
+      "hash": "9a2905d1a06009cf",
+      "size": 2556,
+      "mtimeMs": 1793472729414.1562,
+      "updatedAt": "2026-10-31T18:52:09.583Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "EditableTitle",
+          "kind": "fn",
+          "startLine": 18,
+          "endLine": 95,
+          "tokens": 530
+        }
+      ]
+    },
+    "client/app/pages/notebooks/ShareNotebookButton.jsx": {
+      "description": "ShareNotebookButton",
+      "tokens": 1541,
+      "hash": "c5c58f03a15f7bdd",
+      "size": 5399,
+      "mtimeMs": 1793472839646.8953,
+      "updatedAt": "2026-10-31T18:53:59.835Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ShareNotebookButton",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 145,
+          "tokens": 1087
         }
       ]
     }

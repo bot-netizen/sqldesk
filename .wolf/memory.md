@@ -445,3 +445,5 @@ description: chronological action log per session, consolidated weekly
 | 07:18 | Edited client/app/pages/notebooks/Notebook.jsx | CSS: docs, steps, cell | ~410 |
 | 08:15 | Created migrations/versions/6d2a8e34f71b_notebook_schedule.py | — | ~339 |
 | 08:45 | Created client/app/pages/notebooks/NotebookScheduleDialog.jsx | — | ~1039 |
+| 14:52 | Created client/app/pages/notebooks/EditableTitle.jsx | — | ~730 |
+| 14:53 | Created client/app/pages/notebooks/ShareNotebookButton.jsx | — | ~1541 |

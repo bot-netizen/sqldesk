@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import cx from "classnames";
 import Alert from "antd/lib/alert";
@@ -17,6 +17,8 @@ import { fetchDataFromJob } from "@/services/query-result";
 
 import NotebookCell from "./NotebookCell";
 import NotebookScheduleDialog from "./NotebookScheduleDialog";
+import EditableTitle from "./EditableTitle";
+import ShareNotebookButton from "./ShareNotebookButton";
 import "./notebook.less";
 
 /*
@@ -40,6 +42,8 @@ function NotebookPage({ notebookId }) {
   const [dataSources, setDataSources] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [running, setRunning] = useState(null);
+  // What an export captures: the cells, not the page around them.
+  const cellsRef = useRef(null);
 
   const load = useCallback(() => {
     return Notebook.get(notebookId)
@@ -97,6 +101,18 @@ function NotebookPage({ notebookId }) {
     });
   }, [notebookId, load]);
 
+  const rename = useCallback(
+    (name) => {
+      if (!name) {
+        // A notebook with no name is a row nobody can find again, so an
+        // emptied box keeps what was there rather than saving nothing.
+        return;
+      }
+      Notebook.save(notebookId, { name }).then(setNotebook);
+    },
+    [notebookId]
+  );
+
   const publish = useCallback(() => {
     Notebook.save(notebookId, { is_draft: false }).then(setNotebook);
   }, [notebookId]);
@@ -143,23 +159,6 @@ function NotebookPage({ notebookId }) {
     stylesheet does the work, and it keeps whatever is folded folded, so the
     notebook you tidied is the report you get.
   */
-  const exportPdf = useCallback(() => window.print(), []);
-
-  const share = useCallback(() => {
-    if (notebook.public_url) {
-      return Notebook.unshare(notebookId).then(() => {
-        notification.success("That link no longer works.");
-        load();
-      });
-    }
-    return Notebook.share(notebookId)
-      .then(() => {
-        notification.success("Anyone with the link can now read this notebook.");
-        load();
-      })
-      .catch((reason) => notification.error((reason && reason.message) || "That link could not be made."));
-  }, [notebook, notebookId, load]);
-
   if (loadError) {
     return <Alert type="warning" showIcon message={loadError} className="notebook-load-error" />;
   }
@@ -186,7 +185,22 @@ function NotebookPage({ notebookId }) {
     <div className="notebook-page" data-test="NotebookPage">
       <div className="notebook-header">
         <div className="notebook-title">
-          <h3 data-test="NotebookName">{notebook.name}</h3>
+          {/*
+            Clicked to rename, the same way a cell is. A notebook called
+            "New Notebook" six weeks later is the normal outcome of hiding
+            renaming behind a settings dialog.
+          */}
+          <h3>
+            <EditableTitle
+              value={notebook.name}
+              placeholder="Name this notebook"
+              canEdit={notebook.can_edit}
+              onChange={rename}
+              className="notebook-name"
+              inputClassName="notebook-name-input"
+              dataTest="NotebookName"
+            />
+          </h3>
           {notebook.is_draft && <span className="notebook-draft">Draft</span>}
           {notebook.description && <p className="notebook-description">{notebook.description}</p>}
           <NotebookSize cells={cells} />
@@ -200,24 +214,7 @@ function NotebookPage({ notebookId }) {
             </Button>
           </Tooltip>
         )}
-        <Tooltip title="Print, or save as a PDF. Folded cells stay folded.">
-          <Button size="small" onClick={exportPdf} data-test="ExportPdf">
-            PDF
-          </Button>
-        </Tooltip>
-        {notebook.can_edit && !notebook.is_draft && (
-          <Tooltip
-            title={
-              notebook.public_url
-                ? `Anyone with the link can read this: ${notebook.public_url}. Click to stop that.`
-                : "Make a link somebody without an account can open. Nothing is re-run for them."
-            }
-          >
-            <Button size="small" onClick={share} data-test="ShareNotebook">
-              {notebook.public_url ? "Shared" : "Share"}
-            </Button>
-          </Tooltip>
-        )}
+        <ShareNotebookButton notebook={notebook} getExportTarget={() => cellsRef.current} onChanged={load} />
         {notebook.can_edit && (
           <Tooltip title={describeSchedule(notebook)}>
             <Button size="small" onClick={schedule} data-test="ScheduleNotebook">
@@ -278,7 +275,7 @@ function NotebookPage({ notebookId }) {
       <div className="notebook-body">
         <NotebookContents cells={cells} />
 
-        <div className="notebook-cells">
+        <div className="notebook-cells" ref={cellsRef}>
           {map(cells, (cell) => (
             <div key={cell.id} id={`cell-${cell.id}`}>
               <NotebookCell
