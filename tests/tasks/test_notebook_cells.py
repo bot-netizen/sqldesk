@@ -15,7 +15,7 @@ from unittest import mock
 from sqldesk import models, pools
 from sqldesk.models import db
 from sqldesk.notebooks import run as cell_runner
-from sqldesk.tasks.notebooks import run_cell, run_notebook
+from sqldesk.tasks.notebooks import run_cell, run_due_notebooks, run_notebook
 from tests import BaseTestCase
 
 
@@ -273,3 +273,125 @@ class TestRunningTheWholeNotebook(CellJobTestCase):
 
         self.assertEqual([1, 1], held, "a cell ran without taking a slot")
         self.assertEqual({}, dict(pools.held(pool)), "a slot was not given back")
+
+
+class TestStartingTheNotebooksThatAreDue(CellJobTestCase):
+    """
+    The periodic check that starts scheduled notebooks.
+
+    It enqueues rather than runs: each notebook is its own job, so one slow
+    notebook does not hold up every other notebook's schedule.
+    """
+
+    def scheduled(self, cron="0 6 * * *", last=None, draft=False):
+        notebook = models.Notebook(
+            org=self.factory.org,
+            user=self.factory.user,
+            name="Nightly",
+            is_draft=draft,
+            schedule=cron,
+            last_scheduled_at=last,
+        )
+        db.session.add(notebook)
+        db.session.commit()
+        return notebook
+
+    def test_it_enqueues_a_notebook_whose_slot_has_come_round(self):
+        notebook = self.scheduled()
+
+        with mock.patch("sqldesk.tasks.notebooks.run_notebook.delay") as delayed:
+            answer = run_due_notebooks()
+
+        delayed.assert_called_once_with(notebook.id, self.factory.user.id)
+        self.assertEqual([notebook.id], answer["started"])
+
+    def test_it_stamps_the_notebook_at_enqueue_not_at_finish(self):
+        """
+        Otherwise a notebook taking longer than its interval is enqueued
+        again on the next check, and again, until the queue is nothing but
+        that notebook.
+        """
+        notebook = self.scheduled()
+
+        with mock.patch("sqldesk.tasks.notebooks.run_notebook.delay"):
+            run_due_notebooks()
+
+        self.assertIsNotNone(models.Notebook.query.get(notebook.id).last_scheduled_at)
+
+    def test_a_second_check_does_not_start_it_again(self):
+        self.scheduled()
+
+        with mock.patch("sqldesk.tasks.notebooks.run_notebook.delay") as delayed:
+            run_due_notebooks()
+            run_due_notebooks()
+
+        self.assertEqual(1, delayed.call_count)
+
+    def test_a_draft_is_left_alone(self):
+        self.scheduled(draft=True)
+
+        with mock.patch("sqldesk.tasks.notebooks.run_notebook.delay") as delayed:
+            run_due_notebooks()
+
+        delayed.assert_not_called()
+
+    def test_one_notebook_failing_to_enqueue_does_not_stop_the_rest(self):
+        first = self.scheduled()
+        second = self.scheduled()
+
+        def refuse_the_first(notebook_id, user_id):
+            if notebook_id == first.id:
+                raise RuntimeError("redis said no")
+
+        with mock.patch("sqldesk.tasks.notebooks.run_notebook.delay", side_effect=refuse_the_first):
+            answer = run_due_notebooks()
+
+        self.assertEqual([second.id], answer["started"])
+        # And the one that could not be enqueued is not stamped, so the next
+        # check tries it again rather than skipping its slot.
+        self.assertIsNone(models.Notebook.query.get(first.id).last_scheduled_at)
+
+
+class TestBackingOffAFailingNotebook(CellJobTestCase):
+    def a_notebook_with_cells(self):
+        notebook = models.Notebook(
+            org=self.factory.org, user=self.factory.user, name="Nightly", is_draft=False, schedule="0 6 * * *"
+        )
+        db.session.add(notebook)
+        db.session.flush()
+        db.session.add(
+            models.NotebookCell(
+                notebook=notebook,
+                name="orders",
+                source="SELECT 1",
+                position=0,
+                kind=models.NotebookCell.SQL,
+                data_source=self.factory.data_source,
+            )
+        )
+        db.session.commit()
+        return notebook
+
+    def test_a_failed_run_counts_against_the_schedule(self):
+        notebook = self.a_notebook_with_cells()
+
+        def fail(cell, user):
+            record = models.NotebookRun(state=models.NotebookRun.FAILED, error="boom")
+            record.id = 1
+            return record
+
+        with mock.patch("sqldesk.tasks.notebooks._run", side_effect=fail):
+            run_notebook(notebook.id, self.factory.user.id)
+
+        self.assertEqual(1, models.Notebook.query.get(notebook.id).schedule_failures)
+
+    def test_a_run_that_works_clears_the_count(self):
+        notebook = self.a_notebook_with_cells()
+        notebook.schedule_failures = 5
+        db.session.add(notebook)
+        db.session.commit()
+
+        with mock.patch("sqldesk.tasks.notebooks._run", return_value=_ok()):
+            run_notebook(notebook.id, self.factory.user.id)
+
+        self.assertEqual(0, models.Notebook.query.get(notebook.id).schedule_failures)

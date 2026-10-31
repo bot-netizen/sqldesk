@@ -12,6 +12,7 @@ from sqldesk.live import refresh_live_dashboards
 from sqldesk.tasks.catalog import eval_catalog, harvest_catalogs
 from sqldesk.tasks.failure_report import send_aggregated_errors
 from sqldesk.tasks.general import sync_user_details, version_check
+from sqldesk.tasks.notebooks import run_due_notebooks
 from sqldesk.tasks.queries import (
     cleanup_events,
     cleanup_mcp_events,
@@ -134,6 +135,10 @@ def periodic_job_definitions():
         {"func": refresh_live_dashboards, "timeout": 60, "interval": 10},
         {"func": remove_ghost_locks, "interval": timedelta(minutes=1)},
         {"func": empty_schedules, "interval": timedelta(minutes=60)},
+        # Notebooks on a cron. Every minute, which is the finest a cron
+        # expression can ask for -- checking more often could not make a
+        # notebook start any sooner.
+        {"func": run_due_notebooks, "timeout": 300, "interval": timedelta(minutes=1)},
         {
             "func": refresh_schemas,
             "interval": timedelta(minutes=settings.SCHEMAS_REFRESH_SCHEDULE),

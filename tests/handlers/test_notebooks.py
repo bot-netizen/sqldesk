@@ -22,6 +22,7 @@ from unittest import mock
 from sqldesk import models
 from sqldesk.models import db
 from sqldesk.notebooks.store import Store
+from sqldesk.utils import utcnow
 from tests import BaseTestCase
 
 
@@ -944,3 +945,134 @@ class TestChangingWhatACellRunsOn(NotebookApiTestCase):
         self.change(cell, {"kind": "python"})
 
         self.assertEqual(had, models.NotebookCell.query.get(cell.id).latest_result_id)
+
+
+class TestGivingANotebookASchedule(NotebookApiTestCase):
+    """
+    A notebook that runs itself.
+
+    Cron only: a notebook is run by somebody who wants it done at a time --
+    "every morning before the standup" -- where the query scheduler's
+    interval/time/day_of_week trio answers "keep this no more than an hour
+    stale", which is a different question.
+    """
+
+    def schedule(self, notebook, expression, user=None):
+        return self.make_request(
+            "post",
+            "/api/notebooks/{}".format(notebook.id),
+            data={"schedule": expression},
+            user=user or self.factory.user,
+        )
+
+    def published(self, **kwargs):
+        notebook = self.a_notebook(**kwargs)
+        notebook.is_draft = False
+        db.session.add(notebook)
+        db.session.commit()
+        return notebook
+
+    def test_a_published_notebook_takes_one(self):
+        notebook = self.published()
+
+        answer = self.schedule(notebook, "0 6 * * *")
+
+        self.assertEqual(200, answer.status_code)
+        self.assertEqual("0 6 * * *", answer.json["schedule"])
+
+    def test_an_expression_that_does_not_parse_is_refused(self):
+        """
+        Nothing downstream would complain: `due` skips what it cannot read,
+        so a typo would quietly mean "never".
+        """
+        notebook = self.published()
+
+        answer = self.schedule(notebook, "every morning")
+
+        self.assertEqual(400, answer.status_code)
+        self.assertIsNone(models.Notebook.query.get(notebook.id).schedule)
+
+    def test_a_draft_is_refused_because_it_is_still_being_built(self):
+        notebook = self.a_notebook(is_draft=True)
+
+        answer = self.schedule(notebook, "0 6 * * *")
+
+        self.assertEqual(400, answer.status_code)
+        self.assertIn("Publish", answer.json["message"])
+
+    def test_it_can_be_taken_away_again(self):
+        notebook = self.published()
+        self.schedule(notebook, "0 6 * * *")
+
+        answer = self.schedule(notebook, "")
+
+        self.assertIsNone(answer.json["schedule"])
+
+    def test_changing_it_starts_the_backoff_again(self):
+        """The old failure count was about the old timing."""
+        notebook = self.published()
+        notebook.schedule = "0 6 * * *"
+        notebook.schedule_failures = 4
+        db.session.add(notebook)
+        db.session.commit()
+
+        answer = self.schedule(notebook, "0 7 * * *")
+
+        self.assertEqual(0, answer.json["schedule_failures"])
+
+    def test_somebody_else_cannot_schedule_your_notebook(self):
+        notebook = self.published(user=self.factory.create_user())
+
+        answer = self.schedule(notebook, "0 6 * * *")
+
+        self.assertIn(answer.status_code, (403, 404))
+
+
+class TestWhichNotebooksAreDue(NotebookApiTestCase):
+    def published(self, schedule=None, last=None, failures=0):
+        notebook = self.a_notebook(name="N{}".format(id(self)))
+        notebook.is_draft = False
+        notebook.schedule = schedule
+        notebook.last_scheduled_at = last
+        notebook.schedule_failures = failures
+        db.session.add(notebook)
+        db.session.commit()
+        return notebook
+
+    def test_one_that_has_never_run_is_due(self):
+        notebook = self.published(schedule="0 6 * * *")
+
+        self.assertIn(notebook, models.Notebook.due())
+
+    def test_one_with_no_schedule_is_never_due(self):
+        self.published(schedule=None)
+
+        self.assertEqual([], models.Notebook.due())
+
+    def test_a_draft_is_left_alone(self):
+        """What somebody is still building should not start running itself."""
+        notebook = self.published(schedule="0 6 * * *")
+        notebook.is_draft = True
+        db.session.add(notebook)
+        db.session.commit()
+
+        self.assertEqual([], models.Notebook.due())
+
+    def test_an_archived_one_is_left_alone(self):
+        """Its handoff store is gone; a run would rebuild one nobody wants."""
+        notebook = self.published(schedule="0 6 * * *")
+        notebook.is_archived = True
+        db.session.add(notebook)
+        db.session.commit()
+
+        self.assertEqual([], models.Notebook.due())
+
+    def test_an_expression_that_cannot_be_read_is_skipped_rather_than_raising(self):
+        self.published(schedule="every morning")
+
+        self.assertEqual([], models.Notebook.due())
+
+    def test_one_that_just_ran_is_not_due_again(self):
+        notebook = self.published(schedule="0 6 * * *", last=utcnow())
+
+        self.assertNotIn(notebook, models.Notebook.due())

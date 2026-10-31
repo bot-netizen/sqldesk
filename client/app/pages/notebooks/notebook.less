@@ -427,3 +427,26 @@
     display: none;
   }
 }
+
+/* The schedule dialog: choices stacked, because they are read down. */
+.notebook-schedule-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notebook-schedule-cron {
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  max-width: 240px;
+}
+
+.notebook-schedule-notice {
+  margin-bottom: 12px;
+}
+
+.notebook-schedule-said {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}

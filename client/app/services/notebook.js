@@ -28,6 +28,10 @@ const Notebook = {
   // Returns a job, in the same shape the query editor already polls.
   runCell: (notebookId, cellId) => axios.post(`api/notebooks/${notebookId}/cells/${cellId}/run`, {}),
   // Cancels the cell that is running. The session and its variables stay.
+  // A cron expression, or "" to take it away. Validated on the server,
+  // because a typo that does not parse would otherwise quietly mean "never".
+  setSchedule: (notebookId, schedule) => axios.post(`api/notebooks/${notebookId}`, { schedule }),
+
   // The whole handoff, not the thousand rows on the page. A link rather
   // than an axios call: the browser's own download does the right thing with
   // Content-Disposition, where a fetch would pull the lot into memory first.

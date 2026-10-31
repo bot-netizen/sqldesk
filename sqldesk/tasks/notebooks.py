@@ -20,6 +20,7 @@ import logging
 
 from sqldesk import models, pools
 from sqldesk.notebooks import run
+from sqldesk.utils import utcnow
 from sqldesk.worker import job
 
 logger = logging.getLogger(__name__)
@@ -126,19 +127,71 @@ def run_notebook(notebook_id, user_id):
         record, refusal = _guarded(cell, user, user_id)
         if refusal:
             models.db.session.commit()
+            _record_outcome(notebook, failed=True)
             return {"error": "{} stopped the run: {}".format(cell.name, refusal), "ran": ran}
         models.db.session.commit()
         if record.state == models.NotebookRun.FAILED:
+            _record_outcome(notebook, failed=True)
             return {"error": "{} failed: {}".format(cell.name, record.error), "ran": ran}
         ran += 1
 
+    _record_outcome(notebook, failed=False)
     # A dict, not an id: there is no single result to show -- the page
     # refetches the notebook, which it must do anyway because every cell has
     # changed.
     return {"ran": ran}
 
 
+def _record_outcome(notebook, failed):
+    """
+    Whether the last run worked, so a schedule can back off.
+
+    Counted on the notebook whether the run was scheduled or somebody pressed
+    Run all: a notebook that fails by hand will fail on its schedule too, and
+    there is no reason to wait for the scheduler to find that out.
+    """
+    notebook.schedule_failures = (notebook.schedule_failures or 0) + 1 if failed else 0
+    models.db.session.add(notebook)
+    models.db.session.commit()
+
+
 def _run(cell, user):
     if cell.kind == models.NotebookCell.PYTHON:
         return run.run_python_cell(cell, user)
     return run.run_sql_cell(cell, user)
+
+
+@job("periodic", timeout=300, ttl=300)
+def run_due_notebooks():
+    """
+    Start the notebooks whose cron slot has come round.
+
+    Enqueues rather than runs: each notebook is its own job on the queries
+    queue, so one slow notebook does not hold up every other notebook's
+    schedule, and a run that outlives this check is fine.
+
+    `last_scheduled_at` is stamped here, at enqueue, not when the run
+    finishes. Otherwise a notebook taking longer than its interval would be
+    enqueued again on the next check, and again, until the queue was nothing
+    but that notebook.
+    """
+    started = []
+    for notebook in models.Notebook.due():
+        if notebook.user is None:
+            # Nobody to run it as. A scheduled run uses its owner's access,
+            # and there is no sensible stand-in for a deleted account.
+            logger.warning("notebook %s has a schedule and no owner", notebook.id)
+            continue
+        try:
+            run_notebook.delay(notebook.id, notebook.user_id)
+        except Exception:
+            logger.exception("could not enqueue notebook %s", notebook.id)
+            continue
+        notebook.last_scheduled_at = utcnow()
+        models.db.session.add(notebook)
+        started.append(notebook.id)
+
+    models.db.session.commit()
+    if started:
+        logger.info("enqueued %d scheduled notebook(s): %s", len(started), started)
+    return {"started": started}

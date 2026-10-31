@@ -45,6 +45,17 @@ WORD = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\b")
 SESSION_KEY = "notebook:{}:session"
 SESSION_TTL = 1200
 
+#: Whether the executor has a Spark cluster, remembered so that opening a
+#: notebook does not pay a round trip to find out.
+#:
+#: Opening a notebook used to ask the executor every time, which put a
+#: blocking HTTP call on every page load -- and on an executor that was slow
+#: or gone, the page waited out the connect timeout to decide what to put in
+#: a dropdown. The answer is install-wide and changes when somebody
+#: reconfigures the executor, so minutes of staleness costs nothing.
+CLUSTER_KEY = "notebook:executor:cluster"
+CLUSTER_TTL = 300
+
 #: How long to wait on the interpreter. Starting a session is quick; a cell is
 #: as slow as somebody's code, and the interpreter has its own deadline for
 #: that, so this one only has to be longer than it.
@@ -165,14 +176,22 @@ class Interpreter:
         Answers False rather than raising when the executor cannot be
         reached: the page uses this to decide what to offer, and a dropdown
         is not worth a 503.
+
+        Cached, because this is asked on every notebook load and the answer
+        is install-wide -- see CLUSTER_KEY. A failed ask is cached too, and
+        deliberately: an executor that is down would otherwise have every
+        page load waiting out its connect timeout in turn.
         """
+        remembered = _remembered_cluster()
+        if remembered is not None:
+            return remembered
         try:
             answer = self._call("GET", "/ping", CONNECT_TIMEOUT)
+            found = answer.status_code == 200 and bool((answer.json() or {}).get("spark"))
         except Exception:
-            return False
-        if answer.status_code != 200:
-            return False
-        return bool((answer.json() or {}).get("spark"))
+            found = False
+        _remember_cluster(found)
+        return found
 
     def detach(self, notebook):
         """End the session and forget it. Its variables go with it."""
@@ -247,6 +266,26 @@ class Interpreter:
         with open(into, "wb") as handle:
             handle.write(answer.content)
         return into
+
+
+def _remembered_cluster():
+    """True, False, or None for "not asked recently"."""
+    try:
+        found = redis_connection.get(CLUSTER_KEY)
+    except Exception:
+        # Redis being unavailable is not this function's problem to report;
+        # it just means nothing is remembered.
+        return None
+    if found is None:
+        return None
+    return (found.decode() if isinstance(found, bytes) else found) == "1"
+
+
+def _remember_cluster(found):
+    try:
+        redis_connection.setex(CLUSTER_KEY, CLUSTER_TTL, "1" if found else "0")
+    except Exception:
+        pass
 
 
 def _said(answer, otherwise):

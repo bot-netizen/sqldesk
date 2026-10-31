@@ -1,7 +1,8 @@
 import React from "react";
 import { shallow, mount } from "enzyme";
 import { act } from "react-dom/test-utils";
-import NotebookPage, { InterpreterState, NotebookContents, NotebookSize, countOf } from "./Notebook";
+import NotebookPage, { InterpreterState, NotebookContents, NotebookSize, countOf, describeSchedule } from "./Notebook";
+import { NotebookScheduleDialog, matchingPreset } from "./NotebookScheduleDialog";
 
 // A factory inside the mock would be an out-of-scope reference, which jest
 // refuses: each test supplies what `get` should answer with.
@@ -198,5 +199,78 @@ describe("how big a notebook is", () => {
 
   it("shows nothing for an empty notebook", () => {
     expect(shallow(<NotebookSize cells={[]} />).isEmptyRender()).toBe(true);
+  });
+});
+
+/*
+  The schedule, said in words.
+
+  A schedule that has never fired looks identical to one that is working
+  until the page says so -- which is the failure mode worth guarding, because
+  the whole point of a schedule is that nobody is watching it.
+*/
+describe("describing a schedule", () => {
+  it("says so when there is none", () => {
+    expect(describeSchedule({ schedule: null })).toContain("only when somebody asks");
+  });
+
+  it("carries the expression, so it can be checked", () => {
+    expect(describeSchedule({ schedule: "0 6 * * *" })).toContain("0 6 * * *");
+  });
+
+  it("admits when it has never run on its own", () => {
+    const said = describeSchedule({ schedule: "0 6 * * *", last_scheduled_at: null });
+
+    expect(said).toContain("not run on its own yet");
+  });
+
+  it("says when it last started", () => {
+    const said = describeSchedule({ schedule: "0 6 * * *", last_scheduled_at: "2026-10-30T06:00:00Z" });
+
+    expect(said).toContain("last started");
+  });
+
+  it("says a failing schedule is backing off, which is why it looks quiet", () => {
+    const said = describeSchedule({ schedule: "0 6 * * *", schedule_failures: 3, last_scheduled_at: "x" });
+
+    expect(said).toContain("failed");
+    expect(said).toContain("further apart");
+  });
+});
+
+describe("the schedule dialog", () => {
+  function dialogFor(notebook) {
+    return shallow(
+      <NotebookScheduleDialog dialog={{ props: {}, close: jest.fn(), dismiss: jest.fn() }} notebook={notebook} />
+    );
+  }
+
+  it("preselects the preset a saved schedule matches", () => {
+    const made = dialogFor({ schedule: "0 6 * * *" });
+
+    expect(made.find(".notebook-schedule-choices").prop("value")).toBe("0 6 * * *");
+  });
+
+  it("falls back to the cron box for an expression no preset covers", () => {
+    const made = dialogFor({ schedule: "*/7 2 * * *" });
+
+    expect(made.find(".notebook-schedule-choices").prop("value")).toBe("custom");
+    expect(made.find('[data-test="ScheduleCronInput"]').prop("value")).toBe("*/7 2 * * *");
+  });
+
+  it("starts on 'only when asked' for a notebook with no schedule", () => {
+    expect(dialogFor({ schedule: null }).find(".notebook-schedule-choices").prop("value")).toBe("");
+  });
+
+  it("will not let a draft be scheduled", () => {
+    const made = dialogFor({ schedule: null, is_draft: true });
+
+    expect(made.find('[data-test="ScheduleNeedsPublishing"]').exists()).toBe(true);
+    expect(made.find("Modal").prop("okButtonProps").disabled).toBe(true);
+  });
+
+  it("matchingPreset only claims a match that is exact", () => {
+    expect(matchingPreset("0 6 * * *")).toBe("0 6 * * *");
+    expect(matchingPreset("0 6 * * 1")).toBe("custom");
   });
 });

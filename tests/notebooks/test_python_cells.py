@@ -628,6 +628,10 @@ class TestWhetherTheInterpreterReachesACluster(BaseTestCase):
         patch = mock.patch("sqldesk.settings.NOTEBOOK_EXECUTOR_URL", "http://executor:5000")
         patch.start()
         self.addCleanup(patch.stop)
+        # Each test asks fresh. The cache is the point of several of them, so
+        # it cannot be left holding the previous test's answer.
+        interpreter.redis_connection.delete(interpreter.CLUSTER_KEY)
+        self.addCleanup(interpreter.redis_connection.delete, interpreter.CLUSTER_KEY)
 
     def answering(self, status, body=None):
         answer = mock.Mock()
@@ -658,3 +662,37 @@ class TestWhetherTheInterpreterReachesACluster(BaseTestCase):
     def test_an_answer_that_never_mentions_spark_is_no(self):
         with self.answering(200, {"ok": True}):
             self.assertFalse(interpreter.Interpreter().reaches_a_cluster())
+
+    def test_it_is_asked_once_and_then_remembered(self):
+        """
+        The one that matters for the page, not for Spark.
+
+        Opening a notebook used to ask the executor every time, which put a
+        blocking HTTP call on every page load. The backend suite went from
+        30 seconds to 17 minutes, which is what a page would feel on an
+        executor that is slow.
+        """
+        with self.answering(200, {"ok": True, "spark": True}) as called:
+            interpreter.Interpreter().reaches_a_cluster()
+            interpreter.Interpreter().reaches_a_cluster()
+            interpreter.Interpreter().reaches_a_cluster()
+
+        self.assertEqual(1, called.call_count)
+
+    def test_an_executor_that_is_down_is_remembered_too(self):
+        """
+        Otherwise every page load in turn waits out the connect timeout --
+        which is the slow case, and so the one worth caching most.
+        """
+        with mock.patch.object(interpreter.Interpreter, "_call", side_effect=OSError("refused")) as called:
+            interpreter.Interpreter().reaches_a_cluster()
+            interpreter.Interpreter().reaches_a_cluster()
+
+        self.assertEqual(1, called.call_count)
+
+    def test_what_was_remembered_is_what_is_answered(self):
+        with self.answering(200, {"ok": True, "spark": True}):
+            interpreter.Interpreter().reaches_a_cluster()
+
+        with mock.patch.object(interpreter.Interpreter, "_call", side_effect=AssertionError("asked again")):
+            self.assertTrue(interpreter.Interpreter().reaches_a_cluster())

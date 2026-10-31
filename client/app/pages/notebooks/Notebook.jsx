@@ -16,6 +16,7 @@ import DataSource from "@/services/data-source";
 import { fetchDataFromJob } from "@/services/query-result";
 
 import NotebookCell from "./NotebookCell";
+import NotebookScheduleDialog from "./NotebookScheduleDialog";
 import "./notebook.less";
 
 /*
@@ -122,6 +123,17 @@ function NotebookPage({ notebookId }) {
       });
   }, [notebookId, load]);
 
+  const schedule = useCallback(() => {
+    NotebookScheduleDialog.showModal({ notebook }).onClose((wanted) =>
+      Notebook.setSchedule(notebookId, wanted)
+        .then((saved) => {
+          setNotebook(saved);
+          notification.success(wanted ? "This notebook will run on its schedule." : "The schedule has been removed.");
+        })
+        .catch((reason) => notification.error((reason && reason.message) || "That schedule could not be saved."))
+    );
+  }, [notebook, notebookId]);
+
   if (loadError) {
     return <Alert type="warning" showIcon message={loadError} className="notebook-load-error" />;
   }
@@ -159,6 +171,13 @@ function NotebookPage({ notebookId }) {
           <Tooltip title="Run every cell, in order. Stops at the first one that fails.">
             <Button size="small" onClick={runAll} disabled={!!running} data-test="RunAll">
               {running === "all" ? "Running…" : "Run all"}
+            </Button>
+          </Tooltip>
+        )}
+        {notebook.can_edit && (
+          <Tooltip title={describeSchedule(notebook)}>
+            <Button size="small" onClick={schedule} data-test="ScheduleNotebook">
+              {notebook.schedule ? "Scheduled" : "Schedule"}
             </Button>
           </Tooltip>
         )}
@@ -321,6 +340,27 @@ export function NotebookSize({ cells }) {
 NotebookSize.propTypes = {
   cells: PropTypes.arrayOf(PropTypes.object).isRequired,
 };
+
+/*
+  The schedule in a sentence, for the tooltip.
+
+  Says when it last ran as well as when it next will: a schedule that has
+  never fired looks identical to one that is working until you can see that
+  nothing has happened.
+*/
+export function describeSchedule(notebook) {
+  if (!notebook.schedule) {
+    return "This notebook runs only when somebody asks.";
+  }
+  const when = `Runs on \`${notebook.schedule}\`.`;
+  if (notebook.schedule_failures > 0) {
+    return `${when} The last run failed — it is being retried further apart until one works.`;
+  }
+  if (!notebook.last_scheduled_at) {
+    return `${when} It has not run on its own yet.`;
+  }
+  return `${when} It last started on its own at ${new Date(notebook.last_scheduled_at).toLocaleString()}.`;
+}
 
 NotebookPage.propTypes = {
   notebookId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,

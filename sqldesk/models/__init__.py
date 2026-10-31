@@ -2108,6 +2108,18 @@ class Notebook(TimestampMixin, BelongsToOrgMixin, db.Model):
     user = db.relationship(User, foreign_keys=[user_id])
     is_archived = Column(db.Boolean, default=False, index=True)
     is_draft = Column(db.Boolean, default=True, index=True)
+    #: A cron expression, or nothing. Only cron: a notebook is run by someone
+    #: who wants it done at a time -- "every morning before the standup" --
+    #: and the query scheduler's interval/time/day_of_week trio exists for a
+    #: different question ("keep this no more than an hour stale").
+    schedule = Column(db.String(255), nullable=True)
+    #: How many scheduled runs have failed in a row, so a notebook against a
+    #: warehouse that is down backs off instead of hammering it every minute.
+    schedule_failures = Column(db.Integer, default=0)
+    #: When the *scheduler* last started it. Separate from any cell's
+    #: `last_run_at`, so running one cell by hand does not look to the
+    #: scheduler like the notebook has just run.
+    last_scheduled_at = Column(db.DateTime(True), nullable=True)
     options = Column(MutableDict.as_mutable(JSONB), default={})
     cells = db.relationship(
         "NotebookCell",
@@ -2120,6 +2132,37 @@ class Notebook(TimestampMixin, BelongsToOrgMixin, db.Model):
 
     def __str__(self):
         return "%s %s" % (self.id, self.name)
+
+    @classmethod
+    def due(cls, now=None):
+        """
+        The notebooks whose next slot has come round.
+
+        Drafts are left alone: what somebody is still building should not
+        start running itself overnight.
+
+        An archived notebook is skipped too -- its handoff store has been
+        thrown away, so a scheduled run would rebuild a store nobody asked
+        for.
+        """
+        now = now or utcnow()
+        candidates = cls.query.filter(
+            cls.schedule.isnot(None),
+            cls.is_archived.is_(False),
+            cls.is_draft.is_(False),
+        )
+        return [
+            one
+            for one in candidates
+            if is_valid_cron(one.schedule)
+            and should_schedule_next(
+                one.last_scheduled_at,
+                now,
+                interval=None,
+                cron=one.schedule,
+                failures=one.schedule_failures or 0,
+            )
+        ]
 
     @property
     def store_name(self):

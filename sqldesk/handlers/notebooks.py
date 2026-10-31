@@ -87,6 +87,9 @@ def serialize_notebook(notebook, with_cells=False, user=None, sizes=None):
         "created_at": notebook.created_at,
         "updated_at": notebook.updated_at,
         "can_edit": can_modify(notebook, user) if user else False,
+        "schedule": notebook.schedule,
+        "schedule_failures": notebook.schedule_failures or 0,
+        "last_scheduled_at": notebook.last_scheduled_at,
         "options": notebook.options or {},
     }
     if sizes is not None:
@@ -275,6 +278,23 @@ class NotebookResource(BaseResource):
     def post(self, notebook_id):
         notebook = _notebook(notebook_id, self.current_org, self.current_user, modifying=True)
         body = request.get_json(force=True, silent=True) or {}
+        if "schedule" in body:
+            # Validated here because nothing downstream would complain: `due`
+            # skips an expression it cannot parse, so a typo would quietly
+            # mean "never" rather than reporting anything.
+            wanted = (body.get("schedule") or "").strip() or None
+            if wanted and not models.is_valid_cron(wanted):
+                abort(400, message="That is not a cron expression this can read, e.g. `0 6 * * *` for 6am daily.")
+            if wanted and notebook.is_draft:
+                # A draft is what somebody is still building. Starting it
+                # overnight is not what they asked for, and the page offers
+                # Publish right beside this.
+                abort(400, message="Publish this notebook before giving it a schedule.")
+            notebook.schedule = wanted
+            # A changed schedule starts its backoff again: the old count was
+            # about the old timing.
+            notebook.schedule_failures = 0
+
         for field in ("name", "description", "is_draft", "options"):
             if field in body:
                 setattr(notebook, field, body[field])

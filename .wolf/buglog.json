@@ -1970,6 +1970,73 @@
         "helm",
         "false-red"
       ]
+    },
+    {
+      "error_message": "CSS fix: canEdit",
+      "file": "client/app/pages/notebooks/NotebookCell.jsx",
+      "root_cause": "canEdit: false, \u2192 false",
+      "fix": "Changed canEdit: false, \u2192 false",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-116",
+      "timestamp": "2026-10-31T11:12:52.806Z",
+      "last_seen": "2026-10-31T11:12:52.806Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Missing error handling in Notebook.jsx",
+      "file": "client/app/pages/notebooks/Notebook.jsx",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-117",
+      "timestamp": "2026-10-31T11:18:39.093Z",
+      "last_seen": "2026-10-31T11:18:39.093Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of Notebook.jsx",
+      "file": "client/app/pages/notebooks/Notebook.jsx",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 9\u219232 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-118",
+      "timestamp": "2026-10-31T11:18:55.839Z",
+      "last_seen": "2026-10-31T11:18:55.839Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "id": "bug-119",
+      "error_message": "Backend handler suite went from ~30s to 17min; every notebook page load blocked on an executor HTTP call",
+      "root_cause": "_interpreter_state() called Interpreter.reaches_a_cluster() on every notebook GET, and that made an uncached HTTP request to the executor's /ping. With no executor reachable, each load waited out CONNECT_TIMEOUT just to decide what to offer in a dropdown.",
+      "fix": "Cache the answer in Redis under notebook:executor:cluster for 300s (CLUSTER_KEY/CLUSTER_TTL in sqldesk/notebooks/interpreter.py), caching a failed ask too since the unreachable case is the slow one. Tests assert _call is made once across repeated asks.",
+      "tags": [
+        "notebooks",
+        "performance",
+        "interpreter",
+        "0.8.1"
+      ],
+      "date": "2026-10-31"
     }
   ],
   "applied_observations": {
@@ -2045,7 +2112,10 @@
     "6a3eae20-bbda-4600-b2dc-4f6ab764ec5c": true,
     "ab4607ea-30f8-4fc3-987d-b12372388ac5": true,
     "0017eda3-f957-4ace-ab30-29371e05a9e2": true,
-    "f8dab580-bd41-4f43-af0c-70f3d70a3d24": true
+    "f8dab580-bd41-4f43-af0c-70f3d70a3d24": true,
+    "28b38f07-75ac-48b3-9ec2-89896a120960": true,
+    "c5b09340-9bff-40a4-8b0a-c4591224a334": true,
+    "7fbab7e0-b98a-441d-9be5-03950e326cc1": true
   },
-  "next_id": 116
+  "next_id": 119
 }
