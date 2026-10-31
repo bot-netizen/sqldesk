@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import PropTypes from "prop-types";
 import cx from "classnames";
 import CaretRightOutlinedIcon from "@ant-design/icons/CaretRightOutlined";
-import QuestionCircleOutlinedIcon from "@ant-design/icons/QuestionCircleOutlined";
+import LoadingOutlinedIcon from "@ant-design/icons/LoadingOutlined";
 import Alert from "antd/lib/alert";
 import Button from "antd/lib/button";
 import Dropdown from "antd/lib/dropdown";
@@ -11,6 +11,7 @@ import Tooltip from "antd/lib/tooltip";
 import { map, reject, sortBy } from "lodash";
 
 import Link from "@/components/Link";
+import PlainButton from "@/components/PlainButton";
 import LoadingState from "@/components/items-list/components/LoadingState";
 import notification from "@/services/notification";
 import Notebook from "@/services/notebook";
@@ -206,21 +207,34 @@ function NotebookPage({ notebookId }) {
           </h3>
           {notebook.is_draft && <span className="notebook-draft">Draft</span>}
           {notebook.description && <p className="notebook-description">{notebook.description}</p>}
-          <NotebookSize cells={cells} />
+          {/*
+            The two ways out of this page, beside the thing they are about.
+            They were at the far end of a row of buttons, which put a link
+            for somebody who is stuck as far as possible from the stuck
+            person's eye.
+          */}
+          <div className="notebook-subhead">
+            <NotebookSize cells={cells} />
+            <PlainButton className="notebook-link" onClick={() => NotebookHelpDialog.showModal({})} data-test="NotebookHelp">
+              How notebooks work
+            </PlainButton>
+            <Link href="notebooks" className="notebook-link" data-test="AllNotebooks">
+              All notebooks
+            </Link>
+          </div>
         </div>
         <span className="notebook-header-spacer" />
-        <InterpreterState state={interpreterState} onDetach={detach} />
         {notebook.can_edit && cells.length > 0 && (
           <Tooltip title="Run every cell, in order. Stops at the first one that fails.">
             <Button
               size="small"
-              icon={<CaretRightOutlinedIcon />}
+              type="primary"
+              icon={running === "all" ? <LoadingOutlinedIcon /> : <CaretRightOutlinedIcon />}
               onClick={runAll}
               disabled={!!running}
               data-test="RunAll"
-            >
-              {running === "all" ? "Running…" : "Run all"}
-            </Button>
+              aria-label="Run every cell"
+            />
           </Tooltip>
         )}
         <ShareNotebookButton notebook={notebook} getExportTarget={() => cellsRef.current} onChanged={load} />
@@ -238,23 +252,11 @@ function NotebookPage({ notebookId }) {
         )}
         {notebook.can_edit && (
           <Dropdown overlay={addMenu} trigger={["click"]} placement="bottomRight">
-            <Button size="small" type="primary" data-test="AddCell">
+            <Button size="small" data-test="AddCell">
               Add cell
             </Button>
           </Dropdown>
         )}
-        <Button
-          size="small"
-          type="text"
-          icon={<QuestionCircleOutlinedIcon />}
-          onClick={() => NotebookHelpDialog.showModal({})}
-          data-test="NotebookHelp"
-        >
-          How notebooks work
-        </Button>
-        <Link href="notebooks" className="notebook-back">
-          All notebooks
-        </Link>
       </div>
 
       {/*
@@ -367,19 +369,25 @@ export function NotebookContents({ cells }) {
       <ol>
         {map(cells, (cell) => (
           <li key={cell.id}>
-            <a
-              href={`#cell-${cell.id}`}
+            {/*
+              A button, not a link.
+
+              `handleNavigationIntent` is a global click handler that takes
+              any <a href> and hands it to the router -- and it does not look
+              at `defaultPrevented`, so preventing the default here did not
+              stop it: `#cell-7` resolved to a full URL and the app navigated
+              away. Jumping within a page is not navigation, so this is not
+              an anchor.
+            */}
+            <PlainButton
               className={cx("notebook-contents-entry", `notebook-contents-${cell.kind}`, {
                 "notebook-contents-folded": !!(cell.options || {}).collapsed,
               })}
-              onClick={(e) => {
-                e.preventDefault();
-                scrollToCell(cell.id);
-              }}
+              onClick={() => scrollToCell(cell.id)}
               data-test={`ContentsEntry-${cell.name}`}
             >
               {cell.title || cell.name}
-            </a>
+            </PlainButton>
           </li>
         ))}
       </ol>

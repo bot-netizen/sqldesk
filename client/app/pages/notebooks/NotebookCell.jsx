@@ -18,6 +18,7 @@ import TableOutlinedIcon from "@ant-design/icons/TableOutlined";
 import DownloadOutlinedIcon from "@ant-design/icons/DownloadOutlined";
 import MoreOutlinedIcon from "@ant-design/icons/MoreOutlined";
 import CaretRightOutlinedIcon from "@ant-design/icons/CaretRightOutlined";
+import PauseOutlinedIcon from "@ant-design/icons/PauseOutlined";
 import DownOutlinedIcon from "@ant-design/icons/DownOutlined";
 import RightOutlinedIcon from "@ant-design/icons/RightOutlined";
 
@@ -259,21 +260,26 @@ export default function NotebookCell({
         */}
         <RunsOn cell={cell} dataSources={dataSources} canEdit={canEdit} cluster={cluster} onChange={save} />
         {busy || running === cell.id ? (
-          <Button size="small" onClick={stop} data-test="StopCell">
-            Stop
-          </Button>
+          <Button
+            size="small"
+            className="notebook-cell-run"
+            icon={<PauseOutlinedIcon />}
+            onClick={stop}
+            data-test="StopCell"
+            aria-label="Stop this cell"
+          />
         ) : (
           <Tooltip title={notice}>
             <Button
               size="small"
               type="primary"
+              className="notebook-cell-run"
               icon={<CaretRightOutlinedIcon />}
               onClick={run}
               disabled={!!blocked || !!running}
               data-test="RunCell"
-            >
-              Run
-            </Button>
+              aria-label="Run this cell"
+            />
           </Tooltip>
         )}
         {/*
@@ -470,6 +476,9 @@ export function RunsOn({ cell, dataSources, canEdit, cluster, onChange }) {
 
   return (
     <span className="notebook-cell-runs-on" data-test="RunsOn">
+      <span className="notebook-cell-runs-on-said" data-test="RunsOnSaid">
+        {describeWhatItRunsOn(cell, dataSources, cluster)}
+      </span>
       <Select size="small" value={value} onChange={change} className="notebook-cell-runs-on-select" dropdownMatchSelectWidth={false}>
         <Select.OptGroup label="Query a data source">
           {map(dataSources, (source) => (
@@ -485,9 +494,6 @@ export function RunsOn({ cell, dataSources, canEdit, cluster, onChange }) {
           <Select.Option value={PYTHON}>{cluster ? "Python, with the Spark cluster" : "Python"}</Select.Option>
         </Select.OptGroup>
       </Select>
-      <span className="notebook-cell-runs-on-said" data-test="RunsOnSaid">
-        {describeWhatItRunsOn(cell, dataSources, cluster)}
-      </span>
     </span>
   );
 }
@@ -689,37 +695,18 @@ export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisuali
   );
 
   /*
-    How tall a chart is drawn.
+    How tall a chart is drawn, dragged rather than chosen.
 
-    Kept on the cell like the other view settings, so the person who sized a
-    chart to be readable has sized it for whoever opens the notebook next.
-    Three sizes rather than a drag handle: a handle is a fiddly thing to get
-    right inside a scrolling page, and nobody wants 14 heights, they want
-    "bigger".
+    Three sizes were a guess at what people want; what they actually want is
+    this one, this tall. Kept on the cell like the other view settings, so
+    somebody who sized a chart to be readable sized it for whoever opens the
+    notebook next.
   */
-  const chartHeight = (cell.options || {}).chartHeight || "medium";
-
-  const sizeChart = onResizeChart ? (
-    <span className="notebook-cell-chart-sizes" data-test="ChartSize">
-      {["small", "medium", "large"].map((size_) => (
-        <Button
-          key={size_}
-          type="text"
-          size="small"
-          className={cx("notebook-cell-chart-size", { "is-on": chartHeight === size_ })}
-          onClick={() => onResizeChart(size_)}
-          data-test={`ChartSize-${size_}`}
-          aria-pressed={chartHeight === size_}
-        >
-          {size_ === "small" ? "S" : size_ === "medium" ? "M" : "L"}
-        </Button>
-      ))}
-    </span>
-  ) : null;
+  const chartHeight = (cell.options || {}).chartHeight || 420;
 
   const addVisualization = onAddVisualization ? (
     <Button type="link" size="small" onClick={onAddVisualization} data-test="AddVisualization">
-      <PlusOutlinedIcon /> {chart ? "Change the chart" : "Add a visualization"}
+      <PlusOutlinedIcon /> {chart ? "Edit the chart" : "Add a visualization"}
     </Button>
   ) : null;
 
@@ -731,12 +718,7 @@ export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisuali
         size="small"
         className="notebook-cell-tabs"
         defaultActiveKey={chart ? "chart" : "table"}
-        tabBarExtraContent={
-          <span className="notebook-cell-tab-actions">
-            {chart && sizeChart}
-            {addVisualization}
-          </span>
-        }
+        tabBarExtraContent={addVisualization}
         animated={false}
         data-test="CellOutputTabs"
       >
@@ -763,15 +745,86 @@ export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisuali
             }
             key="chart"
           >
-            <div className={`notebook-cell-chart notebook-cell-chart-${chartHeight}`}>
+            <ResizableChart height={chartHeight} onResize={onResizeChart}>
               <Renderer type={chart.type} data={data} options={chart.options} visualizationName={chart.name} />
-            </div>
+            </ResizableChart>
           </Tabs.TabPane>
         )}
       </Tabs>
     </div>
   );
 }
+
+/*
+  A chart you drag to the height you want.
+
+  The handle is a strip across the bottom, the way a dashboard widget is
+  resized -- grabbing an edge is the gesture people already know here. The
+  height is written to the cell once, on release, rather than on every mouse
+  move: a save per pixel would be a hundred requests for one drag.
+
+  Listeners go on `window`, not the handle: a drag that outruns the pointer
+  -- which every drag does -- leaves the element behind, and a handler bound
+  to the handle stops getting moves the moment it does.
+*/
+export function ResizableChart({ height, onResize, children }) {
+  const [dragging, setDragging] = useState(null);
+  const shown = dragging === null ? height : dragging;
+
+  const start = useCallback(
+    (e) => {
+      if (!onResize) {
+        return;
+      }
+      e.preventDefault();
+      const from = e.clientY;
+      const was = height;
+      let latest = was;
+
+      const move = (moved) => {
+        // A floor, because a chart dragged to nothing cannot be dragged
+        // back: the handle would have no room to sit in.
+        latest = Math.max(160, Math.round(was + (moved.clientY - from)));
+        setDragging(latest);
+      };
+      const done = () => {
+        window.removeEventListener("mousemove", move);
+        window.removeEventListener("mouseup", done);
+        setDragging(null);
+        if (latest !== was) {
+          onResize(latest);
+        }
+      };
+      window.addEventListener("mousemove", move);
+      window.addEventListener("mouseup", done);
+    },
+    [height, onResize]
+  );
+
+  return (
+    <div className="notebook-cell-chart" style={{ height: shown }} data-test="CellChart">
+      <div className="notebook-cell-chart-body">{children}</div>
+      {onResize && (
+        <div
+          className={cx("notebook-cell-chart-handle", { "is-dragging": dragging !== null })}
+          onMouseDown={start}
+          role="separator"
+          aria-label="Drag to resize this chart"
+          aria-orientation="horizontal"
+          data-test="ChartResizeHandle"
+        />
+      )}
+    </div>
+  );
+}
+
+ResizableChart.propTypes = {
+  height: PropTypes.number,
+  onResize: PropTypes.func,
+  children: PropTypes.node,
+};
+
+ResizableChart.defaultProps = { height: 420, onResize: null, children: null };
 
 CellOutput.propTypes = {
   cell: PropTypes.object.isRequired,

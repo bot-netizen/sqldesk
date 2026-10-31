@@ -695,47 +695,46 @@
   scrolling page, and what people want is not 14 heights, it is "bigger".
   Kept on the cell, so sizing a chart sizes it for the next reader too.
 */
+/*
+  A chart dragged to the height you want, the way a dashboard widget is.
+
+  The handle is a strip across the bottom: grabbing an edge is the gesture
+  people already know here, and it needs somewhere to live that does not
+  overlap the chart's own axis.
+*/
 .notebook-cell-chart {
   width: 100%;
-
-  &.notebook-cell-chart-small {
-    height: 240px;
-  }
-
-  &.notebook-cell-chart-medium {
-    height: 420px;
-  }
-
-  &.notebook-cell-chart-large {
-    height: 680px;
-  }
+  position: relative;
+  padding-bottom: 10px;
 }
 
-.notebook-cell-tab-actions {
-  display: inline-flex;
+.notebook-cell-chart-body {
+  height: 100%;
+}
+
+.notebook-cell-chart-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 10px;
+  cursor: ns-resize;
+  display: flex;
   align-items: center;
-  gap: 4px;
-}
+  justify-content: center;
 
-.notebook-cell-chart-sizes {
-  display: inline-flex;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-chip, 4px);
-  overflow: hidden;
-  margin-right: 8px;
-}
+  /* The grip: visible enough to find, quiet enough to ignore. */
+  &::after {
+    content: "";
+    width: 36px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--color-border);
+  }
 
-.notebook-cell-chart-size {
-  width: 26px;
-  min-width: 26px;
-  padding: 0;
-  font-size: 11px;
-  color: var(--color-text-muted);
-  border-radius: 0;
-
-  &.is-on {
-    background: var(--color-surface-sunken);
-    color: var(--color-text);
+  &:hover::after,
+  &.is-dragging::after {
+    background: var(--color-text-muted);
   }
 }
 
@@ -790,5 +789,69 @@
     margin: 0 0 6px;
     font-size: 13px;
     color: var(--color-text-muted);
+  }
+}
+
+/*
+  The two ways out of this page, beside the thing they are about.
+
+  They were at the far end of a row of buttons, which put a link for
+  somebody who is stuck as far as possible from the stuck person's eye.
+*/
+.notebook-subhead {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 3px;
+}
+
+.notebook-link {
+  font-size: 12px;
+  color: var(--color-primary, #2b7ddb);
+  background: none;
+  border: none;
+  padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+/*
+  One baseline across the header.
+
+  Buttons, links and an antd Select have different natural heights, and left
+  alone they sit a pixel or two apart each -- which is what reads as "not
+  aligned" even when nothing is obviously wrong.
+*/
+.notebook-header {
+  .ant-btn,
+  .ant-select,
+  .ant-select-selector {
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .ant-btn-sm {
+    line-height: 1;
+  }
+}
+
+/* Run and Stop: square, so the play mark sits in the middle of it. */
+.notebook-cell-run {
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notebook-cell-header {
+  .ant-select-selector {
+    height: 26px !important;
+    display: flex;
+    align-items: center;
   }
 }

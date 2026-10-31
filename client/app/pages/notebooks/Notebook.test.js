@@ -153,15 +153,21 @@ describe("the contents", () => {
 
   it("lists a title where there is one and the name where there is not", () => {
     const contents = shallow(<NotebookContents cells={cells} />);
-    const entries = contents.find("a").map((one) => one.text());
+    // PlainButton is a forwardRef, so it has no display name to find it by.
+    const entries = contents.find(".notebook-contents-entry").map((one) => one.prop("children"));
 
     expect(entries).toEqual(["Orders", "code_1", "Takings"]);
   });
 
-  it("points each entry at its cell", () => {
+  it("jumps to the cell rather than navigating to it", () => {
+    // A button, not a link: `handleNavigationIntent` takes any <a href> and
+    // hands it to the router without looking at `defaultPrevented`, so an
+    // anchor here navigated away from the page instead of scrolling it.
     const contents = shallow(<NotebookContents cells={cells} />);
+    const entry = contents.find('[data-test="ContentsEntry-cell_1"]');
 
-    expect(contents.find('[data-test="ContentsEntry-cell_1"]').prop("href")).toBe("#cell-1");
+    expect(entry.prop("href")).toBeUndefined();
+    expect(typeof entry.prop("onClick")).toBe("function");
   });
 
   it("marks a folded cell as put away rather than dropping it", () => {

@@ -1,7 +1,7 @@
 import React from "react";
 import { shallow, mount as mountFully } from "enzyme";
 import { act } from "react-dom/test-utils";
-import NotebookCell, { CellOutput, RunsOn, describeWhatItRunsOn, summarise } from "./NotebookCell";
+import NotebookCell, { CellOutput, ResizableChart, RunsOn, describeWhatItRunsOn, summarise } from "./NotebookCell";
 import EditableTitle from "./EditableTitle";
 
 jest.mock("@/services/notebook", () => ({
@@ -652,7 +652,10 @@ describe("sizing a chart", () => {
   const withChart = (extras = {}) =>
     shallow(
       <CellOutput
-        cell={aCell({ last_run_at: "x", options: { visualization: { type: "CHART", name: "By city", options: {} }, ...extras } })}
+        cell={aCell({
+          last_run_at: "x",
+          options: { visualization: { type: "CHART", name: "By city", options: {} }, ...extras },
+        })}
         produced="table"
         result={{ data: { columns: [{ name: "id" }], rows: [{ id: 1 }] } }}
         onResizeChart={jest.fn()}
@@ -661,50 +664,63 @@ describe("sizing a chart", () => {
     );
 
   it("draws it at a readable height by default", () => {
-    expect(withChart().find(".notebook-cell-chart-medium").exists()).toBe(true);
+    expect(withChart().find("ResizableChart").prop("height")).toBe(420);
   });
 
-  it("uses the size the cell was given", () => {
-    expect(withChart({ chartHeight: "large" }).find(".notebook-cell-chart-large").exists()).toBe(true);
+  it("uses the height the cell was dragged to", () => {
+    expect(withChart({ chartHeight: 680 }).find("ResizableChart").prop("height")).toBe(680);
   });
 
-  it("offers the three sizes", () => {
-    // Mounted from the Tabs' `tabBarExtraContent`: a prop holding an
-    // element, which shallow does not render into.
-    const extra = mountFully(<div>{withChart().find("Tabs").prop("tabBarExtraContent")}</div>);
-
-    ["small", "medium", "large"].forEach((size) =>
-      expect(extra.find(`[data-test="ChartSize-${size}"]`).exists()).toBe(true)
-    );
-  });
-
-  it("saves the size on the cell rather than in the browser", () => {
-    const onResizeChart = jest.fn();
-    const output = shallow(
-      <CellOutput
-        cell={aCell({ last_run_at: "x", options: { visualization: { type: "CHART", name: "By city", options: {} } } })}
-        produced="table"
-        result={{ data: { columns: [{ name: "id" }], rows: [{ id: 1 }] } }}
-        onResizeChart={onResizeChart}
-      />
-    );
-    const extra = mountFully(<div>{output.find("Tabs").prop("tabBarExtraContent")}</div>);
-    extra.find('[data-test="ChartSize-large"]').first().simulate("click");
-
-    expect(onResizeChart).toHaveBeenCalledWith("large");
-  });
-
-  it("offers no sizes on a cell with no chart to size", () => {
-    const output = shallow(
-      <CellOutput
-        cell={aCell({ last_run_at: "x" })}
-        produced="table"
-        result={{ data: { columns: [{ name: "id" }], rows: [{ id: 1 }] } }}
-        onResizeChart={jest.fn()}
-      />
+  it("offers a handle to drag", () => {
+    const chart = mountFully(
+      <ResizableChart height={400} onResize={jest.fn()}>
+        <div />
+      </ResizableChart>
     );
 
-    const extra = mountFully(<div>{output.find("Tabs").prop("tabBarExtraContent")}</div>);
-    expect(extra.find('[data-test="ChartSize-large"]').exists()).toBe(false);
+    expect(chart.find('[data-test="ChartResizeHandle"]').exists()).toBe(true);
+  });
+
+  it("saves the height once, on release, not on every pixel", () => {
+    // A save per mouse move would be a hundred requests for one drag.
+    const onResize = jest.fn();
+    const chart = mountFully(
+      <ResizableChart height={400} onResize={onResize}>
+        <div />
+      </ResizableChart>
+    );
+    chart.find('[data-test="ChartResizeHandle"]').first().simulate("mousedown", { clientY: 100 });
+    window.dispatchEvent(new MouseEvent("mousemove", { clientY: 150 }));
+    window.dispatchEvent(new MouseEvent("mousemove", { clientY: 220 }));
+    expect(onResize).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new MouseEvent("mouseup"));
+
+    expect(onResize).toHaveBeenCalledTimes(1);
+    expect(onResize).toHaveBeenCalledWith(520);
+  });
+
+  it("will not let a chart be dragged smaller than its own handle", () => {
+    const onResize = jest.fn();
+    const chart = mountFully(
+      <ResizableChart height={200} onResize={onResize}>
+        <div />
+      </ResizableChart>
+    );
+    chart.find('[data-test="ChartResizeHandle"]').first().simulate("mousedown", { clientY: 500 });
+    window.dispatchEvent(new MouseEvent("mousemove", { clientY: 0 }));
+    window.dispatchEvent(new MouseEvent("mouseup"));
+
+    expect(onResize).toHaveBeenCalledWith(160);
+  });
+
+  it("offers no handle to a reader who cannot change the notebook", () => {
+    const chart = mountFully(
+      <ResizableChart height={400}>
+        <div />
+      </ResizableChart>
+    );
+
+    expect(chart.find('[data-test="ChartResizeHandle"]').exists()).toBe(false);
   });
 });
