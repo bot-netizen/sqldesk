@@ -37,13 +37,19 @@ import notification from "@/services/notification";
   a reference that will not resolve.
 */
 
-const KINDS = { sql: "SQL", python: "Python" };
+//: The three things a cell can run on, as the "Runs on" control values.
+//: Prefixed rather than bare ids so one control can carry both a warehouse
+//: and a kind without the two being confusable.
+const EARLIER_CELLS = "cells";
+const PYTHON = "python";
+const SOURCE_PREFIX = "source:";
 
 export default function NotebookCell({
   cell,
   notebookId,
   dataSources,
   canEdit,
+  cluster,
   onChanged,
   onRemoved,
   running,
@@ -209,32 +215,14 @@ export default function NotebookCell({
         <span className="notebook-cell-name" data-test="CellName">
           {cell.name}
         </span>
-        <span className="notebook-cell-kind">{KINDS[cell.kind] || cell.kind}</span>
-        {cell.kind === "sql" && canEdit && (
-          /*
-            Empty is a meaning, not a missing value: a SQL cell with no data
-            source reads the cells above it. The placeholder says so, and the
-            tooltip says it in full, because a dropdown that looks unset is
-            the one place somebody would assume nothing had been decided.
-          */
-          <Tooltip title="A data source to query, or nothing — then this cell reads the cells above it.">
-            <Select
-              className="notebook-cell-source-select"
-              size="small"
-              placeholder="Earlier cells"
-              value={cell.data_source_id || undefined}
-              allowClear
-              onChange={(value) => save({ data_source_id: value || null })}
-              data-test="CellDataSource"
-            >
-              {map(dataSources, (source) => (
-                <Select.Option key={source.id} value={source.id}>
-                  {source.name}
-                </Select.Option>
-              ))}
-            </Select>
-          </Tooltip>
-        )}
+
+        <RunsOn
+          cell={cell}
+          dataSources={dataSources}
+          canEdit={canEdit}
+          cluster={cluster}
+          onChange={save}
+        />
         {size(cell.reads) > 0 && (
           <span className="notebook-cell-reads" data-test="CellReads">
             reads {cell.reads.join(", ")}
@@ -369,6 +357,7 @@ NotebookCell.propTypes = {
   notebookId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
   dataSources: PropTypes.arrayOf(PropTypes.object),
   canEdit: PropTypes.bool,
+  cluster: PropTypes.bool,
   onChanged: PropTypes.func.isRequired,
   onRemoved: PropTypes.func.isRequired,
   running: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
@@ -378,8 +367,100 @@ NotebookCell.propTypes = {
 NotebookCell.defaultProps = {
   dataSources: [],
   canEdit: false,
+  cluster: false,
   running: null,
 };
+
+/*
+  What this cell runs on: a warehouse, the cells above it, or Python.
+
+  One control rather than two, because they are one decision. The old page
+  had the kind fixed at Add-cell time and a separate data source dropdown
+  beside it, which left somebody looking at a Python cell wondering what the
+  empty dropdown next to it meant -- the answer being that it did not apply.
+
+  So the groups are the separation: pick anything under Python and the
+  warehouses are visibly not in play. The line under the control says it in
+  words, because a grouped dropdown is only obvious while it is open.
+*/
+export function RunsOn({ cell, dataSources, canEdit, cluster, onChange }) {
+  const value =
+    cell.kind === "python" ? PYTHON : cell.data_source_id ? `${SOURCE_PREFIX}${cell.data_source_id}` : EARLIER_CELLS;
+
+  const change = useCallback(
+    (picked) => {
+      if (picked === PYTHON) {
+        return onChange({ kind: "python", data_source_id: null });
+      }
+      if (picked === EARLIER_CELLS) {
+        return onChange({ kind: "sql", data_source_id: null });
+      }
+      return onChange({ kind: "sql", data_source_id: Number(picked.slice(SOURCE_PREFIX.length)) });
+    },
+    [onChange]
+  );
+
+  if (!canEdit) {
+    return (
+      <span className="notebook-cell-runs-on-static" data-test="RunsOn">
+        {describeWhatItRunsOn(cell, dataSources, cluster)}
+      </span>
+    );
+  }
+
+  return (
+    <span className="notebook-cell-runs-on" data-test="RunsOn">
+      <Select size="small" value={value} onChange={change} className="notebook-cell-runs-on-select" dropdownMatchSelectWidth={false}>
+        <Select.OptGroup label="Query a warehouse">
+          {map(dataSources, (source) => (
+            <Select.Option key={source.id} value={`${SOURCE_PREFIX}${source.id}`}>
+              {source.name}
+            </Select.Option>
+          ))}
+        </Select.OptGroup>
+        <Select.OptGroup label="Stay in this notebook">
+          <Select.Option value={EARLIER_CELLS}>SQL over earlier cells</Select.Option>
+        </Select.OptGroup>
+        <Select.OptGroup label="Run Python — no data source">
+          <Select.Option value={PYTHON}>{cluster ? "Python, with the Spark cluster" : "Python"}</Select.Option>
+        </Select.OptGroup>
+      </Select>
+      <span className="notebook-cell-runs-on-said" data-test="RunsOnSaid">
+        {describeWhatItRunsOn(cell, dataSources, cluster)}
+      </span>
+    </span>
+  );
+}
+
+RunsOn.propTypes = {
+  cell: PropTypes.object.isRequired,
+  dataSources: PropTypes.arrayOf(PropTypes.object),
+  canEdit: PropTypes.bool,
+  cluster: PropTypes.bool,
+  onChange: PropTypes.func.isRequired,
+};
+
+RunsOn.defaultProps = { dataSources: [], canEdit: false, cluster: false };
+
+/*
+  The same decision in words.
+
+  The sentence the user asked for: if it runs Python, say outright that no
+  data source is needed, rather than leaving an empty control to imply
+  something is missing.
+*/
+export function describeWhatItRunsOn(cell, dataSources, cluster) {
+  if (cell.kind === "python") {
+    return cluster
+      ? "Python, with `spark` — reads earlier cells; no data source"
+      : "Python — reads earlier cells; no data source";
+  }
+  if (!cell.data_source_id) {
+    return "SQL over earlier cells — no data source";
+  }
+  const source = (dataSources || []).find((one) => one.id === cell.data_source_id);
+  return source ? `SQL against ${source.name}` : "SQL against a data source you cannot see";
+}
 
 /*
   What a person calls this step.

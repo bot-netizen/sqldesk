@@ -611,3 +611,50 @@ class TestWhatTheCellPrinted(PythonCellTestCase):
         self.assertEqual(models.NotebookRun.FAILED, record.state)
         self.assertIn("NameError: boom", record.error)
         self.assertIn("got this far", record.error)
+
+
+class TestWhetherTheInterpreterReachesACluster(BaseTestCase):
+    """
+    What the page is told about Spark.
+
+    Asked of the executor rather than of settings: the cluster is the
+    executor's to have, and an install can point at one configured there and
+    nowhere else. The page uses the answer to say what a Python cell runs on,
+    so it must never be the reason a notebook fails to open.
+    """
+
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch("sqldesk.settings.NOTEBOOK_EXECUTOR_URL", "http://executor:5000")
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def answering(self, status, body=None):
+        answer = mock.Mock()
+        answer.status_code = status
+        answer.json.return_value = body if body is not None else {}
+        return mock.patch.object(interpreter.Interpreter, "_call", return_value=answer)
+
+    def test_it_says_so_when_the_executor_has_one(self):
+        with self.answering(200, {"ok": True, "spark": True}):
+            self.assertTrue(interpreter.Interpreter().reaches_a_cluster())
+
+    def test_it_says_no_when_the_executor_has_none(self):
+        with self.answering(200, {"ok": True, "spark": False}):
+            self.assertFalse(interpreter.Interpreter().reaches_a_cluster())
+
+    def test_an_executor_that_cannot_be_reached_is_no_rather_than_an_error(self):
+        """
+        The page uses this to decide what to offer in a dropdown. A dropdown
+        is not worth failing a notebook over.
+        """
+        with mock.patch.object(interpreter.Interpreter, "_call", side_effect=OSError("refused")):
+            self.assertFalse(interpreter.Interpreter().reaches_a_cluster())
+
+    def test_a_bad_answer_is_no(self):
+        with self.answering(503):
+            self.assertFalse(interpreter.Interpreter().reaches_a_cluster())
+
+    def test_an_answer_that_never_mentions_spark_is_no(self):
+        with self.answering(200, {"ok": True}):
+            self.assertFalse(interpreter.Interpreter().reaches_a_cluster())

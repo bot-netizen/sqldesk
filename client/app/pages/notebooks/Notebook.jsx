@@ -223,6 +223,7 @@ function NotebookPage({ notebookId }) {
                 notebookId={notebook.id}
                 dataSources={dataSources}
                 canEdit={notebook.can_edit}
+                cluster={!!interpreterState.cluster}
                 running={running}
                 onRunningChanged={(busy) => setRunning(busy ? cell.id : null)}
                 onChanged={onCellChanged}

@@ -153,6 +153,27 @@ class Interpreter:
         """Whether a session exists, without making one."""
         return self.session_for(notebook, create=False) is not None
 
+    def reaches_a_cluster(self):
+        """
+        Whether a Python cell here can reach Spark.
+
+        Asked of the executor rather than of settings: the cluster is the
+        executor's to have, and an install can point at one that is
+        configured there and nowhere else. Attaches nothing -- this is the
+        ping endpoint, which exists to be cheap.
+
+        Answers False rather than raising when the executor cannot be
+        reached: the page uses this to decide what to offer, and a dropdown
+        is not worth a 503.
+        """
+        try:
+            answer = self._call("GET", "/ping", CONNECT_TIMEOUT)
+        except Exception:
+            return False
+        if answer.status_code != 200:
+            return False
+        return bool((answer.json() or {}).get("spark"))
+
     def detach(self, notebook):
         """End the session and forget it. Its variables go with it."""
         key = SESSION_KEY.format(notebook.id)

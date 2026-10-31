@@ -123,11 +123,14 @@ class TestOpeningOne(NotebookApiTestCase):
 
         with mock.patch("sqldesk.settings.NOTEBOOK_EXECUTOR_URL", "http://executor:5000"):
             with mock.patch("sqldesk.notebooks.interpreter.Interpreter.session_for") as session_for:
-                session_for.return_value = None
-                answer = self.make_request("get", "/api/notebooks/{}".format(notebook.id), user=self.factory.user)
+                # `reaches_a_cluster` is the executor's ping; stubbed so this
+                # test is about attaching nothing and not about the network.
+                with mock.patch("sqldesk.notebooks.interpreter.Interpreter.reaches_a_cluster", return_value=False):
+                    session_for.return_value = None
+                    answer = self.make_request("get", "/api/notebooks/{}".format(notebook.id), user=self.factory.user)
 
         self.assertEqual(200, answer.status_code)
-        self.assertEqual({"configured": True, "attached": False}, answer.json["interpreter"])
+        self.assertEqual({"configured": True, "attached": False, "cluster": False}, answer.json["interpreter"])
         session_for.assert_called_once()
         self.assertEqual(False, session_for.call_args.kwargs.get("create"), "opening it created a session")
 
@@ -137,7 +140,7 @@ class TestOpeningOne(NotebookApiTestCase):
         with mock.patch("sqldesk.settings.NOTEBOOK_EXECUTOR_URL", ""):
             answer = self.make_request("get", "/api/notebooks/{}".format(notebook.id), user=self.factory.user)
 
-        self.assertEqual({"configured": False, "attached": False}, answer.json["interpreter"])
+        self.assertEqual({"configured": False, "attached": False, "cluster": False}, answer.json["interpreter"])
 
     def test_each_cell_carries_why_it_cannot_run(self):
         notebook = self.a_notebook()
@@ -831,3 +834,113 @@ class TestHowBigTheListSaysEachNotebookIs(NotebookApiTestCase):
         listed = self.listed()
         self.assertEqual(1, listed["Small"]["cell_count"])
         self.assertEqual(3, listed["Big"]["cell_count"])
+
+
+class TestChangingWhatACellRunsOn(NotebookApiTestCase):
+    """
+    SQL or Python, decided after the fact.
+
+    Worth allowing because it is a decision people make *while* writing, and
+    the alternative — delete the cell and add another — loses its name, which
+    is what every cell below it refers to.
+
+    The rule the whole design rests on is enforced on the way through: a
+    Python cell reaches no data source, so one turned into Python cannot keep
+    the warehouse it was given while it was SQL.
+    """
+
+    def change(self, cell, body, user=None):
+        return self.make_request(
+            "post",
+            "/api/notebooks/{}/cells/{}".format(cell.notebook_id, cell.id),
+            data=body,
+            user=user or self.factory.user,
+        )
+
+    def test_a_sql_cell_becomes_python(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook)
+
+        answer = self.change(cell, {"kind": "python"})
+
+        self.assertEqual(200, answer.status_code)
+        self.assertEqual("python", answer.json["kind"])
+
+    def test_turning_it_into_python_drops_the_data_source_it_was_given(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook, data_source=self.factory.data_source)
+
+        answer = self.change(cell, {"kind": "python"})
+
+        self.assertIsNone(answer.json["data_source_id"])
+        self.assertIsNone(models.NotebookCell.query.get(cell.id).data_source_id)
+
+    def test_a_data_source_sent_with_the_switch_to_python_is_still_refused(self):
+        """The one that would slip through a check written only where
+        `data_source_id` is set."""
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook)
+
+        answer = self.change(cell, {"kind": "python", "data_source_id": self.factory.data_source.id})
+
+        self.assertIsNone(answer.json["data_source_id"])
+
+    def test_a_python_cell_becomes_sql_against_a_warehouse(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook, kind=models.NotebookCell.PYTHON)
+
+        answer = self.change(cell, {"kind": "sql", "data_source_id": self.factory.data_source.id})
+
+        self.assertEqual("sql", answer.json["kind"])
+        self.assertEqual(self.factory.data_source.id, answer.json["data_source_id"])
+
+    def test_the_name_other_cells_refer_to_survives_the_switch(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook, name="orders")
+
+        self.change(cell, {"kind": "python"})
+
+        self.assertEqual("orders", models.NotebookCell.query.get(cell.id).name)
+
+    def test_anything_that_is_not_one_of_the_two_is_refused(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook)
+
+        answer = self.change(cell, {"kind": "bash"})
+
+        self.assertEqual(400, answer.status_code)
+        self.assertEqual("sql", models.NotebookCell.query.get(cell.id).kind)
+
+    def test_python_is_refused_where_the_install_has_no_interpreter(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook)
+
+        with mock.patch("sqldesk.handlers.notebooks.interpreter.configured", return_value=False):
+            answer = self.change(cell, {"kind": "python"})
+
+        self.assertEqual(400, answer.status_code)
+        self.assertEqual("sql", models.NotebookCell.query.get(cell.id).kind)
+
+    def test_its_result_is_left_alone(self):
+        """
+        Still what was computed, and the staleness rules already say so.
+        Clearing it would throw away a number somebody may still be reading.
+        """
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook, ran=True)
+        cell.latest_result = models.QueryResult.store_result(
+            self.factory.org.id,
+            self.factory.data_source,
+            "h",
+            "SELECT 1",
+            {"columns": [], "rows": []},
+            0.1,
+            db.func.now(),
+        )
+        db.session.add(cell)
+        db.session.commit()
+        had = cell.latest_result_id
+
+        self.change(cell, {"kind": "python"})
+
+        self.assertEqual(had, models.NotebookCell.query.get(cell.id).latest_result_id)

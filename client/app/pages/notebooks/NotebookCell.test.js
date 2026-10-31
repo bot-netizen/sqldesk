@@ -1,7 +1,7 @@
 import React from "react";
 import { shallow, mount as mountFully } from "enzyme";
 import { act } from "react-dom/test-utils";
-import NotebookCell, { CellOutput, CellTitle, summarise } from "./NotebookCell";
+import NotebookCell, { CellOutput, CellTitle, RunsOn, describeWhatItRunsOn, summarise } from "./NotebookCell";
 
 jest.mock("@/services/notebook", () => ({
   saveCell: jest.fn(() => Promise.resolve({})),
@@ -477,8 +477,6 @@ describe("what a folded cell says for itself", () => {
   download handles Content-Disposition.
 */
 describe("downloading a cell's output", () => {
-  const table = { columns: [{ name: "id" }], rows: [{ id: 1 }] };
-
   function cellWith(extras) {
     return mountFully(
       <NotebookCell
@@ -516,5 +514,92 @@ describe("downloading a cell's output", () => {
     const cell = cellWith({ last_run_at: "x", options: { produced: "table", collapsed: true } });
 
     expect(cell.find('[data-test="DownloadCell"]').exists()).toBe(false);
+  });
+});
+
+/*
+  What a cell runs on.
+
+  One control rather than two. The page used to fix the kind at Add-cell time
+  and put a data source dropdown beside it, which left somebody looking at a
+  Python cell wondering what the empty dropdown meant -- the answer being
+  that it did not apply to them. The groups are the separation; the sentence
+  beside the control is that separation readable while the dropdown is shut.
+*/
+describe("what a cell runs on", () => {
+  const sources = [
+    { id: 4, name: "Warehouse" },
+    { id: 9, name: "Replica" },
+  ];
+
+  it("shows the warehouse a SQL cell queries", () => {
+    const said = describeWhatItRunsOn({ kind: "sql", data_source_id: 4 }, sources, false);
+
+    expect(said).toBe("SQL against Warehouse");
+  });
+
+  it("says outright that a SQL cell over earlier cells wants no data source", () => {
+    const said = describeWhatItRunsOn({ kind: "sql", data_source_id: null }, sources, false);
+
+    expect(said).toContain("no data source");
+  });
+
+  it("says a Python cell wants no data source, which is the whole confusion", () => {
+    const said = describeWhatItRunsOn({ kind: "python", data_source_id: null }, sources, false);
+
+    expect(said).toContain("Python");
+    expect(said).toContain("no data source");
+  });
+
+  it("mentions the cluster when there is one to reach", () => {
+    const said = describeWhatItRunsOn({ kind: "python" }, sources, true);
+
+    expect(said).toContain("spark");
+    expect(said).toContain("no data source");
+  });
+
+  it("does not invent a warehouse name the reader cannot see", () => {
+    // A cell pointed at a data source this person has no access to: saying
+    // nothing would read as "earlier cells", which is a different thing.
+    const said = describeWhatItRunsOn({ kind: "sql", data_source_id: 77 }, sources, false);
+
+    expect(said).toContain("cannot see");
+  });
+
+  it("selects the warehouse the cell is pointed at", () => {
+    const control = shallow(
+      <RunsOn cell={aCell({ kind: "sql", data_source_id: 9 })} dataSources={sources} canEdit onChange={jest.fn()} />
+    );
+
+    expect(control.find("Select").prop("value")).toBe("source:9");
+  });
+
+  it("switches a cell to Python and drops its data source in one change", () => {
+    const onChange = jest.fn();
+    const control = shallow(
+      <RunsOn cell={aCell({ kind: "sql", data_source_id: 4 })} dataSources={sources} canEdit onChange={onChange} />
+    );
+    control.find("Select").simulate("change", "python");
+
+    expect(onChange).toHaveBeenCalledWith({ kind: "python", data_source_id: null });
+  });
+
+  it("switches a Python cell back to a warehouse", () => {
+    const onChange = jest.fn();
+    const control = shallow(
+      <RunsOn cell={aCell({ kind: "python" })} dataSources={sources} canEdit onChange={onChange} />
+    );
+    control.find("Select").simulate("change", "source:4");
+
+    expect(onChange).toHaveBeenCalledWith({ kind: "sql", data_source_id: 4 });
+  });
+
+  it("offers a reader the words without the control", () => {
+    const control = shallow(
+      <RunsOn cell={aCell({ kind: "python" })} dataSources={sources} canEdit={false} onChange={jest.fn()} />
+    );
+
+    expect(control.find("Select").exists()).toBe(false);
+    expect(control.text()).toContain("no data source");
   });
 });

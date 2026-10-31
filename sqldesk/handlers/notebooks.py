@@ -165,11 +165,19 @@ def _interpreter_state(notebook):
     Asked without attaching anything, which is the whole point of §4.4.
     """
     if not interpreter.configured():
-        return {"configured": False, "attached": False}
+        return {"configured": False, "attached": False, "cluster": False}
     try:
-        return {"configured": True, "attached": interpreter.Interpreter().attached(notebook)}
+        talker = interpreter.Interpreter()
+        # Whether a cell here can reach Spark, so the page can say what a
+        # Python cell runs on rather than leaving somebody to type `spark`
+        # and find out.
+        return {
+            "configured": True,
+            "attached": talker.attached(notebook),
+            "cluster": talker.reaches_a_cluster(),
+        }
     except interpreter.NoInterpreter:
-        return {"configured": True, "attached": False}
+        return {"configured": True, "attached": False, "cluster": False}
 
 
 def _notebook(notebook_id, org, user, modifying=False):
@@ -375,11 +383,35 @@ class CellResource(BaseResource):
             # Emptied rather than set to "": the page shows the name when
             # there is no title, and an empty string is not "no title".
             cell.title = (body.get("title") or "").strip() or None
+        if "kind" in body and body["kind"] != cell.kind:
+            # What a cell runs on, changed after the fact.
+            #
+            # Worth allowing: deciding between SQL and Python is a decision
+            # somebody makes *while* writing, and the alternative -- delete
+            # the cell and add another -- loses its name, which is what every
+            # cell below it refers to.
+            #
+            # The cell's result is left alone. It is still what was computed,
+            # and the staleness rules already say so; clearing it here would
+            # throw away a number somebody may still be reading.
+            kind = body["kind"]
+            if kind not in (models.NotebookCell.SQL, models.NotebookCell.PYTHON):
+                abort(400, message="A cell is either SQL or Python.")
+            if kind == models.NotebookCell.PYTHON and not interpreter.configured():
+                abort(400, message="Python cells need an interpreter this install has not configured.")
+            cell.kind = kind
+
         for field in ("source", "position", "options"):
             if field in body:
                 setattr(cell, field, body[field])
         if "data_source_id" in body:
             cell.data_source_id = body["data_source_id"] if cell.kind == models.NotebookCell.SQL else None
+        if cell.kind == models.NotebookCell.PYTHON:
+            # Belt and braces, and the rule the whole design rests on: a
+            # Python cell reaches no data source. Enforced here rather than
+            # only where `data_source_id` is set, so a cell turned into Python
+            # cannot keep one it was given while it was SQL.
+            cell.data_source_id = None
             _may_use(cell, self.current_user)
         models.db.session.add(cell)
         models.db.session.commit()

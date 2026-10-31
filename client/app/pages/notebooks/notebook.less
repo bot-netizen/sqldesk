@@ -392,3 +392,38 @@
   color: var(--color-text-muted);
   font-size: 13px;
 }
+
+/*
+  What a cell runs on: one control, and the same thing said in words beside
+  it.
+
+  The words are not decoration. A grouped dropdown is only obvious while it
+  is open, and the thing somebody needs to know at a glance -- that a Python
+  cell wants no data source -- has to be readable when it is shut.
+*/
+.notebook-cell-runs-on {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.notebook-cell-runs-on-select {
+  min-width: 150px;
+}
+
+.notebook-cell-runs-on-said,
+.notebook-cell-runs-on-static {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 900px) {
+  /* The control alone; the sentence is the first thing to go. */
+  .notebook-cell-runs-on-said {
+    display: none;
+  }
+}
