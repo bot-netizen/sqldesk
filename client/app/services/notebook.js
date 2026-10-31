@@ -28,6 +28,11 @@ const Notebook = {
   // Returns a job, in the same shape the query editor already polls.
   runCell: (notebookId, cellId) => axios.post(`api/notebooks/${notebookId}/cells/${cellId}/run`, {}),
   // Cancels the cell that is running. The session and its variables stay.
+  // Every cell, in order, as one job on a worker -- not a loop in the
+  // browser, which would stop halfway through the moment somebody closed the
+  // tab and leave a notebook that looks like it ran.
+  runAll: (notebookId) => axios.post(`api/notebooks/${notebookId}/run`, {}),
+
   stop: (notebookId) => axios.post(`api/notebooks/${notebookId}/stop`, {}),
   // Lets the interpreter go. Variables go with it; the handoffs do not, so the
   // notebook still reads and still re-runs.

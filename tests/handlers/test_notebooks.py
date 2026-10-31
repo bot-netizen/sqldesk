@@ -598,3 +598,82 @@ class TestACellsTitle(NotebookApiTestCase):
         )
 
         self.assertEqual("Orders, cleaned", answer.json["title"])
+
+
+class TestRunningTheWholeNotebook(NotebookApiTestCase):
+    """
+    Run all, as one job on a worker.
+
+    Not a loop in the browser: a chain run from the page stops the moment
+    somebody closes the tab, halfway through, leaving a notebook whose first
+    four cells are new and whose last six are old — which looks exactly like a
+    notebook that ran.
+    """
+
+    def run_all(self, notebook, user=None):
+        return self.make_request(
+            "post", "/api/notebooks/{}/run".format(notebook.id), data={}, user=user or self.factory.user
+        )
+
+    def test_it_enqueues_one_job_for_the_notebook(self):
+        notebook = self.a_notebook()
+        self.a_cell(notebook, source="SELECT 1", data_source=self.factory.data_source)
+        self.a_cell(notebook, name="summary", source="SELECT 1 FROM orders", position=1)
+
+        with mock.patch("sqldesk.handlers.notebooks.run_notebook.delay") as delayed:
+            delayed.return_value = _AJob()
+            answer = self.run_all(notebook)
+
+        self.assertEqual(200, answer.status_code)
+        delayed.assert_called_once_with(notebook.id, self.factory.user.id)
+
+    def test_an_empty_notebook_is_refused_rather_than_queued(self):
+        notebook = self.a_notebook()
+
+        with mock.patch("sqldesk.handlers.notebooks.run_notebook.delay") as delayed:
+            answer = self.run_all(notebook)
+
+        self.assertEqual(400, answer.status_code)
+        delayed.assert_not_called()
+
+    def test_a_first_cell_that_cannot_run_stops_it_before_the_queue(self):
+        """
+        The common mistake — a first cell with no data source and nothing above
+        it to read — is a sentence, not a job that fails a second later.
+        """
+        notebook = self.a_notebook()
+        self.a_cell(notebook, name="summary", source="SELECT 1")
+
+        with mock.patch("sqldesk.handlers.notebooks.run_notebook.delay") as delayed:
+            answer = self.run_all(notebook)
+
+        self.assertEqual(400, answer.status_code)
+        self.assertIn("nothing below it", answer.json["message"])
+        delayed.assert_not_called()
+
+    def test_a_later_cell_waiting_on_the_one_above_does_not_stop_it(self):
+        """
+        A later cell that cannot run *yet* is usually one waiting for the cell
+        above it. Refusing the whole notebook for that would make Run all
+        unusable on exactly the notebooks it exists for.
+        """
+        notebook = self.a_notebook()
+        self.a_cell(notebook, name="orders", source="SELECT 1", data_source=self.factory.data_source)
+        self.a_cell(notebook, name="summary", source="SELECT count(*) FROM orders", position=1)
+
+        with mock.patch("sqldesk.handlers.notebooks.run_notebook.delay") as delayed:
+            delayed.return_value = _AJob()
+            answer = self.run_all(notebook)
+
+        self.assertEqual(200, answer.status_code)
+        delayed.assert_called_once()
+
+    def test_somebody_who_may_not_edit_it_is_refused(self):
+        notebook = self.a_notebook(user=self.factory.create_user())
+        self.a_cell(notebook, source="SELECT 1", data_source=self.factory.data_source)
+
+        with mock.patch("sqldesk.handlers.notebooks.run_notebook.delay") as delayed:
+            answer = self.run_all(notebook)
+
+        self.assertIn(answer.status_code, (403, 404))
+        delayed.assert_not_called()

@@ -40,7 +40,7 @@ from sqldesk.permissions import (
     view_only,
 )
 from sqldesk.serializers import serialize_job
-from sqldesk.tasks.notebooks import run_cell
+from sqldesk.tasks.notebooks import run_cell, run_notebook
 
 logger = logging.getLogger(__name__)
 
@@ -439,6 +439,44 @@ class CellRunResource(BaseResource):
         _may_use(cell, self.current_user)
 
         job = run_cell.delay(cell.id, self.current_user.id)
+        job.meta["org_id"] = self.current_org.id
+        job.meta["user_id"] = self.current_user.id
+        job.save_meta()
+        return serialize_job(job)
+
+
+class NotebookRunResource(BaseResource):
+    @require_feature(features.USE_NOTEBOOKS)
+    def post(self, notebook_id):
+        """
+        Run every cell, in order, as one job.
+
+        Enqueued whole rather than cell by cell from the browser: a chain run
+        from the page would stop the moment somebody closed the tab, halfway
+        through, leaving a notebook whose first four cells are new and whose
+        last six are old -- which looks exactly like a notebook that ran.
+
+        Refused up front when there is nothing runnable, so the common mistake
+        -- an empty notebook, or a first cell with no data source -- is a
+        sentence rather than a job that fails a second later.
+        """
+        notebook = _notebook(notebook_id, self.current_org, self.current_user, modifying=True)
+        cells = sorted(notebook.cells, key=lambda one: one.position)
+        if not cells:
+            abort(400, message="This notebook has no cells to run.")
+
+        # The first cell's refusal, because that is the one that stops
+        # everything below it. The rest are not checked here: a later cell
+        # that cannot run *yet* is usually one waiting for the cell above it,
+        # and refusing the whole notebook for that would make Run all
+        # unusable on exactly the notebooks it is for.
+        problem = cell_runner.why_it_cannot_run(cells[0], notebook.cells)
+        if problem:
+            abort(400, message="{} cannot run, so nothing below it can: {}".format(cells[0].name, problem))
+        for cell in cells:
+            _may_use(cell, self.current_user)
+
+        job = run_notebook.delay(notebook.id, self.current_user.id)
         job.meta["org_id"] = self.current_org.id
         job.meta["user_id"] = self.current_user.id
         job.save_meta()

@@ -30,6 +30,12 @@ logger = logging.getLogger(__name__)
 TIMEOUT = 900
 
 
+#: A whole notebook is every cell's deadline end to end, so it cannot be the
+#: single-cell one. Still finite: a worker holding a job nobody is waiting for
+#: is a worker nobody else can use.
+WHOLE_NOTEBOOK_TIMEOUT = 3600
+
+
 @job("queries", timeout=TIMEOUT, ttl=TIMEOUT)
 def run_cell(cell_id, user_id):
     """
@@ -45,6 +51,31 @@ def run_cell(cell_id, user_id):
         return {"error": "That cell has been deleted."}
     user = models.User.query.get(user_id)
 
+    record, refusal = _guarded(cell, user, user_id)
+    if refusal:
+        return {"error": refusal}
+
+    models.db.session.commit()
+    if record.state == models.NotebookRun.FAILED:
+        return {"error": record.error}
+    # The id itself, not a dict around it: `serialize_job` puts whatever a job
+    # returns into `query_result_id`, so anything richer would hand the page a
+    # dict where it reads an id. What else the page needs -- staleness, what a
+    # cell now reads -- it gets by refetching the notebook, which it has to do
+    # anyway because a run changes the cells below this one.
+    return cell.latest_result_id
+
+
+def _guarded(cell, user, user_id):
+    """
+    Run one cell inside its data source's pool slot.
+
+    Answers `(record, None)` or `(None, sentence)`. Shared by the single-cell
+    job and the whole-notebook one so a cell run as part of a chain takes a
+    slot on exactly the same terms as one somebody pressed Run on -- the
+    warehouse's connection limit does not get larger because a notebook is
+    running itself.
+    """
     slot = None
     try:
         if cell.reaches_a_data_source and cell.data_source:
@@ -56,28 +87,55 @@ def run_cell(cell_id, user_id):
             refusal = pools.acquire(pool, slot, owner=user_id, limit=pools.budget(pool, cell.data_source))
             if refusal:
                 slot = None
-                return {"error": refusal}
-        record = _run(cell, user)
+                return None, refusal
+        return _run(cell, user), None
     except run.CannotRun as e:
         # The sentence the page was already showing. Not a failure of ours.
-        return {"error": str(e)}
+        return None, str(e)
     except Exception as e:
-        logger.exception("notebook cell %s could not be run", cell_id)
+        logger.exception("notebook cell %s could not be run", cell.id)
         models.db.session.rollback()
-        return {"error": str(e)}
+        return None, str(e)
     finally:
         if slot:
             pools.release(pools.pool_for(cell.data_source), slot)
 
-    models.db.session.commit()
-    if record.state == models.NotebookRun.FAILED:
-        return {"error": record.error}
-    # The id itself, not a dict around it: `serialize_job` puts whatever a job
-    # returns into `query_result_id`, so anything richer would hand the page a
-    # dict where it reads an id. What else the page needs -- staleness, what a
-    # cell now reads -- it gets by refetching the notebook, which it has to do
-    # anyway because a run changes the cells below this one.
-    return cell.latest_result_id
+
+@job("queries", timeout=WHOLE_NOTEBOOK_TIMEOUT, ttl=WHOLE_NOTEBOOK_TIMEOUT)
+def run_notebook(notebook_id, user_id):
+    """
+    Run every cell, in order, and stop at the first one that fails.
+
+    **Stopping is the point.** A notebook is a chain: if cell two failed, cell
+    three reads what cell two did not produce, and running it would either
+    refuse or -- worse -- succeed against cell two's *previous* output and put
+    a number on the screen computed from data that no longer matches the cell
+    above it. One failure, reported against the cell that caused it, is the
+    honest answer.
+
+    Committed per cell rather than at the end, so a chain that stops at cell
+    seven leaves the first six on the page as results somebody can look at.
+    """
+    notebook = models.Notebook.query.get(notebook_id)
+    if notebook is None:
+        return {"error": "That notebook has been deleted."}
+    user = models.User.query.get(user_id)
+
+    ran = 0
+    for cell in sorted(notebook.cells, key=lambda one: one.position):
+        record, refusal = _guarded(cell, user, user_id)
+        if refusal:
+            models.db.session.commit()
+            return {"error": "{} stopped the run: {}".format(cell.name, refusal), "ran": ran}
+        models.db.session.commit()
+        if record.state == models.NotebookRun.FAILED:
+            return {"error": "{} failed: {}".format(cell.name, record.error), "ran": ran}
+        ran += 1
+
+    # A dict, not an id: there is no single result to show -- the page
+    # refetches the notebook, which it must do anyway because every cell has
+    # changed.
+    return {"ran": ran}
 
 
 def _run(cell, user):

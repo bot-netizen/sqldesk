@@ -15,7 +15,7 @@ from unittest import mock
 from sqldesk import models, pools
 from sqldesk.models import db
 from sqldesk.notebooks import run as cell_runner
-from sqldesk.tasks.notebooks import run_cell
+from sqldesk.tasks.notebooks import run_cell, run_notebook
 from tests import BaseTestCase
 
 
@@ -160,3 +160,116 @@ def _ok():
     record = models.NotebookRun(state=models.NotebookRun.OK)
     record.id = 1
     return record
+
+
+class TestRunningTheWholeNotebook(CellJobTestCase):
+    """
+    Run all, and the rule that makes it trustworthy: it stops.
+
+    A notebook is a chain. If cell two failed, cell three reads what cell two
+    did not produce -- and running it anyway would either refuse or, worse,
+    succeed against cell two's *previous* output and put a number on the
+    screen computed from data that no longer matches the cell above it.
+    """
+
+    def chain(self, how_many=3):
+        cells = []
+        for n in range(how_many):
+            cell = models.NotebookCell(
+                notebook=self.notebook,
+                name="cell_{}".format(n),
+                source="SELECT 1",
+                position=n,
+                kind=models.NotebookCell.SQL,
+                data_source=self.factory.data_source if n == 0 else None,
+            )
+            db.session.add(cell)
+            cells.append(cell)
+        db.session.commit()
+        return cells
+
+    def test_it_runs_every_cell_in_order(self):
+        self.chain(3)
+        seen = []
+
+        with mock.patch("sqldesk.tasks.notebooks._run") as ran:
+            ran.side_effect = lambda cell, user: (seen.append(cell.name), _ok())[1]
+            answer = run_notebook(self.notebook.id, self.factory.user.id)
+
+        self.assertEqual(["cell_0", "cell_1", "cell_2"], seen)
+        self.assertEqual({"ran": 3}, answer)
+
+    def test_it_stops_at_the_first_failure_and_says_which_cell(self):
+        self.chain(3)
+        seen = []
+
+        def fail_on_the_second(cell, user):
+            seen.append(cell.name)
+            if cell.name == "cell_1":
+                record = models.NotebookRun(state=models.NotebookRun.FAILED, error="no such column")
+                record.id = 2
+                return record
+            return _ok()
+
+        with mock.patch("sqldesk.tasks.notebooks._run", side_effect=fail_on_the_second):
+            answer = run_notebook(self.notebook.id, self.factory.user.id)
+
+        self.assertEqual(["cell_0", "cell_1"], seen, "it carried on past a failure")
+        self.assertIn("cell_1", answer["error"])
+        self.assertIn("no such column", answer["error"])
+
+    def test_how_many_got_through_before_it_stopped(self):
+        """
+        So the page can say "two of five ran" rather than only that something
+        went wrong -- the first two results are real and on the screen.
+        """
+        self.chain(5)
+
+        def fail_on_the_third(cell, user):
+            if cell.name == "cell_2":
+                record = models.NotebookRun(state=models.NotebookRun.FAILED, error="boom")
+                record.id = 3
+                return record
+            return _ok()
+
+        with mock.patch("sqldesk.tasks.notebooks._run", side_effect=fail_on_the_third):
+            answer = run_notebook(self.notebook.id, self.factory.user.id)
+
+        self.assertEqual(2, answer["ran"])
+
+    def test_a_refusal_stops_it_as_a_failure_does(self):
+        self.chain(3)
+
+        with mock.patch("sqldesk.tasks.notebooks._run") as ran:
+            ran.side_effect = cell_runner.CannotRun("This cell has no SQL in it yet.")
+            answer = run_notebook(self.notebook.id, self.factory.user.id)
+
+        self.assertIn("cell_0", answer["error"])
+        self.assertEqual(0, answer["ran"])
+
+    def test_a_deleted_notebook_is_a_sentence_rather_than_a_crash(self):
+        notebook_id = self.notebook.id
+        db.session.delete(self.notebook)
+        db.session.commit()
+
+        answer = run_notebook(notebook_id, self.factory.user.id)
+
+        self.assertIn("deleted", answer["error"])
+
+    def test_each_sql_cell_takes_a_slot_on_the_same_terms_as_a_single_run(self):
+        """
+        The warehouse's connection limit does not get larger because a
+        notebook is running itself rather than a person pressing Run.
+        """
+        cells = self.chain(2)
+        cells[1].data_source = self.factory.data_source
+        db.session.commit()
+        pool = pools.pool_for(self.factory.data_source)
+        held = []
+
+        with mock.patch("sqldesk.tasks.notebooks._run") as ran:
+            ran.side_effect = lambda cell, user: (held.append(len(dict(pools.held(pool)))), _ok())[1]
+            run_notebook(self.notebook.id, self.factory.user.id)
+
+        self.assertEqual([1, 1], held, "a cell ran without taking a slot")
+        self.assertEqual({}, dict(pools.held(pool)), "a slot was not given back")

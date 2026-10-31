@@ -57,7 +57,20 @@ describe("opening a notebook", () => {
   it("says a notebook with no cells starts with SQL, because a code cell cannot query", async () => {
     const page = await open(fixture({ cells: [] }));
 
-    expect(page.find("Alert.notebook-empty").prop("description")).toContain("cannot query");
+    // Read off the rendered text rather than the prop: the description is
+    // several paragraphs now, and a prop assertion would only have been
+    // checking that it is still a string.
+    expect(page.find("Alert.notebook-empty").text()).toContain("cannot query");
+  });
+
+  it("says what a notebook is for, to somebody who arrived from Queries", async () => {
+    const page = await open(fixture({ cells: [] }));
+    const said = page.find("Alert.notebook-empty").text();
+
+    expect(said).toContain("one SELECT cannot hold");
+    // The sentence that is the actual argument for using it rather than a
+    // notebook on somebody's laptop.
+    expect(said).toContain("permissions");
   });
 
   it("offers Publish only while it is a draft", async () => {

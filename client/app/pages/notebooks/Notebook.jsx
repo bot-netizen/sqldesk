@@ -13,6 +13,7 @@ import LoadingState from "@/components/items-list/components/LoadingState";
 import notification from "@/services/notification";
 import Notebook from "@/services/notebook";
 import DataSource from "@/services/data-source";
+import { fetchDataFromJob } from "@/services/query-result";
 
 import NotebookCell from "./NotebookCell";
 import "./notebook.less";
@@ -99,6 +100,28 @@ function NotebookPage({ notebookId }) {
     Notebook.save(notebookId, { is_draft: false }).then(setNotebook);
   }, [notebookId]);
 
+  /*
+    Run the whole chain.
+
+    `running` is set to the string "all" rather than a cell id: every cell's
+    Run is disabled while anything runs, and the page has one flag for that.
+    A cell id would be a lie about which cell is going.
+  */
+  const runAll = useCallback(() => {
+    setRunning("all");
+    Notebook.runAll(notebookId)
+      .then((response) => fetchDataFromJob(response.job.id))
+      .then(() => notification.success("The notebook ran."))
+      .catch((reason) => {
+        const message = reason && reason.message ? reason.message : String(reason || "The notebook did not finish.");
+        notification.error(message);
+      })
+      .finally(() => {
+        setRunning(null);
+        load();
+      });
+  }, [notebookId, load]);
+
   if (loadError) {
     return <Alert type="warning" showIcon message={loadError} className="notebook-load-error" />;
   }
@@ -132,6 +155,13 @@ function NotebookPage({ notebookId }) {
         </div>
         <span className="notebook-header-spacer" />
         <InterpreterState state={interpreterState} onDetach={detach} />
+        {notebook.can_edit && cells.length > 0 && (
+          <Tooltip title="Run every cell, in order. Stops at the first one that fails.">
+            <Button size="small" onClick={runAll} disabled={!!running} data-test="RunAll">
+              {running === "all" ? "Running…" : "Run all"}
+            </Button>
+          </Tooltip>
+        )}
         {notebook.is_draft && notebook.can_edit && (
           <Button size="small" onClick={publish} data-test="PublishNotebook">
             Publish
@@ -149,13 +179,36 @@ function NotebookPage({ notebookId }) {
         </Link>
       </div>
 
+      {/*
+        What this is, for somebody who arrived from Queries and has no reason
+        to guess. Three lines, on the page rather than in the docs: a feature
+        nobody understands the point of is one nobody opens twice.
+
+        Shown on an empty notebook, where somebody is deciding whether to
+        bother, and dismissible everywhere else -- see NotebookList, which
+        carries the same words for the same reason.
+      */}
       {cells.length === 0 && (
         <Alert
           className="notebook-empty"
           type="info"
           showIcon
-          message="A notebook starts with a SQL cell."
-          description="A code cell cannot query — it reads what a SQL cell above it fetched. So the first cell is always SQL."
+          message="A notebook is for work one SELECT cannot hold."
+          description={
+            <>
+              <p>
+                A query ends in one statement and a dashboard draws what it returned. A notebook chains steps: pull
+                this, join it to that, reshape it in Python, look — each step named, so the next one can read it.
+              </p>
+              <p className="notebook-why-last">
+                It keeps the data source permissions and the result store you already have, which is what people lose
+                the moment they do this work in a notebook on their laptop instead.
+              </p>
+              <p className="notebook-why-last">
+                Start with a SQL cell: a code cell cannot query, it reads what a SQL cell above it fetched.
+              </p>
+            </>
+          }
         />
       )}
 
