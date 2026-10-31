@@ -447,3 +447,4 @@ description: chronological action log per session, consolidated weekly
 | 08:45 | Created client/app/pages/notebooks/NotebookScheduleDialog.jsx | — | ~1039 |
 | 14:52 | Created client/app/pages/notebooks/EditableTitle.jsx | — | ~730 |
 | 14:53 | Created client/app/pages/notebooks/ShareNotebookButton.jsx | — | ~1541 |
+| 15:14 | Created client/app/pages/notebooks/NotebookHelpDialog.jsx | — | ~1235 |

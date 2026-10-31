@@ -283,16 +283,31 @@ describe("the output", () => {
     expect(output.find('[data-test="CellRowCount"]').text()).toContain("4,200,000");
   });
 
-  it("and says nothing when the slice is the whole result", () => {
+  it("says how many rows and how long, when the slice is the whole result", () => {
+    // Two questions people ask of a result before reading a row of it.
     const output = shallow(
       <CellOutput
         cell={aCell({ last_run_at: "x" })}
         produced="table"
-        result={{ data: { columns: [{ name: "id" }], rows: [{ id: 1 }] }, handed_on: 1 }}
+        result={{ data: { columns: [{ name: "id" }], rows: [{ id: 1 }] }, handed_on: 1, runtime: 0.3 }}
       />
     );
 
-    expect(output.find('[data-test="CellRowCount"]').exists()).toBe(false);
+    const said = output.find('[data-test="CellRowCount"]').text();
+    expect(said).toContain("1 row");
+    expect(said).toContain("0.30s");
+  });
+
+  it("still says what the slice is a slice of, when there is more", () => {
+    const output = shallow(
+      <CellOutput
+        cell={aCell({ last_run_at: "x" })}
+        produced="table"
+        result={{ data: { columns: [{ name: "id" }], rows: [{ id: 1 }] }, handed_on: 4200000, runtime: 2.5 }}
+      />
+    );
+
+    expect(output.find('[data-test="CellRowCount"]').text()).toContain("4,200,000");
   });
 
   it("draws the printout when it produced text, since nothing can read it", () => {
@@ -624,5 +639,72 @@ describe("what a cell runs on", () => {
 
     expect(control.find("Select").exists()).toBe(false);
     expect(control.text()).toContain("no data source");
+  });
+});
+
+/*
+  How big a chart is drawn.
+
+  Kept on the cell like the other view settings, so the person who sized a
+  chart to be readable sized it for whoever opens the notebook next.
+*/
+describe("sizing a chart", () => {
+  const withChart = (extras = {}) =>
+    shallow(
+      <CellOutput
+        cell={aCell({ last_run_at: "x", options: { visualization: { type: "CHART", name: "By city", options: {} }, ...extras } })}
+        produced="table"
+        result={{ data: { columns: [{ name: "id" }], rows: [{ id: 1 }] } }}
+        onResizeChart={jest.fn()}
+        onAddVisualization={jest.fn()}
+      />
+    );
+
+  it("draws it at a readable height by default", () => {
+    expect(withChart().find(".notebook-cell-chart-medium").exists()).toBe(true);
+  });
+
+  it("uses the size the cell was given", () => {
+    expect(withChart({ chartHeight: "large" }).find(".notebook-cell-chart-large").exists()).toBe(true);
+  });
+
+  it("offers the three sizes", () => {
+    // Mounted from the Tabs' `tabBarExtraContent`: a prop holding an
+    // element, which shallow does not render into.
+    const extra = mountFully(<div>{withChart().find("Tabs").prop("tabBarExtraContent")}</div>);
+
+    ["small", "medium", "large"].forEach((size) =>
+      expect(extra.find(`[data-test="ChartSize-${size}"]`).exists()).toBe(true)
+    );
+  });
+
+  it("saves the size on the cell rather than in the browser", () => {
+    const onResizeChart = jest.fn();
+    const output = shallow(
+      <CellOutput
+        cell={aCell({ last_run_at: "x", options: { visualization: { type: "CHART", name: "By city", options: {} } } })}
+        produced="table"
+        result={{ data: { columns: [{ name: "id" }], rows: [{ id: 1 }] } }}
+        onResizeChart={onResizeChart}
+      />
+    );
+    const extra = mountFully(<div>{output.find("Tabs").prop("tabBarExtraContent")}</div>);
+    extra.find('[data-test="ChartSize-large"]').first().simulate("click");
+
+    expect(onResizeChart).toHaveBeenCalledWith("large");
+  });
+
+  it("offers no sizes on a cell with no chart to size", () => {
+    const output = shallow(
+      <CellOutput
+        cell={aCell({ last_run_at: "x" })}
+        produced="table"
+        result={{ data: { columns: [{ name: "id" }], rows: [{ id: 1 }] } }}
+        onResizeChart={jest.fn()}
+      />
+    );
+
+    const extra = mountFully(<div>{output.find("Tabs").prop("tabBarExtraContent")}</div>);
+    expect(extra.find('[data-test="ChartSize-large"]').exists()).toBe(false);
   });
 });

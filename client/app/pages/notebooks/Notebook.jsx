@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import cx from "classnames";
+import CaretRightOutlinedIcon from "@ant-design/icons/CaretRightOutlined";
+import QuestionCircleOutlinedIcon from "@ant-design/icons/QuestionCircleOutlined";
 import Alert from "antd/lib/alert";
 import Button from "antd/lib/button";
 import Dropdown from "antd/lib/dropdown";
@@ -19,6 +21,7 @@ import NotebookCell from "./NotebookCell";
 import NotebookScheduleDialog from "./NotebookScheduleDialog";
 import EditableTitle from "./EditableTitle";
 import ShareNotebookButton from "./ShareNotebookButton";
+import NotebookHelpDialog from "./NotebookHelpDialog";
 import "./notebook.less";
 
 /*
@@ -209,7 +212,13 @@ function NotebookPage({ notebookId }) {
         <InterpreterState state={interpreterState} onDetach={detach} />
         {notebook.can_edit && cells.length > 0 && (
           <Tooltip title="Run every cell, in order. Stops at the first one that fails.">
-            <Button size="small" onClick={runAll} disabled={!!running} data-test="RunAll">
+            <Button
+              size="small"
+              icon={<CaretRightOutlinedIcon />}
+              onClick={runAll}
+              disabled={!!running}
+              data-test="RunAll"
+            >
               {running === "all" ? "Running…" : "Run all"}
             </Button>
           </Tooltip>
@@ -234,6 +243,15 @@ function NotebookPage({ notebookId }) {
             </Button>
           </Dropdown>
         )}
+        <Button
+          size="small"
+          type="text"
+          icon={<QuestionCircleOutlinedIcon />}
+          onClick={() => NotebookHelpDialog.showModal({})}
+          data-test="NotebookHelp"
+        >
+          How notebooks work
+        </Button>
         <Link href="notebooks" className="notebook-back">
           All notebooks
         </Link>
@@ -298,6 +316,37 @@ function NotebookPage({ notebookId }) {
 }
 
 /*
+  Jump to a cell.
+
+  `scrollIntoView` alone was not enough, and the reason is the layout: the
+  page does not scroll, `.application-layout-content` does -- it is the
+  element with `overflow-y: auto`. So the scrollable ancestor is found and
+  scrolled by hand, which also lets the cell be offset clear of the top
+  edge rather than jammed against it.
+
+  Falls back to `scrollIntoView` when no scrolling ancestor is found, which
+  is what happens on the public page and in a test.
+*/
+export function scrollToCell(cellId) {
+  const found = document.getElementById(`cell-${cellId}`);
+  if (!found) {
+    return;
+  }
+  let scroller = found.parentElement;
+  while (scroller && scroller !== document.body) {
+    const style = window.getComputedStyle(scroller);
+    const scrolls = /(auto|scroll)/.test(style.overflowY);
+    if (scrolls && scroller.scrollHeight > scroller.clientHeight) {
+      const top = found.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+      scroller.scrollTo({ top: top - 12, behavior: "smooth" });
+      return;
+    }
+    scroller = scroller.parentElement;
+  }
+  found.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/*
   The contents, down the left.
 
   The single biggest reason a Zeppelin notebook of thirty cells is navigable
@@ -309,7 +358,7 @@ function NotebookPage({ notebookId }) {
   furniture.
 */
 export function NotebookContents({ cells }) {
-  if (cells.length < 3) {
+  if (cells.length === 0) {
     return null;
   }
   return (
@@ -325,10 +374,7 @@ export function NotebookContents({ cells }) {
               })}
               onClick={(e) => {
                 e.preventDefault();
-                const found = document.getElementById(`cell-${cell.id}`);
-                if (found) {
-                  found.scrollIntoView({ behavior: "smooth", block: "start" });
-                }
+                scrollToCell(cell.id);
               }}
               data-test={`ContentsEntry-${cell.name}`}
             >

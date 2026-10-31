@@ -118,14 +118,38 @@
   }
 }
 
+/*
+  One row, one baseline.
+
+  White rather than the sunken grey it was: the grey made every cell look
+  like a disabled control, and against a white page it read as a band rather
+  than a header. `align-items: center` with a fixed row height is what keeps
+  the fold arrow, the title, the chip and four icons on the same line --
+  they are different elements at different natural heights, and without it
+  they sit a pixel or two apart each.
+
+  No wrapping: a header that reflows onto two lines on a narrow window is
+  worse than one that lets its title ellipsise.
+*/
 .notebook-cell-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  min-height: 40px;
+  padding: 4px 12px;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface-sunken);
-  flex-wrap: wrap;
+  background: var(--color-surface-raised, #fff);
+  flex-wrap: nowrap;
+
+  > * {
+    flex-shrink: 0;
+  }
+
+  .ant-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 /*
@@ -228,9 +252,28 @@
   margin: 8px 10px 0;
 }
 
+/*
+  The code, flush against the cell.
+
+  It was a bordered, rounded box inside a bordered, rounded card -- two
+  frames around one thing. The cell is the frame; the editor is just the
+  part of it you type in.
+*/
 .notebook-cell-editor {
   height: 160px;
   min-height: 120px;
+  background: var(--color-surface-raised, #fff);
+
+  .ace_editor,
+  .ace-sqldesk {
+    border: none !important;
+    border-radius: 0 !important;
+    background: var(--color-surface-raised, #fff) !important;
+  }
+
+  .ace_gutter {
+    background: var(--color-surface-raised, #fff) !important;
+  }
 }
 
 /*
@@ -636,4 +679,116 @@
 .notebook-title-unset {
   color: var(--color-text-muted);
   font-style: italic;
+}
+
+/* How much came back, and how long it took. */
+.notebook-cell-output-count {
+  padding: 6px 2px 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/*
+  A chart big enough to read.
+
+  Three sizes rather than a drag handle: a handle is fiddly inside a
+  scrolling page, and what people want is not 14 heights, it is "bigger".
+  Kept on the cell, so sizing a chart sizes it for the next reader too.
+*/
+.notebook-cell-chart {
+  width: 100%;
+
+  &.notebook-cell-chart-small {
+    height: 240px;
+  }
+
+  &.notebook-cell-chart-medium {
+    height: 420px;
+  }
+
+  &.notebook-cell-chart-large {
+    height: 680px;
+  }
+}
+
+.notebook-cell-tab-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.notebook-cell-chart-sizes {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-chip, 4px);
+  overflow: hidden;
+  margin-right: 8px;
+}
+
+.notebook-cell-chart-size {
+  width: 26px;
+  min-width: 26px;
+  padding: 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  border-radius: 0;
+
+  &.is-on {
+    background: var(--color-surface-sunken);
+    color: var(--color-text);
+  }
+}
+
+/*
+  How notebooks work, in the page rather than on the docs site.
+
+  The thing people need is one sentence -- a later cell reads an earlier one
+  by its name -- and sending them to a website to learn it means most never
+  do.
+*/
+.notebook-help {
+  max-height: 60vh;
+  overflow: auto;
+
+  > p:first-child {
+    font-size: 14px;
+    color: var(--color-text);
+  }
+
+  pre {
+    margin: 8px 0;
+    padding: 10px 12px;
+    background: var(--color-surface-sunken);
+    border-radius: var(--radius-card, 6px);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    white-space: pre-wrap;
+    border: none;
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 1px 4px;
+    background: var(--color-surface-sunken);
+    border-radius: 3px;
+  }
+}
+
+.notebook-help-rule {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+
+  h4 {
+    margin: 0 0 6px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0 0 6px;
+    font-size: 13px;
+    color: var(--color-text-muted);
+  }
 }

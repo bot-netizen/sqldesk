@@ -1,7 +1,14 @@
 import React from "react";
 import { shallow, mount } from "enzyme";
 import { act } from "react-dom/test-utils";
-import NotebookPage, { InterpreterState, NotebookContents, NotebookSize, countOf, describeSchedule } from "./Notebook";
+import NotebookPage, {
+  InterpreterState,
+  NotebookContents,
+  NotebookSize,
+  countOf,
+  describeSchedule,
+  scrollToCell,
+} from "./Notebook";
 import { NotebookScheduleDialog, matchingPreset } from "./NotebookScheduleDialog";
 
 // A factory inside the mock would be an out-of-scope reference, which jest
@@ -164,9 +171,14 @@ describe("the contents", () => {
     expect(contents.find('[data-test="ContentsEntry-cell_2"]').hasClass("notebook-contents-folded")).toBe(true);
   });
 
-  it("is not drawn for a notebook too small to need it", () => {
-    // A contents list for two cells is furniture.
-    expect(shallow(<NotebookContents cells={cells.slice(0, 2)} />).isEmptyRender()).toBe(true);
+  it("is drawn as soon as there is a cell", () => {
+    // A notebook somebody has just started is exactly when they are least
+    // sure what goes where, so the contents appear with the first cell.
+    expect(shallow(<NotebookContents cells={cells.slice(0, 1)} />).isEmptyRender()).toBe(false);
+  });
+
+  it("is not drawn for a notebook with nothing in it", () => {
+    expect(shallow(<NotebookContents cells={[]} />).isEmptyRender()).toBe(true);
   });
 });
 
@@ -375,5 +387,58 @@ describe("the header's actions", () => {
     });
 
     expect(Notebook.save).not.toHaveBeenCalled();
+  });
+});
+
+/*
+  Jumping to a cell.
+
+  `scrollIntoView` alone did nothing in the real app, and the reason is the
+  layout: the page does not scroll, `.application-layout-content` does. The
+  contents list is the whole reason a cell can be titled, so a contents list
+  that does not move the page is the feature not working.
+*/
+describe("jumping to a cell", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  function pageWith({ scrolls }) {
+    document.body.innerHTML = `
+      <div id="scroller" style="${scrolls ? "overflow-y: auto;" : ""}">
+        <div id="cell-7"></div>
+      </div>`;
+    const scroller = document.getElementById("scroller");
+    // jsdom lays nothing out, so the heights that decide "is this the
+    // scrolling ancestor" are supplied here.
+    Object.defineProperty(scroller, "scrollHeight", { value: scrolls ? 2000 : 10, configurable: true });
+    Object.defineProperty(scroller, "clientHeight", { value: 500, configurable: true });
+    scroller.scrollTo = jest.fn();
+    return scroller;
+  }
+
+  it("scrolls the element that actually scrolls, not the window", () => {
+    const scroller = pageWith({ scrolls: true });
+
+    scrollToCell(7);
+
+    expect(scroller.scrollTo).toHaveBeenCalled();
+    expect(scroller.scrollTo.mock.calls[0][0].behavior).toBe("smooth");
+  });
+
+  it("falls back to scrollIntoView when nothing above it scrolls", () => {
+    pageWith({ scrolls: false });
+    const target = document.getElementById("cell-7");
+    target.scrollIntoView = jest.fn();
+
+    scrollToCell(7);
+
+    expect(target.scrollIntoView).toHaveBeenCalled();
+  });
+
+  it("does nothing, rather than throwing, for a cell that is not on the page", () => {
+    pageWith({ scrolls: true });
+
+    expect(() => scrollToCell(999)).not.toThrow();
   });
 });

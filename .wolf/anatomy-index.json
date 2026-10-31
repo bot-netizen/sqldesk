@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-31T18:53:59.836Z",
-    "fileCount": 706,
+    "lastScanned": "2026-10-31T19:14:39.561Z",
+    "fileCount": 707,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "b30703d4e0a8bc6e6bac29eaad6becc831835d0f65abe113566fd3ec09e37c61",
-    "storeUpdatedAt": "2026-10-31T18:53:59.861Z",
-    "rootHash": "26990bcc2f4e853c"
+    "renderedHash": "59c689f5a5a1699310b62336fbb3e8c0d2fb427b669fb034e37b1b417f1f9b60",
+    "storeUpdatedAt": "2026-10-31T19:14:39.592Z",
+    "rootHash": "a5fc3837c8907bba"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -18302,6 +18302,31 @@
           "startLine": 37,
           "endLine": 145,
           "tokens": 1087
+        }
+      ]
+    },
+    "client/app/pages/notebooks/NotebookHelpDialog.jsx": {
+      "description": "Rule — renders modal",
+      "tokens": 1235,
+      "hash": "797482c7cca3fe3f",
+      "size": 4337,
+      "mtimeMs": 1793474079364.9712,
+      "updatedAt": "2026-10-31T19:14:39.560Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Rule",
+          "kind": "fn",
+          "startLine": 14,
+          "endLine": 22,
+          "tokens": 42
+        },
+        {
+          "name": "NotebookHelpDialog",
+          "kind": "fn",
+          "startLine": 23,
+          "endLine": 100,
+          "tokens": 1034
         }
       ]
     }

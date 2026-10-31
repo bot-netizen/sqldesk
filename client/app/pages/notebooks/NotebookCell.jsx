@@ -17,6 +17,9 @@ import CodeOutlinedIcon from "@ant-design/icons/CodeOutlined";
 import TableOutlinedIcon from "@ant-design/icons/TableOutlined";
 import DownloadOutlinedIcon from "@ant-design/icons/DownloadOutlined";
 import MoreOutlinedIcon from "@ant-design/icons/MoreOutlined";
+import CaretRightOutlinedIcon from "@ant-design/icons/CaretRightOutlined";
+import DownOutlinedIcon from "@ant-design/icons/DownOutlined";
+import RightOutlinedIcon from "@ant-design/icons/RightOutlined";
 
 import { getEditorComponents } from "@/components/queries/editor-components";
 import Notebook from "@/services/notebook";
@@ -231,12 +234,11 @@ export default function NotebookCell({
             type="text"
             className="notebook-cell-fold"
             onClick={() => setOption({ collapsed: !collapsed })}
+            icon={collapsed ? <RightOutlinedIcon /> : <DownOutlinedIcon />}
             data-test="CollapseCell"
             aria-expanded={!collapsed}
             aria-label={collapsed ? "Show this cell" : "Fold this cell away"}
-          >
-            {collapsed ? "▸" : "▾"}
-          </Button>
+          />
         </Tooltip>
         <CellTitle
           cell={cell}
@@ -244,26 +246,32 @@ export default function NotebookCell({
           onChange={(title) => title !== (cell.title || "") && save({ title })}
         />
 
-        <RunsOn
-          cell={cell}
-          dataSources={dataSources}
-          canEdit={canEdit}
-          cluster={cluster}
-          onChange={save}
-        />
         {size(cell.reads) > 0 && (
           <span className="notebook-cell-reads" data-test="CellReads">
             reads {cell.reads.join(", ")}
           </span>
         )}
         <span className="notebook-cell-spacer" />
+        {/*
+          Beside Run, not beside the title: choosing where a cell runs and
+          running it are the same moment, and on the left it read as part of
+          the name.
+        */}
+        <RunsOn cell={cell} dataSources={dataSources} canEdit={canEdit} cluster={cluster} onChange={save} />
         {busy || running === cell.id ? (
           <Button size="small" onClick={stop} data-test="StopCell">
             Stop
           </Button>
         ) : (
           <Tooltip title={notice}>
-            <Button size="small" type="primary" onClick={run} disabled={!!blocked || !!running} data-test="RunCell">
+            <Button
+              size="small"
+              type="primary"
+              icon={<CaretRightOutlinedIcon />}
+              onClick={run}
+              disabled={!!blocked || !!running}
+              data-test="RunCell"
+            >
               Run
             </Button>
           </Tooltip>
@@ -397,6 +405,7 @@ export default function NotebookCell({
           result={result}
           onRemoveChart={removeChart}
           onAddVisualization={canEdit ? visualize : null}
+          onResizeChart={canEdit ? (chartHeight) => setOption({ chartHeight }) : null}
         />
       )}
     </div>
@@ -576,12 +585,15 @@ export function summarise(cell, produced) {
   shown are the truncated slice the server stored for display; the whole result
   is in the notebook's own store, which is what the next cell reads.
 */
-export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisualization }) {
+export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisualization, onResizeChart }) {
   // `result` is the endpoint's answer -- `{id, data, row_count, handed_on}` --
   // so the rows are one level in. Reading it as the rows themselves drew an
   // empty table and an empty printout, which is what the test caught.
   const data = (result && result.data) || null;
   const handedOn = result && result.handed_on;
+  // How long it took, beside how much came back: the two questions somebody
+  // asks of a result before reading a single row of it.
+  const runtime = result && result.runtime;
   // What the cell printed on the way to its table. A cell that prints what it
   // is doing and then shows a dataframe gets both, rather than having to pick
   // -- for `produced === "text"` the printing *is* the output, so it is not
@@ -665,13 +677,45 @@ export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisuali
         when there were four million would be the page implying the handoff is
         as small as the view.
       */}
-      {handedOn > shown && (
-        <div className="notebook-cell-output-count" data-test="CellRowCount">
-          {`first ${shown.toLocaleString()} of ${handedOn.toLocaleString()} rows — the whole result is what the next cell reads`}
-        </div>
-      )}
+      <div className="notebook-cell-output-count" data-test="CellRowCount">
+        {handedOn > shown
+          ? `first ${shown.toLocaleString()} of ${handedOn.toLocaleString()} rows — the whole result is what the next cell reads`
+          : `${(handedOn === null || handedOn === undefined ? shown : handedOn).toLocaleString()} ${
+              (handedOn === null || handedOn === undefined ? shown : handedOn) === 1 ? "row" : "rows"
+            }`}
+        {runtime !== null && runtime !== undefined && ` · ${runtime < 1 ? runtime.toFixed(2) : runtime.toFixed(1)}s`}
+      </div>
     </>
   );
+
+  /*
+    How tall a chart is drawn.
+
+    Kept on the cell like the other view settings, so the person who sized a
+    chart to be readable has sized it for whoever opens the notebook next.
+    Three sizes rather than a drag handle: a handle is a fiddly thing to get
+    right inside a scrolling page, and nobody wants 14 heights, they want
+    "bigger".
+  */
+  const chartHeight = (cell.options || {}).chartHeight || "medium";
+
+  const sizeChart = onResizeChart ? (
+    <span className="notebook-cell-chart-sizes" data-test="ChartSize">
+      {["small", "medium", "large"].map((size_) => (
+        <Button
+          key={size_}
+          type="text"
+          size="small"
+          className={cx("notebook-cell-chart-size", { "is-on": chartHeight === size_ })}
+          onClick={() => onResizeChart(size_)}
+          data-test={`ChartSize-${size_}`}
+          aria-pressed={chartHeight === size_}
+        >
+          {size_ === "small" ? "S" : size_ === "medium" ? "M" : "L"}
+        </Button>
+      ))}
+    </span>
+  ) : null;
 
   const addVisualization = onAddVisualization ? (
     <Button type="link" size="small" onClick={onAddVisualization} data-test="AddVisualization">
@@ -687,7 +731,12 @@ export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisuali
         size="small"
         className="notebook-cell-tabs"
         defaultActiveKey={chart ? "chart" : "table"}
-        tabBarExtraContent={addVisualization}
+        tabBarExtraContent={
+          <span className="notebook-cell-tab-actions">
+            {chart && sizeChart}
+            {addVisualization}
+          </span>
+        }
         animated={false}
         data-test="CellOutputTabs"
       >
@@ -714,7 +763,9 @@ export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisuali
             }
             key="chart"
           >
-            <Renderer type={chart.type} data={data} options={chart.options} visualizationName={chart.name} />
+            <div className={`notebook-cell-chart notebook-cell-chart-${chartHeight}`}>
+              <Renderer type={chart.type} data={data} options={chart.options} visualizationName={chart.name} />
+            </div>
           </Tabs.TabPane>
         )}
       </Tabs>
@@ -728,6 +779,13 @@ CellOutput.propTypes = {
   result: PropTypes.object,
   onRemoveChart: PropTypes.func,
   onAddVisualization: PropTypes.func,
+  onResizeChart: PropTypes.func,
 };
 
-CellOutput.defaultProps = { produced: null, result: null, onRemoveChart: null, onAddVisualization: null };
+CellOutput.defaultProps = {
+  produced: null,
+  result: null,
+  onRemoveChart: null,
+  onAddVisualization: null,
+  onResizeChart: null,
+};
