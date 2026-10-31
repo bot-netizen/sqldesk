@@ -278,6 +278,19 @@ class Store:
         self.connection.execute("COPY (SELECT * FROM {}) TO ? (FORMAT PARQUET)".format(quoted(name)), [path])
         return path
 
+    def export_csv(self, name, path):
+        """
+        A cell's whole relation as CSV, for somebody taking it out of here.
+
+        The *whole* one, deliberately: `query_results` holds a truncated slice
+        for the page to draw, and a download that quietly handed over a
+        thousand rows of four million would be the worst kind of wrong --
+        right-looking. DuckDB writes it straight from the handoff, so nothing
+        is pulled through Python on the way.
+        """
+        self.connection.execute("COPY (SELECT * FROM {}) TO ? (FORMAT CSV, HEADER)".format(quoted(name)), [path])
+        return path
+
     def drop(self, name):
         self.connection.execute("DROP TABLE IF EXISTS {}".format(quoted(name)))
 

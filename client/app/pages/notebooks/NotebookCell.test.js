@@ -9,6 +9,7 @@ jest.mock("@/services/notebook", () => ({
   stop: jest.fn(() => Promise.resolve({ stopped: true })),
   deleteCell: jest.fn(() => Promise.resolve({})),
   cellResult: jest.fn(() => Promise.resolve(null)),
+  downloadUrl: (notebookId, cellId) => `api/notebooks/${notebookId}/cells/${cellId}/download`,
 }));
 jest.mock("@/services/query-result", () => ({ fetchDataFromJob: jest.fn(() => Promise.resolve(1)) }));
 jest.mock("@/services/notification", () => ({ warning: jest.fn(), success: jest.fn() }));
@@ -464,5 +465,56 @@ describe("what a folded cell says for itself", () => {
 
   it("says text", () => {
     expect(summarise(aCell({ last_run_at: "x" }), "text")).toBe("Produced text.");
+  });
+});
+
+/*
+  Taking a result out of here.
+
+  The link points at the endpoint that reads the notebook's own store, which
+  holds the whole handoff -- not at the truncated slice `query_results` keeps
+  for the page. An anchor rather than a click handler, so the browser's own
+  download handles Content-Disposition.
+*/
+describe("downloading a cell's output", () => {
+  const table = { columns: [{ name: "id" }], rows: [{ id: 1 }] };
+
+  function cellWith(extras) {
+    return mountFully(
+      <NotebookCell
+        cell={aCell(extras)}
+        notebookId={7}
+        canEdit
+        onChanged={jest.fn()}
+        onRemoved={jest.fn()}
+        onRunningChanged={jest.fn()}
+      />
+    );
+  }
+
+  it("is offered on a cell that produced a table", () => {
+    const cell = cellWith({ last_run_at: "x", options: { produced: "table" } });
+
+    const link = cell.find('[data-test="DownloadCell"]').first();
+    expect(link.exists()).toBe(true);
+    expect(link.prop("href")).toBe("api/notebooks/7/cells/1/download");
+  });
+
+  it("is not offered on a cell that printed, which has no relation to take", () => {
+    const cell = cellWith({ last_run_at: "x", options: { produced: "text" } });
+
+    expect(cell.find('[data-test="DownloadCell"]').exists()).toBe(false);
+  });
+
+  it("is not offered before the cell has run", () => {
+    const cell = cellWith({ last_run_at: null, options: { produced: "table" } });
+
+    expect(cell.find('[data-test="DownloadCell"]').exists()).toBe(false);
+  });
+
+  it("is hidden with the rest of a folded cell", () => {
+    const cell = cellWith({ last_run_at: "x", options: { produced: "table", collapsed: true } });
+
+    expect(cell.find('[data-test="DownloadCell"]').exists()).toBe(false);
   });
 });

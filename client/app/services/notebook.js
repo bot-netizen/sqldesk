@@ -28,6 +28,11 @@ const Notebook = {
   // Returns a job, in the same shape the query editor already polls.
   runCell: (notebookId, cellId) => axios.post(`api/notebooks/${notebookId}/cells/${cellId}/run`, {}),
   // Cancels the cell that is running. The session and its variables stay.
+  // The whole handoff, not the thousand rows on the page. A link rather
+  // than an axios call: the browser's own download does the right thing with
+  // Content-Disposition, where a fetch would pull the lot into memory first.
+  downloadUrl: (notebookId, cellId) => `api/notebooks/${notebookId}/cells/${cellId}/download`,
+
   // Every cell, in order, as one job on a worker -- not a loop in the
   // browser, which would stop halfway through the moment somebody closed the
   // tab and leave a notebook that looks like it ran.

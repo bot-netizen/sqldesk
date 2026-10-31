@@ -370,3 +370,25 @@
     display: none;
   }
 }
+
+/*
+  Taking a result out of here. Styled as a header action rather than a link,
+  because it sits among buttons -- but it stays an anchor so the browser's own
+  download handles Content-Disposition.
+*/
+.notebook-cell-download {
+  font-size: 13px;
+  padding: 0 7px;
+  color: var(--color-text);
+
+  &:hover {
+    color: var(--color-primary, #2b7ddb);
+    text-decoration: none;
+  }
+}
+
+.notebook-list-size {
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}

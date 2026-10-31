@@ -280,6 +280,23 @@ export default function NotebookCell({
             {hideOutput ? "Show output" : "Hide output"}
           </Button>
         )}
+        {/*
+          The whole result, for somebody moving data rather than looking at
+          it. Only on a cell that produced a relation: there is nothing to
+          take out of a cell that printed.
+        */}
+        {!collapsed && produced === "table" && cell.last_run_at && (
+          <Tooltip title="Download every row — not the slice shown here.">
+            <a
+              className="notebook-cell-download"
+              href={Notebook.downloadUrl(notebookId, cell.id)}
+              download
+              data-test="DownloadCell"
+            >
+              Download
+            </a>
+          </Tooltip>
+        )}
         {canEdit && produced === "table" && result && (
           <Button size="small" type="text" onClick={visualize} data-test="VisualizeCell">
             {(cell.options || {}).visualization ? "Edit chart" : "Chart"}

@@ -21,6 +21,7 @@ from unittest import mock
 
 from sqldesk import models
 from sqldesk.models import db
+from sqldesk.notebooks.store import Store
 from tests import BaseTestCase
 
 
@@ -677,3 +678,156 @@ class TestRunningTheWholeNotebook(NotebookApiTestCase):
 
         self.assertIn(answer.status_code, (403, 404))
         delayed.assert_not_called()
+
+
+class TestDownloadingACellsOutput(NotebookApiTestCase):
+    """
+    A result taken out of here, for somebody moving data rather than looking
+    at it.
+
+    The claim worth testing: it is the **whole** handoff, not the truncated
+    slice `query_results` holds for the page. A download that quietly handed
+    over a thousand rows of four million would be wrong in the way that is
+    hardest to notice — it would look right.
+    """
+
+    def a_cell_that_ran(self, rows, produced="table"):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook, name="orders", data_source=self.factory.data_source, ran=True)
+        cell.options = {"produced": produced}
+        db.session.add(cell)
+        db.session.commit()
+        store = Store(notebook.store_path())
+        try:
+            store.hand_off("orders", [{"name": "id", "friendly_name": "id", "type": "integer"}], rows)
+        finally:
+            store.close()
+        return notebook, cell
+
+    def download(self, notebook, cell, user=None):
+        return self.make_request(
+            "get",
+            "/api/notebooks/{}/cells/{}/download".format(notebook.id, cell.id),
+            user=user or self.factory.user,
+        )
+
+    def test_it_hands_over_csv(self):
+        notebook, cell = self.a_cell_that_ran([{"id": 1}, {"id": 2}])
+
+        answer = self.download(notebook, cell)
+
+        self.assertEqual(200, answer.status_code)
+        self.assertIn("text/csv", answer.headers["Content-Type"])
+        self.assertIn("id", answer.data.decode())
+
+    def test_it_is_the_whole_handoff_and_not_the_slice_on_the_page(self):
+        """
+        The slice is a thousand rows. This writes from the store, so a result
+        larger than the slice comes out whole.
+        """
+        notebook, cell = self.a_cell_that_ran([{"id": n} for n in range(2500)])
+
+        answer = self.download(notebook, cell)
+
+        lines = [one for one in answer.data.decode().splitlines() if one.strip()]
+        self.assertEqual(2501, len(lines), "the header and 2,500 rows")
+
+    def test_it_is_named_after_the_title_somebody_gave_it(self):
+        notebook, cell = self.a_cell_that_ran([{"id": 1}])
+        cell.title = "Orders, cleaned"
+        db.session.add(cell)
+        db.session.commit()
+
+        answer = self.download(notebook, cell)
+
+        self.assertIn("Orders, cleaned.csv", answer.headers["Content-Disposition"])
+
+    def test_a_title_that_would_not_make_a_filename_is_made_into_one(self):
+        notebook, cell = self.a_cell_that_ran([{"id": 1}])
+        cell.title = "Orders / 2026: q1?"
+        db.session.add(cell)
+        db.session.commit()
+
+        answer = self.download(notebook, cell)
+
+        disposition = answer.headers["Content-Disposition"]
+        self.assertNotIn("/", disposition.split("filename=")[1])
+        self.assertNotIn("?", disposition)
+
+    def test_a_cell_that_printed_has_nothing_to_download(self):
+        """There is no relation — a one-column file of printed text would be
+        a worse answer than saying so."""
+        notebook, cell = self.a_cell_that_ran([{"id": 1}], produced="text")
+
+        answer = self.download(notebook, cell)
+
+        self.assertEqual(400, answer.status_code)
+
+    def test_a_cell_that_has_not_run_says_so(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook)
+
+        answer = self.download(notebook, cell)
+
+        self.assertEqual(404, answer.status_code)
+
+
+class TestHowBigTheListSaysEachNotebookIs(NotebookApiTestCase):
+    """
+    Counts beside each name, so the list says something before anybody opens
+    anything.
+
+    Counted with one grouped query over the page rather than two per
+    notebook -- a list of twenty-five would otherwise be fifty round trips to
+    put a number beside a name.
+    """
+
+    def listed(self):
+        answer = self.make_request("get", "/api/notebooks", user=self.factory.user)
+        return {one["name"]: one for one in answer.json["results"]}
+
+    def test_it_counts_the_cells(self):
+        notebook = self.a_notebook(name="Quarter")
+        self.a_cell(notebook, name="a", position=0)
+        self.a_cell(notebook, name="b", position=1)
+
+        self.assertEqual(2, self.listed()["Quarter"]["cell_count"])
+
+    def test_it_counts_a_warehouse_once_however_many_cells_hit_it(self):
+        """
+        Eight cells against one warehouse is one source. "8 data sources"
+        would make a notebook look like it reaches further than it does.
+        """
+        notebook = self.a_notebook(name="Quarter")
+        source = self.factory.data_source
+        self.a_cell(notebook, name="a", position=0, data_source=source)
+        self.a_cell(notebook, name="b", position=1, data_source=source)
+
+        listed = self.listed()["Quarter"]
+        self.assertEqual(2, listed["cell_count"])
+        self.assertEqual(1, listed["data_source_count"])
+
+    def test_a_cell_reading_earlier_cells_counts_as_no_data_source(self):
+        notebook = self.a_notebook(name="Quarter")
+        self.a_cell(notebook, name="a", position=0, data_source=self.factory.data_source)
+        self.a_cell(notebook, name="b", position=1)
+
+        self.assertEqual(1, self.listed()["Quarter"]["data_source_count"])
+
+    def test_an_empty_notebook_says_zero_rather_than_nothing(self):
+        self.a_notebook(name="Empty")
+
+        listed = self.listed()["Empty"]
+        self.assertEqual(0, listed["cell_count"])
+        self.assertEqual(0, listed["data_source_count"])
+
+    def test_each_notebook_is_counted_against_itself(self):
+        small = self.a_notebook(name="Small")
+        big = self.a_notebook(name="Big")
+        self.a_cell(small, name="a", position=0)
+        for n in range(3):
+            self.a_cell(big, name="b{}".format(n), position=n)
+
+        listed = self.listed()
+        self.assertEqual(1, listed["Small"]["cell_count"])
+        self.assertEqual(3, listed["Big"]["cell_count"])

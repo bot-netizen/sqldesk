@@ -23,8 +23,11 @@ replacing it silently is how a notebook lies.
 """
 
 import logging
+import os
+import re
+import tempfile
 
-from flask import request
+from flask import make_response, request
 from flask_restful import abort
 
 from sqldesk import features, models, notebooks
@@ -45,7 +48,35 @@ from sqldesk.tasks.notebooks import run_cell, run_notebook
 logger = logging.getLogger(__name__)
 
 
-def serialize_notebook(notebook, with_cells=False, user=None):
+def sizes_of(notebooks_on_the_page):
+    """
+    How many cells each notebook has, and how many warehouses it touches.
+
+    One grouped query for the whole page rather than two per notebook: a list
+    of twenty-five would otherwise be fifty round trips to say a number beside
+    a name.
+
+    Data sources counted distinctly, so eight cells against one warehouse
+    reads as one source -- "8 data sources" would make a notebook look like it
+    reaches further than it does.
+    """
+    ids = [one.id for one in notebooks_on_the_page]
+    if not ids:
+        return {}
+    rows = (
+        models.db.session.query(
+            models.NotebookCell.notebook_id,
+            models.db.func.count(models.NotebookCell.id),
+            models.db.func.count(models.db.distinct(models.NotebookCell.data_source_id)),
+        )
+        .filter(models.NotebookCell.notebook_id.in_(ids))
+        .group_by(models.NotebookCell.notebook_id)
+        .all()
+    )
+    return {notebook_id: {"cells": cells, "data_sources": sources} for notebook_id, cells, sources in rows}
+
+
+def serialize_notebook(notebook, with_cells=False, user=None, sizes=None):
     one = {
         "id": notebook.id,
         "name": notebook.name,
@@ -58,6 +89,12 @@ def serialize_notebook(notebook, with_cells=False, user=None):
         "can_edit": can_modify(notebook, user) if user else False,
         "options": notebook.options or {},
     }
+    if sizes is not None:
+        # Zeroes rather than a missing key: a notebook with no cells has none
+        # of each, and the list should say so rather than showing nothing.
+        counted = sizes.get(notebook.id) or {}
+        one["cell_count"] = counted.get("cells", 0)
+        one["data_source_count"] = counted.get("data_sources", 0)
     if with_cells:
         cells = notebook.cells
         runs = _inputs_by_cell(notebook)
@@ -192,7 +229,16 @@ class NotebookListResource(BaseResource):
                 )
             )
         query = query.order_by(models.Notebook.updated_at.desc())
-        return paginate(query, page, page_size, lambda one: serialize_notebook(one, user=self.current_user))
+
+        # Counted over the page that is actually returned, not every notebook
+        # in the organisation: `paginate` is given the rows untouched and the
+        # aggregate runs once over those twenty-five.
+        paginated = paginate(query, page, page_size, lambda one: one)
+        sizes = sizes_of(paginated["results"])
+        paginated["results"] = [
+            serialize_notebook(one, user=self.current_user, sizes=sizes) for one in paginated["results"]
+        ]
+        return paginated
 
     @require_feature(features.USE_NOTEBOOKS)
     def post(self):
@@ -443,6 +489,70 @@ class CellRunResource(BaseResource):
         job.meta["user_id"] = self.current_user.id
         job.save_meta()
         return serialize_job(job)
+
+
+class CellDownloadResource(BaseResource):
+    """
+    A cell's output, taken out of here.
+
+    **The whole handoff, not the slice on the page.** `query_results` holds a
+    truncated thousand rows for the page to draw; a download that handed those
+    over as though they were the answer would be wrong in the way that is
+    hardest to notice. This reads the notebook's own store, where the whole
+    relation is.
+
+    Which means a cell that produced text has nothing to download -- there is
+    no relation -- and says so rather than handing over a one-column file.
+    """
+
+    @require_feature(features.USE_NOTEBOOKS)
+    def get(self, notebook_id, cell_id):
+        notebook = _notebook(notebook_id, self.current_org, self.current_user)
+        cell = _cell(notebook, cell_id)
+        _may_use(cell, self.current_user)
+
+        if not cell.last_run_at:
+            abort(404, message="This cell has not run, so there is nothing to download.")
+        if (cell.options or {}).get("produced") != cell_runner.TABLE:
+            abort(400, message="This cell produced text rather than a table, so there is nothing to download.")
+
+        store = Store(notebook.store_path(), read_only=True)
+        handle, path = tempfile.mkstemp(suffix=".csv")
+        os.close(handle)
+        try:
+            store.export_csv(cell.name, path)
+            with open(path, "rb") as written:
+                body = written.read()
+        except Exception:
+            logger.warning("could not export notebook cell %s", cell.id, exc_info=True)
+            abort(409, message="This cell's output is no longer in the notebook's store. Run it again.")
+        finally:
+            store.close()
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
+        self.record_event({"action": "download", "object_id": notebook.id, "object_type": "notebook"})
+        return make_response(
+            body,
+            200,
+            {
+                "Content-Type": "text/csv; charset=UTF-8",
+                # The title where somebody set one, because that is what they
+                # called it -- the name is an identifier and reads like one.
+                "Content-Disposition": 'attachment; filename="{}.csv"'.format(_filename(cell)),
+            },
+        )
+
+
+def _filename(cell):
+    base = (cell.title or cell.name or "cell").strip()
+    # Commas and brackets are legal inside a quoted filename and are the
+    # punctuation people actually title things with; the quote, the backslash
+    # and the path separators are what would break the header or the save.
+    safe = re.sub(r'[\\/:*?"<>|\r\n]', "", base).strip() or cell.name
+    return safe[:120]
 
 
 class NotebookRunResource(BaseResource):

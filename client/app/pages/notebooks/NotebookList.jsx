@@ -16,6 +16,7 @@ import navigateTo from "@/components/ApplicationArea/navigateTo";
 
 import Notebook from "@/services/notebook";
 import { currentUser } from "@/services/auth";
+import "./notebook.less";
 
 /*
   The notebooks somebody may see.
@@ -50,6 +51,27 @@ class NotebookList extends React.Component {
         </span>
       ),
       { title: "Name", field: "name" }
+    ),
+    /*
+      How big each one is, so the list says something before anybody opens
+      anything: a notebook of two cells and a notebook of forty are different
+      propositions, and the name alone does not tell you which you are about
+      to open.
+    */
+    Columns.custom(
+      (text, notebook) => (
+        <span className="notebook-list-size" data-test="NotebookListSize">
+          {notebook.cell_count || 0} {notebook.cell_count === 1 ? "cell" : "cells"}
+          {notebook.data_source_count > 0 && (
+            <>
+              {" · "}
+              {notebook.data_source_count}{" "}
+              {notebook.data_source_count === 1 ? "data source" : "data sources"}
+            </>
+          )}
+        </span>
+      ),
+      { title: "Size", width: "1%" }
     ),
     Columns.custom((text, notebook) => (notebook.user ? notebook.user.name : null), {
       title: "Created By",
