@@ -1,7 +1,7 @@
 import React from "react";
 import { shallow, mount as mountFully } from "enzyme";
 import { act } from "react-dom/test-utils";
-import NotebookCell, { CellOutput } from "./NotebookCell";
+import NotebookCell, { CellOutput, CellTitle, summarise } from "./NotebookCell";
 
 jest.mock("@/services/notebook", () => ({
   saveCell: jest.fn(() => Promise.resolve({})),
@@ -395,5 +395,74 @@ describe("what the cell printed", () => {
 
     expect(output.find('[data-test="CellPrinted"]').text()).toBe("fitted in 0.4s");
     expect(output.find("Renderer").exists()).toBe(true);
+  });
+});
+
+/*
+  The document layer: a title, folding, and the two visibility toggles.
+
+  All three persist on the cell rather than in the browser, which Zeppelin
+  also does and for the same reason: somebody who folds a notebook into a
+  readable report has done work, and that work is for whoever opens it next.
+*/
+describe("the title a person gives a step", () => {
+  it("falls back to the cell's name when there is none", () => {
+    const title = shallow(<CellTitle cell={aCell({ title: null })} canEdit onChange={jest.fn()} />);
+
+    expect(title.find('[data-test="CellTitle"]').text()).toBe("Name this step");
+  });
+
+  it("shows the title once there is one", () => {
+    const title = shallow(<CellTitle cell={aCell({ title: "Orders, cleaned" })} canEdit onChange={jest.fn()} />);
+
+    expect(title.find('[data-test="CellTitle"]').text()).toBe("Orders, cleaned");
+  });
+
+  it("saves what was typed, trimmed", () => {
+    const onChange = jest.fn();
+    const title = shallow(<CellTitle cell={aCell({ title: null })} canEdit onChange={onChange} />);
+    title.find('[data-test="CellTitle"]').simulate("click");
+    title.find('[data-test="CellTitleInput"]').simulate("change", { target: { value: "  Orders  " } });
+    title.find('[data-test="CellTitleInput"]').simulate("blur");
+
+    expect(onChange).toHaveBeenCalledWith("Orders");
+  });
+
+  it("abandons the edit on Escape, keeping what was there", () => {
+    const onChange = jest.fn();
+    const title = shallow(<CellTitle cell={aCell({ title: "Orders" })} canEdit onChange={onChange} />);
+    title.find('[data-test="CellTitle"]').simulate("click");
+    title.find('[data-test="CellTitleInput"]').simulate("change", { target: { value: "Something else" } });
+    title.find('[data-test="CellTitleInput"]').simulate("keydown", { key: "Escape" });
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(title.find('[data-test="CellTitle"]').text()).toBe("Orders");
+  });
+
+  it("offers no editing at all to somebody who may not edit", () => {
+    const title = shallow(<CellTitle cell={aCell({ title: "Orders" })} canEdit={false} onChange={jest.fn()} />);
+    title.find('[data-test="CellTitle"]').simulate("click");
+
+    expect(title.find('[data-test="CellTitleInput"]').exists()).toBe(false);
+  });
+
+  it("shows nothing rather than a prompt to a reader who cannot set one", () => {
+    const title = shallow(<CellTitle cell={aCell({ title: null })} canEdit={false} onChange={jest.fn()} />);
+
+    expect(title.isEmptyRender()).toBe(true);
+  });
+});
+
+describe("what a folded cell says for itself", () => {
+  it("admits it has not run", () => {
+    expect(summarise(aCell({ last_run_at: null }), undefined)).toBe("Not run yet.");
+  });
+
+  it("says a table, so folding hides the work and not the fact of it", () => {
+    expect(summarise(aCell({ last_run_at: "x" }), "table")).toBe("Produced a table.");
+  });
+
+  it("says text", () => {
+    expect(summarise(aCell({ last_run_at: "x" }), "text")).toBe("Produced text.");
   });
 });

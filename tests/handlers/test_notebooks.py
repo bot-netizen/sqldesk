@@ -517,3 +517,84 @@ class TestWhatTheResultEndpointSays(NotebookApiTestCase):
         answer = self.fetch(notebook, cell)
 
         self.assertEqual(404, answer.status_code)
+
+
+class TestACellsTitle(NotebookApiTestCase):
+    """
+    What a person calls a step, as against the name other cells are written
+    against.
+
+    The two are separate on purpose: renaming `name` breaks every cell that
+    refers to it, where a title is prose and breaks nothing. The contents list
+    needs the second one -- `cell_1 … cell_30` is a list nobody reads.
+    """
+
+    def set_title(self, cell, title):
+        return self.make_request(
+            "post",
+            "/api/notebooks/{}/cells/{}".format(cell.notebook_id, cell.id),
+            data={"title": title},
+            user=self.factory.user,
+        )
+
+    def test_a_cell_starts_without_one(self):
+        notebook = self.a_notebook()
+        self.a_cell(notebook)
+
+        answer = self.make_request("get", "/api/notebooks/{}".format(notebook.id), user=self.factory.user)
+
+        self.assertIsNone(answer.json["cells"][0]["title"])
+
+    def test_it_can_be_given_one(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook)
+
+        answer = self.set_title(cell, "Orders, cleaned")
+
+        self.assertEqual(200, answer.status_code)
+        self.assertEqual("Orders, cleaned", answer.json["title"])
+
+    def test_clearing_it_leaves_no_title_rather_than_an_empty_one(self):
+        """
+        The page falls back to the name when there is no title, and "" is not
+        no title -- it is a title that draws as a blank line in the contents.
+        """
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook)
+        self.set_title(cell, "Orders, cleaned")
+
+        answer = self.set_title(cell, "   ")
+
+        self.assertIsNone(answer.json["title"])
+
+    def test_it_does_not_touch_the_name_other_cells_are_written_against(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook, name="orders")
+
+        self.set_title(cell, "Orders, cleaned")
+
+        self.assertEqual("orders", models.NotebookCell.query.get(cell.id).name)
+
+    def test_two_cells_may_share_a_title_though_not_a_name(self):
+        """A title is prose; nothing resolves a reference through it."""
+        notebook = self.a_notebook()
+        first = self.a_cell(notebook, name="orders", position=0)
+        second = self.a_cell(notebook, name="refunds", position=1)
+
+        self.set_title(first, "Takings")
+        answer = self.set_title(second, "Takings")
+
+        self.assertEqual(200, answer.status_code)
+        self.assertEqual("Takings", answer.json["title"])
+
+    def test_a_new_cell_may_be_created_with_one(self):
+        notebook = self.a_notebook()
+
+        answer = self.make_request(
+            "post",
+            "/api/notebooks/{}/cells".format(notebook.id),
+            data={"kind": "sql", "title": "Orders, cleaned"},
+            user=self.factory.user,
+        )
+
+        self.assertEqual("Orders, cleaned", answer.json["title"])

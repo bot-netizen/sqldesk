@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
+import cx from "classnames";
 import Alert from "antd/lib/alert";
 import Button from "antd/lib/button";
 import Dropdown from "antd/lib/dropdown";
@@ -127,6 +128,7 @@ function NotebookPage({ notebookId }) {
           <h3 data-test="NotebookName">{notebook.name}</h3>
           {notebook.is_draft && <span className="notebook-draft">Draft</span>}
           {notebook.description && <p className="notebook-description">{notebook.description}</p>}
+          <NotebookSize cells={cells} />
         </div>
         <span className="notebook-header-spacer" />
         <InterpreterState state={interpreterState} onDetach={detach} />
@@ -157,24 +159,114 @@ function NotebookPage({ notebookId }) {
         />
       )}
 
-      <div className="notebook-cells">
-        {map(cells, (cell) => (
-          <NotebookCell
-            key={cell.id}
-            cell={cell}
-            notebookId={notebook.id}
-            dataSources={dataSources}
-            canEdit={notebook.can_edit}
-            running={running}
-            onRunningChanged={(busy) => setRunning(busy ? cell.id : null)}
-            onChanged={onCellChanged}
-            onRemoved={onCellRemoved}
-          />
-        ))}
+      <div className="notebook-body">
+        <NotebookContents cells={cells} />
+
+        <div className="notebook-cells">
+          {map(cells, (cell) => (
+            <div key={cell.id} id={`cell-${cell.id}`}>
+              <NotebookCell
+                cell={cell}
+                notebookId={notebook.id}
+                dataSources={dataSources}
+                canEdit={notebook.can_edit}
+                running={running}
+                onRunningChanged={(busy) => setRunning(busy ? cell.id : null)}
+                onChanged={onCellChanged}
+                onRemoved={onCellRemoved}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
+
+/*
+  The contents, down the left.
+
+  The single biggest reason a Zeppelin notebook of thirty cells is navigable
+  and ours was not. Titles where somebody set one, names where they did not --
+  a list reading `cell_1 … cell_30` would be a list nobody reads, which is why
+  a cell can be titled at all.
+
+  Hidden rather than empty below three cells: a contents list for two cells is
+  furniture.
+*/
+export function NotebookContents({ cells }) {
+  if (cells.length < 3) {
+    return null;
+  }
+  return (
+    <nav className="notebook-contents" data-test="NotebookContents" aria-label="Contents">
+      <div className="notebook-contents-heading">Contents</div>
+      <ol>
+        {map(cells, (cell) => (
+          <li key={cell.id}>
+            <a
+              href={`#cell-${cell.id}`}
+              className={cx("notebook-contents-entry", `notebook-contents-${cell.kind}`, {
+                "notebook-contents-folded": !!(cell.options || {}).collapsed,
+              })}
+              onClick={(e) => {
+                e.preventDefault();
+                const found = document.getElementById(`cell-${cell.id}`);
+                if (found) {
+                  found.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+              }}
+              data-test={`ContentsEntry-${cell.name}`}
+            >
+              {cell.title || cell.name}
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
+NotebookContents.propTypes = {
+  cells: PropTypes.arrayOf(PropTypes.object).isRequired,
+};
+
+/*
+  How big this notebook is, and how much of the warehouse it touches.
+
+  Data sources counted distinctly rather than per cell: eight cells against
+  one warehouse is one source, and saying "8 data sources" would make a
+  notebook look like it reaches further than it does. The same pair is shown
+  on the list, so the list says something before anybody opens anything.
+*/
+export function countOf(cells) {
+  const sources = new Set();
+  cells.forEach((cell) => cell.data_source_id && sources.add(cell.data_source_id));
+  return { cells: cells.length, dataSources: sources.size };
+}
+
+function plural(n, one, many) {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+export function NotebookSize({ cells }) {
+  const counted = countOf(cells);
+  if (counted.cells === 0) {
+    return null;
+  }
+  return (
+    <span className="notebook-size" data-test="NotebookSize">
+      {plural(counted.cells, "cell", "cells")} ·{" "}
+      {counted.dataSources === 0
+        ? "no data source"
+        : plural(counted.dataSources, "data source", "data sources")}
+    </span>
+  );
+}
+
+NotebookSize.propTypes = {
+  cells: PropTypes.arrayOf(PropTypes.object).isRequired,
+};
 
 NotebookPage.propTypes = {
   notebookId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,

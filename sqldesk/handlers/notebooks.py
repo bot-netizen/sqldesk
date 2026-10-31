@@ -75,6 +75,7 @@ def serialize_cell(cell, cells=None, stale=None, missing=None):
         "id": cell.id,
         "notebook_id": cell.notebook_id,
         "name": cell.name,
+        "title": cell.title,
         "kind": cell.kind,
         "source": cell.source,
         "position": cell.position,
@@ -267,6 +268,7 @@ class CellListResource(BaseResource):
         cell = models.NotebookCell(
             notebook=notebook,
             name=_named(notebook, body.get("name") or _next_name(notebook, kind)),
+            title=(body.get("title") or "").strip() or None,
             kind=kind,
             source=body.get("source") or "",
             # Appended by default. A position given explicitly is the page
@@ -323,6 +325,10 @@ class CellResource(BaseResource):
             renamed = _named(notebook, body["name"], cell=cell)
             _rename_in_the_store(notebook, cell.name, renamed)
             cell.name = renamed
+        if "title" in body:
+            # Emptied rather than set to "": the page shows the name when
+            # there is no title, and an empty string is not "no title".
+            cell.title = (body.get("title") or "").strip() or None
         for field in ("source", "position", "options"):
             if field in body:
                 setattr(cell, field, body[field])

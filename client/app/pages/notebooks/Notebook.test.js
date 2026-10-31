@@ -1,7 +1,7 @@
 import React from "react";
 import { shallow, mount } from "enzyme";
 import { act } from "react-dom/test-utils";
-import NotebookPage, { InterpreterState } from "./Notebook";
+import NotebookPage, { InterpreterState, NotebookContents, NotebookSize, countOf } from "./Notebook";
 
 // A factory inside the mock would be an out-of-scope reference, which jest
 // refuses: each test supplies what `get` should answer with.
@@ -108,5 +108,82 @@ describe("what the header says about the interpreter", () => {
     state.find('[data-test="DetachInterpreter"]').simulate("click");
 
     expect(onDetach).toHaveBeenCalled();
+  });
+});
+
+/*
+  The contents, and the size.
+
+  The contents list is the single biggest reason a Zeppelin notebook of thirty
+  cells is navigable and ours was not -- and the reason a cell can be titled
+  at all, because a list reading `cell_1 … cell_30` is one nobody reads.
+*/
+describe("the contents", () => {
+  const cells = [
+    { id: 1, name: "cell_1", title: "Orders", kind: "sql" },
+    { id: 2, name: "code_1", title: null, kind: "python" },
+    { id: 3, name: "cell_2", title: "Takings", kind: "sql" },
+  ];
+
+  it("lists a title where there is one and the name where there is not", () => {
+    const contents = shallow(<NotebookContents cells={cells} />);
+    const entries = contents.find("a").map((one) => one.text());
+
+    expect(entries).toEqual(["Orders", "code_1", "Takings"]);
+  });
+
+  it("points each entry at its cell", () => {
+    const contents = shallow(<NotebookContents cells={cells} />);
+
+    expect(contents.find('[data-test="ContentsEntry-cell_1"]').prop("href")).toBe("#cell-1");
+  });
+
+  it("marks a folded cell as put away rather than dropping it", () => {
+    const folded = [...cells.slice(0, 2), { ...cells[2], options: { collapsed: true } }];
+    const contents = shallow(<NotebookContents cells={folded} />);
+
+    expect(contents.find('[data-test="ContentsEntry-cell_2"]').hasClass("notebook-contents-folded")).toBe(true);
+  });
+
+  it("is not drawn for a notebook too small to need it", () => {
+    // A contents list for two cells is furniture.
+    expect(shallow(<NotebookContents cells={cells.slice(0, 2)} />).isEmptyRender()).toBe(true);
+  });
+});
+
+describe("how big a notebook is", () => {
+  it("counts a warehouse once however many cells hit it", () => {
+    // Eight cells against one warehouse is one source; saying "8 data sources"
+    // would make a notebook look like it reaches further than it does.
+    const counted = countOf([
+      { id: 1, data_source_id: 4 },
+      { id: 2, data_source_id: 4 },
+      { id: 3, data_source_id: 9 },
+    ]);
+
+    expect(counted).toEqual({ cells: 3, dataSources: 2 });
+  });
+
+  it("does not count a cell that reads earlier cells as a data source", () => {
+    const counted = countOf([{ id: 1, data_source_id: 4 }, { id: 2, data_source_id: null }]);
+
+    expect(counted.dataSources).toBe(1);
+  });
+
+  it("says it in words, singular where it should be", () => {
+    const size = shallow(<NotebookSize cells={[{ id: 1, data_source_id: 4 }]} />);
+
+    expect(size.text()).toContain("1 cell");
+    expect(size.text()).toContain("1 data source");
+  });
+
+  it("says so when nothing touches a warehouse", () => {
+    const size = shallow(<NotebookSize cells={[{ id: 1, data_source_id: null }]} />);
+
+    expect(size.text()).toContain("no data source");
+  });
+
+  it("shows nothing for an empty notebook", () => {
+    expect(shallow(<NotebookSize cells={[]} />).isEmptyRender()).toBe(true);
   });
 });

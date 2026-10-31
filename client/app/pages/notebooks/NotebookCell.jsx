@@ -156,6 +156,22 @@ export default function NotebookCell({
   }, [notebookId, cell, onRemoved]);
 
   /*
+    How this cell is shown, kept on the cell rather than in the browser.
+
+    Zeppelin does the same, and it is the right call for the same reason:
+    somebody who folds a notebook into a readable report has done work, and
+    that work is for whoever opens it next -- not only for their own browser.
+  */
+  const setOption = useCallback(
+    (changes) => save({ options: { ...(cell.options || {}), ...changes } }),
+    [cell, save]
+  );
+
+  const collapsed = !!(cell.options || {}).collapsed;
+  const hideCode = !!(cell.options || {}).hideCode;
+  const hideOutput = !!(cell.options || {}).hideOutput;
+
+  /*
     The refusal, as it applies to what is on the screen rather than to what is
     saved. A cell saves when the editor loses focus, so somebody who has just
     typed into an empty cell would otherwise be told it is empty, with Run
@@ -172,6 +188,24 @@ export default function NotebookCell({
   return (
     <div className={cx("notebook-cell", `notebook-cell-${cell.kind}`)} data-test={`NotebookCell-${cell.name}`}>
       <div className="notebook-cell-header">
+        <Tooltip title={collapsed ? "Show this cell" : "Fold this cell away"}>
+          <Button
+            size="small"
+            type="text"
+            className="notebook-cell-fold"
+            onClick={() => setOption({ collapsed: !collapsed })}
+            data-test="CollapseCell"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? "Show this cell" : "Fold this cell away"}
+          >
+            {collapsed ? "▸" : "▾"}
+          </Button>
+        </Tooltip>
+        <CellTitle
+          cell={cell}
+          canEdit={canEdit}
+          onChange={(title) => title !== (cell.title || "") && save({ title })}
+        />
         <span className="notebook-cell-name" data-test="CellName">
           {cell.name}
         </span>
@@ -218,6 +252,34 @@ export default function NotebookCell({
             </Button>
           </Tooltip>
         )}
+        {/*
+          Code and output hide separately, which is the whole point: reading a
+          finished notebook and writing one want opposite things on screen.
+          Somebody presenting a result wants the SQL gone; somebody debugging
+          wants the table gone and the query in front of them.
+        */}
+        {!collapsed && (
+          <Button
+            size="small"
+            type="text"
+            onClick={() => setOption({ hideCode: !hideCode })}
+            data-test="ToggleCode"
+            aria-pressed={!hideCode}
+          >
+            {hideCode ? "Show code" : "Hide code"}
+          </Button>
+        )}
+        {!collapsed && cell.last_run_at && (
+          <Button
+            size="small"
+            type="text"
+            onClick={() => setOption({ hideOutput: !hideOutput })}
+            data-test="ToggleOutput"
+            aria-pressed={!hideOutput}
+          >
+            {hideOutput ? "Show output" : "Hide output"}
+          </Button>
+        )}
         {canEdit && produced === "table" && result && (
           <Button size="small" type="text" onClick={visualize} data-test="VisualizeCell">
             {(cell.options || {}).visualization ? "Edit chart" : "Chart"}
@@ -230,8 +292,21 @@ export default function NotebookCell({
         )}
       </div>
 
-      {notice && <Alert className="notebook-cell-notice" type="info" showIcon message={notice} data-test="CannotRun" />}
-      {missing.length > 0 && (
+      {/*
+        Folded, the header is the whole cell. The notices below are deliberately
+        folded away with it: a cell somebody has put out of sight is not a cell
+        they want warnings from, and the contents list still carries it.
+      */}
+      {collapsed && (
+        <div className="notebook-cell-folded" data-test="CellFolded">
+          {summarise(cell, produced)}
+        </div>
+      )}
+
+      {!collapsed && notice && (
+        <Alert className="notebook-cell-notice" type="info" showIcon message={notice} data-test="CannotRun" />
+      )}
+      {!collapsed && missing.length > 0 && (
         <Alert
           className="notebook-cell-notice"
           type="error"
@@ -240,7 +315,7 @@ export default function NotebookCell({
           data-test="MissingInputs"
         />
       )}
-      {stale.length > 0 && (
+      {!collapsed && stale.length > 0 && (
         <Alert
           className="notebook-cell-notice"
           type="warning"
@@ -250,18 +325,22 @@ export default function NotebookCell({
         />
       )}
 
-      <QueryEditor
-        className="notebook-cell-editor"
-        syntax={cell.kind === "python" ? "python" : "sql"}
-        value={source}
-        onChange={setSource}
-        onBlur={() => source !== cell.source && save({ source })}
-        autocompleteEnabled={false}
-        schema={[]}
-      />
+      {!collapsed && !hideCode && (
+        <QueryEditor
+          className="notebook-cell-editor"
+          syntax={cell.kind === "python" ? "python" : "sql"}
+          value={source}
+          onChange={setSource}
+          onBlur={() => source !== cell.source && save({ source })}
+          autocompleteEnabled={false}
+          schema={[]}
+        />
+      )}
 
-      {error && <Alert className="notebook-cell-notice" type="error" showIcon message={error} data-test="CellError" />}
-      {cell.last_run_at && !error && (
+      {!collapsed && error && (
+        <Alert className="notebook-cell-notice" type="error" showIcon message={error} data-test="CellError" />
+      )}
+      {!collapsed && !hideOutput && cell.last_run_at && !error && (
         <CellOutput cell={cell} produced={produced} result={result} onRemoveChart={removeChart} />
       )}
     </div>
@@ -284,6 +363,100 @@ NotebookCell.defaultProps = {
   canEdit: false,
   running: null,
 };
+
+/*
+  What a person calls this step.
+
+  Edited in place rather than behind a dialog: a title nobody can be bothered
+  to set is a contents list reading `cell_1 … cell_30`, and a dialog is enough
+  friction to cause exactly that. Falls back to the cell's name, which is
+  always there.
+
+  The name stays visible beside it, because the name is what later cells are
+  written against -- somebody who titles a cell "Orders, cleaned" still needs
+  to know they type `orders` to read it.
+*/
+export function CellTitle({ cell, canEdit, onChange }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(cell.title || "");
+
+  useEffect(() => setDraft(cell.title || ""), [cell.id, cell.title]);
+
+  const commit = useCallback(() => {
+    setEditing(false);
+    onChange(draft.trim());
+  }, [draft, onChange]);
+
+  if (!canEdit) {
+    return cell.title ? (
+      <span className="notebook-cell-title" data-test="CellTitle">
+        {cell.title}
+      </span>
+    ) : null;
+  }
+
+  if (editing) {
+    return (
+      <input
+        className="notebook-cell-title-input"
+        value={draft}
+        autoFocus
+        placeholder="Name this step"
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commit();
+          }
+          if (e.key === "Escape") {
+            setDraft(cell.title || "");
+            setEditing(false);
+          }
+        }}
+        data-test="CellTitleInput"
+      />
+    );
+  }
+
+  return (
+    <span
+      className={cx("notebook-cell-title", { "notebook-cell-title-unset": !cell.title })}
+      onClick={() => setEditing(true)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && setEditing(true)}
+      data-test="CellTitle"
+    >
+      {cell.title || "Name this step"}
+    </span>
+  );
+}
+
+CellTitle.propTypes = {
+  cell: PropTypes.object.isRequired,
+  canEdit: PropTypes.bool,
+  onChange: PropTypes.func.isRequired,
+};
+
+CellTitle.defaultProps = { canEdit: false };
+
+/*
+  One line standing in for a folded cell, so folding does not make it
+  invisible -- somebody scanning a notebook should be able to tell what they
+  have hidden without unfolding each one to find out.
+*/
+export function summarise(cell, produced) {
+  if (!cell.last_run_at) {
+    return "Not run yet.";
+  }
+  if (produced === "text") {
+    return "Produced text.";
+  }
+  if (produced === "table") {
+    return "Produced a table.";
+  }
+  return "Has run.";
+}
 
 /*
   What a cell produced.

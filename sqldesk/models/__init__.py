@@ -2170,6 +2170,12 @@ class NotebookCell(TimestampMixin, db.Model):
     notebook = db.relationship(Notebook, back_populates="cells")
     #: Unique within its notebook, and how every other cell refers to it.
     name = Column(db.String(255))
+    #: What a person calls this step, shown in the contents and on the cell.
+    #: Separate from `name` on purpose: `name` is an identifier other cells
+    #: are written against and renaming it breaks them, where a title is
+    #: prose and changing it breaks nothing. A contents list reading
+    #: `cell_1 ... cell_30` is a contents list nobody reads.
+    title = Column(db.String(255), nullable=True)
     kind = Column(db.String(32), default=SQL)
     source = Column(db.Text, default="")
     #: Where it sits on the page. Order, not identity -- see the class note.
