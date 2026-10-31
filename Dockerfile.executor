@@ -41,11 +41,17 @@ ARG SPARK_VERSION=3.5.3
 # this is the one the RUN below can see.
 ARG PYTHON_VERSION
 
+# matplotlib and plotly are what "end a cell on a chart" means in practice:
+# matplotlib carries seaborn and `df.plot()` with it, and plotly is handed to
+# the browser as a spec rather than rendered here -- so no kaleido and no
+# second headless browser in this image.
 RUN pip install --no-cache-dir \
       pandas==2.3.3 \
       duckdb==2.0.0 \
       flask==3.0.3 \
       gunicorn==23.0.0 \
+      matplotlib==3.10.7 \
+      plotly==6.3.1 \
  && if [ "$WITH_SPARK" = "true" ]; then \
       pip install --no-cache-dir "pyspark[connect]==${SPARK_VERSION}"; \
     fi \
@@ -59,6 +65,11 @@ COPY executor/service.py executor/runner.py executor/spark.py /app/
 RUN useradd --create-home --uid 1000 interpreter
 USER interpreter
 
+# Headless, or importing pyplot tries to find a display that is not there.
+# MPLCONFIGDIR keeps the font cache somewhere writable: without it matplotlib
+# warns on every import and rebuilds the cache each time.
+ENV MPLBACKEND=Agg
+ENV MPLCONFIGDIR=/tmp/matplotlib
 ENV PORT=5000
 EXPOSE 5000
 

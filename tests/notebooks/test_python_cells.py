@@ -696,3 +696,106 @@ class TestWhetherTheInterpreterReachesACluster(BaseTestCase):
 
         with mock.patch.object(interpreter.Interpreter, "_call", side_effect=AssertionError("asked again")):
             self.assertTrue(interpreter.Interpreter().reaches_a_cluster())
+
+
+class TestACellThatEndsOnAChart(PythonCellTestCase):
+    """
+    A picture a Python cell ended on.
+
+    Two kinds, and the difference is the design rather than a preference.
+    matplotlib is already a raster drawing, so it arrives as a PNG. Plotly
+    arrives as its own spec, because rendering it in the executor would need
+    kaleido -- a second headless browser in that image -- to produce
+    something worse, since a Plotly chart that cannot be hovered is most of
+    Plotly thrown away.
+
+    Neither can be read by a later cell: a picture is output, not a relation.
+    """
+
+    def ending_on(self, figure, stdout=""):
+        self.a_sql_cell_that_ran("orders", [{"id": 1, "city": "Toronto"}])
+        code = self.cell("drawn", "orders.plot()", position=1)
+        stand_in = Stand_in(
+            answers=[{"ok": True, "stdout": stdout, "value": None, "result_id": None, "figure": figure}]
+        )
+        record = runner.run_python_cell(code, self.factory.user, interpreter_for=lambda: stand_in)
+        return code, record
+
+    def test_a_png_is_kept_as_the_cells_output(self):
+        code, record = self.ending_on({"kind": "png", "data": "aGVsbG8="})
+
+        self.assertEqual(models.NotebookRun.OK, record.state)
+        self.assertEqual(runner.FIGURE, code.options["produced"])
+        held = json.loads(code.latest_result.data["rows"][0]["figure"])
+        self.assertEqual("png", held["kind"])
+        self.assertEqual("aGVsbG8=", held["data"])
+
+    def test_a_plotly_spec_is_kept_whole(self):
+        spec = '{"data": [{"type": "bar", "y": [1, 2]}], "layout": {}}'
+        code, _ = self.ending_on({"kind": "plotly", "spec": spec})
+
+        held = json.loads(code.latest_result.data["rows"][0]["figure"])
+        self.assertEqual("plotly", held["kind"])
+        self.assertEqual(spec, held["spec"])
+
+    def test_a_later_cell_cannot_read_a_picture(self):
+        """
+        It is output, not a relation -- the same footing as text. `produced`
+        is what says so, and what the page reasons about.
+        """
+        code, _ = self.ending_on({"kind": "png", "data": "aGVsbG8="})
+
+        self.assertNotEqual(runner.TABLE, code.options["produced"])
+
+    def test_what_the_cell_printed_comes_back_with_the_chart(self):
+        _, record = self.ending_on({"kind": "png", "data": "aGVsbG8="}, stdout="fitted in 0.4s\n")
+
+        self.assertEqual("fitted in 0.4s", record.printed)
+
+    def test_a_figure_that_could_not_be_drawn_fails_the_cell_with_its_reason(self):
+        """
+        Rather than storing an error as though it were a picture, which would
+        draw a broken image and say nothing.
+        """
+        self.a_sql_cell_that_ran("orders", [{"id": 1, "city": "Toronto"}])
+        code = self.cell("drawn", "orders.plot()", position=1)
+        stand_in = Stand_in(
+            answers=[
+                {
+                    "ok": True,
+                    "stdout": "",
+                    "value": None,
+                    "result_id": None,
+                    "figure": {"kind": "error", "said": "That figure is too big to show."},
+                }
+            ]
+        )
+
+        record = runner.run_python_cell(code, self.factory.user, interpreter_for=lambda: stand_in)
+
+        self.assertEqual(models.NotebookRun.FAILED, record.state)
+        self.assertIn("too big", record.error)
+
+    def test_a_dataframe_still_wins_over_a_figure(self):
+        """
+        A cell cannot be both, and the frame is the half a later cell can
+        read -- so if the executor ever sends both, the relation is kept.
+        """
+        self.a_sql_cell_that_ran("orders", [{"id": 1, "city": "Toronto"}])
+        code = self.cell("shaped", "orders.head(1)", position=1)
+        stand_in = Stand_in(
+            answers=[
+                {
+                    "ok": True,
+                    "stdout": "",
+                    "value": None,
+                    "result_id": "e" * 32,
+                    "figure": {"kind": "png", "data": "aGVsbG8="},
+                }
+            ],
+            frame=self.parquet([(1, "Toronto")]),
+        )
+
+        runner.run_python_cell(code, self.factory.user, interpreter_for=lambda: stand_in)
+
+        self.assertEqual(runner.TABLE, code.options["produced"])

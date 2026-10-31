@@ -1,0 +1,58 @@
+# A mail server that catches everything and delivers nothing.
+#
+#   kubectl apply -f examples/mailpit.yaml
+#   kubectl port-forward deploy/mailpit 8025:8025      # then http://localhost:8025
+#
+# Point SQLDesk at it:
+#
+#   helm upgrade sqldesk ./charts/sqldesk --reuse-values \
+#     --set extraEnv.SQLDESK_MAIL_SERVER=mailpit \
+#     --set extraEnv.SQLDESK_MAIL_PORT=1025 \
+#     --set extraEnv.SQLDESK_MAIL_DEFAULT_SENDER=alerts@sqldesk.local
+#
+# Every alert email, subscription and invitation then lands in the Mailpit
+# inbox instead of somebody's mailbox, where you can read the HTML and look at
+# the images that were attached. Inline images appear under *Inline* rather
+# than *Attachments*, which is worth knowing before concluding one is missing.
+#
+# For testing only. It accepts any sender and any recipient, holds everything
+# in memory, and has no authentication at all.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailpit
+spec:
+  selector:
+    app: mailpit
+  ports:
+    - name: smtp
+      port: 1025
+      targetPort: 1025
+    - name: http
+      port: 8025
+      targetPort: 8025
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailpit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mailpit
+  template:
+    metadata:
+      labels:
+        app: mailpit
+    spec:
+      containers:
+        - name: mailpit
+          image: axllent/mailpit:v1.21
+          ports:
+            - containerPort: 1025
+            - containerPort: 8025
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 256Mi }

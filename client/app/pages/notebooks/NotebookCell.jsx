@@ -11,6 +11,7 @@ import { map, size } from "lodash";
 import { getEditorComponents } from "@/components/queries/editor-components";
 import Notebook from "@/services/notebook";
 import CellVisualizationDialog from "./CellVisualizationDialog";
+import CellFigure from "./CellFigure";
 import { Renderer } from "@/components/visualizations/visualizationComponents";
 import { fetchDataFromJob } from "@/services/query-result";
 import notification from "@/services/notification";
@@ -550,6 +551,9 @@ export function summarise(cell, produced) {
   if (produced === "text") {
     return "Produced text.";
   }
+  if (produced === "figure") {
+    return "Produced a chart.";
+  }
   if (produced === "table") {
     return "Produced a table.";
   }
@@ -579,6 +583,27 @@ export function CellOutput({ cell, produced, result, onRemoveChart }) {
     return (
       <div className="notebook-cell-output notebook-cell-output-empty" data-test="CellOutput">
         {produced === "text" ? "This cell produced text." : "This cell has run. Its output is not loaded here."}
+      </div>
+    );
+  }
+  if (produced === "figure") {
+    // The spec is stored as JSON in a single cell, the same way text is --
+    // one place a cell's output lives, whatever shape it has.
+    let picture = null;
+    try {
+      const held = data.rows && data.rows[0] && data.rows[0].figure;
+      picture = typeof held === "string" ? JSON.parse(held) : held;
+    } catch (e) {
+      picture = null;
+    }
+    return (
+      <div className="notebook-cell-output" data-test="CellOutput">
+        {printed && (
+          <pre className="notebook-cell-printed" data-test="CellPrinted">
+            {printed}
+          </pre>
+        )}
+        <CellFigure figure={picture} />
       </div>
     );
   }

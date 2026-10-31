@@ -32,6 +32,7 @@ column that is all null stays the type it was.
 """
 
 import ast
+import base64
 import contextlib
 import io
 import os
@@ -61,6 +62,14 @@ MAX_OUTPUT = int(os.environ.get("EXECUTOR_MAX_OUTPUT", str(256 * 1024)))
 #: How long a repr may be. The same argument: nobody reads the 400,000th
 #: character of a dict.
 MAX_REPR = int(os.environ.get("EXECUTOR_MAX_REPR", "10000"))
+
+#: The largest picture a cell may hand back, as encoded bytes.
+#:
+#: A figure is held in Postgres beside the cell's other output and sent to
+#: the browser whole, so this is the number that stops one cell making a
+#: notebook unopenable. Generous enough for a detailed matplotlib figure and
+#: far below anything that would hurt.
+MAX_FIGURE = int(os.environ.get("EXECUTOR_MAX_FIGURE", str(4 * 1024 * 1024)))
 
 
 def limits(memory_mb, cpu_seconds, file_mb, max_processes=0):
@@ -192,6 +201,60 @@ def _frame_out(value, path):
     return path
 
 
+def _as_a_picture(value):
+    """
+    A figure a cell ended on, in a shape the page can draw.
+
+    Two kinds, chosen by what the ecosystem actually is rather than by
+    preference:
+
+    **matplotlib** -- and so seaborn, and pandas' own `.plot()` -- becomes a
+    PNG here. It is already a raster drawing; sending anything else would
+    mean reimplementing matplotlib in the browser.
+
+    **Plotly** becomes its own JSON spec, not a picture. Rendering it here
+    would need kaleido, a second headless browser in the executor image, to
+    produce something worse: a Plotly chart that cannot be hovered is most of
+    Plotly thrown away. The spec is small and the browser already knows what
+    to do with it.
+
+    Nothing is imported to find out. `type(value).__module__` answers the
+    question without putting matplotlib or plotly in this process, which
+    matters because a cell that never plots should pay nothing.
+    """
+    module = type(value).__module__ or ""
+    name = type(value).__name__
+
+    if module.startswith("plotly.") and name in ("Figure", "FigureWidget"):
+        try:
+            spec = value.to_json()
+        except Exception as e:
+            return {"kind": "error", "said": "That Plotly figure could not be read: {}".format(e)}
+        if len(spec) > MAX_FIGURE:
+            return {"kind": "error", "said": "That Plotly figure is too big to show. Plot less of it."}
+        return {"kind": "plotly", "spec": spec}
+
+    if module.startswith("matplotlib."):
+        figure = value
+        if name == "Axes" or hasattr(value, "get_figure"):
+            # `df.plot()` and most seaborn calls hand back an Axes, which is
+            # the commonest way somebody arrives here.
+            figure = value.get_figure()
+        try:
+            import io as _io
+
+            drawn = _io.BytesIO()
+            figure.savefig(drawn, format="png", dpi=110, bbox_inches="tight")
+            raw = drawn.getvalue()
+        except Exception as e:
+            return {"kind": "error", "said": "That figure could not be drawn: {}".format(e)}
+        if len(raw) > MAX_FIGURE:
+            return {"kind": "error", "said": "That figure is too big to show. Try a smaller dpi."}
+        return {"kind": "png", "data": base64.b64encode(raw).decode()}
+
+    return None
+
+
 def _described(value):
     """What to show on the page for a value that is not a dataframe."""
     if value is None:
@@ -238,11 +301,15 @@ def run_cell(namespace, code, parquet_path):
         }
 
     frame = _frame_out(value, parquet_path) if parquet_path else None
+    # A figure only when it is not a dataframe: a cell cannot be both, and a
+    # frame is the thing a later cell can read.
+    picture = None if frame else _as_a_picture(value)
     return {
         "ok": True,
         "stdout": printed.getvalue()[:MAX_OUTPUT],
-        VALUE: None if frame else _described(value),
+        VALUE: None if (frame or picture) else _described(value),
         "frame": frame,
+        "figure": picture,
     }
 
 

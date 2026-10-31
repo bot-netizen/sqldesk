@@ -450,3 +450,20 @@
   font-size: 12px;
   color: var(--color-text-muted);
 }
+
+/*
+  A picture a Python cell ended on. Given room to be a chart rather than a
+  strip, and held to the column width so a wide figure scrolls rather than
+  pushing the page sideways.
+*/
+.notebook-cell-figure {
+  min-height: 240px;
+  max-width: 100%;
+  overflow-x: auto;
+
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+}

@@ -31,7 +31,7 @@ from sqldesk import models
 from sqldesk.models import db
 from sqldesk.notebooks import interpreter
 from sqldesk.notebooks.store import Store
-from sqldesk.utils import gen_query_hash, utcnow
+from sqldesk.utils import gen_query_hash, json_dumps, utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -210,6 +210,10 @@ NOTEBOOK_CELL = "notebook"
 
 TABLE = "table"
 TEXT = "text"
+#: A picture: a PNG from matplotlib, or a Plotly spec. On the same footing as
+#: text -- it is output, and nothing downstream can read it, because it is not
+#: a relation.
+FIGURE = "figure"
 
 
 def _without_a_table(cells, names):
@@ -395,6 +399,21 @@ def _on_the_interpreter(cell, store, talker, session_id, read):
         # choose between the two.
         return columns, rows, total, TABLE, (answer.get("stdout") or "").rstrip()
 
+    picture = answer.get("figure")
+    if picture:
+        if picture.get("kind") == "error":
+            raise RuntimeError(picture.get("said") or "That figure could not be shown.")
+        # Stored where every other result is stored, so the page has one way
+        # to fetch a cell's output -- and so a notebook reopened tomorrow
+        # still draws the picture without re-running anything.
+        return (
+            _as_a_figure(picture),
+            [{"figure": json_dumps(picture)}],
+            None,
+            FIGURE,
+            (answer.get("stdout") or "").rstrip(),
+        )
+
     # Text, not a table. Kept in the same place as every other result so the
     # page has one way to show a cell's output -- but nothing downstream can
     # read it, which is what `produced` records. The printing is already in
@@ -431,6 +450,10 @@ def _printed(answer):
 
 def _as_text(answer):
     return [{"name": "output", "friendly_name": "output", "type": "string"}]
+
+
+def _as_a_figure(picture):
+    return [{"name": "figure", "friendly_name": "figure", "type": "string"}]
 
 
 def _as_an_execution(cell, user):

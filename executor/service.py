@@ -349,6 +349,7 @@ def run(session_id):
             }
         )
     frame = answer.get("frame")
+    figure = answer.get("figure")
     return jsonify(
         {
             "ok": True,
@@ -358,6 +359,10 @@ def run(session_id):
             # which is what the next cell can read and what a visualization can
             # be put on.
             "result_id": result_id if frame else None,
+            # A picture the cell ended on: a PNG for matplotlib, a spec for
+            # Plotly. Nothing downstream can read one -- it is output, not a
+            # relation -- which is the same footing as text.
+            "figure": figure,
         }
     )
 
