@@ -1076,3 +1076,199 @@ class TestWhichNotebooksAreDue(NotebookApiTestCase):
         notebook = self.published(schedule="0 6 * * *", last=utcnow())
 
         self.assertNotIn(notebook, models.Notebook.due())
+
+
+class TestWhichDataSourceANewCellStartsOn(NotebookApiTestCase):
+    """
+    Simplifying the picker for somebody who already has access.
+
+    Almost every SQL cell in a notebook hits the same warehouse as the one
+    above it, and the picker started empty every time -- so adding a cell
+    meant choosing the same thing again, and forgetting to meant a cell that
+    silently read earlier cells instead of the warehouse.
+    """
+
+    def add(self, notebook, body=None):
+        return self.make_request(
+            "post",
+            "/api/notebooks/{}/cells".format(notebook.id),
+            data=body if body is not None else {},
+            user=self.factory.user,
+        )
+
+    def test_it_follows_the_last_sql_cells_warehouse(self):
+        notebook = self.a_notebook()
+        self.a_cell(notebook, name="orders", data_source=self.factory.data_source)
+
+        answer = self.add(notebook)
+
+        self.assertEqual(self.factory.data_source.id, answer.json["data_source_id"])
+
+    def test_it_follows_the_last_one_rather_than_the_first(self):
+        notebook = self.a_notebook()
+        other = self.factory.create_data_source(group=self.factory.default_group)
+        self.a_cell(notebook, name="a", position=0, data_source=self.factory.data_source)
+        self.a_cell(notebook, name="b", position=1, data_source=other)
+
+        answer = self.add(notebook)
+
+        self.assertEqual(other.id, answer.json["data_source_id"])
+
+    def test_a_python_cell_never_gets_one(self):
+        notebook = self.a_notebook()
+        self.a_cell(notebook, name="orders", data_source=self.factory.data_source)
+
+        answer = self.add(notebook, {"kind": "python"})
+
+        self.assertIsNone(answer.json["data_source_id"])
+
+    def test_asking_for_nothing_explicitly_means_read_the_earlier_cells(self):
+        """
+        The distinction the `in body` check exists for: `null` sent on purpose
+        is a choice, not an omission, and guessing over it would make
+        "SQL over earlier cells" unselectable on any notebook that has a
+        warehouse above.
+        """
+        notebook = self.a_notebook()
+        self.a_cell(notebook, name="orders", data_source=self.factory.data_source)
+
+        answer = self.add(notebook, {"data_source_id": None})
+
+        self.assertIsNone(answer.json["data_source_id"])
+
+    def test_a_cell_reading_earlier_cells_is_not_treated_as_a_warehouse(self):
+        notebook = self.a_notebook()
+        self.a_cell(notebook, name="orders", position=0, data_source=self.factory.data_source)
+        self.a_cell(notebook, name="summary", position=1)
+
+        answer = self.add(notebook)
+
+        self.assertEqual(self.factory.data_source.id, answer.json["data_source_id"])
+
+    def test_the_first_cell_takes_the_only_data_source_there_is(self):
+        """
+        No choice to make, so no point making somebody make it.
+        """
+        notebook = self.a_notebook()
+        # Touched on purpose: the factory makes it lazily, so a test that
+        # never mentions it runs against an org with no data sources at all.
+        only = self.factory.data_source
+
+        answer = self.add(notebook)
+
+        self.assertEqual(only.id, answer.json["data_source_id"])
+
+    def test_the_first_cell_guesses_nothing_when_there_are_several(self):
+        notebook = self.a_notebook()
+        self.factory.data_source  # noqa: B018 -- created lazily; see above
+        self.factory.create_data_source(group=self.factory.default_group)
+
+        answer = self.add(notebook)
+
+        self.assertIsNone(answer.json["data_source_id"])
+
+
+class TestSharingANotebook(NotebookApiTestCase):
+    """
+    A link somebody without an account can open.
+
+    Safer than a dashboard's, and the difference is worth holding: a public
+    dashboard re-runs its queries for whoever opens it, where a notebook has
+    nothing to re-run. A reader gets the stored slices exactly as the last
+    run left them, no warehouse is touched, and the interpreter is never
+    reachable.
+    """
+
+    def published(self, user=None):
+        notebook = self.a_notebook(user=user)
+        notebook.is_draft = False
+        db.session.add(notebook)
+        db.session.commit()
+        return notebook
+
+    def share(self, notebook, user=None):
+        return self.make_request(
+            "post", "/api/notebooks/{}/share".format(notebook.id), data={}, user=user or self.factory.user
+        )
+
+    def test_it_hands_back_a_link(self):
+        notebook = self.published()
+
+        answer = self.share(notebook)
+
+        self.assertEqual(200, answer.status_code)
+        self.assertIn("/public/notebooks/", answer.json["public_url"])
+
+    def test_a_draft_cannot_be_shared(self):
+        """What you are still building is not a thing to hand out a link to."""
+        notebook = self.a_notebook(is_draft=True)
+
+        answer = self.share(notebook)
+
+        self.assertEqual(400, answer.status_code)
+
+    def test_the_link_opens_the_notebook_without_an_account(self):
+        notebook = self.published()
+        self.a_cell(notebook, name="orders", ran=True)
+        token = self.share(notebook).json["api_key"]
+
+        answer = self.make_request("get", "/api/notebooks/public/{}".format(token), user=False)
+
+        self.assertEqual(200, answer.status_code)
+        self.assertEqual("orders", answer.json["cells"][0]["name"])
+
+    def test_a_reader_is_told_nothing_about_the_interpreter(self):
+        """
+        There is no Run here, so the refusal sentences and the interpreter
+        state are noise at best and a hint about the install at worst.
+        """
+        notebook = self.published()
+        self.a_cell(notebook, name="orders", ran=True)
+        token = self.share(notebook).json["api_key"]
+
+        answer = self.make_request("get", "/api/notebooks/public/{}".format(token), user=False)
+
+        self.assertNotIn("interpreter", answer.json)
+        self.assertNotIn("cannot_run", answer.json["cells"][0])
+
+    def test_revoking_it_stops_the_link_working(self):
+        notebook = self.published()
+        token = self.share(notebook).json["api_key"]
+
+        self.make_request("delete", "/api/notebooks/{}/share".format(notebook.id), user=self.factory.user)
+        answer = self.make_request("get", "/api/notebooks/public/{}".format(token), user=False)
+
+        self.assertEqual(404, answer.status_code)
+
+    def test_somebody_who_may_not_change_it_cannot_share_it(self):
+        notebook = self.published(user=self.factory.create_user())
+
+        answer = self.share(notebook)
+
+        self.assertIn(answer.status_code, (403, 404))
+
+    def test_an_archived_notebook_is_not_served_through_an_old_link(self):
+        notebook = self.published()
+        token = self.share(notebook).json["api_key"]
+        notebook.is_archived = True
+        db.session.add(notebook)
+        db.session.commit()
+
+        answer = self.make_request("get", "/api/notebooks/public/{}".format(token), user=False)
+
+        self.assertEqual(404, answer.status_code)
+
+    def test_the_owner_sees_the_link_on_the_notebook(self):
+        notebook = self.published()
+        self.share(notebook)
+
+        answer = self.make_request("get", "/api/notebooks/{}".format(notebook.id), user=self.factory.user)
+
+        self.assertIn("/public/notebooks/", answer.json["public_url"])
+
+    def test_an_unshared_notebook_says_so_rather_than_omitting_it(self):
+        notebook = self.published()
+
+        answer = self.make_request("get", "/api/notebooks/{}".format(notebook.id), user=self.factory.user)
+
+        self.assertIsNone(answer.json["public_url"])

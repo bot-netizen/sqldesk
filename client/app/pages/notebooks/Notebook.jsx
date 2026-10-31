@@ -134,6 +134,32 @@ function NotebookPage({ notebookId }) {
     );
   }, [notebook, notebookId]);
 
+  /*
+    A PDF, by way of the browser's own print.
+
+    Not the screenshots service: that is a Chromium container for alert
+    images, it is off in most installs, and a notebook is a document --
+    browsers paginate documents properly and already write PDF. The print
+    stylesheet does the work, and it keeps whatever is folded folded, so the
+    notebook you tidied is the report you get.
+  */
+  const exportPdf = useCallback(() => window.print(), []);
+
+  const share = useCallback(() => {
+    if (notebook.public_url) {
+      return Notebook.unshare(notebookId).then(() => {
+        notification.success("That link no longer works.");
+        load();
+      });
+    }
+    return Notebook.share(notebookId)
+      .then(() => {
+        notification.success("Anyone with the link can now read this notebook.");
+        load();
+      })
+      .catch((reason) => notification.error((reason && reason.message) || "That link could not be made."));
+  }, [notebook, notebookId, load]);
+
   if (loadError) {
     return <Alert type="warning" showIcon message={loadError} className="notebook-load-error" />;
   }
@@ -171,6 +197,24 @@ function NotebookPage({ notebookId }) {
           <Tooltip title="Run every cell, in order. Stops at the first one that fails.">
             <Button size="small" onClick={runAll} disabled={!!running} data-test="RunAll">
               {running === "all" ? "Running…" : "Run all"}
+            </Button>
+          </Tooltip>
+        )}
+        <Tooltip title="Print, or save as a PDF. Folded cells stay folded.">
+          <Button size="small" onClick={exportPdf} data-test="ExportPdf">
+            PDF
+          </Button>
+        </Tooltip>
+        {notebook.can_edit && !notebook.is_draft && (
+          <Tooltip
+            title={
+              notebook.public_url
+                ? `Anyone with the link can read this: ${notebook.public_url}. Click to stop that.`
+                : "Make a link somebody without an account can open. Nothing is re-run for them."
+            }
+          >
+            <Button size="small" onClick={share} data-test="ShareNotebook">
+              {notebook.public_url ? "Shared" : "Share"}
             </Button>
           </Tooltip>
         )}

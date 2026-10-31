@@ -77,7 +77,9 @@ from sqldesk.handlers.notebooks import (
     NotebookResource,
     NotebookRunResource,
     NotebookSessionResource,
+    NotebookShareResource,
     NotebookStopResource,
+    PublicNotebookResource,
 )
 from sqldesk.handlers.permissions import (
     CheckPermissionResource,
@@ -269,6 +271,8 @@ api.add_org_resource(
 api.add_org_resource(
     CellResultResource, "/api/notebooks/<notebook_id>/cells/<cell_id>/result", endpoint="notebook_cell_result"
 )
+api.add_org_resource(PublicNotebookResource, "/api/notebooks/public/<token>", endpoint="public_notebook_api")
+api.add_org_resource(NotebookShareResource, "/api/notebooks/<notebook_id>/share", endpoint="notebook_share")
 api.add_org_resource(NotebookRunResource, "/api/notebooks/<notebook_id>/run", endpoint="notebook_run")
 api.add_org_resource(NotebookStopResource, "/api/notebooks/<notebook_id>/stop", endpoint="notebook_stop")
 api.add_org_resource(NotebookSessionResource, "/api/notebooks/<notebook_id>/session", endpoint="notebook_session")

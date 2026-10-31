@@ -2085,6 +2085,10 @@ class Visualization(TimestampMixin, BelongsToOrgMixin, db.Model):
         }
 
 
+# Registered for the generic foreign key, which is how an ApiKey finds what
+# it belongs to -- a public link to a notebook needs the same lookup a public
+# link to a dashboard uses.
+@gfk_type
 class Notebook(TimestampMixin, BelongsToOrgMixin, db.Model):
     """
     A chain of cells, where everything else here ends in one SELECT.

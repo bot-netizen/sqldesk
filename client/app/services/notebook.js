@@ -28,6 +28,12 @@ const Notebook = {
   // Returns a job, in the same shape the query editor already polls.
   runCell: (notebookId, cellId) => axios.post(`api/notebooks/${notebookId}/cells/${cellId}/run`, {}),
   // Cancels the cell that is running. The session and its variables stay.
+  // A link for somebody without an account. Nothing is re-run for them --
+  // a notebook has no live queries -- so they see the stored slices exactly
+  // as the last run left them.
+  share: (notebookId) => axios.post(`api/notebooks/${notebookId}/share`, {}),
+  unshare: (notebookId) => axios.delete(`api/notebooks/${notebookId}/share`),
+
   // A cron expression, or "" to take it away. Validated on the server,
   // because a typo that does not parse would otherwise quietly mean "never".
   setSchedule: (notebookId, schedule) => axios.post(`api/notebooks/${notebookId}`, { schedule }),

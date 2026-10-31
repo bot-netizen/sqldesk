@@ -27,7 +27,7 @@ import os
 import re
 import tempfile
 
-from flask import make_response, request
+from flask import make_response, request, url_for
 from flask_restful import abort
 
 from sqldesk import features, models, notebooks
@@ -99,6 +99,12 @@ def serialize_notebook(notebook, with_cells=False, user=None, sizes=None):
         one["cell_count"] = counted.get("cells", 0)
         one["data_source_count"] = counted.get("data_sources", 0)
     if with_cells:
+        # The public link is a credential for everything this notebook has
+        # produced, so it is shown to the people who may create and revoke
+        # it -- the same rule a dashboard's follows.
+        if one["can_edit"]:
+            key = models.ApiKey.get_by_object(notebook)
+            one["public_url"] = _public_url(key, notebook.org) if key else None
         cells = notebook.cells
         runs = _inputs_by_cell(notebook)
         stale = notebooks.staleness(cells, runs)
@@ -348,12 +354,59 @@ class CellListResource(BaseResource):
             # Appended by default. A position given explicitly is the page
             # saying where it was inserted.
             position=body.get("position", _next_position(notebook)),
-            data_source_id=body.get("data_source_id") if kind == models.NotebookCell.SQL else None,
+            data_source_id=(
+                _the_obvious_data_source(notebook, body, self.current_user)
+                if kind == models.NotebookCell.SQL
+                else None
+            ),
         )
         _may_use(cell, self.current_user)
         models.db.session.add(cell)
         models.db.session.commit()
         return serialize_cell(cell)
+
+
+def _the_obvious_data_source(notebook, body, user):
+    """
+    Which warehouse a new SQL cell should start on.
+
+    Almost every SQL cell in a notebook hits the same warehouse as the one
+    above it, and the picker started empty every time -- so adding a cell
+    meant choosing the same thing again, and forgetting to meant a cell that
+    silently read earlier cells instead of the warehouse.
+
+    Three rules, in order:
+
+    1. What the page asked for, if it asked. `null` sent explicitly means
+       "read the earlier cells", which is a choice and not an omission --
+       hence the `in body` check rather than a truthiness test.
+    2. The last SQL cell's warehouse, which is what somebody adding a cell to
+       a working notebook almost always wants.
+    3. Nothing, unless this person has exactly one data source to pick from,
+       in which case there is no choice to make and no point making them.
+    """
+    if "data_source_id" in body:
+        return body["data_source_id"]
+
+    above = [
+        one
+        for one in sorted(notebook.cells, key=lambda c: c.position)
+        if one.kind == models.NotebookCell.SQL and one.data_source_id
+    ]
+    if above:
+        return above[-1].data_source_id
+
+    # `all` is already scoped to the groups this person is in, so "one data
+    # source" means one they may actually query -- not one that exists.
+    theirs = (
+        models.DataSource.all(notebook.org)
+        if user.has_permission("admin")
+        else models.DataSource.all(notebook.org, group_ids=user.group_ids)
+    )
+    distinct = {one.id: one for one in theirs}
+    if len(distinct) == 1:
+        return next(iter(distinct))
+    return None
 
 
 def _next_name(notebook, kind):
@@ -605,6 +658,81 @@ def _filename(cell):
     # and the path separators are what would break the header or the save.
     safe = re.sub(r'[\\/:*?"<>|\r\n]', "", base).strip() or cell.name
     return safe[:120]
+
+
+class NotebookShareResource(BaseResource):
+    """
+    A link somebody without an account can open.
+
+    Safer than a dashboard's, and worth saying why: a public dashboard
+    re-runs its queries for whoever opens it, where a notebook has nothing to
+    re-run. A reader gets the stored slices exactly as they were when
+    somebody last ran the notebook -- no warehouse is touched, and the
+    interpreter is never reachable.
+
+    It is still a credential for everything the notebook has already
+    produced, so it is created and revoked by the people who may change the
+    notebook, and it is refused on a draft: what you are still building is
+    not a thing to hand out a link to.
+    """
+
+    @require_feature(features.USE_NOTEBOOKS)
+    def post(self, notebook_id):
+        notebook = _notebook(notebook_id, self.current_org, self.current_user, modifying=True)
+        if notebook.is_draft:
+            abort(400, message="Publish this notebook before sharing a link to it.")
+        api_key = models.ApiKey.create_for_object(notebook, self.current_user)
+        models.db.session.flush()
+        models.db.session.commit()
+        self.record_event({"action": "activate_api_key", "object_id": notebook.id, "object_type": "notebook"})
+        return {"public_url": _public_url(api_key, self.current_org), "api_key": api_key.api_key}
+
+    @require_feature(features.USE_NOTEBOOKS)
+    def delete(self, notebook_id):
+        notebook = _notebook(notebook_id, self.current_org, self.current_user, modifying=True)
+        api_key = models.ApiKey.get_by_object(notebook)
+        if api_key:
+            api_key.active = False
+            models.db.session.add(api_key)
+            models.db.session.commit()
+        self.record_event({"action": "deactivate_api_key", "object_id": notebook.id, "object_type": "notebook"})
+        return {"public_url": None}
+
+
+def _public_url(api_key, org):
+    return url_for("sqldesk.public_notebook", token=api_key.api_key, org_slug=org.slug, _external=True)
+
+
+class PublicNotebookResource(BaseResource):
+    """
+    A notebook as a reader without an account sees it.
+
+    Everything that could reach beyond what is already stored is left out:
+    no interpreter state, no `can_edit`, and the refusal sentences are
+    dropped too -- they exist to tell somebody why Run is disabled, and there
+    is no Run here.
+    """
+
+    @require_feature(features.USE_NOTEBOOKS)
+    def get(self, token):
+        if self.current_org.get_setting("disable_public_urls"):
+            abort(400, message="Public URLs are disabled.")
+
+        if not isinstance(self.current_user, models.ApiUser):
+            api_key = get_object_or_404(models.ApiKey.get_by_api_key, token, self.current_org)
+            notebook = api_key.object
+        else:
+            notebook = self.current_user.object
+
+        if notebook is None or notebook.is_archived or notebook.is_draft:
+            abort(404, message="No such notebook.")
+
+        shown = serialize_notebook(notebook, with_cells=True)
+        shown.pop("interpreter", None)
+        for cell in shown.get("cells", []):
+            cell.pop("cannot_run", None)
+            cell.pop("cannot_run_code", None)
+        return shown
 
 
 class NotebookRunResource(BaseResource):

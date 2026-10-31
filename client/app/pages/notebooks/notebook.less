@@ -12,11 +12,19 @@
   margin: 0 auto;
 }
 
+/*
+  The same header the lists have.
+
+  Deliberately matched to `.list-page-header` rather than merely similar: a
+  notebook opened from the notebooks list should not look like a page from a
+  different product, and the h3 this used to be sat two sizes below every
+  other page's title.
+*/
 .notebook-header {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
   flex-wrap: wrap;
 }
 
@@ -25,13 +33,22 @@
 }
 
 .notebook-title {
+  flex: 1 1 auto;
+  min-width: 0;
+
   h3 {
     margin: 0;
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: var(--color-text);
   }
 }
 
 .notebook-description {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
+  font-size: var(--fs-small);
   color: var(--color-text-muted);
 }
 
@@ -465,5 +482,81 @@
     max-width: 100%;
     height: auto;
     display: block;
+  }
+}
+
+/*
+  The notebook as a printed document.
+
+  "Export as a PDF" is the browser's own print, and this is what makes that
+  worth having rather than a screenshot of a web page: the chrome goes, the
+  cells stop breaking across pages, and a table that scrolls on screen is
+  shown whole on paper because paper does not scroll.
+
+  What stays folded stays folded. Somebody who tidied a notebook into a
+  readable report has already decided what the report is.
+*/
+@media print {
+  .notebook-header-spacer,
+  .notebook-contents,
+  .notebook-back,
+  .notebook-cell-fold,
+  .notebook-cell-runs-on-select,
+  .notebook-cell-download,
+  .notebook-header .ant-btn,
+  .notebook-cell-header .ant-btn,
+  .notebook-cell-title-input {
+    display: none !important;
+  }
+
+  .notebook-body {
+    display: block;
+  }
+
+  .notebook-page {
+    /* Ink on paper: the sunken greys print as muddy bands. */
+    background: none;
+  }
+
+  .notebook-cell {
+    /* A cell split across a page break is the thing that makes a printed
+       notebook unreadable -- its code on one page and its answer on the
+       next. */
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #ddd;
+    margin-bottom: 12px;
+  }
+
+  .notebook-cell-header {
+    background: none;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .notebook-cell-output,
+  .notebook-cell-printed {
+    background: none;
+    /* No scrollbars on paper: show it all, or it is simply missing. */
+    max-height: none;
+    overflow: visible;
+  }
+
+  .notebook-cell-output .ant-table-body,
+  .notebook-cell-output .ant-table-content {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .notebook-cell-editor {
+    /* The editor is a virtualised scroller on screen; on paper it has to be
+       as tall as the code it holds. */
+    height: auto;
+    min-height: 0;
+  }
+
+  .notebook-cell-figure {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    min-height: 0;
   }
 }

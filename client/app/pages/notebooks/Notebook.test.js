@@ -11,9 +11,14 @@ jest.mock("@/services/notebook", () => ({
   addCell: jest.fn(() => Promise.resolve({})),
   detach: jest.fn(() => Promise.resolve({ detached: true })),
   save: jest.fn(() => Promise.resolve({})),
+  runAll: jest.fn(() => Promise.resolve({ job: { id: "j1" } })),
+  setSchedule: jest.fn(() => Promise.resolve({})),
+  share: jest.fn(() => Promise.resolve({ public_url: "http://x/notebooks/public/abc" })),
+  unshare: jest.fn(() => Promise.resolve({ public_url: null })),
 }));
+jest.mock("@/services/query-result", () => ({ fetchDataFromJob: jest.fn(() => Promise.resolve(1)) }));
 jest.mock("@/services/data-source", () => ({ query: jest.fn(() => Promise.resolve([])) }));
-jest.mock("@/services/notification", () => ({ success: jest.fn(), warning: jest.fn() }));
+jest.mock("@/services/notification", () => ({ success: jest.fn(), warning: jest.fn(), error: jest.fn() }));
 jest.mock("./NotebookCell", () => () => null);
 
 const Notebook = require("@/services/notebook");
@@ -272,5 +277,79 @@ describe("the schedule dialog", () => {
   it("matchingPreset only claims a match that is exact", () => {
     expect(matchingPreset("0 6 * * *")).toBe("0 6 * * *");
     expect(matchingPreset("0 6 * * 1")).toBe("custom");
+  });
+});
+
+/*
+  Running the whole thing, printing it, and handing it to somebody.
+
+  Three buttons with three different audiences: Run all is for the author,
+  PDF is for whoever gets sent the report, and Share is for whoever has no
+  account at all.
+*/
+describe("the header's actions", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("offers Run all once there is something to run", async () => {
+    const page = await open(fixture());
+
+    expect(page.find('[data-test="RunAll"]').exists()).toBe(true);
+  });
+
+  it("does not offer Run all on an empty notebook", async () => {
+    const page = await open(fixture({ cells: [] }));
+
+    expect(page.find('[data-test="RunAll"]').exists()).toBe(false);
+  });
+
+  it("runs every cell as one job, not one call per cell", async () => {
+    const page = await open(fixture());
+
+    await act(async () => {
+      page.find('[data-test="RunAll"]').first().simulate("click");
+    });
+
+    expect(Notebook.runAll).toHaveBeenCalledWith(5);
+    expect(Notebook.runAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers a PDF to everybody, because reading is not editing", async () => {
+    const page = await open(fixture({ can_edit: false }));
+
+    expect(page.find('[data-test="ExportPdf"]').exists()).toBe(true);
+  });
+
+  it("offers Share on a published notebook", async () => {
+    const page = await open(fixture({ is_draft: false }));
+
+    expect(page.find('[data-test="ShareNotebook"]').exists()).toBe(true);
+  });
+
+  it("does not offer Share on a draft", async () => {
+    // What you are still building is not a thing to hand out a link to.
+    const page = await open(fixture({ is_draft: true }));
+
+    expect(page.find('[data-test="ShareNotebook"]').exists()).toBe(false);
+  });
+
+  it("makes a link when there is none", async () => {
+    const page = await open(fixture({ public_url: null }));
+
+    await act(async () => {
+      page.find('[data-test="ShareNotebook"]').first().simulate("click");
+    });
+
+    expect(Notebook.share).toHaveBeenCalledWith(5);
+  });
+
+  it("revokes the link when there is one, rather than making a second", async () => {
+    const page = await open(fixture({ public_url: "http://x/notebooks/public/abc" }));
+
+    await act(async () => {
+      page.find('[data-test="ShareNotebook"]').first().simulate("click");
+    });
+
+    expect(Notebook.unshare).toHaveBeenCalledWith(5);
+    expect(Notebook.share).not.toHaveBeenCalled();
   });
 });
