@@ -46,3 +46,35 @@ Delete an entry when it is answered, and write the answer where the work is.
   `extendedAlertOptions` and read by nothing.
 - `dashboards.schedule` and migration `f4b2c8d1e903` are vestigial —
   dashboard schedules were added in 0.2.0 and removed in 0.3.2 by request.
+
+## The backend suite takes 57 minutes on release/0.8, against 21 on main
+
+Measured on CI, same runner class, same workflow: `backend-unit-tests` ran
+**21m09s** on main at v0.7.10 (run 40918598866) and **56m00s** on
+`release/0.8` (run 41346028951, 3430 tests). A 2.7x regression this release
+introduced, and nobody has found it.
+
+What has been ruled out:
+
+- **No pathological test.** The slowest handler test is 2.8s and the
+  distribution is flat at ~0.6s. It is uniform per-test overhead, not one bad
+  case.
+- **Not `create_app`.** 0.855s on the first call, 0.039s thereafter.
+- **Not Postgres tuning.** The dev compose and `.ci/compose.ci.yaml` both run
+  with `fsync=off -c full_page_writes=off -c synchronous_commit=OFF`.
+
+What is known: `BaseTestCase.setUp` does `db.drop_all(); db.create_all()` on
+**every** test, which costs 0.44s against 38 tables -- about 25 minutes across
+the suite on its own. That is mostly pre-existing rather than new, and the
+table count has grown by roughly a tenth this release, which does not account
+for 36 minutes.
+
+**The experiment nobody has run**: time the same `drop_all`/`create_all` probe
+against v0.7.10 and compare. If it is close, the cost is in the test bodies
+and the suite needs a profile; if it is far, the schema is the answer and a
+per-class or per-session schema with transactional rollback per test is worth
+the change.
+
+Does not block 0.8.0-rc.1. Worth settling before 0.8.0 final, because a suite
+nobody will wait an hour for is a suite that stops being run -- which is how
+CI came to be red on this branch for a week without anybody noticing.
