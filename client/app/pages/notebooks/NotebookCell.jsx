@@ -8,7 +8,6 @@ import Tooltip from "antd/lib/tooltip";
 import Table from "antd/lib/table";
 import Tabs from "antd/lib/tabs";
 import PlusOutlinedIcon from "@ant-design/icons/PlusOutlined";
-import CopyOutlinedIcon from "@ant-design/icons/CopyOutlined";
 import CloseOutlinedIcon from "@ant-design/icons/CloseOutlined";
 import { map, size } from "lodash";
 
@@ -197,6 +196,11 @@ export default function NotebookCell({
     [cell, save]
   );
 
+  const collapsed = !!(cell.options || {}).collapsed;
+  const hideCode = !!(cell.options || {}).hideCode;
+  const hideOutput = !!(cell.options || {}).hideOutput;
+  const produced = (cell.options || {}).produced;
+
   /*
     What a cell can do that is not wanted often enough to spend a slot on.
 
@@ -219,10 +223,6 @@ export default function NotebookCell({
     </Menu>
   );
 
-  const collapsed = !!(cell.options || {}).collapsed;
-  const hideCode = !!(cell.options || {}).hideCode;
-  const hideOutput = !!(cell.options || {}).hideOutput;
-
   /*
     The refusal, as it applies to what is on the screen rather than to what is
     saved. A cell saves when the editor loses focus, so somebody who has just
@@ -235,7 +235,6 @@ export default function NotebookCell({
 
   const stale = cell.stale_because_of || [];
   const missing = cell.missing_inputs || [];
-  const produced = (cell.options || {}).produced;
 
   return (
     <div className={cx("notebook-cell", `notebook-cell-${cell.kind}`)} data-test={`NotebookCell-${cell.name}`}>
@@ -639,10 +638,16 @@ export function CellHandle({ cell, canEdit, editing, onEditing, onRename }) {
 
   const copy = useCallback(() => {
     const said = `Cells below this one read it as ${cell.name}.`;
+    // The clipboard is missing on older browsers, on an insecure origin, and
+    // in jsdom. The feature check is the whole line, which the compat rule
+    // cannot see -- and a browser without one is told the name instead, which
+    // is the thing somebody actually needs.
+    // eslint-disable-next-line compat/compat
     if (!navigator.clipboard) {
       notification.warning(said);
       return;
     }
+    // eslint-disable-next-line compat/compat
     navigator.clipboard
       .writeText(cell.name)
       .then(() => notification.success(`Copied. ${said}`))

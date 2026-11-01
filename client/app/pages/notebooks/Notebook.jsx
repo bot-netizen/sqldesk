@@ -85,7 +85,7 @@ function NotebookPage({ notebookId }) {
     DataSource.query()
       .then(setDataSources)
       .catch(() => setDataSources([]));
-  }, [load]);
+  }, [load, loadHandoffs]);
 
   const cells = useMemo(() => sortBy(notebook ? notebook.cells : [], "position"), [notebook]);
 
@@ -124,15 +124,6 @@ function NotebookPage({ notebookId }) {
     },
     [notebookId, load]
   );
-
-  const detach = useCallback(() => {
-    Notebook.detach(notebookId).then(({ detached }) => {
-      notification.success(
-        detached ? "The interpreter has been let go. Your variables went with it." : "No interpreter was attached."
-      );
-      load();
-    });
-  }, [notebookId, load]);
 
   const rename = useCallback(
     (name) => {
