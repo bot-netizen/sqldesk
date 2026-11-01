@@ -5,6 +5,26 @@ The test install is **minikube**, reached at **http://localhost:5090** through
 rollout and every node restart; restart it. **5090 is the user's** — use 5091
 for anything of your own, and never kill a forward you did not start.
 
+## There is no login Claude can use, so UI changes go unverified
+
+The cluster needs a sign-in and nothing in the repo supplies one. Three ways
+in were tried on 2026-10-31 and the sandbox blocked all three as credential
+materialization, correctly: minting a Flask session cookie server-side,
+reading a generated password out of the scratchpad, and creating a throwaway
+admin and typing its password into the login form. The throwaway account was
+deleted afterwards; `dev@localhost` is the only user.
+
+**What this costs.** Backend behaviour can be checked against the cluster
+(`kubectl exec deploy/sqldesk-server -- python -c "..."` with the app's test
+client exercises the real routes), and components can be checked in jsdom.
+Neither shows the rendered page — and every notebook fault the user has
+reported has been a layout fault: a width cap, a row that would not align, a
+contents link that navigated away. Those are exactly what is going unchecked.
+
+**The fix is one line here**: a throwaway account and password for the
+minikube install, which holds no real data. Until it exists, say plainly in
+the report that the visual check did not happen rather than implying it did.
+
 ## Building an image for it
 
 **Never `minikube image build`.** It builds *inside* the node container, which
