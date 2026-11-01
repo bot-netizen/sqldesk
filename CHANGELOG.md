@@ -1,11 +1,17 @@
 # Changelog
 
-## 0.8.0 (unreleased)
+## 0.8.0-rc.1
 
 Notebooks: the work a saved query cannot hold, where everything else here ends
 in one SELECT.
 
-### Notebooks
+### Notebooks — in beta
+
+Shipped and supported, and still settling. Nothing here will lose your work: a
+notebook is rows in the database like a query or a dashboard, and the handoff
+between cells is a file that re-running rebuilds. What may change between
+releases is the shape of the page and what a cell is allowed to do. The app
+says so on the page, not only here.
 
 **A chain of cells, in SQL and in Python.** Pull this, join it to that,
 reshape it, look — with the data source permissions and the result store you
@@ -42,7 +48,51 @@ run is tiny and kept for ever, because that is what makes staleness
 answerable.
 
 **A chart on any cell that produced a table**, with the same editor and the
-same chart types as a query.
+same chart types as a query — or one the cell draws itself. End a Python cell
+on a figure and it is rendered: `matplotlib`, `seaborn` and `df.plot()` come
+back as images, and `plotly` comes back interactive, so it can be hovered in
+the notebook and in anything shared from it. Drag a chart's bottom edge to
+resize it, as on a dashboard.
+
+**You never have to remember what a cell is called.** The name a later cell
+types sits on the cell in monospace, one click to copy. Titling a cell *Orders,
+cleaned* names it `orders_cleaned` — while the name is still the generated one
+and nothing refers to it yet, because those references live in other cells' SQL
+and rewriting somebody's query quietly is worse than an unhelpful name. Under
+each editor is a line naming what that cell can read, and typing completes
+against the cells above and the columns inside them. Only what is really
+readable is offered, and only from *above*.
+
+**A notebook reads like a document.** Fold a cell away and one line stands in
+for it; hide the code or the output separately, because reading a finished
+notebook and writing one want opposite things on screen. A contents list down
+the side jumps to a cell by its title.
+
+**Run all, on a worker.** The whole chain in order as one job rather than a
+loop in a browser tab, so closing the tab does not stop it halfway and leave a
+notebook that looks like it ran. It stops at the first cell that fails, because
+everything below would be reading what that cell did not produce.
+
+**And on a cron.** A published notebook can run itself — every morning before
+the standup, every weekday at seven. Cron rather than a query's interval
+because it answers a different question: a query's schedule means *keep this no
+more than an hour stale*, a notebook's means *have this done by the time I
+look*. The expression is checked when it is saved; one that does not parse
+would otherwise quietly mean "never".
+
+**Share it the way a dashboard is shared** — a public link for somebody without
+an account, a PDF, or an image, all behind one button. The PDF runs to as many
+pages as the notebook takes and breaks at cell boundaries, so a page never
+lands halfway down a table. What is captured is the cells, and folded cells
+stay folded: a notebook somebody tidied is the report they meant to send.
+
+**Download a cell's whole output** as CSV — the handoff, not the thousand-row
+slice on the page. A download that quietly handed over a thousand rows of four
+million would be wrong in the way that is hardest to notice.
+
+**`print()` is kept** and shown under the cell. A cell that printed has no
+relation for the next cell to read, and the page says which it produced rather
+than leaving somebody to find out by writing a reference that fails.
 
 **Python runs in a container of its own**, never in the worker — which is the
 process holding every data source's decrypted credentials. Off by default.
@@ -101,6 +151,19 @@ and left the value out, which is the one thing somebody woken by it needs.
 
 **Email is no longer sent automatically** to an alert's subscribers when
 another destination is configured.
+
+### Documentation
+
+**[The notebooks guide](https://sqldesk.org/guide/notebooks.html)** covers how
+they work in full: what a cell is allowed to do, how the handoff is stored,
+what a Spark cluster changes, and how to turn the Python interpreter on without
+handing it anything it should not have.
+
+**[The work a query cannot hold](https://sqldesk.org/blog/the-work-a-query-cannot-hold.html)**
+is five pieces of analysis that do not fit in one SELECT — cross-warehouse
+churn, a month-end reconciliation, a cohort table, a reorder forecast, and the
+investigation that becomes a monthly report — written out as the cells you
+would actually type.
 
 ### Upgrading from 0.7.10
 
