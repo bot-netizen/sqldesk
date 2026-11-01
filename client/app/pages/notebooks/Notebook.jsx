@@ -332,11 +332,17 @@ function NotebookPage({ notebookId }) {
                 canEdit={notebook.can_edit}
                 cluster={!!interpreterState.cluster}
                 /*
-                  Only the cells *above* this one. A reference downward does
-                  not resolve, and completing one would be the editor
-                  suggesting a mistake.
+                  Only the cells *above* this one, in the order they appear.
+                  A reference downward does not resolve, and completing one
+                  would be the editor suggesting a mistake. Sorted here
+                  because DuckDB answers alphabetically, which would list
+                  `cell_1, cell_2, code_1` for a notebook whose cells run
+                  `cell_1, code_1, cell_2`.
                 */
-                available={filter(handoffs, (one) => one.position < cell.position)}
+                available={sortBy(
+                  filter(handoffs, (one) => one.position < cell.position),
+                  "position"
+                )}
                 running={running}
                 onRunningChanged={(busy) => setRunning(busy ? cell.id : null)}
                 onChanged={onCellChanged}

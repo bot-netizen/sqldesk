@@ -493,6 +493,31 @@ describe("what a cell is allowed to read", () => {
     expect(offered).toEqual([[], ["orders"], ["orders", "by_city"]]);
   });
 
+  it("offers them in the notebook's order, not DuckDB's alphabetical one", async () => {
+    Notebook.handoffs.mockResolvedValueOnce({
+      handoffs: [
+        { name: "cell_1", position: 0, columns: [] },
+        { name: "cell_2", position: 2, columns: [] },
+        { name: "code_1", position: 1, columns: [] },
+      ],
+    });
+    const page = await open(
+      fixture({
+        cells: [
+          { id: 1, name: "cell_1", kind: "sql", position: 0, source: "SELECT 1", options: {} },
+          { id: 2, name: "code_1", kind: "python", position: 1, source: "cell_1", options: {} },
+          { id: 3, name: "cell_2", kind: "sql", position: 2, source: "SELECT 2", options: {} },
+          { id: 4, name: "cell_3", kind: "sql", position: 3, source: "SELECT 3", options: {} },
+        ],
+      })
+    );
+    await act(async () => {});
+    page.update();
+
+    const last = page.find("NotebookCell").last().prop("available");
+    expect(last.map((one) => one.name)).toEqual(["cell_1", "code_1", "cell_2"]);
+  });
+
   it("asks again when a cell is renamed, because its handoff moved with it", async () => {
     const page = await open();
     Notebook.handoffs.mockClear();
