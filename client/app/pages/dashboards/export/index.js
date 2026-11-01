@@ -437,7 +437,23 @@ function drawGap(context, x, y, width, height, scale) {
   cannot be drawn becomes a labelled gap instead of the reason there is no
   file at all.
 */
-async function captureGrid(container, { scale, background }) {
+/*
+  What counts as a tile, per page.
+
+  The capture draws tiles rather than the whole container in one go, so a
+  widget that will not render is a labelled gap instead of a blank export,
+  and twelve of them inline their images at once rather than in turn.
+
+  It has to be told what a tile is. A dashboard's are grid items; a
+  notebook's are cells -- and a notebook asked with the dashboard's selector
+  matched nothing at all, so nothing was drawn and both exports came out as
+  an empty page. There was no error: an empty list of tiles is exactly what
+  an empty dashboard looks like.
+*/
+export const DASHBOARD_TILES = ".react-grid-item";
+export const NOTEBOOK_TILES = ".notebook-cell";
+
+async function captureGrid(container, { scale, background, tiles = DASHBOARD_TILES }) {
   const box = container.getBoundingClientRect();
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(container.scrollWidth * scale);
@@ -451,7 +467,7 @@ async function captureGrid(container, { scale, background }) {
   // five copies of each.
   const fontEmbedCSS = await getFontEmbedCSS(container, { preferredFontFormat: "woff2" });
 
-  const items = Array.from(container.querySelectorAll(".react-grid-item"));
+  const items = Array.from(container.querySelectorAll(tiles));
   let failedWidgets = 0;
 
   // All at once rather than in turn: copying styles is work on this thread,
@@ -505,7 +521,7 @@ async function captureGrid(container, { scale, background }) {
 
 // Capture once, then lay it onto the branded page. Both exports share this
 // so a PDF and an image of the same dashboard are the same artefact.
-async function capturePage(element, { title, owner, format }) {
+async function capturePage(element, { title, owner, format, tiles = DASHBOARD_TILES }) {
   // Before anything is drawn: the answer for a dashboard that is too big
   // should be immediate, not the end of a wait.
   checkSize(element, format);
@@ -518,7 +534,7 @@ async function capturePage(element, { title, owner, format }) {
 
   let grid;
   try {
-    grid = await captureGrid(element, { scale, background: surfaceColor() });
+    grid = await captureGrid(element, { scale, background: surfaceColor(), tiles });
   } catch (error) {
     throw asError(error, "The dashboard could not be captured.");
   }
@@ -545,8 +561,8 @@ async function capturePage(element, { title, owner, format }) {
   and what is missing from it, so the caller can say so rather than hand over
   a map with no map on it and no explanation.
 */
-export async function renderDashboardToPng(element, { title, owner } = {}) {
-  const { canvas, skippedImages, failedWidgets } = await capturePage(element, { title, owner, format: PNG });
+export async function renderDashboardToPng(element, { title, owner, tiles } = {}) {
+  const { canvas, skippedImages, failedWidgets } = await capturePage(element, { title, owner, format: PNG, tiles });
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
   return { blob, skippedImages, failedWidgets };
 }
@@ -644,7 +660,7 @@ function sliceOf(source, top, bottom) {
 export async function renderPagedPdf(element, { title, owner, breaks = [] } = {}) {
   let captured;
   try {
-    captured = await capturePage(element, { title, owner, format: PNG });
+    captured = await capturePage(element, { title, owner, format: PNG, tiles: NOTEBOOK_TILES });
   } catch (error) {
     if (error instanceof TooBigToExport) {
       // The ceiling that is left is the browser's canvas, and the picture's

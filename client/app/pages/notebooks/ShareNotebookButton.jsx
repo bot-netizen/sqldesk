@@ -11,7 +11,14 @@ import FileImageOutlinedIcon from "@ant-design/icons/FileImageOutlined";
 import StopOutlinedIcon from "@ant-design/icons/StopOutlined";
 import notification from "@/services/notification";
 import Notebook from "@/services/notebook";
-import { exportSizeProblem, renderDashboardToPng, renderPagedPdf, downloadBlob, filenameFor } from "../dashboards/export";
+import {
+  exportSizeProblem,
+  renderDashboardToPng,
+  renderPagedPdf,
+  downloadBlob,
+  filenameFor,
+  NOTEBOOK_TILES,
+} from "../dashboards/export";
 
 /*
   The notebook's share surface, deliberately the dashboard's.
@@ -68,7 +75,15 @@ export default function ShareNotebookButton({ notebook, getExportTarget, onChang
       }
       setBusy(kind);
       try {
-        const { blob } = await render(element, { title: notebook.name, breaks: cellBreaks(element) });
+        const { blob } = await render(element, {
+          title: notebook.name,
+          breaks: cellBreaks(element),
+          // What the capture draws. Left to the dashboard's default it drew
+          // nothing at all, because a notebook has no grid items -- and an
+          // empty page is what an empty dashboard looks like, so nothing
+          // reported a problem.
+          tiles: NOTEBOOK_TILES,
+        });
         if (!blob) {
           throw new Error("The notebook could not be captured.");
         }

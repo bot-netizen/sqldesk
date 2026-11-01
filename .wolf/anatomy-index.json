@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-01T15:40:24.129Z",
-    "fileCount": 708,
+    "lastScanned": "2026-11-01T16:46:53.727Z",
+    "fileCount": 709,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "47645a9c93f2ce0e0191922bbcf119663176c981291246f03bc6eb009f0fb9e0",
-    "storeUpdatedAt": "2026-11-01T15:40:24.152Z",
-    "rootHash": "fdd35ffb10939a7c"
+    "renderedHash": "ed8b9089c32d1a06ddc333d148c6b99d3872787530be252722c02bf40052717d",
+    "storeUpdatedAt": "2026-11-01T16:46:53.751Z",
+    "rootHash": "a1ed2e745477c5c7"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -18359,6 +18359,24 @@
           "startLine": 38,
           "endLine": 99,
           "tokens": 649
+        }
+      ]
+    },
+    "client/app/pages/dashboards/export/tiles.test.js": {
+      "description": "Declares pageOf",
+      "tokens": 899,
+      "hash": "1c8ac059d14ad9d0",
+      "size": 3146,
+      "mtimeMs": 1793551613533.366,
+      "updatedAt": "2026-11-01T16:46:53.726Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "pageOf",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 75,
+          "tokens": 523
         }
       ]
     }

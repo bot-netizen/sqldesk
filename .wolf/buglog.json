@@ -2050,6 +2050,19 @@
         "0.8.1"
       ],
       "date": "2026-10-31"
+    },
+    {
+      "id": "bug-122",
+      "error_message": "Notebook Share > Download as PDF and Download as image both produced a blank page, with no error",
+      "root_cause": "captureGrid draws tiles rather than the whole container, and its selector was hardcoded to '.react-grid-item' -- a dashboard widget. A notebook has none, so the tile list was empty, nothing was drawn, and the canvas came out as its own background fill. Nothing reported a problem because an empty tile list is exactly what an empty dashboard looks like.",
+      "fix": "captureGrid/capturePage take a `tiles` selector (DASHBOARD_TILES default, NOTEBOOK_TILES = '.notebook-cell'); ShareNotebookButton passes it for both formats. client/app/pages/dashboards/export/tiles.test.js asserts toSvg is called once per cell, and pins the old behaviour as the third case. Mutation-tested.",
+      "tags": [
+        "notebooks",
+        "export",
+        "pdf",
+        "0.8.1"
+      ],
+      "date": "2026-11-01"
     }
   ],
   "applied_observations": {

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-01T15:40:24.129Z
-> Files: 708 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-01T16:46:53.727Z
+> Files: 709 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -716,6 +716,7 @@
 - `index.js` — Exports MAX_WIDGETS, TooBigToExport, tooBigToExport, exportSizeProblem + 4 more (~5937 tok)
 - `singleImagePdf.js` — Exports fitToPage (~1073 tok)
 - `singleImagePdf.test.js` — A byte sequence standing in for JPEG data, including bytes that would break (~886 tok)
+- `tiles.test.js` — Declares pageOf (~899 tok)
 
 ## client/app/pages/dashboards/hooks/
 
