@@ -1,4 +1,4 @@
-import { MAX_WIDGETS, PNG, captureScale, foreignImageCount, stripXmlIllegal, tooBigToExport } from "./index";
+import { MAX_WIDGETS, PNG, captureScale, foreignImageCount, pageCuts, stripXmlIllegal, tooBigToExport } from "./index";
 
 jest.mock("html-to-image", () => ({ toPng: jest.fn() }));
 jest.mock("@sqldesk/viz/lib/services/offscreen", () => ({ revealAllCharts: jest.fn() }));
@@ -157,5 +157,47 @@ describe("tooBigToExport", () => {
       // neither should be what the refusal blames.
       expect(reason).not.toMatch(/one-page|\d+ widgets/);
     });
+  });
+});
+
+/*
+  Cutting a tall capture into pages.
+
+  A notebook is a document, so it gets as many pages as it needs -- but cut
+  every 842 points it would be a sliced screenshot, with the break landing
+  halfway down a table. The breaks are the places a cut is invisible, which
+  for a notebook is the bottom of a cell.
+*/
+describe("pageCuts", () => {
+  test("a capture that fits on one page is one page", () => {
+    expect(pageCuts({ height: 800, pageHeight: 1000, breaks: [300, 600] })).toEqual([800]);
+  });
+
+  test("each page takes the lowest break that still fits on it", () => {
+    // Pages of 1000 over a 2400-tall capture, with cells ending at 400, 900,
+    // 1400 and 2400: page one ends at 900 rather than 400, because 900 is
+    // the fullest page that does not split a cell.
+    expect(pageCuts({ height: 2400, pageHeight: 1000, breaks: [400, 900, 1400, 2400] })).toEqual([900, 1400, 2400]);
+  });
+
+  test("a cell taller than a page is cut at the page edge", () => {
+    // One cell spanning the whole capture: no break is reachable, so it is
+    // cut at the page edge. Nothing else can be done with it, and refusing
+    // to export is worse. The last 500 needs no cut of its own -- it already
+    // fits on a page, so the break at 2400 is never reached for.
+    expect(pageCuts({ height: 2500, pageHeight: 1000, breaks: [2400] })).toEqual([1000, 2000, 2500]);
+  });
+
+  test("with no breaks at all it still pages, rather than running off one sheet", () => {
+    expect(pageCuts({ height: 2500, pageHeight: 1000, breaks: [] })).toEqual([1000, 2000, 2500]);
+  });
+
+  test("breaks past the end of the capture are ignored", () => {
+    expect(pageCuts({ height: 1500, pageHeight: 1000, breaks: [900, 4000] })).toEqual([900, 1500]);
+  });
+
+  test("the cuts always reach the bottom, so nothing is left off the last page", () => {
+    const cuts = pageCuts({ height: 3333, pageHeight: 700, breaks: [500, 1100, 1900, 2600] });
+    expect(cuts[cuts.length - 1]).toBe(3333);
   });
 });

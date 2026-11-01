@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-31T19:14:39.561Z",
-    "fileCount": 707,
+    "lastScanned": "2026-11-01T15:40:24.129Z",
+    "fileCount": 708,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "59c689f5a5a1699310b62336fbb3e8c0d2fb427b669fb034e37b1b417f1f9b60",
-    "storeUpdatedAt": "2026-10-31T19:14:39.592Z",
-    "rootHash": "a5fc3837c8907bba"
+    "renderedHash": "47645a9c93f2ce0e0191922bbcf119663176c981291246f03bc6eb009f0fb9e0",
+    "storeUpdatedAt": "2026-11-01T15:40:24.152Z",
+    "rootHash": "fdd35ffb10939a7c"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -18327,6 +18327,38 @@
           "startLine": 23,
           "endLine": 100,
           "tokens": 1034
+        }
+      ]
+    },
+    "client/app/pages/notebooks/ShareNotebookButton.test.js": {
+      "description": "exportModule: aNotebook, mountButton, choose",
+      "tokens": 1065,
+      "hash": "a1fb89569856fe8d",
+      "size": 3725,
+      "mtimeMs": 1793547623952.8508,
+      "updatedAt": "2026-11-01T15:40:24.128Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "aNotebook",
+          "kind": "fn",
+          "startLine": 28,
+          "endLine": 31,
+          "tokens": 39
+        },
+        {
+          "name": "mountButton",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 37,
+          "tokens": 61
+        },
+        {
+          "name": "choose",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 99,
+          "tokens": 649
         }
       ]
     }

@@ -256,6 +256,7 @@ function NotebookPage({ notebookId }) {
             <Button
               size="small"
               type="primary"
+              className="notebook-header-run"
               icon={running === "all" ? <LoadingOutlinedIcon /> : <CaretRightOutlinedIcon />}
               onClick={runAll}
               disabled={!!running}

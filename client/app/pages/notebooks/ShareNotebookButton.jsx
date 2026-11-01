@@ -11,13 +11,7 @@ import FileImageOutlinedIcon from "@ant-design/icons/FileImageOutlined";
 import StopOutlinedIcon from "@ant-design/icons/StopOutlined";
 import notification from "@/services/notification";
 import Notebook from "@/services/notebook";
-import {
-  exportSizeProblem,
-  renderDashboardToPng,
-  renderDashboardToPdf,
-  downloadBlob,
-  filenameFor,
-} from "../dashboards/export";
+import { exportSizeProblem, renderDashboardToPng, renderPagedPdf, downloadBlob, filenameFor } from "../dashboards/export";
 
 /*
   The notebook's share surface, deliberately the dashboard's.
@@ -27,13 +21,33 @@ import {
   look for it, and two surfaces that do the same job in different shapes is
   the thing that makes a product feel assembled rather than designed.
 
-  The export itself is the dashboard's code unchanged: `renderDashboardToPng`
-  and `renderDashboardToPdf` capture whatever element they are given, so a
-  notebook hands them its cells and gets back the same file a dashboard
-  would. What is captured is the cells, not the page -- no header, no
-  navigation, and folded cells stay folded, because a notebook somebody
-  tidied is the report they meant to send.
+  The capture is the dashboard's code unchanged -- it takes whatever element
+  it is given, so a notebook hands it its cells. What is captured is the
+  cells, not the page: no header, no navigation, and folded cells stay
+  folded, because a notebook somebody tidied is the report they meant to
+  send.
+
+  **The PDF is not the dashboard's.** A dashboard PDF is a one-page report
+  and refuses anything past a page, which is right for a dashboard and wrong
+  for this: a notebook is a study somebody wants to print, so it gets as many
+  pages as it takes. `renderPagedPdf` cuts it at cell boundaries so a page
+  break never lands halfway down a table.
 */
+/*
+  Where a page may end: the bottom of each cell, in the captured element's own
+  coordinates.
+
+  Read off the page rather than computed from the cells' data, because what
+  decides this is how tall each one turned out -- a chart somebody dragged
+  taller, a table of four rows, a cell folded away.
+*/
+export function cellBreaks(element) {
+  const top = element.getBoundingClientRect().top;
+  return Array.from(element.querySelectorAll(".notebook-cell")).map(
+    (cell) => cell.getBoundingClientRect().bottom - top
+  );
+}
+
 export default function ShareNotebookButton({ notebook, getExportTarget, onChanged }) {
   const [busy, setBusy] = useState(null);
 
@@ -44,17 +58,17 @@ export default function ShareNotebookButton({ notebook, getExportTarget, onChang
         notification.error("Nothing to export", "The notebook is still loading.");
         return;
       }
-      // Asked before anything starts, and answered where the person is
-      // looking -- the two formats have different limits, so it is asked
-      // per format rather than once.
-      const tooBig = exportSizeProblem(element, kind);
+      // Only the picture has a limit left, and it is the browser's rather
+      // than ours: past a certain size there is no canvas to be had. The PDF
+      // has no limit, because it has pages.
+      const tooBig = kind === "png" ? exportSizeProblem(element, kind) : null;
       if (tooBig) {
         Modal.warning({ title: "Too big to export", content: tooBig, okText: "OK" });
         return;
       }
       setBusy(kind);
       try {
-        const { blob } = await render(element, { title: notebook.name });
+        const { blob } = await render(element, { title: notebook.name, breaks: cellBreaks(element) });
         if (!blob) {
           throw new Error("The notebook could not be captured.");
         }
@@ -107,12 +121,7 @@ export default function ShareNotebookButton({ notebook, getExportTarget, onChang
           <span className="m-l-5">{notebook.public_url ? "Shared — show or stop" : "Copy a public link"}</span>
         </Menu.Item>
       )}
-      <Menu.Item
-        key="pdf"
-        disabled={!!busy}
-        onClick={() => runExport("pdf", renderDashboardToPdf, "pdf")}
-        data-test="SharePdf"
-      >
+      <Menu.Item key="pdf" disabled={!!busy} onClick={() => runExport("pdf", renderPagedPdf, "pdf")} data-test="SharePdf">
         <FilePdfOutlinedIcon />
         <span className="m-l-5">{busy === "pdf" ? "Making the PDF…" : "Download as PDF"}</span>
       </Menu.Item>

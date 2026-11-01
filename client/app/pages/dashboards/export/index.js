@@ -1,6 +1,6 @@
 import { getFontEmbedCSS, toSvg } from "html-to-image";
 import { revealAllCharts } from "@sqldesk/viz/lib/services/offscreen";
-import buildSingleImagePdf, { A4_LANDSCAPE } from "./singleImagePdf";
+import buildSingleImagePdf, { buildImagePdf, A4_LANDSCAPE, A4_PORTRAIT } from "./singleImagePdf";
 import composeExportCanvas, { PAGE_FURNITURE } from "./compose";
 import { capitalizeFirst, formatDateTime } from "@/lib/utils";
 import { currentUser } from "@/services/auth";
@@ -537,7 +537,7 @@ async function capturePage(element, { title, owner, format }) {
     5000,
     "Composing the page"
   );
-  return { canvas, skippedImages, failedWidgets: grid.failedWidgets };
+  return { canvas, scale, skippedImages, failedWidgets: grid.failedWidgets };
 }
 
 /*
@@ -577,6 +577,106 @@ export async function renderDashboardToPdf(element, { title, owner } = {}) {
     title,
   });
   return { blob: new Blob([pdf], { type: "application/pdf" }), skippedImages, failedWidgets };
+}
+
+/*
+  Where to cut a tall capture into pages, in canvas pixels.
+
+  A notebook is a document, so it gets as many pages as it needs -- but a
+  document whose pages are cut every 842 points is a sliced screenshot: the
+  break lands halfway down a table, or through the middle of a chart, and the
+  reader has to carry the top half of a row to the next sheet. `breaks` are
+  the places a cut would be invisible, which for a notebook is the bottom of
+  each cell.
+
+  Each page takes the lowest break that still fits on it, so pages are as
+  full as they can be without splitting anything. A cell taller than a page
+  has no good cut, so it is cut at the page edge -- there is nothing else to
+  do with it, and refusing to export is worse.
+*/
+export function pageCuts({ height, pageHeight, breaks = [] }) {
+  if (!(pageHeight > 0)) {
+    return [height];
+  }
+  const usable = breaks.filter((one) => one > 0 && one < height).sort((a, b) => a - b);
+  const cuts = [];
+  let start = 0;
+
+  while (height - start > pageHeight) {
+    // Bound per iteration so the filter closes over this page's window
+    // rather than over a variable the loop is still moving.
+    const from = start;
+    const limit = from + pageHeight;
+    const fits = usable.filter((one) => one > from && one <= limit);
+    // `limit` when nothing fits, which is a cell taller than the page.
+    const cut = fits.length ? fits[fits.length - 1] : limit;
+    cuts.push(cut);
+    start = cut;
+  }
+  cuts.push(height);
+  return cuts;
+}
+
+function sliceOf(source, top, bottom) {
+  const slice = document.createElement("canvas");
+  slice.width = source.width;
+  slice.height = Math.max(1, Math.round(bottom - top));
+  const ctx = slice.getContext("2d");
+  // White first: a JPEG has no alpha, so the untouched parts of a short last
+  // page would encode as black.
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, slice.width, slice.height);
+  ctx.drawImage(source, 0, Math.round(top), source.width, slice.height, 0, 0, source.width, slice.height);
+  return slice;
+}
+
+/*
+  The whole page as a document, over as many sheets as it takes.
+
+  No one-page rule here, and that is the difference from `renderDashboardToPdf`:
+  a dashboard PDF is a one-page report, and a notebook is a study somebody
+  wants to print and read. The only ceiling left is the one the browser puts
+  on a canvas, which `captureScale` answers by drawing smaller rather than
+  refusing -- so this is asked with the picture's size rule, not the report's.
+
+  Portrait, because a notebook is read down the page.
+*/
+export async function renderPagedPdf(element, { title, owner, breaks = [] } = {}) {
+  let captured;
+  try {
+    captured = await capturePage(element, { title, owner, format: PNG });
+  } catch (error) {
+    if (error instanceof TooBigToExport) {
+      // The ceiling that is left is the browser's canvas, and the picture's
+      // wording for it talks about dashboards and images -- neither of which
+      // is what somebody printing a notebook asked for.
+      throw new TooBigToExport(
+        "This notebook is longer than the browser can draw in one go. Fold the cells you do not need " +
+          "printed, or split the study across two notebooks."
+      );
+    }
+    throw error;
+  }
+  const { canvas, scale, skippedImages, failedWidgets } = captured;
+  // The capture sits below the header and inside the margins, so a cut taken
+  // from the element's own coordinates has to be moved down by both.
+  const top = PAGE_FURNITURE.top * scale;
+  const pageHeight = canvas.width * (A4_PORTRAIT.height / A4_PORTRAIT.width);
+  const cuts = pageCuts({
+    height: canvas.height,
+    pageHeight,
+    breaks: breaks.map((one) => top + one * scale),
+  });
+
+  const pages = [];
+  for (let at = 0, start = 0; at < cuts.length; at += 1) {
+    const slice = sliceOf(canvas, start, cuts[at]);
+    pages.push({ jpegBytes: jpegBytesOf(slice), imageWidth: slice.width, imageHeight: slice.height });
+    start = cuts[at];
+  }
+
+  const pdf = buildImagePdf({ pages, title, page: A4_PORTRAIT, align: "top", kind: "Notebook" });
+  return { blob: new Blob([pdf], { type: "application/pdf" }), skippedImages, failedWidgets, pages: pages.length };
 }
 
 export function downloadBlob(blob, filename) {

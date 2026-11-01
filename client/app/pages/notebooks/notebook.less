@@ -898,14 +898,37 @@
   }
 }
 
-/* Run and Stop: square, so the play mark sits in the middle of it. */
-.notebook-cell-run {
-  width: 30px;
-  min-width: 30px;
+/*
+  Run, Stop and Run all: square, so the play mark sits in the middle of it.
+
+  An icon-only antd button keeps a text button's side padding, which makes it
+  a wide rectangle with the glyph adrift in it -- and beside three
+  word-labelled buttons that reads as the one thing in the row that is not
+  lined up. Square and the same height as its neighbours instead.
+
+  The caret is nudged a pixel right because a triangle's weight sits to its
+  left: centred by measurement, it looks left of centre.
+*/
+.notebook-cell-run,
+.notebook-header-run {
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+
+  .anticon {
+    margin-left: 1px;
+  }
+}
+
+.notebook-cell-run {
+  width: 30px;
+  min-width: 30px;
+}
+
+.notebook-header-run {
+  width: 28px;
+  min-width: 28px;
 }
 
 .notebook-cell-header {
