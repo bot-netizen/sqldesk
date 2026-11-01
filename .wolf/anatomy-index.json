@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-01T17:11:40.987Z",
-    "fileCount": 712,
+    "lastScanned": "2026-11-01T17:15:54.639Z",
+    "fileCount": 713,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "db70af5964b2dc691c8bc4d271bea2f195ad7f228e442f47db25b575addaa3bd",
-    "storeUpdatedAt": "2026-11-01T17:11:41.001Z",
-    "rootHash": "93b009eca5e87a93"
+    "renderedHash": "7263293918051d04e5a087de38de0739291fdd74569ee531f7b188888151b3e3",
+    "storeUpdatedAt": "2026-11-01T17:15:54.660Z",
+    "rootHash": "8ea0b67123197d25"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -18405,6 +18405,15 @@
       "size": 1582,
       "mtimeMs": 1793553100771.123,
       "updatedAt": "2026-11-01T17:11:40.987Z",
+      "source": "hook"
+    },
+    "blog/the-work-a-query-cannot-hold.md": {
+      "description": "1. A churn list that spans two warehouses",
+      "tokens": 2773,
+      "hash": "253e58b5e46cbe14",
+      "size": 11132,
+      "mtimeMs": 1793553354468.8064,
+      "updatedAt": "2026-11-01T17:15:54.639Z",
       "source": "hook"
     }
   },

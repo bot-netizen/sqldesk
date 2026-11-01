@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Notebooks — SQLDesk docs</title>
-<meta name="description" content="Notebooks in SQLDesk: SQL and Python cells chained together, where a saved query ends in one SELECT.">
+<meta name="description" content="Notebooks in SQLDesk: SQL and Python cells chained together, named not numbered, with staleness tracked, a cron schedule, and a PDF you can print.">
 <meta property="og:title" content="Notebooks — SQLDesk docs">
-<meta property="og:description" content="Notebooks in SQLDesk: SQL and Python cells chained together, where a saved query ends in one SELECT.">
+<meta property="og:description" content="Notebooks in SQLDesk: SQL and Python cells chained together, named not numbered, with staleness tracked, a cron schedule, and a PDF you can print.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://sqldesk.org/guide/notebooks.html">
 <meta property="og:image" content="https://sqldesk.org/assets/social-card.png">
@@ -83,23 +83,69 @@
       <a href="../releases.html">Releases</a>
   </nav>
   <main class="doc-body">
-<h1>Notebooks</h1>
+<h1>Notebooks <span class="chip">Beta</span></h1>
 <p class="lede">A chain of cells, where everything else in SQLDesk ends in one SELECT. Pull this, join it
 to that, reshape it, look &mdash; with the data source permissions, the result store and the scheduler
 you already have.</p>
 
+<div class="note">
+  <p><strong>Beta, and what that means.</strong> Notebooks are shipped and supported, and they are still settling. Use them: nothing here will lose
+  your work, because a notebook is rows in the database like a query or a dashboard, and the handoff
+  between cells is a file that re-running rebuilds. What may change between releases is the shape of the
+  page and what a cell is allowed to do. The badge comes off when that stops being true.</p>
+</div>
+
 <h2 id="why">What a notebook is for</h2>
-<p>The work a saved query cannot hold. People do it in Jupyter today, and when they do, the warehouse
-never hears about it: the lineage, the permissions and the scheduling all stop at the edge of somebody&rsquo;s
-laptop. A notebook keeps that work where the rest of your data lives.</p>
+<p>The work a saved query cannot hold. A query answers a question that fits in one statement. A great
+deal of real analysis does not: it is three queries against two warehouses, a join that neither of them
+can do, a reshape that is easier in pandas than in SQL, and a chart at the end of it.</p>
+<p>People do that work in Jupyter today, and when they do, the warehouse never hears about it. The
+lineage, the permissions and the scheduling all stop at the edge of somebody&rsquo;s laptop &mdash; and so
+does the answer, which arrives in Slack as a screenshot nobody can re-run. A notebook keeps that work
+where the rest of your data lives: same data sources, same permissions, same workers, same audit log.</p>
 <p>A notebook is a <strong>draft</strong> until you publish it, the same promise queries and dashboards
 make. What you are still building is not in anybody else&rsquo;s list.</p>
+
+<h3 id="not-queries">When to reach for one instead of a query</h3>
+<ul>
+  <li><strong>The answer needs two data sources.</strong> One cell against each, then a third cell that
+  joins them. No warehouse has to learn about the other one.</li>
+  <li><strong>The step in the middle is not SQL.</strong> A forecast, a regression, a fuzzy match, a
+  parser for a column somebody stuffed JSON into.</li>
+  <li><strong>You are working it out.</strong> A notebook keeps the intermediate steps, named and
+  visible, instead of leaving you with one 200-line query and no way to see what line 90 produced.</li>
+  <li><strong>The output is a document.</strong> A study somebody reads top to bottom, with the working
+  shown &mdash; which is a thing a dashboard is not.</li>
+</ul>
+<p>Reach for a <a href="queries.html">query</a> when the answer is one statement and the point is to
+re-run it; reach for a <a href="dashboards.html">dashboard</a> when the point is to watch numbers
+change.</p>
 
 <h2 id="cells">Cells</h2>
 <p>Cells are <strong>named, never numbered</strong>. A later cell refers to this one by name &mdash; as a
 relation in SQL, as a dataframe in Python &mdash; so inserting, deleting and reordering leave every
 reference pointing at what it meant. A name is letters, digits and underscores, not starting with a digit,
 because it has to be legal as a table name and as a variable at the same time.</p>
+
+<h3 id="names">The name, the title, and how you find them</h3>
+<p>Each cell has a <strong>title</strong>, which is for reading, and a <strong>name</strong>, which is
+what later cells type. Both are on the cell: the title in plain text, the name beside it in monospace.
+<strong>Click the name and it is copied</strong>, because the next thing you do with it is paste it into
+the cell below.</p>
+<p>You rarely set both. Titling a cell <em>Orders, cleaned</em> names it <code>orders_cleaned</code>
+&mdash; as long as the name is still the generated one and no other cell refers to it yet. Once something
+reads a cell, its name is pinned: references live in other cells&rsquo; SQL, and quietly rewriting
+somebody&rsquo;s query is worse than an unhelpful name. Rename it yourself from the cell&rsquo;s
+&ldquo;&hellip;&rdquo; menu, and every handoff follows.</p>
+<p>Two more places answer the same question, so you never have to remember a name:</p>
+<ul>
+  <li><strong>Under each editor</strong>, a line naming what that cell can read, with each name&rsquo;s
+  columns in its tooltip.</li>
+  <li><strong>In the editor</strong>, autocomplete offers the cells above and the columns inside them.</li>
+</ul>
+<p>Only what is <em>really</em> readable appears: a name is offered because a cell above handed over a
+table, so a cell that printed text is correctly absent and you never write a reference that cannot
+resolve. A cell is only ever offered the cells <em>above</em> it; a notebook runs down the page.</p>
 
 <h3 id="sql-cells">A SQL cell</h3>
 <p>A SQL cell is one of two things, and which one it is follows from whether you give it a data source:</p>
@@ -111,6 +157,10 @@ because it has to be legal as a table name and as a variable at the same time.</
 </ul>
 <p>It cannot be both, and the cell says so before you run it. A warehouse has never heard of a cell called
 <code>orders</code>, and SQLDesk is not going to push four million rows into it to pretend otherwise.</p>
+<p>SQL over earlier cells is <a href="architecture.html#duckdb">DuckDB</a>, so it is DuckDB&rsquo;s
+dialect &mdash; which is close enough to Postgres that most things work, and better than most at the
+things this is for: <code>QUALIFY</code>, <code>GROUP BY ALL</code>, <code>EXCLUDE</code>, struct and
+list columns, and joins across relations that came from different warehouses.</p>
 
 <h3 id="python-cells">A Python cell</h3>
 <p>A Python cell <strong>computes; it cannot query</strong>. It reads an earlier cell&rsquo;s output as a
@@ -120,8 +170,21 @@ reach. Anything that needs the warehouse needs a SQL cell above it.</p>
 <p>Variables persist between cells, as they do in Jupyter: <code>df</code> assigned in one cell is still
 there five cells later. If the last line of a cell is an expression, its value is the cell&rsquo;s output
 &mdash; a dataframe becomes a relation later cells can read, and anything else is text to look at.</p>
+<p><code>print()</code> is kept too, and shown under the cell. A cell that printed has no relation for the
+next cell to read, and the page says which it produced rather than leaving you to find out by writing a
+reference that fails.</p>
 <p>Python cells need an <a href="#interpreter">interpreter</a>, which is off by default. Without one, the
 cell says so rather than failing when somebody runs it.</p>
+
+<h3 id="charts-in-cells">Charts a cell draws itself</h3>
+<p>End a Python cell on a figure and it is drawn. <code>matplotlib</code>, <code>seaborn</code> and
+<code>df.plot()</code> come back as images; <strong><code>plotly</code> comes back interactive</strong>,
+so you can hover and zoom in the notebook and in anything you share from it.</p>
+<pre><code>import plotly.express as px
+px.bar(by_city, x="city", y="total", title="Takings by city")</code></pre>
+<p>That is separate from a <a href="#charts">chart on a cell</a>, below, which is SQLDesk&rsquo;s own
+chart editor over the cell&rsquo;s table. Use the editor when you want the chart types and the controls
+the rest of SQLDesk has; write the figure yourself when you want something SQLDesk does not offer.</p>
 
 <h2 id="stale">Stale, and why nothing is corrected for you</h2>
 <p>A notebook with a session is a notebook that can rot: the number in cell four was computed from cell
@@ -147,7 +210,23 @@ problem: that one cannot be reproduced at all, where a stale one only needs re-r
 </ul>
 <p>The table under a cell shows the slice and says what it is a slice of: <em>first 1,000 of 4,200,000
 rows</em>. The next cell reads the whole thing, not what you can see.</p>
+<p><strong>Download</strong> on a cell gives you the whole relation as CSV &mdash; the handoff, not the
+slice. A download that quietly handed over a thousand rows of four million would be wrong in the way that
+is hardest to notice, because it would look right.</p>
 <p>Archiving a notebook keeps all of it except the handoff, which re-running rebuilds.</p>
+
+<h2 id="reading">Reading a long one</h2>
+<p>A notebook of thirty cells is a document, and the page treats it as one.</p>
+<ul>
+  <li><strong>Fold a cell away</strong> and one line stands in for it, saying what it produced. The
+  contents list still carries it, so folding hides a cell without losing it.</li>
+  <li><strong>Hide the code, or hide the output</strong>, separately &mdash; because reading a finished
+  notebook and writing one want opposite things on screen. Somebody presenting a result wants the SQL
+  gone; somebody debugging wants the table gone and the query in front of them.</li>
+  <li><strong>The contents list</strong> down the left side jumps to a cell by its title.</li>
+  <li><strong>Drag the bottom edge of a chart</strong> to make it taller, as you would a dashboard
+  widget.</li>
+</ul>
 
 <h2 id="charts">A chart on a cell</h2>
 <p>Any cell that produced a table can carry a visualization, with the same editor and the same chart types
@@ -161,9 +240,39 @@ is a scheduling design rather than a widget, and it is not in this release.</p>
 <p>A cell runs on a worker, like a query, and a SQL cell takes a <strong>query slot</strong> from its data
 source&rsquo;s pool like any other query &mdash; the warehouse&rsquo;s connection limit does not get larger
 because something was typed into a notebook.</p>
+<p><strong>Run all</strong> runs the chain in order, as one job on a worker rather than a loop in your
+browser &mdash; so closing the tab does not stop it halfway and leave a notebook that looks like it ran.
+It <strong>stops at the first cell that fails</strong>, because everything below would be reading what
+that cell did not produce.</p>
 <p><strong>Stop</strong> cancels the cell that is running and does not start the next. It does not throw the
 notebook away: the variables earlier cells assigned are still there afterwards. A cell that ignores the
 interruption entirely is ended after a few seconds, and the page says that is what happened.</p>
+
+<h2 id="schedule">Running it on a schedule</h2>
+<p>A published notebook can run itself on a <strong>cron expression</strong> &mdash; every morning before
+the standup, every weekday at seven, the first of the month. There are presets for the common ones and a
+box for the rest.</p>
+<p>Cron rather than a query&rsquo;s interval, because it answers a different question. A query&rsquo;s
+schedule means <em>keep this no more than an hour stale</em>; a notebook&rsquo;s means <em>have this done
+by the time I look</em>. The expression is checked when you save it: one that does not parse would
+otherwise quietly mean &ldquo;never&rdquo;, which is the worst answer a schedule can give.</p>
+<p>A scheduled run is the same as Run all: it runs as you, with your data source access, and stops at the
+first failure. Drafts do not run &mdash; what you are still building should not start running itself
+overnight.</p>
+
+<h2 id="sharing">Sharing one</h2>
+<p>Everything that hands a notebook to somebody else is behind the <strong>Share</strong> button, in the
+same shape a dashboard&rsquo;s is.</p>
+<ul>
+  <li><strong>A public link</strong> for somebody without an account. Nothing is re-run for them: they see
+  the stored slices exactly as the last run left them. Publish the notebook first, and revoke the link from
+  the same menu.</li>
+  <li><strong>PDF</strong>, over as many pages as the notebook takes. It breaks at cell boundaries, so a
+  page never lands halfway down a table.</li>
+  <li><strong>An image</strong> of the whole notebook, for pasting somewhere.</li>
+</ul>
+<p>What is captured is the cells, not the page around them &mdash; and folded cells stay folded, because a
+notebook somebody tidied is the report they meant to send.</p>
 
 <h2 id="interpreter">Turning Python cells on</h2>
 <p>Python runs in a container of its own &mdash; never in the worker, which is the process holding every
@@ -200,10 +309,11 @@ exactly.</p>
 <ul>
   <li><strong>Write back to a data source.</strong> This release is read-and-look.</li>
   <li><strong>Let a code cell query.</strong> Data comes from an earlier cell or not at all.</li>
-  <li><strong>Run on a schedule.</strong> Cells run when somebody runs them.</li>
   <li><strong>Put a cell on a dashboard.</strong> See <a href="#charts">charts</a> for why.</li>
+  <li><strong>Let two people edit at once.</strong> Last write wins, as it does for a query.</li>
+  <li><strong>Alert on a cell.</strong> <a href="alerts.html">Alerts</a> watch a query; a notebook that
+  needs to raise something should end in a query that an alert watches.</li>
 </ul>
-  
 <div class="doc-next"><a class="btn btn-ghost" href="streams.html">&larr; Streams</a><a class="btn btn-primary" href="alerts.html">Alerts &rarr;</a></div>
   </main>
 </div>

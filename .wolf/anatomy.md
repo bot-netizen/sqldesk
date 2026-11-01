@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-01T17:11:40.987Z
-> Files: 712 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-01T17:15:54.639Z
+> Files: 713 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -72,6 +72,7 @@
 - `an-agent-that-knows-who-wrote-it.md` — Thirteen tools, in four groups (~3671 tok)
 - `README.md` — Project documentation (~611 tok)
 - `sqldesk-and-what-it-is-for.md` — What the fork changed (~1951 tok)
+- `the-work-a-query-cannot-hold.md` — 1. A churn list that spans two warehouses (~2773 tok)
 
 ## charts/sqldesk/
 
