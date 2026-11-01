@@ -799,3 +799,51 @@ class TestACellThatEndsOnAChart(PythonCellTestCase):
         runner.run_python_cell(code, self.factory.user, interpreter_for=lambda: stand_in)
 
         self.assertEqual(runner.TABLE, code.options["produced"])
+
+
+class TestAPythonCellHoldingSql(BaseTestCase):
+    """
+    The dead end this exists to remove.
+
+    A Python cell with SQL in it fails with `SyntaxError: invalid syntax
+    (<cell>, line 1)` -- true, and useless. It names the symptom and leaves
+    somebody to work out for themselves that the control at the top of the
+    cell is set to the wrong thing, which is reachable by mis-clicking one
+    dropdown.
+    """
+
+    def test_a_syntax_error_on_sql_says_what_to_do_about_it(self):
+        said = runner._cell_error(
+            {"error": "SyntaxError: invalid syntax (<cell>, line 1)"},
+            "SELECT relname, share FROM cell_1 ORDER BY share DESC;",
+        )
+
+        self.assertIn("looks like SQL", said)
+        self.assertIn("SQL over earlier cells", said)
+        # The original is kept: somebody who knows what a SyntaxError is
+        # should not have it taken away from them.
+        self.assertIn("SyntaxError", said)
+
+    def test_it_matches_however_the_statement_is_cased_and_spaced(self):
+        said = runner._cell_error(
+            {"error": "SyntaxError: invalid syntax"}, "\n  with recent as (select 1) select * from recent"
+        )
+
+        self.assertIn("looks like SQL", said)
+
+    def test_a_real_python_syntax_error_is_left_alone(self):
+        said = runner._cell_error({"error": "SyntaxError: invalid syntax"}, "df = [1, 2")
+
+        self.assertNotIn("looks like SQL", said)
+
+    def test_a_variable_called_select_is_not_accused_of_being_sql(self):
+        # Only ever consulted about a cell that already failed, so this costs
+        # nothing -- but a NameError on such a cell must not be rewritten.
+        said = runner._cell_error({"error": "NameError: name 'x' is not defined"}, "select = 5\nprint(x)")
+
+        self.assertNotIn("looks like SQL", said)
+
+    def test_what_the_cell_printed_before_failing_is_still_kept(self):
+        said = runner._cell_error({"error": "SyntaxError: invalid syntax", "stdout": "got this far"}, "select 1")
+
+        self.assertIn("got this far", said)

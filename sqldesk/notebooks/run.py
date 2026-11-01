@@ -381,7 +381,7 @@ def _on_the_interpreter(cell, store, talker, session_id, read):
     talker.ship(cell.notebook, session_id, store, read)
     answer = talker.run(session_id, cell.source)
     if not answer.get("ok"):
-        raise RuntimeError(_cell_error(answer))
+        raise RuntimeError(_cell_error(answer, cell.source))
 
     if answer.get("result_id"):
         fetched = os.path.join(store.directory, "{}.parquet".format(answer["result_id"]))
@@ -421,9 +421,29 @@ def _on_the_interpreter(cell, store, talker, session_id, read):
     return _as_text(answer), [{"output": _printed(answer)}], None, TEXT, ""
 
 
-def _cell_error(answer):
-    """The cell's own error, with whatever it printed before failing."""
+#: The first word of a statement that is SQL rather than Python. Only checked
+#: against a cell that has *already* failed to parse, so a Python variable
+#: innocently called `select` costs nothing -- the cell would have run.
+LOOKS_LIKE_SQL = re.compile(r"^\s*(select|with|insert|update|delete|create|alter|drop|show|explain)\b", re.I)
+
+
+def _cell_error(answer, source=None):
+    """
+    The cell's own error, with whatever it printed before failing.
+
+    A Python cell holding SQL fails with `SyntaxError: invalid syntax (<cell>,
+    line 1)`, which is true and useless: it names the symptom and leaves
+    somebody to work out that the control at the top of the cell is set to the
+    wrong thing. This is reachable by mis-clicking one dropdown, so the error
+    says what to do about it.
+    """
     said = answer.get("error") or "The cell failed."
+    if said.startswith("SyntaxError") and source and LOOKS_LIKE_SQL.match(source):
+        said = (
+            "This cell runs Python, and what is in it looks like SQL -- so Python cannot read it. "
+            "Change what it runs on, at the top of the cell: a data source to query one, or "
+            "'SQL over earlier cells' to read the cells above.\n\n" + said
+        )
     printed = (answer.get("stdout") or "").strip()
     return "{}\n\n{}".format(said, printed) if printed else said
 
