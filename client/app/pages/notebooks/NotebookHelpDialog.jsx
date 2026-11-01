@@ -42,8 +42,14 @@ select city, sum(total) as takings from orders group by city order by takings de
 by_city = orders.groupby("city")["total"].sum().reset_index()
 by_city`}</pre>
           <p>
-            The name is the identifier, and it is not the title. Retitling a cell to something readable leaves every
-            reference working.
+            <strong>You do not have to remember the name.</strong> It is on the cell, in monospace, beside the title —
+            click it and it is on your clipboard. The names a cell can read are listed under its editor, and typing in
+            a cell completes against them: the cells above, and the columns inside each one.
+          </p>
+          <p>
+            The name is the identifier and the title is for reading. Titling a cell sets the name to match while
+            nothing is referring to it yet, so there is usually only one thing to fill in; after that, renaming it is
+            in the cell’s ⋯ menu and every reference keeps working.
           </p>
         </Rule>
 

@@ -41,6 +41,10 @@ const EXPECTED = [
   ["Admin.Audit", "/admin/audit"],
   ["Notebooks.List", "/notebooks"],
   ["Notebooks.View", "/notebooks/:notebookId"],
+  // Signed out, by a link somebody was sent. On this list because the list is
+  // the point: a page that quietly stops registering its route 404s, and a
+  // route nobody meant to publish is the other failure.
+  ["Notebooks.ViewShared", "/public/notebooks/:token"],
   ["Alerts.List", "/alerts"],
   ["Alerts.New", "/alerts/new"],
   ["Alerts.Edit", "/alerts/:alertId/edit"],

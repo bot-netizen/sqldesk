@@ -73,6 +73,7 @@ from sqldesk.handlers.notebooks import (
     CellResource,
     CellResultResource,
     CellRunResource,
+    NotebookHandoffResource,
     NotebookListResource,
     NotebookResource,
     NotebookRunResource,
@@ -272,6 +273,9 @@ api.add_org_resource(
     CellResultResource, "/api/notebooks/<notebook_id>/cells/<cell_id>/result", endpoint="notebook_cell_result"
 )
 api.add_org_resource(PublicNotebookResource, "/api/notebooks/public/<token>", endpoint="public_notebook_api")
+api.add_org_resource(
+    NotebookHandoffResource, "/api/notebooks/<notebook_id>/handoffs", endpoint="notebook_handoffs"
+)
 api.add_org_resource(NotebookShareResource, "/api/notebooks/<notebook_id>/share", endpoint="notebook_share")
 api.add_org_resource(NotebookRunResource, "/api/notebooks/<notebook_id>/run", endpoint="notebook_run")
 api.add_org_resource(NotebookStopResource, "/api/notebooks/<notebook_id>/stop", endpoint="notebook_stop")

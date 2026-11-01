@@ -1,7 +1,15 @@
 import React from "react";
 import { shallow, mount as mountFully } from "enzyme";
 import { act } from "react-dom/test-utils";
-import NotebookCell, { CellOutput, ResizableChart, RunsOn, describeWhatItRunsOn, summarise } from "./NotebookCell";
+import NotebookCell, {
+  AvailableToRead,
+  CellHandle,
+  CellOutput,
+  ResizableChart,
+  RunsOn,
+  describeWhatItRunsOn,
+  summarise,
+} from "./NotebookCell";
 import EditableTitle from "./EditableTitle";
 
 jest.mock("@/services/notebook", () => ({
@@ -13,7 +21,7 @@ jest.mock("@/services/notebook", () => ({
   downloadUrl: (notebookId, cellId) => `api/notebooks/${notebookId}/cells/${cellId}/download`,
 }));
 jest.mock("@/services/query-result", () => ({ fetchDataFromJob: jest.fn(() => Promise.resolve(1)) }));
-jest.mock("@/services/notification", () => ({ warning: jest.fn(), success: jest.fn() }));
+jest.mock("@/services/notification", () => ({ warning: jest.fn(), success: jest.fn(), error: jest.fn() }));
 jest.mock("@/components/queries/editor-components", () => ({
   getEditorComponents: () => ({ QueryEditor: () => null }),
 }));
@@ -722,5 +730,97 @@ describe("sizing a chart", () => {
     );
 
     expect(chart.find('[data-test="ChartResizeHandle"]').exists()).toBe(false);
+  });
+});
+
+/*
+  How somebody finds out how to read a particular cell.
+
+  This is the one thing a notebook has that a query does not, and for a while
+  the page had no visible handle for it at all: only the title was drawn, so
+  the name a later cell has to type was nowhere a person was. These are the
+  three places it is now -- on the cell, under the editor, and in what the
+  editor completes against.
+*/
+describe("how to get at a cell's data", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("shows the name the cells below have to type", () => {
+    const page = mount(aCell({ name: "orders", title: "Orders, cleaned" }));
+
+    // Shallow, so the chip itself is one level down -- what matters here is
+    // that the handle is drawn beside the title and carries the name.
+    expect(page.find(CellHandle).prop("cell").name).toBe("orders");
+  });
+
+  it("shows it to a reader too, who is often about to write a cell", () => {
+    const page = mount(aCell({ name: "orders" }), { canEdit: false });
+
+    expect(page.find(CellHandle).exists()).toBe(true);
+  });
+
+  it("copies it, because the next thing anybody does is paste it below", async () => {
+    const writeText = jest.fn(() => Promise.resolve());
+    Object.defineProperty(window.navigator, "clipboard", { value: { writeText }, configurable: true });
+    const handle = mountFully(<CellHandle cell={aCell({ name: "orders" })} canEdit />);
+
+    handle.find('[data-test="CellHandle"]').first().simulate("click");
+
+    expect(writeText).toHaveBeenCalledWith("orders");
+  });
+
+  it("renames it from the menu, where the server owns the rules", () => {
+    const onRename = jest.fn(() => Promise.resolve({}));
+    const handle = mountFully(
+      <CellHandle cell={aCell({ name: "cell_1" })} canEdit editing onEditing={jest.fn()} onRename={onRename} />
+    );
+
+    const box = handle.find('[data-test="CellHandleInput"]');
+    box.simulate("change", { target: { value: "orders" } });
+    handle.find('[data-test="CellHandleInput"]').simulate("blur");
+
+    expect(onRename).toHaveBeenCalledWith("orders");
+  });
+
+  it("abandons a rename on Escape rather than saving what was typed", () => {
+    const onRename = jest.fn(() => Promise.resolve({}));
+    const handle = mountFully(
+      <CellHandle cell={aCell({ name: "cell_1" })} canEdit editing onEditing={jest.fn()} onRename={onRename} />
+    );
+
+    handle.find('[data-test="CellHandleInput"]').simulate("change", { target: { value: "orders" } });
+    // Escape blurs, and blur is what saves -- so this is the ordering the
+    // abandon flag exists for.
+    handle.find('[data-test="CellHandleInput"]').simulate("keydown", { key: "Escape", target: { blur: () => {} } });
+    handle.find('[data-test="CellHandleInput"]').simulate("blur");
+
+    expect(onRename).not.toHaveBeenCalled();
+  });
+
+  it("names what this cell can read, under the box it would be typed in", () => {
+    const line = shallow(
+      <AvailableToRead
+        canEdit
+        available={[
+          { name: "orders", columns: [{ name: "city" }] },
+          { name: "by_city", columns: [] },
+        ]}
+      />
+    );
+
+    expect(line.find("code").map((one) => one.prop("children"))).toEqual(["orders", "by_city"]);
+  });
+
+  it("says nothing where there is nothing above to read", () => {
+    expect(shallow(<AvailableToRead canEdit available={[]} />).isEmptyRender()).toBe(true);
+  });
+
+  it("completes against the cells above, not against a data source", () => {
+    const available = [{ name: "orders", columns: [{ name: "city", type: "string" }] }];
+    const page = mount(aCell({ source: "SELECT 1" }), { available });
+
+    const editor = page.find("QueryEditor");
+    expect(editor.prop("schema")).toEqual(available);
+    expect(editor.prop("autocompleteEnabled")).toBe(true);
   });
 });

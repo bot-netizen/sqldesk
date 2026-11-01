@@ -2037,6 +2037,19 @@
         "0.8.1"
       ],
       "date": "2026-10-31"
+    },
+    {
+      "id": "bug-121",
+      "error_message": "Notebook cell autocomplete offered DuckDB's own catalog -- character_sets, schemata, tables and 44 more -- as cells a notebook could read from",
+      "root_cause": "Store.schema() read duckdb_columns() unfiltered. That view covers views as well as base tables, so it answers with DuckDB's internal catalog alongside the notebook's handoffs. Store.names() was clean only because duckdb_tables() lists base tables only, so the two disagreed about what a notebook contains.",
+      "fix": "Join duckdb_columns() to duckdb_tables() on database/schema/table in sqldesk/notebooks/store.py, making schema() exactly the columns of what names() lists. tests/notebooks/test_store.py asserts the catalog is absent. The handoffs endpoint also filters by cell name, which is why the API test passed while the store API was wrong.",
+      "tags": [
+        "notebooks",
+        "duckdb",
+        "autocomplete",
+        "0.8.1"
+      ],
+      "date": "2026-10-31"
     }
   ],
   "applied_observations": {

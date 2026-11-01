@@ -8,6 +8,7 @@ import Tooltip from "antd/lib/tooltip";
 import Table from "antd/lib/table";
 import Tabs from "antd/lib/tabs";
 import PlusOutlinedIcon from "@ant-design/icons/PlusOutlined";
+import CopyOutlinedIcon from "@ant-design/icons/CopyOutlined";
 import CloseOutlinedIcon from "@ant-design/icons/CloseOutlined";
 import { map, size } from "lodash";
 
@@ -22,6 +23,7 @@ import PauseOutlinedIcon from "@ant-design/icons/PauseOutlined";
 import DownOutlinedIcon from "@ant-design/icons/DownOutlined";
 import RightOutlinedIcon from "@ant-design/icons/RightOutlined";
 
+import PlainButton from "@/components/PlainButton";
 import { getEditorComponents } from "@/components/queries/editor-components";
 import Notebook from "@/services/notebook";
 import CellVisualizationDialog from "./CellVisualizationDialog";
@@ -66,6 +68,7 @@ export default function NotebookCell({
   dataSources,
   canEdit,
   cluster,
+  available,
   onChanged,
   onRemoved,
   running,
@@ -75,6 +78,10 @@ export default function NotebookCell({
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  // Started from the overflow menu rather than by clicking the handle: one
+  // click on the handle copies it, which is what somebody about to write the
+  // next cell wants, and renaming is the rarer thing.
+  const [renaming, setRenaming] = useState(false);
   const latestResultId = cell.latest_result_id;
   // The editor is chosen by the cell's language, not by the data source: a
   // Python cell has no data source at all.
@@ -202,6 +209,9 @@ export default function NotebookCell({
           {(cell.options || {}).visualization ? "Edit the chart" : "Add a chart"}
         </Menu.Item>
       )}
+      <Menu.Item key="rename" onClick={() => setRenaming(true)} data-test="RenameHandle">
+        Rename what cells below call it
+      </Menu.Item>
       <Menu.Item key="remove" danger onClick={remove} data-test="RemoveCell">
         Remove this cell
       </Menu.Item>
@@ -245,6 +255,13 @@ export default function NotebookCell({
           cell={cell}
           canEdit={canEdit}
           onChange={(title) => title !== (cell.title || "") && save({ title })}
+        />
+        <CellHandle
+          cell={cell}
+          canEdit={canEdit}
+          editing={renaming}
+          onEditing={setRenaming}
+          onRename={(name) => save({ name })}
         />
 
         {size(cell.reads) > 0 && (
@@ -390,15 +407,25 @@ export default function NotebookCell({
       )}
 
       {!collapsed && !hideCode && (
-        <QueryEditor
-          className="notebook-cell-editor"
-          syntax={cell.kind === "python" ? "python" : "sql"}
-          value={source}
-          onChange={setSource}
-          onBlur={() => source !== cell.source && save({ source })}
-          autocompleteEnabled={false}
-          schema={[]}
-        />
+        <>
+          {/*
+            Autocomplete on, and completing against the cells above rather
+            than a data source's schema. This is the answer to the only
+            question a notebook raises that a query does not -- *how do I get
+            at cell three's data?* -- given where it is asked: type in cell
+            four and `orders` comes up, with its columns under it.
+          */}
+          <QueryEditor
+            className="notebook-cell-editor"
+            syntax={cell.kind === "python" ? "python" : "sql"}
+            value={source}
+            onChange={setSource}
+            onBlur={() => source !== cell.source && save({ source })}
+            autocompleteEnabled
+            schema={available}
+          />
+          <AvailableToRead available={available} canEdit={canEdit} />
+        </>
       )}
 
       {!collapsed && error && (
@@ -424,6 +451,9 @@ NotebookCell.propTypes = {
   dataSources: PropTypes.arrayOf(PropTypes.object),
   canEdit: PropTypes.bool,
   cluster: PropTypes.bool,
+  // What the cells above this one handed over, as the editor's schema:
+  // `[{name, columns: [{name, type}]}]`.
+  available: PropTypes.arrayOf(PropTypes.object),
   onChanged: PropTypes.func.isRequired,
   onRemoved: PropTypes.func.isRequired,
   running: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
@@ -434,6 +464,7 @@ NotebookCell.defaultProps = {
   dataSources: [],
   canEdit: false,
   cluster: false,
+  available: [],
   running: null,
 };
 
@@ -536,9 +567,11 @@ export function describeWhatItRunsOn(cell, dataSources, cluster) {
   friction to cause exactly that. Falls back to the cell's name, which is
   always there.
 
-  The name stays visible beside it, because the name is what later cells are
-  written against -- somebody who titles a cell "Orders, cleaned" still needs
-  to know they type `orders` to read it.
+  The handle sits beside it (see `CellHandle`), because the name is what later
+  cells are written against -- somebody who titles a cell "Orders, cleaned"
+  still needs to know they type `orders_cleaned` to read it. Titling a cell
+  whose handle nobody has chosen and nothing yet reads renames the handle to
+  match, so in the ordinary case there is only ever one thing to fill in.
 */
 export function CellTitle({ cell, canEdit, onChange }) {
   return (
@@ -561,6 +594,145 @@ CellTitle.propTypes = {
 };
 
 CellTitle.defaultProps = { canEdit: false };
+
+/*
+  What the cells below call this one.
+
+  The one thing a notebook has that a query does not is that cell four can
+  read cell three -- and the only way anybody finds that out is if the name to
+  type is on the screen. Hiding it, which is what showing only the title did,
+  left the mechanism with no visible handle at all: the rule was in the help
+  dialog and nowhere a person actually was.
+
+  So it is here, in monospace, looking like the identifier it is. **One click
+  copies it**, because the next thing somebody does with it is paste it into
+  the cell below; renaming is in the overflow menu, being much the rarer
+  thing. A reader gets the chip too -- somebody reading a shared notebook is
+  often somebody about to write a cell of their own.
+*/
+export function CellHandle({ cell, canEdit, editing, onEditing, onRename }) {
+  const [draft, setDraft] = useState(cell.name);
+  // Escape has to win against blur, and blur fires first. A flag rather than
+  // ordering: `setDraft` has not landed by the time the blur handler reads it,
+  // so resetting the draft and relying on it is a rename to the old value.
+  const abandoned = useRef(false);
+
+  useEffect(() => setDraft(cell.name), [cell.name]);
+
+  const copy = useCallback(() => {
+    const said = `Cells below this one read it as ${cell.name}.`;
+    if (!navigator.clipboard) {
+      notification.warning(said);
+      return;
+    }
+    navigator.clipboard
+      .writeText(cell.name)
+      .then(() => notification.success(`Copied. ${said}`))
+      .catch(() => notification.warning(said));
+  }, [cell.name]);
+
+  if (editing && canEdit) {
+    return (
+      <input
+        className="notebook-cell-handle-input"
+        value={draft}
+        autoFocus
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          onEditing(false);
+          const wanted = draft.trim();
+          if (!abandoned.current && wanted && wanted !== cell.name) {
+            // The server owns the rules -- letters, digits and underscores,
+            // not starting with a digit, unique in the notebook -- and it
+            // answers with the sentence saying which one was broken. Checking
+            // here as well would be a second copy of them.
+            onRename(wanted).catch((reason) =>
+              notification.error((reason && reason.message) || "That name will not do.")
+            );
+          }
+          abandoned.current = false;
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.target.blur();
+          }
+          if (e.key === "Escape") {
+            abandoned.current = true;
+            setDraft(cell.name);
+            e.target.blur();
+          }
+        }}
+        data-test="CellHandleInput"
+        aria-label="What cells below call this one"
+      />
+    );
+  }
+
+  return (
+    <Tooltip title={`Cells below this one read it as ${cell.name}. Click to copy.`}>
+      <PlainButton className="notebook-cell-handle" onClick={copy} data-test="CellHandle">
+        {cell.name}
+      </PlainButton>
+    </Tooltip>
+  );
+}
+
+CellHandle.propTypes = {
+  cell: PropTypes.object.isRequired,
+  canEdit: PropTypes.bool,
+  editing: PropTypes.bool,
+  onEditing: PropTypes.func,
+  onRename: PropTypes.func,
+};
+
+CellHandle.defaultProps = {
+  canEdit: false,
+  editing: false,
+  onEditing: () => {},
+  onRename: () => Promise.resolve(),
+};
+
+/*
+  The names this cell can read, under the box it would type them in.
+
+  Autocomplete only helps somebody who already knows there is something to
+  complete. This line is the other half: an empty cell says what is there to
+  read before a key is pressed, and a cell with code says it where the eye
+  already is. Only what is *really* readable -- a name is here because a cell
+  above handed a table over, so a cell that printed is correctly absent and
+  nobody writes a reference that cannot resolve.
+*/
+export function AvailableToRead({ available, canEdit }) {
+  if (!canEdit || !size(available)) {
+    return null;
+  }
+  return (
+    <div className="notebook-cell-available" data-test="AvailableToRead">
+      Reads from{" "}
+      {map(available, (one, nth) => (
+        <React.Fragment key={one.name}>
+          {nth > 0 && ", "}
+          <Tooltip
+            title={
+              size(one.columns)
+                ? `${one.name}: ${map(one.columns, (column) => column.name).join(", ")}`
+                : one.name
+            }
+          >
+            <code>{one.name}</code>
+          </Tooltip>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+AvailableToRead.propTypes = {
+  available: PropTypes.arrayOf(PropTypes.object),
+  canEdit: PropTypes.bool,
+};
+
+AvailableToRead.defaultProps = { available: [], canEdit: false };
 
 /*
   One line standing in for a folded cell, so folding does not make it

@@ -25,6 +25,12 @@ const Notebook = {
   // megabytes of JSON before anybody looked at anything.
   cellResult: (notebookId, cellId) => axios.get(`api/notebooks/${notebookId}/cells/${cellId}/result`),
 
+  // What the cells have handed over, and the columns inside it -- the names a
+  // later cell can read. Its own request rather than part of the notebook:
+  // reading it means opening the notebook's DuckDB file, and the page already
+  // decided not to do that before anything draws.
+  handoffs: (notebookId) => axios.get(`api/notebooks/${notebookId}/handoffs`),
+
   // Returns a job, in the same shape the query editor already polls.
   runCell: (notebookId, cellId) => axios.post(`api/notebooks/${notebookId}/cells/${cellId}/run`, {}),
   // Cancels the cell that is running. The session and its variables stay.

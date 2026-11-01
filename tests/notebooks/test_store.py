@@ -369,3 +369,61 @@ class TestReadOnly(StoreTestCase):
                 reader.hand_off("orders", columns(("id", TYPE_INTEGER)), [{"id": 2}])
         finally:
             reader.close()
+
+
+class TestWhatIsAvailableToRead(StoreTestCase):
+    """
+    What the editor completes against.
+
+    The names a later cell can read and the columns inside them, which is the
+    answer to the only question a notebook raises that a query does not. One
+    query rather than a DESCRIBE each: a notebook of thirty cells is thirty
+    round trips otherwise, on a page that already decided not to do work
+    before it draws.
+    """
+
+    def test_every_handoff_arrives_with_its_columns(self):
+        self.store.hand_off(
+            "orders",
+            columns(("id", TYPE_INTEGER), ("city", TYPE_STRING)),
+            [{"id": 1, "city": "Toronto"}],
+        )
+
+        self.assertEqual(
+            [
+                {
+                    "name": "orders",
+                    "columns": [{"name": "id", "type": TYPE_INTEGER}, {"name": "city", "type": TYPE_STRING}],
+                }
+            ],
+            self.store.schema(),
+        )
+
+    def test_the_columns_keep_the_order_they_were_written_in(self):
+        self.store.hand_off(
+            "wide",
+            columns(("zebra", TYPE_STRING), ("apple", TYPE_STRING), ("mango", TYPE_STRING)),
+            [{"zebra": "z", "apple": "a", "mango": "m"}],
+        )
+
+        found = self.store.schema()[0]
+        # Alphabetical would be wrong: the columns of a SELECT are in the
+        # order somebody wrote them, and that order carries meaning.
+        self.assertEqual(["zebra", "apple", "mango"], [one["name"] for one in found["columns"]])
+
+    def test_a_notebook_that_has_handed_nothing_over_offers_nothing(self):
+        self.assertEqual([], self.store.schema())
+
+    def test_duckdbs_own_catalog_is_not_something_a_cell_can_read(self):
+        self.store.hand_off("orders", columns(("id", TYPE_INTEGER)), [{"id": 1}])
+
+        # `duckdb_columns()` covers views too, so asking it on its own answers
+        # with 47 relations named `schemata`, `tables`, `character_sets` -- and
+        # the editor would have offered every one as a cell to read from.
+        self.assertEqual(["orders"], [one["name"] for one in self.store.schema()])
+
+    def test_a_dropped_handoff_stops_being_offered(self):
+        self.store.hand_off("orders", columns(("id", TYPE_INTEGER)), [{"id": 1}])
+        self.store.drop("orders")
+
+        self.assertEqual([], self.store.schema())

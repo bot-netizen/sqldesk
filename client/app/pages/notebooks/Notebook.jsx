@@ -8,7 +8,7 @@ import Button from "antd/lib/button";
 import Dropdown from "antd/lib/dropdown";
 import Menu from "antd/lib/menu";
 import Tooltip from "antd/lib/tooltip";
-import { map, reject, sortBy } from "lodash";
+import { filter, map, reject, sortBy } from "lodash";
 
 import Link from "@/components/Link";
 import PlainButton from "@/components/PlainButton";
@@ -46,6 +46,19 @@ function NotebookPage({ notebookId }) {
   const [dataSources, setDataSources] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [running, setRunning] = useState(null);
+  /*
+    The names the cells have handed over, and the columns inside them.
+
+    This is how somebody finds out how to read cell three: they type in cell
+    four and `orders` comes up with its columns under it. The rule is one
+    sentence long and the help dialog says it, but a rule you have to remember
+    is a rule people get wrong -- and a reference that does not resolve looks
+    exactly like a cell that is broken.
+
+    After the notebook rather than with it: reading them opens the notebook's
+    DuckDB file, and nothing on this page waits for that.
+  */
+  const [handoffs, setHandoffs] = useState([]);
   // What an export captures: the cells, not the page around them.
   const cellsRef = useRef(null);
 
@@ -57,8 +70,16 @@ function NotebookPage({ notebookId }) {
       );
   }, [notebookId]);
 
+  const loadHandoffs = useCallback(() => {
+    return Notebook.handoffs(notebookId)
+      .then(({ handoffs: found }) => setHandoffs(found || []))
+      // Autocomplete is a convenience. A notebook that will not tell us what
+      // it handed over is still a notebook somebody can write in.
+      .catch(() => setHandoffs([]));
+  }, [notebookId]);
+
   useEffect(() => {
-    load();
+    load().then(loadHandoffs);
     DataSource.query()
       .then(setDataSources)
       .catch(() => setDataSources([]));
@@ -71,7 +92,9 @@ function NotebookPage({ notebookId }) {
       // `null` means "something ran" -- reload, because the cells below this
       // one have changed even though nothing about them was edited.
       if (!saved) {
-        return load();
+        // Something ran, so the store has changed: a cell that produced a
+        // table for the first time is a name the cells below it can now read.
+        return load().then(loadHandoffs);
       }
       setNotebook((current) =>
         current
@@ -80,7 +103,7 @@ function NotebookPage({ notebookId }) {
       );
       return Promise.resolve();
     },
-    [load]
+    [load, loadHandoffs]
   );
 
   const onCellRemoved = useCallback((removed) => {
@@ -304,6 +327,12 @@ function NotebookPage({ notebookId }) {
                 dataSources={dataSources}
                 canEdit={notebook.can_edit}
                 cluster={!!interpreterState.cluster}
+                /*
+                  Only the cells *above* this one. A reference downward does
+                  not resolve, and completing one would be the editor
+                  suggesting a mistake.
+                */
+                available={filter(handoffs, (one) => one.position < cell.position)}
                 running={running}
                 onRunningChanged={(busy) => setRunning(busy ? cell.id : null)}
                 onChanged={onCellChanged}

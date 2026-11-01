@@ -235,6 +235,66 @@
   color: var(--color-text-muted);
 }
 
+/*
+  The handle, looking like the identifier it is.
+
+  Monospace and bracketed so it reads as code rather than as a second title --
+  it is the thing somebody types into the cell below, and a word in the page's
+  own font beside a title is indistinguishable from part of the title.
+*/
+.notebook-cell-handle {
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  background: var(--color-surface, rgba(0, 0, 0, 0.04));
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 0 5px;
+  line-height: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--color-text);
+    border-color: var(--color-border, rgba(0, 0, 0, 0.12));
+  }
+}
+
+.notebook-cell-handle-input {
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  line-height: 18px;
+  height: 20px;
+  padding: 0 5px;
+  border: 1px solid var(--color-primary, #2b7ddb);
+  border-radius: 3px;
+  background: var(--color-surface-raised, #fff);
+  width: 130px;
+  flex: 0 0 auto;
+}
+
+/*
+  Under the editor rather than over it: it is the answer to a question
+  somebody has while typing, and above the box it would be one more line
+  between the header and the code on every cell in the notebook.
+*/
+.notebook-cell-available {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  padding: 3px 10px 0;
+
+  code {
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+    background: var(--color-surface, rgba(0, 0, 0, 0.04));
+    border-radius: 3px;
+    padding: 0 4px;
+    color: var(--color-text);
+  }
+}
+
 .notebook-cell-reads {
   font-size: 12px;
   color: var(--color-text-muted);

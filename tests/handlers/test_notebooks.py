@@ -1305,3 +1305,177 @@ class TestSharingANotebook(NotebookApiTestCase):
             answer = self.make_request("get", "/api/notebooks/public/{}".format(token), user=False)
 
         self.assertEqual(404, answer.status_code)
+
+
+class TestWhatACellCanRead(NotebookApiTestCase):
+    """
+    How somebody finds out how to get at a particular cell's data.
+
+    The rule is one sentence — a later cell reads an earlier one by its name —
+    and a rule you have to remember is a rule people get wrong, so the editor
+    completes against this. The claim worth holding up is that it answers with
+    what is **really** readable: a name is here because a cell above handed a
+    table over, so nobody is offered a reference that cannot resolve.
+    """
+
+    def handoffs(self, notebook, user=None):
+        return self.make_request(
+            "get", "/api/notebooks/{}/handoffs".format(notebook.id), user=user or self.factory.user
+        )
+
+    def test_a_notebook_that_has_never_run_offers_nothing(self):
+        notebook = self.a_notebook()
+        self.a_cell(notebook)
+
+        answer = self.handoffs(notebook)
+
+        self.assertEqual(200, answer.status_code)
+        self.assertEqual([], answer.json["handoffs"])
+
+    def test_a_handoff_arrives_with_its_columns_and_where_it_sits(self):
+        notebook = self.a_notebook()
+        self.a_cell(notebook, name="orders", position=0, data_source=self.factory.data_source, ran=True)
+        store = Store(notebook.store_path())
+        try:
+            store.hand_off(
+                "orders",
+                [
+                    {"name": "id", "friendly_name": "id", "type": "integer"},
+                    {"name": "city", "friendly_name": "city", "type": "string"},
+                ],
+                [{"id": 1, "city": "Toronto"}],
+            )
+        finally:
+            store.close()
+
+        answer = self.handoffs(notebook)
+
+        self.assertEqual(1, len(answer.json["handoffs"]))
+        found = answer.json["handoffs"][0]
+        self.assertEqual("orders", found["name"])
+        # The position is what lets the page offer a cell only the names from
+        # above it; a reference downward does not resolve.
+        self.assertEqual(0, found["position"])
+        self.assertEqual(["id", "city"], [one["name"] for one in found["columns"]])
+
+    def test_a_handoff_whose_cell_has_gone_is_not_offered(self):
+        notebook = self.a_notebook()
+        store = Store(notebook.store_path())
+        try:
+            store.hand_off("orphan", [{"name": "id", "friendly_name": "id", "type": "integer"}], [{"id": 1}])
+        finally:
+            store.close()
+
+        answer = self.handoffs(notebook)
+
+        # Nothing on the page could read it, so offering the name would be the
+        # editor suggesting a reference that will not resolve.
+        self.assertEqual([], answer.json["handoffs"])
+
+    def test_somebody_elses_draft_is_not_readable(self):
+        other = self.factory.create_user()
+        notebook = self.a_notebook(user=other, is_draft=True)
+
+        answer = self.handoffs(notebook)
+
+        self.assertEqual(404, answer.status_code)
+
+
+class TestTheHandleFollowsTheTitle(NotebookApiTestCase):
+    """
+    Title a cell and the name the cells below type follows it.
+
+    Because the handle is the part that matters and the title is the part
+    people fill in: a notebook of `cell_1 … cell_9` makes every reference a
+    lookup, and asking somebody to name the same step twice is how you get one
+    good title and eight `cell_n`.
+
+    Both guards here are about not surprising anybody — a handle somebody
+    chose is never replaced, and neither is one that another cell's source
+    already refers to, because those references are somebody's SQL and
+    rewriting it quietly is worse than an unhelpful name.
+    """
+
+    def retitle(self, notebook, cell, title):
+        return self.make_request(
+            "post",
+            "/api/notebooks/{}/cells/{}".format(notebook.id, cell.id),
+            data={"title": title},
+            user=self.factory.user,
+        )
+
+    def test_titling_a_cell_names_it(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook, name="cell_1")
+
+        answer = self.retitle(notebook, cell, "Orders, cleaned")
+
+        self.assertEqual(200, answer.status_code)
+        self.assertEqual("orders_cleaned", answer.json["name"])
+
+    def test_a_handle_somebody_chose_is_left_alone(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook, name="orders")
+
+        answer = self.retitle(notebook, cell, "Everything from the warehouse")
+
+        self.assertEqual("orders", answer.json["name"])
+
+    def test_a_handle_another_cell_refers_to_is_left_alone(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook, name="cell_1", position=0)
+        self.a_cell(notebook, name="by_city", source="SELECT * FROM cell_1", position=1)
+
+        answer = self.retitle(notebook, cell, "Orders")
+
+        # Renaming would leave the cell below reading a name that no longer
+        # exists, and its SQL is not ours to rewrite.
+        self.assertEqual("cell_1", answer.json["name"])
+
+    def test_a_title_that_is_already_taken_as_a_name_is_left_alone(self):
+        notebook = self.a_notebook()
+        self.a_cell(notebook, name="orders", position=0)
+        cell = self.a_cell(notebook, name="cell_2", position=1)
+
+        answer = self.retitle(notebook, cell, "Orders")
+
+        self.assertEqual("cell_2", answer.json["name"])
+        self.assertEqual("Orders", answer.json["title"])
+
+    def test_a_title_starting_with_a_digit_still_makes_a_legal_name(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook, name="cell_1")
+
+        answer = self.retitle(notebook, cell, "2026 revenue")
+
+        # Legal in neither SQL nor Python with the digit leading, and dropping
+        # it would turn this into "revenue" -- a different thing.
+        self.assertEqual("_2026_revenue", answer.json["name"])
+
+    def test_a_title_with_nothing_usable_in_it_leaves_the_name_alone(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook, name="cell_1")
+
+        answer = self.retitle(notebook, cell, "???")
+
+        self.assertEqual("cell_1", answer.json["name"])
+        self.assertEqual("???", answer.json["title"])
+
+    def test_the_handoff_follows_the_rename(self):
+        notebook = self.a_notebook()
+        cell = self.a_cell(notebook, name="cell_1", data_source=self.factory.data_source, ran=True)
+        store = Store(notebook.store_path())
+        try:
+            store.hand_off("cell_1", [{"name": "id", "friendly_name": "id", "type": "integer"}], [{"id": 1}])
+        finally:
+            store.close()
+
+        self.retitle(notebook, cell, "Orders")
+
+        reader = Store(notebook.store_path(), read_only=True)
+        try:
+            # Left behind under the old name, the next cell's reference would
+            # resolve to nothing and the row would have to be re-fetched.
+            self.assertEqual(["orders"], reader.names())
+        finally:
+            reader.close()

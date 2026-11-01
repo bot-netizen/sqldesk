@@ -324,6 +324,41 @@ class Store:
         """Which cells have a handoff here, in the order DuckDB lists them."""
         return [row[0] for row in self.connection.execute("SELECT table_name FROM duckdb_tables()").fetchall()]
 
+    def schema(self):
+        """
+        Every handoff and the columns inside it.
+
+        This is what the editor completes against. Somebody writing cell four
+        needs to know what the cells above it handed over and what is in it,
+        and the alternative to telling them is their guessing -- which is the
+        single thing people get wrong about a notebook, because a reference
+        that does not resolve looks exactly like a cell that is broken.
+
+        One query over `duckdb_columns()` rather than a DESCRIBE each: a
+        notebook of thirty cells is thirty round trips otherwise, on a page
+        that already decided not to do work on load.
+
+        Joined to `duckdb_tables()`, which is the whole reason this is not a
+        one-liner. `duckdb_columns()` covers views as well as tables, so on
+        its own it answers with DuckDB's own catalog -- 47 relations named
+        `character_sets`, `schemata`, `tables` -- and the editor would have
+        offered every one of them as something a cell could read. The join
+        makes this exactly "the columns of what `names()` lists".
+        """
+        from sqldesk.query_runner.duckdb import duckdb_type
+
+        rows = self.connection.execute(
+            "SELECT c.table_name, c.column_name, c.data_type "
+            "FROM duckdb_columns() c JOIN duckdb_tables() t "
+            "  ON t.database_name = c.database_name AND t.schema_name = c.schema_name "
+            " AND t.table_name = c.table_name "
+            "ORDER BY c.table_name, c.column_index"
+        ).fetchall()
+        tables = {}
+        for table, column, declared in rows:
+            tables.setdefault(table, []).append({"name": column, "type": duckdb_type(declared)})
+        return [{"name": name, "columns": columns} for name, columns in tables.items()]
+
     def row_count(self, name):
         counted = self.connection.execute("SELECT count(*) FROM {}".format(quoted(name))).fetchone()
         return counted[0] or 0

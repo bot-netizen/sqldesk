@@ -425,6 +425,54 @@ def _next_name(notebook, kind):
     return "{}_{}".format(stem, nth)
 
 
+#: A name this cell was given rather than chose: `cell_4`, `code_11`. Only a
+#: name of this shape may be replaced automatically, because it is the one
+#: nobody picked.
+AUTO_NAME = re.compile(r"^(cell|code)_\d+$")
+
+
+def _follow_the_title(notebook, cell):
+    """
+    Title a cell "Orders, cleaned" and the handle becomes `orders_cleaned`.
+
+    Because the handle is the part that matters and the title is the part
+    people fill in. A notebook whose cells are `cell_1 … cell_9` is a notebook
+    where every reference is a lookup, and asking somebody to name the same
+    step twice -- once for the eye, once for the SQL -- is how you get one
+    good title and nine `cell_n`.
+
+    Two conditions, and both are about not surprising anybody. The name must
+    still be the one we generated, so a handle somebody chose is never
+    replaced; and nothing may read this cell yet, because the references live
+    in other cells' source and silently rewriting somebody's SQL is worse
+    than an unhelpful name.
+    """
+    if not cell.title or not AUTO_NAME.match(cell.name or ""):
+        return
+    cells = notebook.cells
+    if any(cell.name in cell_runner.reads(other, cells) for other in cells if other.id != cell.id):
+        return
+    wanted = _slug(cell.title)
+    if not wanted or wanted == cell.name:
+        return
+    if notebooks.name_problem(wanted, taken=[one.name for one in cells if one.id != cell.id]):
+        return
+    _rename_in_the_store(notebook, cell.name, wanted)
+    cell.name = wanted
+
+
+def _slug(title):
+    """A title as an identifier: the name has to be legal in SQL and Python."""
+    lowered = re.sub(r"[^a-z0-9]+", "_", (title or "").lower()).strip("_")
+    if not lowered:
+        return None
+    # A leading digit is legal in neither language, and dropping it would
+    # turn "2024 revenue" into "revenue" -- a different thing.
+    if lowered[0].isdigit():
+        lowered = "_" + lowered
+    return lowered[: notebooks.MAX_NAME]
+
+
 def _next_position(notebook):
     return max([one.position or 0 for one in notebook.cells] or [-1]) + 1
 
@@ -456,6 +504,8 @@ class CellResource(BaseResource):
             # Emptied rather than set to "": the page shows the name when
             # there is no title, and an empty string is not "no title".
             cell.title = (body.get("title") or "").strip() or None
+            if "name" not in body:
+                _follow_the_title(notebook, cell)
         if "kind" in body and body["kind"] != cell.kind:
             # What a cell runs on, changed after the fact.
             #
@@ -649,6 +699,50 @@ class CellDownloadResource(BaseResource):
                 "Content-Disposition": 'attachment; filename="{}.csv"'.format(_filename(cell)),
             },
         )
+
+
+class NotebookHandoffResource(BaseResource):
+    """
+    What the cells have handed over, and what is inside it.
+
+    This is the answer to the question somebody actually has in front of an
+    empty cell: *how do I get at cell three's data?* The rule is one sentence
+    -- a later cell reads an earlier one by its name -- but a rule you have to
+    remember is a rule people get wrong, so the editor completes against this
+    and the names arrive with their columns.
+
+    Its own request rather than part of the notebook, deliberately. Opening
+    the page would otherwise pay for a DuckDB open before anything drew, which
+    is exactly the mistake `reaches_a_cluster` made and had to be cached out
+    of. Nothing here blocks reading a notebook: this is for writing one.
+    """
+
+    @require_feature(features.USE_NOTEBOOKS)
+    def get(self, notebook_id):
+        notebook = _notebook(notebook_id, self.current_org, self.current_user)
+        # Named by cell, so the page can offer a cell only the names from
+        # *above* it -- a reference downward does not resolve, and offering
+        # one would be the editor suggesting a mistake.
+        position = {cell.name: cell.position for cell in notebook.cells}
+
+        if not os.path.exists(notebook.store_path()):
+            return {"handoffs": []}
+
+        store = Store(notebook.store_path(), read_only=True)
+        try:
+            handoffs = store.schema()
+        except Exception:
+            # A worker holding the write lock, or a store that has been
+            # discarded under us. Autocomplete is a convenience and must never
+            # be the reason an editor will not open.
+            logger.warning("could not read notebook %s handoffs", notebook.id, exc_info=True)
+            return {"handoffs": []}
+        finally:
+            store.close()
+
+        for one in handoffs:
+            one["position"] = position.get(one["name"])
+        return {"handoffs": [one for one in handoffs if one["position"] is not None]}
 
 
 def _filename(cell):

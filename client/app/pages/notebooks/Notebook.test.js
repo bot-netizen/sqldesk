@@ -15,6 +15,7 @@ import { NotebookScheduleDialog, matchingPreset } from "./NotebookScheduleDialog
 // refuses: each test supplies what `get` should answer with.
 jest.mock("@/services/notebook", () => ({
   get: jest.fn(() => Promise.resolve({})),
+  handoffs: jest.fn(() => Promise.resolve({ handoffs: [] })),
   addCell: jest.fn(() => Promise.resolve({})),
   detach: jest.fn(() => Promise.resolve({ detached: true })),
   save: jest.fn(() => Promise.resolve({})),
@@ -26,7 +27,9 @@ jest.mock("@/services/notebook", () => ({
 jest.mock("@/services/query-result", () => ({ fetchDataFromJob: jest.fn(() => Promise.resolve(1)) }));
 jest.mock("@/services/data-source", () => ({ query: jest.fn(() => Promise.resolve([])) }));
 jest.mock("@/services/notification", () => ({ success: jest.fn(), warning: jest.fn(), error: jest.fn() }));
-jest.mock("./NotebookCell", () => () => null);
+jest.mock("./NotebookCell", () => function NotebookCell() {
+  return null;
+});
 
 const Notebook = require("@/services/notebook");
 
@@ -446,5 +449,57 @@ describe("jumping to a cell", () => {
     pageWith({ scrolls: true });
 
     expect(() => scrollToCell(999)).not.toThrow();
+  });
+});
+
+/*
+  Which names a cell may read.
+
+  Downward references do not resolve, so a cell is offered only what the cells
+  *above* it handed over -- completing anything else would be the editor
+  suggesting a mistake. Fetched after the notebook rather than with it:
+  reading it opens the notebook's DuckDB file, and that is the mistake
+  `reaches_a_cluster` already made on this page once.
+*/
+describe("what a cell is allowed to read", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("asks for the handoffs after the notebook, not as part of it", async () => {
+    await open();
+
+    expect(Notebook.handoffs).toHaveBeenCalledWith(5);
+  });
+
+  it("offers each cell only the cells above it", async () => {
+    Notebook.handoffs.mockResolvedValueOnce({
+      handoffs: [
+        { name: "orders", position: 0, columns: [{ name: "city" }] },
+        { name: "by_city", position: 1, columns: [] },
+      ],
+    });
+    const page = await open(
+      fixture({
+        cells: [
+          { id: 1, name: "orders", kind: "sql", position: 0, source: "SELECT 1", options: {} },
+          { id: 2, name: "by_city", kind: "sql", position: 1, source: "SELECT 2", options: {} },
+          { id: 3, name: "cell_3", kind: "python", position: 2, source: "by_city", options: {} },
+        ],
+      })
+    );
+    await act(async () => {});
+    page.update();
+
+    const offered = page.find("NotebookCell").map((one) => one.prop("available").map((each) => each.name));
+    expect(offered).toEqual([[], ["orders"], ["orders", "by_city"]]);
+  });
+
+  it("still opens when the notebook will not say what it handed over", async () => {
+    Notebook.handoffs.mockRejectedValueOnce(new Error("locked"));
+    const page = await open();
+    await act(async () => {});
+    page.update();
+
+    expect(page.find('[data-test="NotebookName"]').text()).toBe("Quarter");
+    expect(page.find("NotebookCell").first().prop("available")).toEqual([]);
   });
 });
