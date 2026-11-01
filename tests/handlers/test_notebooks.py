@@ -850,6 +850,18 @@ class TestChangingWhatACellRunsOn(NotebookApiTestCase):
     the warehouse it was given while it was SQL.
     """
 
+    def setUp(self):
+        super().setUp()
+        # An install with no executor refuses a cell turned into Python, which
+        # is its own test below. These are about what the switch *does*, so
+        # they say they are on an install that has one rather than inheriting
+        # it from whatever the environment happens to be -- the dev compose
+        # sets an executor URL and CI does not, so without this they passed
+        # here and failed there.
+        configured = mock.patch("sqldesk.handlers.notebooks.interpreter.configured", return_value=True)
+        configured.start()
+        self.addCleanup(configured.stop)
+
     def change(self, cell, body, user=None):
         return self.make_request(
             "post",
