@@ -47,34 +47,42 @@ Delete an entry when it is answered, and write the answer where the work is.
 - `dashboards.schedule` and migration `f4b2c8d1e903` are vestigial —
   dashboard schedules were added in 0.2.0 and removed in 0.3.2 by request.
 
-## The backend suite takes 57 minutes on release/0.8, against 21 on main
+## Why do failing CI runs take an hour, and passing ones 25 minutes?
 
-Measured on CI, same runner class, same workflow: `backend-unit-tests` ran
-**21m09s** on main at v0.7.10 (run 40918598866) and **56m00s** on
-`release/0.8` (run 41346028951, 3430 tests). A 2.7x regression this release
-introduced, and nobody has found it.
+Not the regression it first looked like. `backend-unit-tests` on
+`release/0.8`:
 
-What has been ruled out:
+| Run | Result | Time |
+|---|---|---|
+| 41234126211 | 3 failed | 57m20s |
+| 41238799209 | 3 failed | 59m36s |
+| 41346028951 | 3 failed | 58m41s |
+| 41351570395 | green | **25m12s** |
 
-- **No pathological test.** The slowest handler test is 2.8s and the
-  distribution is flat at ~0.6s. It is uniform per-test overhead, not one bad
-  case.
-- **Not `create_app`.** 0.855s on the first call, 0.039s thereafter.
-- **Not Postgres tuning.** The dev compose and `.ci/compose.ci.yaml` both run
-  with `fsync=off -c full_page_writes=off -c synchronous_commit=OFF`.
+Against **21m09s** on main at v0.7.10. So the passing suite is about a fifth
+slower than main's, for roughly a tenth more tests and four more tables --
+unremarkable, and not worth chasing.
 
-What is known: `BaseTestCase.setUp` does `db.drop_all(); db.create_all()` on
-**every** test, which costs 0.44s against 38 tables -- about 25 minutes across
-the suite on its own. That is mostly pre-existing rather than new, and the
-table count has grown by roughly a tenth this release, which does not account
-for 36 minutes.
+What is odd is the other column: three failing runs at ~58 minutes and one
+passing run at 25. The three failures were `TestChangingWhatACellRunsOn`
+getting a 400 where they expected a 200, which is not slow work, and the
+commit that fixed them changed nothing a passing test touches. So either a
+failure drags something else out, or those three runs landed on degraded
+runners and the correlation is coincidence -- three of three is weak
+evidence either way.
 
-**The experiment nobody has run**: time the same `drop_all`/`create_all` probe
-against v0.7.10 and compare. If it is close, the cost is in the test bodies
-and the suite needs a profile; if it is far, the schema is the answer and a
-per-class or per-session schema with transactional rollback per test is worth
-the change.
+Worth one look before 0.8.0 final, because an hour-long suite is one people
+stop waiting for, and that is how CI came to be red on this branch for a week
+without anybody noticing. Not worth a project.
 
-Does not block 0.8.0-rc.1. Worth settling before 0.8.0 final, because a suite
-nobody will wait an hour for is a suite that stops being run -- which is how
-CI came to be red on this branch for a week without anybody noticing.
+A note on the measurements that were here before: an earlier version of this
+section called it a 2.7x regression on the strength of a single failing run.
+That was wrong, and it is left recorded rather than quietly deleted -- one
+measurement is not a finding.
+
+Ruled out along the way, and still true: no pathological test (the slowest
+handler test is 2.8s, the distribution flat at ~0.6s); `create_app` is 0.855s
+once and 0.039s thereafter; the dev and CI composes tune Postgres
+identically. `BaseTestCase.setUp` does `db.drop_all(); db.create_all()` on
+every test, 0.44s against 38 tables -- about 25 minutes across the suite, and
+the dominant cost in it.
