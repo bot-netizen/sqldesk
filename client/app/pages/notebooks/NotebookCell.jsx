@@ -29,6 +29,7 @@ import Notebook from "@/services/notebook";
 import CellVisualizationDialog from "./CellVisualizationDialog";
 import CellFigure from "./CellFigure";
 import EditableTitle from "./EditableTitle";
+import popupInPage from "./popup";
 import { Renderer } from "@/components/visualizations/visualizationComponents";
 import { fetchDataFromJob } from "@/services/query-result";
 import notification from "@/services/notification";
@@ -264,11 +265,6 @@ export default function NotebookCell({
           onRename={(name) => save({ name })}
         />
 
-        {size(cell.reads) > 0 && (
-          <span className="notebook-cell-reads" data-test="CellReads">
-            reads {cell.reads.join(", ")}
-          </span>
-        )}
         <span className="notebook-cell-spacer" />
         {/*
           Beside Run, not beside the title: choosing where a cell runs and
@@ -359,7 +355,7 @@ export default function NotebookCell({
           </Tooltip>
         )}
         {canEdit && (
-          <Dropdown overlay={moreMenu} trigger={["click"]} placement="bottomRight">
+          <Dropdown overlay={moreMenu} trigger={["click"]} placement="bottomRight" getPopupContainer={popupInPage}>
             <Button
               size="small"
               type="text"
@@ -497,6 +493,12 @@ export function RunsOn({ cell, dataSources, canEdit, cluster, onChange }) {
     [onChange]
   );
 
+  // A cell may point at a data source this person is not allowed to see --
+  // somebody else built the notebook, or their access was taken away. Without
+  // an option to match, the control falls back to showing the raw value
+  // (`source:3`), so it carries one of its own that cannot be chosen.
+  const unseen = !!cell.data_source_id && !(dataSources || []).some((one) => one.id === cell.data_source_id);
+
   if (!canEdit) {
     return (
       <span className="notebook-cell-runs-on-static" data-test="RunsOn">
@@ -507,16 +509,30 @@ export function RunsOn({ cell, dataSources, canEdit, cluster, onChange }) {
 
   return (
     <span className="notebook-cell-runs-on" data-test="RunsOn">
-      <span className="notebook-cell-runs-on-said" data-test="RunsOnSaid">
-        {describeWhatItRunsOn(cell, dataSources, cluster)}
-      </span>
-      <Select size="small" value={value} onChange={change} className="notebook-cell-runs-on-select" dropdownMatchSelectWidth={false}>
+      {/*
+        The control says what the cell runs on, so nothing beside it needs to
+        say it again. There was a sentence here repeating the chosen value in
+        longer words, on every cell of every notebook.
+      */}
+      <Select
+        size="small"
+        value={value}
+        onChange={change}
+        className="notebook-cell-runs-on-select"
+        dropdownMatchSelectWidth={false}
+        getPopupContainer={popupInPage}
+      >
         <Select.OptGroup label="Query a data source">
           {map(dataSources, (source) => (
             <Select.Option key={source.id} value={`${SOURCE_PREFIX}${source.id}`}>
               {source.name}
             </Select.Option>
           ))}
+          {unseen && (
+            <Select.Option key="unseen" value={`${SOURCE_PREFIX}${cell.data_source_id}`} disabled>
+              A data source you cannot see
+            </Select.Option>
+          )}
         </Select.OptGroup>
         <Select.OptGroup label="Stay in this notebook">
           <Select.Option value={EARLIER_CELLS}>SQL over earlier cells</Select.Option>
@@ -540,20 +556,22 @@ RunsOn.propTypes = {
 RunsOn.defaultProps = { dataSources: [], canEdit: false, cluster: false };
 
 /*
-  The same decision in words.
+  The same decision in words, for somebody who has no control to read it off.
 
-  The sentence the user asked for: if it runs Python, say outright that no
-  data source is needed, rather than leaving an empty control to imply
-  something is missing.
+  Only for a reader. An editor has the control itself, and a sentence beside
+  it saying the same thing in longer words was on every cell of every
+  notebook -- which is the sort of thing that reads as helpful once and as
+  noise thereafter.
+
+  Worded as the control's own options are, so the two cannot drift into
+  describing the same cell differently.
 */
 export function describeWhatItRunsOn(cell, dataSources, cluster) {
   if (cell.kind === "python") {
-    return cluster
-      ? "Python, with `spark` — reads earlier cells; no data source"
-      : "Python — reads earlier cells; no data source";
+    return cluster ? "Python, with the Spark cluster" : "Python";
   }
   if (!cell.data_source_id) {
-    return "SQL over earlier cells — no data source";
+    return "SQL over earlier cells";
   }
   const source = (dataSources || []).find((one) => one.id === cell.data_source_id);
   return source ? `SQL against ${source.name}` : "SQL against a data source you cannot see";
@@ -701,6 +719,10 @@ CellHandle.defaultProps = {
   already is. Only what is *really* readable -- a name is here because a cell
   above handed a table over, so a cell that printed is correctly absent and
   nobody writes a reference that cannot resolve.
+
+  "Available to read", not "reads": it lists what this cell *may* use, and a
+  cell may use any of them or none. Worded the other way it was a claim about
+  somebody's code, which is both wrong and not the page's business.
 */
 export function AvailableToRead({ available, canEdit }) {
   if (!canEdit || !size(available)) {
@@ -708,7 +730,7 @@ export function AvailableToRead({ available, canEdit }) {
   }
   return (
     <div className="notebook-cell-available" data-test="AvailableToRead">
-      Reads from{" "}
+      Available to read{" "}
       {map(available, (one, nth) => (
         <React.Fragment key={one.name}>
           {nth > 0 && ", "}

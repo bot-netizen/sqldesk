@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-01T17:15:54.639Z",
-    "fileCount": 713,
+    "lastScanned": "2026-11-01T17:29:54.056Z",
+    "fileCount": 714,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "7263293918051d04e5a087de38de0739291fdd74569ee531f7b188888151b3e3",
-    "storeUpdatedAt": "2026-11-01T17:15:54.660Z",
-    "rootHash": "8ea0b67123197d25"
+    "renderedHash": "71d93e505c15247f93875c0e616782ad3307413967b7ebe4984f67046e5d00d1",
+    "storeUpdatedAt": "2026-11-01T17:29:54.077Z",
+    "rootHash": "3b3cd6fec5cd090c"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -18414,6 +18414,15 @@
       "size": 11132,
       "mtimeMs": 1793553354468.8064,
       "updatedAt": "2026-11-01T17:15:54.639Z",
+      "source": "hook"
+    },
+    "client/app/pages/notebooks/popup.js": {
+      "description": "Declares popupInPage",
+      "tokens": 297,
+      "hash": "cc3db389f592ffa9",
+      "size": 1038,
+      "mtimeMs": 1793554193861.5735,
+      "updatedAt": "2026-11-01T17:29:54.055Z",
       "source": "hook"
     }
   },

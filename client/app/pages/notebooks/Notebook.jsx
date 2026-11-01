@@ -24,6 +24,7 @@ import NotebookScheduleDialog from "./NotebookScheduleDialog";
 import EditableTitle from "./EditableTitle";
 import ShareNotebookButton from "./ShareNotebookButton";
 import NotebookHelpDialog from "./NotebookHelpDialog";
+import popupInPage from "./popup";
 import "./notebook.less";
 
 /*
@@ -281,7 +282,7 @@ function NotebookPage({ notebookId }) {
           </Button>
         )}
         {notebook.can_edit && (
-          <Dropdown overlay={addMenu} trigger={["click"]} placement="bottomRight">
+          <Dropdown overlay={addMenu} trigger={["click"]} placement="bottomRight" getPopupContainer={popupInPage}>
             <Button size="small" data-test="AddCell">
               Add cell
             </Button>

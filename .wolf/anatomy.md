@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-01T17:15:54.639Z
-> Files: 713 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-01T17:29:54.056Z
+> Files: 714 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -790,6 +790,7 @@
 - `NotebookHelpDialog.jsx` — Rule — renders modal (~1235 tok)
 - `NotebookList.jsx` — subtitle (~1706 tok)
 - `NotebookScheduleDialog.jsx` — PRESETS — renders modal (~1039 tok)
+- `popup.js` — Declares popupInPage (~297 tok)
 - `ShareNotebookButton.jsx` — ShareNotebookButton (~1541 tok)
 - `ShareNotebookButton.test.js` — exportModule: aNotebook, mountButton, choose (~1065 tok)
 

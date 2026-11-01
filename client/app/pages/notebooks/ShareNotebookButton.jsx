@@ -11,6 +11,7 @@ import FileImageOutlinedIcon from "@ant-design/icons/FileImageOutlined";
 import StopOutlinedIcon from "@ant-design/icons/StopOutlined";
 import notification from "@/services/notification";
 import Notebook from "@/services/notebook";
+import popupInPage from "./popup";
 import {
   exportSizeProblem,
   renderDashboardToPng,
@@ -153,7 +154,7 @@ export default function ShareNotebookButton({ notebook, getExportTarget, onChang
   );
 
   return (
-    <Dropdown overlay={menu} trigger={["click"]} placement="bottomRight">
+    <Dropdown overlay={menu} trigger={["click"]} placement="bottomRight" getPopupContainer={popupInPage}>
       <Button size="small" data-test="ShareNotebook">
         <ShareAltOutlinedIcon /> {notebook.public_url ? "Shared" : "Share"}
       </Button>

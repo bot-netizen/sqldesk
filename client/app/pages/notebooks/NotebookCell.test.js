@@ -140,10 +140,14 @@ describe("what a cell says about its own output", () => {
     expect(notice.prop("type")).toBe("error");
   });
 
-  it("names the cells it reads", () => {
+  it("does not say what the cell reads, which is the cell's own business", () => {
+    // The header carried "reads orders, weather" beside the handle. A cell
+    // may read any of the cells above it or none, and listing them described
+    // somebody's code back to them on every row of a long notebook. What is
+    // *available* is still said under the editor, where it is useful.
     const page = mount(aCell({ reads: ["orders", "weather"] }));
 
-    expect(page.find('[data-test="CellReads"]').text()).toContain("orders, weather");
+    expect(page.find('[data-test="CellReads"]').exists()).toBe(false);
   });
 });
 
@@ -584,24 +588,27 @@ describe("what a cell runs on", () => {
     expect(said).toBe("SQL against Warehouse");
   });
 
-  it("says outright that a SQL cell over earlier cells wants no data source", () => {
+  /*
+    These words are a reader's only account of what a cell runs on, and they
+    are worded as the control's own options are -- so an editor and a reader
+    cannot end up describing the same cell differently.
+  */
+  it("names a SQL cell over earlier cells as the control does", () => {
     const said = describeWhatItRunsOn({ kind: "sql", data_source_id: null }, sources, false);
 
-    expect(said).toContain("no data source");
+    expect(said).toBe("SQL over earlier cells");
   });
 
-  it("says a Python cell wants no data source, which is the whole confusion", () => {
+  it("names a Python cell as the control does", () => {
     const said = describeWhatItRunsOn({ kind: "python", data_source_id: null }, sources, false);
 
-    expect(said).toContain("Python");
-    expect(said).toContain("no data source");
+    expect(said).toBe("Python");
   });
 
   it("mentions the cluster when there is one to reach", () => {
     const said = describeWhatItRunsOn({ kind: "python" }, sources, true);
 
-    expect(said).toContain("spark");
-    expect(said).toContain("no data source");
+    expect(said).toContain("Spark");
   });
 
   it("does not invent a warehouse name the reader cannot see", () => {
@@ -646,7 +653,47 @@ describe("what a cell runs on", () => {
     );
 
     expect(control.find("Select").exists()).toBe(false);
-    expect(control.text()).toContain("no data source");
+    expect(control.text()).toContain("Python");
+  });
+
+  it("says nothing beside the control, which already says it", () => {
+    // A sentence repeating the chosen value in longer words, on every cell of
+    // every notebook: helpful once, noise thereafter.
+    const control = shallow(
+      <RunsOn cell={aCell({ kind: "python" })} dataSources={sources} canEdit onChange={jest.fn()} />
+    );
+
+    expect(control.find('[data-test="RunsOnSaid"]').exists()).toBe(false);
+  });
+
+  it("carries an option for a data source the reader cannot see", () => {
+    // Without one the control falls back to showing the raw value, and the
+    // header reads `source:9`.
+    const control = shallow(
+      <RunsOn cell={aCell({ data_source_id: 99 })} dataSources={sources} canEdit onChange={jest.fn()} />
+    );
+
+    // The Select carries the same value, so match on the option's own text.
+    const unseen = control.findWhere(
+      (node) => node.name() === "Option" && node.prop("value") === "source:99"
+    );
+    expect(unseen.exists()).toBe(true);
+    expect(unseen.prop("disabled")).toBe(true);
+  });
+
+  it("hangs its menu on the page, so it travels with the cell", () => {
+    // The window is not this app's scroller, so an overlay anchored to the
+    // body stays where it opened while the page moves under it.
+    const control = shallow(
+      <RunsOn cell={aCell()} dataSources={sources} canEdit onChange={jest.fn()} />
+    );
+
+    const page = document.createElement("div");
+    page.className = "notebook-page";
+    const inside = document.createElement("span");
+    page.appendChild(inside);
+
+    expect(control.find("Select").prop("getPopupContainer")(inside)).toBe(page);
   });
 });
 
