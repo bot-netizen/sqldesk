@@ -47,9 +47,9 @@ Delete an entry when it is answered, and write the answer where the work is.
 - `dashboards.schedule` and migration `f4b2c8d1e903` are vestigial —
   dashboard schedules were added in 0.2.0 and removed in 0.3.2 by request.
 
-## Why do failing CI runs take an hour, and passing ones 25 minutes?
+## The backend suite's time on CI swings between 25 and 60 minutes
 
-Not the regression it first looked like. `backend-unit-tests` on
+Not a regression, and not a pattern either. `backend-unit-tests` on
 `release/0.8`:
 
 | Run | Result | Time |
@@ -58,31 +58,28 @@ Not the regression it first looked like. `backend-unit-tests` on
 | 41238799209 | 3 failed | 59m36s |
 | 41346028951 | 3 failed | 58m41s |
 | 41351570395 | green | **25m12s** |
+| 41353901161 | green | **46m13s** |
 
-Against **21m09s** on main at v0.7.10. So the passing suite is about a fifth
-slower than main's, for roughly a tenth more tests and four more tables --
-unremarkable, and not worth chasing.
+Against 21m09s on main at v0.7.10. The spread between two green runs of the
+same code is 25 to 46 minutes, so this is runner variance rather than
+anything in the suite, and the slowest honest reading of the branch is "about
+twice main's, sometimes" -- for roughly a tenth more tests and four more
+tables.
 
-What is odd is the other column: three failing runs at ~58 minutes and one
-passing run at 25. The three failures were `TestChangingWhatACellRunsOn`
-getting a 400 where they expected a 200, which is not slow work, and the
-commit that fixed them changed nothing a passing test touches. So either a
-failure drags something else out, or those three runs landed on degraded
-runners and the correlation is coincidence -- three of three is weak
-evidence either way.
+**Two wrong claims were made here before this one**, and they are recorded
+rather than deleted. First, that the branch had a 2.7x regression -- drawn
+from a single failing run. Then, that failing runs were slow and passing ones
+fast -- which the 46-minute green run disproves. One measurement is not a
+finding, and three correlated ones are not much better.
 
-Worth one look before 0.8.0 final, because an hour-long suite is one people
-stop waiting for, and that is how CI came to be red on this branch for a week
-without anybody noticing. Not worth a project.
+What is worth doing before 0.8.0 final is not an investigation but a
+reduction: `BaseTestCase.setUp` does `db.drop_all(); db.create_all()` on
+**every** test, 0.44s against 38 tables -- about 25 minutes across the suite,
+and the dominant cost in it. Creating the schema once and rolling back a
+transaction per test would take most of that back, on any runner. It is a
+careful change: some tests may rely on a genuinely empty database or commit
+outside the session.
 
-A note on the measurements that were here before: an earlier version of this
-section called it a 2.7x regression on the strength of a single failing run.
-That was wrong, and it is left recorded rather than quietly deleted -- one
-measurement is not a finding.
-
-Ruled out along the way, and still true: no pathological test (the slowest
-handler test is 2.8s, the distribution flat at ~0.6s); `create_app` is 0.855s
-once and 0.039s thereafter; the dev and CI composes tune Postgres
-identically. `BaseTestCase.setUp` does `db.drop_all(); db.create_all()` on
-every test, 0.44s against 38 tables -- about 25 minutes across the suite, and
-the dominant cost in it.
+Ruled out along the way: no pathological test (the slowest handler test is
+2.8s, the distribution flat at ~0.6s); `create_app` is 0.855s once and 0.039s
+thereafter; the dev and CI composes tune Postgres identically.
