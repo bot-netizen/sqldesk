@@ -8,7 +8,7 @@ import Button from "antd/lib/button";
 import Dropdown from "antd/lib/dropdown";
 import Menu from "antd/lib/menu";
 import Tooltip from "antd/lib/tooltip";
-import { filter, map, reject, sortBy } from "lodash";
+import { filter, find, map, reject, sortBy } from "lodash";
 
 import Link from "@/components/Link";
 import PlainButton from "@/components/PlainButton";
@@ -96,14 +96,18 @@ function NotebookPage({ notebookId }) {
         // table for the first time is a name the cells below it can now read.
         return load().then(loadHandoffs);
       }
+      // A renamed cell takes its handoff with it, so the name the cells below
+      // can type has changed -- and titling a cell can rename it on its own,
+      // so this is not only the rename control that gets here.
+      const renamed = !!find(cells, (one) => one.id === saved.id && one.name !== saved.name);
       setNotebook((current) =>
         current
           ? { ...current, cells: map(current.cells, (one) => (one.id === saved.id ? { ...one, ...saved } : one)) }
           : current
       );
-      return Promise.resolve();
+      return renamed ? loadHandoffs() : Promise.resolve();
     },
-    [load, loadHandoffs]
+    [cells, load, loadHandoffs]
   );
 
   const onCellRemoved = useCallback((removed) => {

@@ -493,6 +493,28 @@ describe("what a cell is allowed to read", () => {
     expect(offered).toEqual([[], ["orders"], ["orders", "by_city"]]);
   });
 
+  it("asks again when a cell is renamed, because its handoff moved with it", async () => {
+    const page = await open();
+    Notebook.handoffs.mockClear();
+
+    await act(async () => {
+      page.find("NotebookCell").first().prop("onChanged")({ id: 1, name: "orders_cleaned" });
+    });
+
+    expect(Notebook.handoffs).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not ask again when a cell is saved without being renamed", async () => {
+    const page = await open();
+    Notebook.handoffs.mockClear();
+
+    await act(async () => {
+      page.find("NotebookCell").first().prop("onChanged")({ id: 1, name: "orders", source: "SELECT 2" });
+    });
+
+    expect(Notebook.handoffs).not.toHaveBeenCalled();
+  });
+
   it("still opens when the notebook will not say what it handed over", async () => {
     Notebook.handoffs.mockRejectedValueOnce(new Error("locked"));
     const page = await open();
