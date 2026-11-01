@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-01T16:46:53.727Z",
-    "fileCount": 709,
+    "lastScanned": "2026-11-01T17:11:40.987Z",
+    "fileCount": 712,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "ed8b9089c32d1a06ddc333d148c6b99d3872787530be252722c02bf40052717d",
-    "storeUpdatedAt": "2026-11-01T16:46:53.751Z",
-    "rootHash": "a1ed2e745477c5c7"
+    "renderedHash": "db70af5964b2dc691c8bc4d271bea2f195ad7f228e442f47db25b575addaa3bd",
+    "storeUpdatedAt": "2026-11-01T17:11:41.001Z",
+    "rootHash": "93b009eca5e87a93"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -18379,6 +18379,33 @@
           "tokens": 523
         }
       ]
+    },
+    "client/app/components/BetaBadge.jsx": {
+      "description": "BetaBadge",
+      "tokens": 382,
+      "hash": "a665ec1df7e597d6",
+      "size": 1337,
+      "mtimeMs": 1793553002773.5098,
+      "updatedAt": "2026-11-01T17:10:03.288Z",
+      "source": "hook"
+    },
+    "client/app/components/BetaBadge.less": {
+      "description": "Styles: 1 rules",
+      "tokens": 170,
+      "hash": "a14e392106f10013",
+      "size": 637,
+      "mtimeMs": 1793553009482.2344,
+      "updatedAt": "2026-11-01T17:10:09.888Z",
+      "source": "hook"
+    },
+    "client/app/components/BetaBadge.test.js": {
+      "description": "Declares withFeatures",
+      "tokens": 452,
+      "hash": "78875f0b3646a523",
+      "size": 1582,
+      "mtimeMs": 1793553100771.123,
+      "updatedAt": "2026-11-01T17:11:40.987Z",
+      "source": "hook"
     }
   },
   "preamble": [

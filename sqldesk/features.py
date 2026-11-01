@@ -22,20 +22,25 @@ from sqldesk import settings
 
 
 class Feature:
-    def __init__(self, name, label, description, enabled=None):
+    def __init__(self, name, label, description, enabled=None, beta=False):
         self.name = name
         self.label = label
         self.description = description
         # Read when asked, not at import: an install switches MCP on and off
         # with a setting, and the tests move it about.
         self._enabled = enabled
+        #: Shipped, supported, and still settling: what it does may change
+        #: between releases in ways the rest of the app's features will not.
+        #: Said here rather than in the pages that draw it, so one edit moves
+        #: every badge and nobody has to remember the list.
+        self.beta = beta
 
     @property
     def enabled(self):
         return self._enabled() if self._enabled else True
 
     def to_dict(self):
-        return {"name": self.name, "label": self.label, "description": self.description}
+        return {"name": self.name, "label": self.label, "description": self.description, "beta": self.beta}
 
 
 def _mcp_is_on():
@@ -97,6 +102,7 @@ FEATURES = (
         USE_NOTEBOOKS,
         "Use notebooks",
         "Chain SQL and Python cells together, where a saved query ends in one SELECT.",
+        beta=True,
     ),
     Feature(
         USE_MCP,

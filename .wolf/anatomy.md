@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-01T16:46:53.727Z
-> Files: 709 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-01T17:11:40.987Z
+> Files: 712 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -207,6 +207,9 @@
 - `AceEditorInput.jsx` — AceEditorInput (~145 tok)
 - `AceEditorInput.less` — Styles: 1 rules (~54 tok)
 - `BeaconConsent.jsx` — Text — uses useState (~692 tok)
+- `BetaBadge.jsx` — BetaBadge (~382 tok)
+- `BetaBadge.less` — Styles: 1 rules (~170 tok)
+- `BetaBadge.test.js` — Declares withFeatures (~452 tok)
 - `BigMessage.jsx` — BigMessage (~269 tok)
 - `CodeBlock.jsx` — success (~516 tok)
 - `CodeBlock.less` — Styles: 2 rules (~122 tok)

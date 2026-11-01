@@ -1,6 +1,7 @@
 import React from "react";
 import { reject } from "lodash";
 import Link from "@/components/Link";
+import BetaBadge from "@/components/BetaBadge";
 import { Shell, Header } from "@/components/items-list/components/ListPage";
 import Paginator from "@/components/Paginator";
 import EmptyState from "@/components/empty-state/EmptyState";
@@ -118,7 +119,15 @@ class NotebookList extends React.Component {
     return (
       <div className="page-notebooks-list">
         <Shell>
-          <Header title={controller.params.pageTitle} subtitle={subtitle}>
+          <Header
+            title={
+              <>
+                {controller.params.pageTitle}
+                <BetaBadge feature="use_notebooks" />
+              </>
+            }
+            subtitle={subtitle}
+          >
             <SearchControl
               value={controller.searchTerm}
               onChange={controller.updateSearch}

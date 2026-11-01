@@ -88,6 +88,15 @@ px.bar(by_city, x="city", y="total", title="Takings by city")`}</pre>
           </p>
         </Rule>
 
+        <Rule title="Notebooks are in beta">
+          <p>
+            Which means: use them, they work, and they are supported — and what they do may change between releases
+            in ways the rest of SQLDesk will not. Nothing here will lose your work: a notebook is rows in the
+            database like a query or a dashboard. What may move is the shape of the page and what a cell is allowed
+            to do.
+          </p>
+        </Rule>
+
         <Rule title="Running the lot, and running it on a schedule">
           <p>
             <strong>Run all</strong> runs the chain in order and stops at the first cell that fails, because everything

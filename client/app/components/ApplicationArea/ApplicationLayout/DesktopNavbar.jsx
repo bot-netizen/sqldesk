@@ -5,6 +5,7 @@ import { includes } from "lodash";
 import Dropdown from "antd/lib/dropdown";
 import Menu from "antd/lib/menu";
 import Link from "@/components/Link";
+import BetaBadge from "@/components/BetaBadge";
 import PlainButton from "@/components/PlainButton";
 import UserAvatar from "@/components/UserAvatar";
 import HelpTrigger from "@/components/HelpTrigger";
@@ -372,6 +373,7 @@ export default function DesktopNavbar() {
         {canUseNotebooks && (
           <NavLink href="notebooks" active={activeState.notebooks}>
             Notebooks
+            <BetaBadge feature="use_notebooks" />
           </NavLink>
         )}
         {/*

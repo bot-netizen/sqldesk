@@ -12,6 +12,7 @@ import { filter, find, map, reject, sortBy } from "lodash";
 
 import Link from "@/components/Link";
 import PlainButton from "@/components/PlainButton";
+import BetaBadge from "@/components/BetaBadge";
 import LoadingState from "@/components/items-list/components/LoadingState";
 import notification from "@/services/notification";
 import Notebook from "@/services/notebook";
@@ -241,6 +242,7 @@ function NotebookPage({ notebookId }) {
             person's eye.
           */}
           <div className="notebook-subhead">
+            <BetaBadge feature="use_notebooks" className="notebook-beta" />
             <NotebookSize cells={cells} />
             <PlainButton className="notebook-link" onClick={() => NotebookHelpDialog.showModal({})} data-test="NotebookHelp">
               How notebooks work
