@@ -46,6 +46,13 @@ Delete an entry when it is answered, and write the answer where the work is.
   `extendedAlertOptions` and read by nothing.
 - `dashboards.schedule` and migration `f4b2c8d1e903` are vestigial —
   dashboard schedules were added in 0.2.0 and removed in 0.3.2 by request.
+- Every `backend-unit-tests` run on release/0.8 ends with `nanobind: leaked 6
+  types! / leaked 84 functions!` and a link to nanobind's refleaks page. It is
+  DuckDB 2.0.0's binding layer — v0.7.10's runs with 1.5.6 print nothing — and
+  it comes at interpreter shutdown, after the summary, so it changes neither
+  the result nor the timing. The counts are identical across all five runs,
+  failing and green, so nothing is accumulating. Noise, until something makes
+  it matter.
 
 ## The backend suite's time on CI swings between 25 and 60 minutes
 
@@ -80,6 +87,18 @@ transaction per test would take most of that back, on any runner. It is a
 careful change: some tests may rely on a genuinely empty database or commit
 outside the session.
 
+The probe this section once called the experiment nobody had run has now been
+run, on one host and image for both branches: the cycle is **0.468s** against
+release/0.8's 38 tables and **0.416s** against v0.7.10's 35. So the schema
+grew a twelfth this release and is not where the swing comes from -- but it
+is still a little over half of each test, which is what makes the reduction
+worth doing. It does not drift either: 500 consecutive cycles in one database
+stay flat, because autovacuum keeps up with the catalog churn.
+
 Ruled out along the way: no pathological test (the slowest handler test is
 2.8s, the distribution flat at ~0.6s); `create_app` is 0.855s once and 0.039s
-thereafter; the dev and CI composes tune Postgres identically.
+thereafter; the dev and CI composes tune Postgres identically. Nothing this
+release added sits on a path every test touches: `pools.py`,
+`metrics/prometheus.py` and `monitor.py` are all imported lazily, and
+`app.py` is unchanged. The per-file evidence for runner variance, and the way
+to measure it, is in [conventions.md](conventions.md) under Tests.

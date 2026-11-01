@@ -98,6 +98,24 @@ on it. The wrong one has none, and that is the fastest question to ask.
   compose client dies of SIGPIPE, and the container keeps running the suite.
   That orphan is the cause of every "the test database got corrupted" episode
   here. Write to a file and grep the file.
+- **Compare suite timing per test, and expect the runner to swing by two.**
+  `backend-unit-tests` on GitHub's shared `ubuntu-22.04` runners has taken
+  25m12s and 46m13s for the same green code on `release/0.8`, and ~58 minutes
+  three times. A slow runner reads exactly like a regression, and was written
+  down as one twice. The wall clock will not tell you which you have; the
+  per-file numbers will. The three ~58-minute runs (41234126211, 41238799209,
+  41346028951) were uniformly **2.36-2.45x** slower than the 25-minute one
+  across all 84 test files that take over five seconds -- among them
+  `test_security_headers.py`, `models/test_users.py` and
+  `ai/test_optimizer.py`, which 0.8 never touched. A code path one release
+  added cannot slow those by the same factor as everything else. What settles
+  it is the step *before* the tests: `Build Docker Images` took 136-142s on
+  those three runs and 104-109s on the two fast ones, so the machine was
+  already slower before a test had run, and nothing in a test suite slows
+  down an image build. Judge the code by the `Run Tests` step divided by its
+  test count, which the job summary does not give you: 1150s/2974 on v0.7.10
+  against 1399s/3430 on release/0.8's fastest green run is **0.387s against
+  0.408s per test**.
 
 ## Commits
 
