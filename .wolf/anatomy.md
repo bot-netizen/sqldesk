@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-01T17:29:54.056Z
-> Files: 714 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-02T23:21:36.265Z
+> Files: 719 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -917,6 +917,16 @@
 - `notebooks.py` — name_problem, staleness, walk, missing_inputs (~1490 tok)
 - `pools.py` — _Lock: pool_for, budget, held, in_use + 3 more (~2550 tok)
 
+## sqldesk/cli/
+
+- `demo.py` — seed, remove, run (~1280 tok)
+
+## sqldesk/demo/
+
+- `__init__.py` — store_path, build_the_data, seed, remove (~2327 tok)
+- `content.py` — Declares appears (~3409 tok)
+- `data.py` — statements (~1677 tok)
+
 ## sqldesk/destinations/
 
 - `slack.py` — Slack: configuration_schema, icon, notify (~1580 tok)
@@ -978,6 +988,7 @@
 - `test_audit.py` — AuditTestCase: ran, setUp, test_an_empty_month_is_zero_rather_than_an_error, test_it_counts_the_exec (~2305 tok)
 - `test_build_hygiene.py` — /__pycache__` was shipping. (~824 tok)
 - `test_chart.py` — TestTheMigrationJob: template, metadata_name, test_its_name_is_the_same_on_every_upgrade, test_the_p (~975 tok)
+- `test_demo.py` — TestTheDemoCoversEveryVisualization: registered_types, test_every_registered_type_is_demonstrated, t (~2551 tok)
 - `test_discovery_documents.py` — TestTheKeepListMatchesTheCode: documents_the_dockerfile_keeps, documents_the_code_asks_for, test_eve (~1084 tok)
 - `test_executor_spark.py` — FakeFrame: limit, toPandas, test_nothing_is_opened_until_something_is_asked_of_it, test_the_first_re (~1845 tok)
 - `test_executor.py` — ExecutorTestCase: parquet_of, setUpClass, setUp, tearDown + 27 more (~3898 tok)

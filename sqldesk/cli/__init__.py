@@ -10,6 +10,7 @@ from sqldesk.cli import (
     ai,
     data_sources,
     database,
+    demo,
     groups,
     organization,
     queries,
@@ -38,6 +39,7 @@ def manager():
 
 manager.add_command(ai.manager, "ai")
 manager.add_command(database.manager, "database")
+manager.add_command(demo.manager, "demo")
 manager.add_command(users.manager, "users")
 manager.add_command(groups.manager, "groups")
 manager.add_command(data_sources.manager, "ds")

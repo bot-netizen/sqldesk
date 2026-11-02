@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-01T17:29:54.056Z",
-    "fileCount": 714,
+    "lastScanned": "2026-11-02T23:21:36.265Z",
+    "fileCount": 719,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "71d93e505c15247f93875c0e616782ad3307413967b7ebe4984f67046e5d00d1",
-    "storeUpdatedAt": "2026-11-01T17:29:54.077Z",
-    "rootHash": "3b3cd6fec5cd090c"
+    "renderedHash": "2d3485db50295de0541922ab87f96138a1fea9f05f380ea60a87da884a5adeac",
+    "storeUpdatedAt": "2026-11-02T23:21:36.284Z",
+    "rootHash": "9ad890fd73061151"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -18424,6 +18424,199 @@
       "mtimeMs": 1793554193861.5735,
       "updatedAt": "2026-11-01T17:29:54.055Z",
       "source": "hook"
+    },
+    "sqldesk/demo/data.py": {
+      "description": "statements",
+      "tokens": 1677,
+      "hash": "4c46c5c660ec94e5",
+      "size": 5868,
+      "mtimeMs": 1793661514962.395,
+      "updatedAt": "2026-11-02T23:18:35.131Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_values",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 66,
+          "tokens": 121
+        },
+        {
+          "name": "statements",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 134,
+          "tokens": 916
+        }
+      ]
+    },
+    "sqldesk/demo/content.py": {
+      "description": "Declares appears",
+      "tokens": 3409,
+      "hash": "04bd8c569b02f534",
+      "size": 11930,
+      "mtimeMs": 1793661573704.9653,
+      "updatedAt": "2026-11-02T23:19:33.875Z",
+      "source": "hook"
+    },
+    "sqldesk/demo/__init__.py": {
+      "description": "store_path, build_the_data, seed, remove",
+      "tokens": 2327,
+      "hash": "838f6e39ef4dd841",
+      "size": 8143,
+      "mtimeMs": 1793661609227.3674,
+      "updatedAt": "2026-11-02T23:20:09.398Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "store_path",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 35,
+          "tokens": 49
+        },
+        {
+          "name": "build_the_data",
+          "kind": "fn",
+          "startLine": 36,
+          "endLine": 59,
+          "tokens": 172
+        },
+        {
+          "name": "_data_source",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 74,
+          "tokens": 130
+        },
+        {
+          "name": "_query",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 100,
+          "tokens": 204
+        },
+        {
+          "name": "_visualization",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 111,
+          "tokens": 125
+        },
+        {
+          "name": "seed",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 147,
+          "tokens": 299
+        },
+        {
+          "name": "_dashboard",
+          "kind": "fn",
+          "startLine": 148,
+          "endLine": 186,
+          "tokens": 434
+        },
+        {
+          "name": "_notebook",
+          "kind": "fn",
+          "startLine": 187,
+          "endLine": 216,
+          "tokens": 277
+        },
+        {
+          "name": "remove",
+          "kind": "fn",
+          "startLine": 217,
+          "endLine": 256,
+          "tokens": 374
+        }
+      ]
+    },
+    "sqldesk/cli/demo.py": {
+      "description": "seed, remove, run",
+      "tokens": 1280,
+      "hash": "b4843a2a8157c76f",
+      "size": 4477,
+      "mtimeMs": 1793661631874.6726,
+      "updatedAt": "2026-11-02T23:20:32.045Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_org_and_user",
+          "kind": "fn",
+          "startLine": 7,
+          "endLine": 33,
+          "tokens": 296
+        },
+        {
+          "name": "seed",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 53,
+          "tokens": 248
+        },
+        {
+          "name": "remove",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 70,
+          "tokens": 156
+        },
+        {
+          "name": "run",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 119,
+          "tokens": 533
+        }
+      ]
+    },
+    "tests/test_demo.py": {
+      "description": "TestTheDemoCoversEveryVisualization: registered_types, test_every_registered_type_is_demonstrated, t",
+      "tokens": 2551,
+      "hash": "98d4de4420c16d94",
+      "size": 8926,
+      "mtimeMs": 1793661696095.3745,
+      "updatedAt": "2026-11-02T23:21:36.264Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "registered_types",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 42,
+          "tokens": 132
+        },
+        {
+          "name": "TestTheDemoCoversEveryVisualization",
+          "kind": "class",
+          "startLine": 43,
+          "endLine": 80,
+          "tokens": 492
+        },
+        {
+          "name": "TestTheDemoData",
+          "kind": "class",
+          "startLine": 81,
+          "endLine": 137,
+          "tokens": 656
+        },
+        {
+          "name": "TestSeeding",
+          "kind": "class",
+          "startLine": 138,
+          "endLine": 211,
+          "tokens": 928
+        },
+        {
+          "name": "TestTheDataIsRelativeToToday",
+          "kind": "class",
+          "startLine": 212,
+          "endLine": 220,
+          "tokens": 111
+        }
+      ]
     }
   },
   "preamble": [
