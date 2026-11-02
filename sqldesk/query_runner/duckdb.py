@@ -197,8 +197,30 @@ class DuckDB(BaseSQLQueryRunner):
         # invalidated underneath us -- the database file replaced, say. Without
         # this check one dead connection would fail every subsequent query in
         # the process, which is strictly worse than not caching at all.
+        #
+        # Let go of any other connection to this same file first. DuckDB locks
+        # configuration per *database*, not per connection, and the lock lasts
+        # as long as any connection to that file is open -- so the second
+        # connection cannot set `allowed_directories` and is refused outright.
+        #
+        # Which is exactly the sequence every file-backed source follows:
+        # `__init__` connects before it knows the upload directory and locks
+        # the configuration, then `confine_to` asks for a connection that
+        # knows it. Invisible on `:memory:`, where each connect is its own
+        # private database -- and that is the default, which is why a `dbpath`
+        # the configuration form offers could not be used at all.
+        self._release_other_connections()
         self.con = self._open_connection()
         DuckDB._connections[key] = self.con
+
+    def _release_other_connections(self) -> None:
+        """Close every cached connection to this runner's file."""
+        for key in [one for one in DuckDB._connections if one[0] == self.dbpath]:
+            con = DuckDB._connections.pop(key)
+            try:
+                con.close()
+            except Exception:
+                logger.info("a cached DuckDB connection to %s would not close", self.dbpath, exc_info=True)
 
     @staticmethod
     def _is_alive(con) -> bool:
