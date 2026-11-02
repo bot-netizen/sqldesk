@@ -79,20 +79,43 @@ from a single failing run. Then, that failing runs were slow and passing ones
 fast -- which the 46-minute green run disproves. One measurement is not a
 finding, and three correlated ones are not much better.
 
-What is worth doing before 0.8.0 final is not an investigation but a
-reduction: `BaseTestCase.setUp` does `db.drop_all(); db.create_all()` on
-**every** test, 0.44s against 38 tables -- about 25 minutes across the suite,
-and the dominant cost in it. Creating the schema once and rolling back a
-transaction per test would take most of that back, on any runner. It is a
-careful change: some tests may rely on a genuinely empty database or commit
-outside the session.
+What was worth doing here was not an investigation but a reduction, and it is
+done. `BaseTestCase.setUp` did `db.drop_all(); db.create_all()` on **every**
+test, which was the dominant cost in the suite. It now builds the schema once
+per process and empties the tables with a single `TRUNCATE ... RESTART
+IDENTITY CASCADE`. On one host, sequential runs against the same database:
+
+| | tests | time |
+|---|---|---|
+| before | 3444 passed, 10 failed | 33m37s |
+| after | 3447 passed, 10 failed | **15m42s** |
+
+The same ten failures before and after, byte for byte -- all ten a checkout
+with no frontend build rather than anything in the suite, which
+[conventions.md](conventions.md) now names. The three extra passes are tests
+guarding the reset itself. What CI makes of it is for CI to say.
+
+Rolling back a transaction per test, which is what this section proposed, is
+cheaper again and was not worth it: the session has to be rebound to a held
+connection with a SAVEPOINT restarted after every `commit()`, and the tests
+that rebuild the schema inside themselves, execute DDL, or write outside the
+session would each need adapting to it. `TRUNCATE` changes nothing any test
+can see and takes about nine tenths of the saving.
+
+Doing it also brought out a real bug it had been hiding, fixed in the same
+change and written down in [conventions.md](conventions.md): `create_all`
+creates the full-text search trigger only if the mappers are already
+configured. Rebuilding per test hid that, because the first ORM use
+configured them and every later test got its trigger. Building once made the
+first test decide for the whole run, so `tests/__init__.py` now calls
+`configure_mappers()` first.
 
 The probe this section once called the experiment nobody had run has now been
 run, on one host and image for both branches: the cycle is **0.468s** against
 release/0.8's 38 tables and **0.416s** against v0.7.10's 35. So the schema
 grew a twelfth this release and is not where the swing comes from -- but it
-is still a little over half of each test, which is what makes the reduction
-worth doing. It does not drift either: 500 consecutive cycles in one database
+was a little over half of each test, which is what made the reduction worth
+doing. It did not drift either: 500 consecutive cycles in one database
 stay flat, because autovacuum keeps up with the catalog churn.
 
 Ruled out along the way: no pathological test (the slowest handler test is

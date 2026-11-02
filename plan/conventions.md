@@ -98,6 +98,29 @@ on it. The wrong one has none, and that is the fastest question to ask.
   compose client dies of SIGPIPE, and the container keeps running the suite.
   That orphan is the cause of every "the test database got corrupted" episode
   here. Write to a file and grep the file.
+- **`create_all` builds the search trigger only if the mappers are already
+  configured.** `sqlalchemy_searchable`'s `make_searchable` attaches its
+  per-table DDL listeners from the mapper `after_configured` event, so a
+  `create_all` that runs before anything has configured the mappers creates
+  `queries` without `queries_search_vector_trigger`. `search_vector` is then
+  NULL for every row the table ever holds, every search returns nothing, and
+  not one thing raises: the search tests in
+  `tests/handlers/test_queries.py` just find 0 of 2. `tests/__init__.py`
+  calls `configure_mappers()` before `create_all` for this reason. It was
+  hidden rather than absent while the schema was rebuilt per test -- the
+  first ORM use configured the mappers and every later test got its trigger
+  -- which is why that one file failed when run on its own and
+  passed in a full suite.
+- **The backend suite needs the frontend built, or ten tests fail on a
+  template.** `multi_org.html` is a webpack output in `client/dist/`, not a
+  file in the repository, and the page handlers render it. A fresh worktree
+  has no `client/dist`, so `tests/test_handlers.py`,
+  `tests/handlers/test_embed.py`, `tests/test_security_headers.py`,
+  `tests/models/test_users.py::TestUserDetail::test_sync` and
+  `tests/test_authentication.py::TestJWTAuthentication::test_jwt_from_pem_file`
+  fail with `jinja2.exceptions.TemplateNotFound: multi_org.html`. Nothing is
+  wrong with them. Run `pnpm run build` in the worktree, or read ten
+  template failures as "this checkout has no frontend build" and move on.
 - **Compare suite timing per test, and expect the runner to swing by two.**
   `backend-unit-tests` on GitHub's shared `ubuntu-22.04` runners has taken
   25m12s and 46m13s for the same green code on `release/0.8`, and ~58 minutes
