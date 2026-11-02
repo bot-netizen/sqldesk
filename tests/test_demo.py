@@ -109,6 +109,44 @@ class TestTheDemoData(TestCase):
                 rows = self.connection.execute(sql).fetchall()
                 self.assertTrue(rows, "{} returned nothing, so its chart would be blank".format(name))
 
+    def test_the_random_columns_are_drawn_per_row(self):
+        """
+        One row is not a chart.
+
+        `(SELECT x FROM t ORDER BY random() LIMIT 1)` is uncorrelated, so it
+        is evaluated once for the whole statement and every row gets the same
+        answer. It runs, it returns four thousand rows, and every chart over
+        it has a single bar -- which "did it return rows?" cannot see, which
+        is why that question is not enough on its own.
+        """
+        spread = {
+            ("customers", "country_code"): 10,
+            ("orders", "channel"): 5,
+            ("orders", "category"): 6,
+            ("service_days", "service"): 6,
+        }
+        for (table, column), expected in spread.items():
+            with self.subTest(column="{}.{}".format(table, column)):
+                found = self.connection.execute("SELECT count(DISTINCT {}) FROM {}".format(column, table)).fetchone()[
+                    0
+                ]
+                self.assertEqual(expected, found)
+
+    def test_the_grouped_queries_have_something_to_draw(self):
+        # The charts that group: a bar each, not one bar.
+        least = {
+            "Revenue by category": 6,
+            "Revenue by country": 10,
+            "Region scorecard": 8,
+            "Revenue by region and channel": 20,
+            "Channel to category to region": 20,
+        }
+        by_name = {name: sql for name, _, sql in content.QUERIES}
+        for name, expected in least.items():
+            with self.subTest(query=name):
+                rows = self.connection.execute(by_name[name]).fetchall()
+                self.assertGreaterEqual(len(rows), expected, "{} draws {} rows".format(name, len(rows)))
+
     def test_the_notebook_sql_runs_too(self):
         # Only the cells that read the data source; the rest read each other.
         for name, _, kind, uses_source, sql in content.NOTEBOOK_CELLS:
@@ -164,6 +202,12 @@ class TestSeeding(BaseTestCase):
             ).count(),
         )
         self.assertEqual(len(content.DASHBOARD_WIDGETS), again["dashboard"].widgets.count())
+        # Counted in the database rather than off the relationship, which
+        # still holds the rows that were just deleted.
+        self.assertEqual(
+            len(content.NOTEBOOK_CELLS),
+            models.NotebookCell.query.filter(models.NotebookCell.notebook_id == again["notebook"].id).count(),
+        )
 
     def test_the_widget_with_tabs_gets_them(self):
         made = demo.seed(self.factory.org, self.factory.user)

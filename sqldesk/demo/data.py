@@ -12,6 +12,14 @@ Deterministic, so the dashboard looks the same on every install and a
 screenshot taken today matches one taken next week. `setseed` fixes DuckDB's
 generator; the dates are relative to the day it is seeded, because a demo
 whose "last 90 days" ended in 2026 is a demo of nothing.
+
+**A column picked at random is indexed into a list, not drawn with a
+subquery.** `(SELECT x FROM t ORDER BY random() LIMIT 1)` is uncorrelated:
+it does not mention the outer row, so it is evaluated *once* for the whole
+statement and every row gets the same answer. It looks right, it runs, and
+it produces four thousand orders that are all the same category -- charts
+with one bar on them. Indexing a list literal puts the `random()` in the
+outer row's own expression, where it is drawn per row.
 """
 
 #: Three months. Long enough for a calendar heatmap to have shape and for a
@@ -97,7 +105,7 @@ def statements():
         SELECT
             n AS customer_id,
             'Customer ' || lpad(n::VARCHAR, 4, '0') AS name,
-            (SELECT country_code FROM places ORDER BY random() LIMIT 1) AS country_code,
+            (SELECT list(country_code) FROM places)[1 + CAST(floor(random() * 10) AS INTEGER)] AS country_code,
             (current_date - CAST(floor(random() * {days}) AS INTEGER)) AS signed_up_on
         FROM range(1, 601) t(n)
         """.format(
@@ -109,8 +117,8 @@ def statements():
         SELECT
             n AS order_id,
             1 + CAST(floor(random() * 600) AS INTEGER) AS customer_id,
-            (SELECT channel FROM channels ORDER BY random() LIMIT 1) AS channel,
-            (SELECT category FROM categories ORDER BY random() LIMIT 1) AS category,
+            (SELECT list(channel) FROM channels)[1 + CAST(floor(random() * 5) AS INTEGER)] AS channel,
+            (SELECT list(category) FROM categories)[1 + CAST(floor(random() * 6) AS INTEGER)] AS category,
             CAST(current_date - CAST(floor(random() * {days}) AS INTEGER) AS TIMESTAMP)
                 + INTERVAL (CAST(floor(random() * 24) AS INTEGER)) HOUR AS ordered_at,
             1 + CAST(floor(random() * 9) AS INTEGER) AS units,
