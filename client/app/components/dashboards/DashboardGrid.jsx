@@ -312,7 +312,17 @@ class DashboardGrid extends React.Component {
     return (
       <div className={className} style={gridGuides}>
         <ResponsiveGridLayout
-          draggableCancel="input,.sortable-container"
+          /*
+            What is not a drag handle.
+
+            Everything inside a grid item is one by default, so while a
+            dashboard is being edited a mousedown on a control starts a drag
+            and the click that follows is swallowed -- which is a button that
+            needs pressing twice, intermittently, depending on whether the
+            pointer moved a pixel. The widget's view tabs are controls, so
+            they are named here.
+          */
+          draggableCancel="input,.sortable-container,.widget-tabs,.widget-tab"
           className={cx("layout", { "disable-animations": this.state.disableAnimations })}
           cols={{ [MULTI]: cfg.columns, [SINGLE]: 1 }}
           rowHeight={cfg.rowHeight - cfg.margins}

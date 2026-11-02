@@ -44,6 +44,29 @@ describe("DashboardGrid", () => {
     mockHandedGetters.length = 0;
   });
 
+  /*
+    A control inside a grid item is a drag handle unless it is named as not
+    being one, so while a dashboard is being edited the mousedown starts a
+    drag and the click is swallowed -- a button that needs pressing twice,
+    intermittently, depending on whether the pointer moved a pixel.
+  */
+  test("the widget's view tabs are not drag handles", () => {
+    const dashboard = { id: 1, canEdit: () => true };
+    const grid = mount(<DashboardGrid dashboard={dashboard} widgets={[fakeWidget()]} isEditing />);
+
+    // Found by the prop rather than by name: the grid is wrapped in
+    // `WidthProvider`, so what the tree calls it is the library's business.
+    const cancel = grid
+      .findWhere((node) => node.prop("draggableCancel") !== undefined)
+      .first()
+      .prop("draggableCancel");
+    expect(cancel).toContain(".widget-tab");
+    // The container too: a click can land on the strip between two buttons.
+    expect(cancel).toContain(".widget-tabs");
+    // And what was already there stays there.
+    expect(cancel).toContain("input");
+  });
+
   test("draws a widget's new result even when nothing else about it changed", () => {
     // What a live dashboard's reload does: the same widget object, a new
     // result in it, and a re-render of the page with nothing else different --
