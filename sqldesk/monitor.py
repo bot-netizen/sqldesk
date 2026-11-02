@@ -84,6 +84,16 @@ def rq_job_ids():
 
 
 def fetch_jobs(job_ids):
+    """
+    RQ's jobs for these ids.
+
+    `list()` is load-bearing. `Job.fetch_many` walks `job_ids` **twice** --
+    once to queue the pipeline, once to pair the answers back up with the ids
+    -- so handing it a generator exhausts it on the first pass and the second
+    pairs nothing. It returns an empty list, raises nothing, and the page that
+    called it simply shows no rows.
+    """
+    job_ids = list(job_ids)
     return [
         {
             "id": job.id,
@@ -156,7 +166,13 @@ PRESSURE_WARNING = 0.75
 
 
 def started_job_ids():
-    return flatten([StartedJobRegistry(queue=q).get_job_ids() for q in Queue.all(connection=rq_redis_connection)])
+    # A list, not the lazy sequence `flatten` hands back: see `fetch_jobs`,
+    # which walks what it is given twice. This is the call site that was
+    # getting it wrong, and Running Queries was empty on every install
+    # because of it.
+    return list(
+        flatten([StartedJobRegistry(queue=q).get_job_ids() for q in Queue.all(connection=rq_redis_connection)])
+    )
 
 
 def _elapsed_seconds(started_at):
@@ -168,10 +184,27 @@ def _elapsed_seconds(started_at):
     return max(0.0, (datetime.now(timezone.utc) - started_at).total_seconds())
 
 
+def _as_id(value):
+    """
+    A primary key, or None.
+
+    Job metadata is not a database row. An ad-hoc query carries the string
+    `"adhoc"` where a saved one carries a number -- `query_results.py` puts it
+    there and `execution.py` already knows to step around it -- and handing
+    that to an integer primary key raises, which took the whole Running
+    Queries page down with it rather than leaving one cell blank.
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _names(model, ids):
-    if not ids:
+    wanted = {one for one in (_as_id(one) for one in ids) if one is not None}
+    if not wanted:
         return {}
-    return dict(db.session.query(model.id, model.name).filter(model.id.in_(ids)).all())
+    return dict(db.session.query(model.id, model.name).filter(model.id.in_(wanted)).all())
 
 
 def get_running_queries():
@@ -187,9 +220,9 @@ def get_running_queries():
     jobs = [job for job in fetch_jobs(started_job_ids()) if job.get("name") == EXECUTE_QUERY]
 
     metas = [job.get("meta") or {} for job in jobs]
-    queries = _names(Query, {m.get("query_id") for m in metas if m.get("query_id")})
-    users = _names(User, {m.get("user_id") for m in metas if m.get("user_id")})
-    sources = _names(DataSource, {m.get("data_source_id") for m in metas if m.get("data_source_id")})
+    queries = _names(Query, {m.get("query_id") for m in metas})
+    users = _names(User, {m.get("user_id") for m in metas})
+    sources = _names(DataSource, {m.get("data_source_id") for m in metas})
 
     running = []
     for job in jobs:
@@ -198,13 +231,17 @@ def get_running_queries():
             {
                 "job_id": job["id"],
                 "queue": job.get("origin"),
-                "query_id": meta.get("query_id"),
-                "query_name": queries.get(meta.get("query_id")),
+                # Normalised, so an ad-hoc run arrives as nothing rather than
+                # as the word "adhoc" -- which the page would otherwise turn
+                # into a link to `queries/adhoc`. With no id it says "Ad-hoc",
+                # which is what it is.
+                "query_id": _as_id(meta.get("query_id")),
+                "query_name": queries.get(_as_id(meta.get("query_id"))),
                 "user_id": meta.get("user_id"),
                 # Scheduled refreshes have no user, which is worth showing as
                 # what it is rather than as a blank.
-                "user_name": users.get(meta.get("user_id")),
-                "data_source": sources.get(meta.get("data_source_id")),
+                "user_name": users.get(_as_id(meta.get("user_id"))),
+                "data_source": sources.get(_as_id(meta.get("data_source_id"))),
                 "scheduled": bool(meta.get("scheduled")),
                 "mcp": bool(meta.get("mcp")),
                 "started_at": job.get("started_at"),

@@ -214,6 +214,34 @@ class TestOverviewRunningQueries(BaseTestCase):
 
             return get_running_queries()
 
+    def test_an_ad_hoc_run_does_not_take_the_page_down(self):
+        """
+        A query run from the editor carries the string `"adhoc"` where a saved
+        one carries a number -- `query_results.py` puts it there. Handed to an
+        integer primary key that raises, and the whole page 500s rather than
+        one cell going blank.
+
+        Only reachable once `fetch_jobs` stopped being handed a generator, so
+        it had been sitting behind another fault.
+        """
+        running = self._running(
+            [
+                {
+                    "id": "job-1",
+                    "name": "sqldesk.tasks.queries.execution.execute_query",
+                    "origin": "queries",
+                    "started_at": None,
+                    "meta": {"user_id": self.factory.user.id, "query_id": "adhoc"},
+                }
+            ]
+        )
+
+        # Nothing to link to, which the page draws as "Ad-hoc".
+        self.assertIsNone(running[0]["query_id"])
+        self.assertIsNone(running[0]["query_name"])
+        # And the rest of the row is still filled in.
+        self.assertEqual(running[0]["user_name"], self.factory.user.name)
+
     def test_an_mcp_run_is_named_as_one(self):
         # An MCP run has a user -- whoever's API key it was -- but nobody is
         # watching it, which is what the admin needs to know before killing it.
