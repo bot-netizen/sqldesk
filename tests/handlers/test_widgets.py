@@ -263,13 +263,17 @@ class TestAWidgetWithTabs(BaseTestCase):
 
 class TestTabsAreForCharts(BaseTestCase):
     """
-    Asked for on 2026-10-29: "dont use tabs on counters only on chart
-    visualization".
+    Charts and tables carry tabs. Counters do not.
 
-    A counter is one number and a table is already a grid of them. The thing
-    tabs are for -- several readings of one result -- only arises when the
-    readings are charts, and a strip of buttons over a single number is
-    chrome around nothing.
+    Asked for on 2026-10-29 as "dont use tabs on counters only on chart
+    visualization", and tables were excluded alongside the counters on the
+    reasoning that a table is already a grid of numbers. That reasoning was
+    about the table rather than about the widget: the useful case is one that
+    opens on its rows and offers the charts of the same query beside them,
+    which the rule made impossible. Asked for again on 2026-11-02.
+
+    A counter stays out, and the reason has not changed: it is one number,
+    and a strip of buttons over a single number is chrome around nothing.
 
     Enforced here as well as in the browser, so a tab cannot be written by
     hand through the API and then sit on a dashboard with no way to remove it.
@@ -309,20 +313,22 @@ class TestTabsAreForCharts(BaseTestCase):
 
         self.assertNotIn("tabs", widget.options)
 
-    def test_a_table_widget_is_given_none(self):
+    def test_a_table_widget_keeps_them(self):
+        # The case the first rule made impossible: a widget that opens on its
+        # rows and offers the charts of the same query beside them.
         widget = self.create(self.table, [self.other_chart])
 
-        self.assertNotIn("tabs", widget.options)
+        self.assertEqual([self.other_chart.id], widget.options.get("tabs"))
 
     def test_a_chart_cannot_tab_to_a_counter(self):
         widget = self.create(self.chart, [self.counter, self.other_chart])
 
         self.assertEqual([self.other_chart.id], widget.options.get("tabs"))
 
-    def test_a_chart_cannot_tab_to_a_table(self):
+    def test_a_chart_can_tab_to_a_table(self):
         widget = self.create(self.chart, [self.table])
 
-        self.assertNotIn("tabs", widget.options)
+        self.assertEqual([self.table.id], widget.options.get("tabs"))
 
     def test_a_counter_already_carrying_tabs_sends_none(self):
         # A row written before this rule existed must not come back as a tab

@@ -145,8 +145,22 @@ describe("VisualizationWidget tabs: what they apply to", () => {
     expect(wrapper.find(".widget-tabs")).toHaveLength(0);
   });
 
-  test("a table gets none either, being already a grid of numbers", () => {
+  /*
+    Tables were excluded with the counters on 2026-10-29, on the reasoning
+    that a table is already a grid of numbers. That was about the table
+    rather than about the widget: the useful case is one that opens on its
+    table and offers the charts of the same query beside it, which the rule
+    made impossible. Asked for again on 2026-11-02.
+  */
+  test("a table does get them, so a widget can open on rows and offer charts", () => {
     const wrapper = mount(fakeWidget([BY_CHANNEL], "TABLE"));
+
+    expect(wrapper.find(".widget-tabs")).toHaveLength(1);
+  });
+
+  test("a table with nothing beside it still shows no strip", () => {
+    // One view is not a choice, whatever its type.
+    const wrapper = mount(fakeWidget([], "TABLE"));
 
     expect(wrapper.find(".widget-tabs")).toHaveLength(0);
   });

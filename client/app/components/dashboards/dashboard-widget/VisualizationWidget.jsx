@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
-import { compact, find, isEmpty, invoke, map } from "lodash";
+import { compact, find, includes, isEmpty, invoke, map } from "lodash";
 import cx from "classnames";
 import Menu from "antd/lib/menu";
 import { currentUser } from "@/services/auth";
@@ -27,20 +27,22 @@ import LiveCountdown from "./LiveCountdown";
 import Spinner from "@/components/Spinner";
 
 /**
- * Whether this widget shows a strip of buttons.
+ * What may carry tabs, and what may be one.
  *
- * Charts only. A counter is one number and a table is already a grid of
- * them, so a row of buttons over either is chrome around nothing -- and the
- * thing tabs are for, several readings of one result, only arises when the
- * readings are charts. The server stores by the same rule.
+ * Charts and tables. A counter stays out: it is one number, and a strip of
+ * buttons over a single number is chrome around nothing. The server stores
+ * by the same rule -- `Visualization.TABBABLE`.
  */
+export const TABBABLE = ["CHART", "TABLE"];
+
+/** Whether this widget shows a strip of buttons. */
 export function hasTabs(widget) {
-  return widget.visualization.type === "CHART" && widget.getTabs().length > 1;
+  return mayHaveTabs(widget) && widget.getTabs().length > 1;
 }
 
 /** Whether somebody may be offered the choice at all. */
 function mayHaveTabs(widget) {
-  return widget.visualization.type === "CHART";
+  return includes(TABBABLE, widget.visualization.type);
 }
 
 function visualizationWidgetMenuOptions({ widget, canEditDashboard, onParametersEdit, onTabsEdit }) {

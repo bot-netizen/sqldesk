@@ -59,11 +59,15 @@ def _refuse_to_mix(dashboard, visualization):
 #: starts being a thing to read.
 MAX_WIDGET_TABS = 6
 
-#: Tabs are for charts. A counter is one number and a table is already a grid
-#: of them; a strip of buttons over either is chrome around nothing, and the
-#: thing that makes tabs worth having -- several readings of one result --
-#: only arises when the readings are charts. Asked for on 2026-10-29.
-TABBABLE = "CHART"
+#: What may carry tabs, and what may be one -- see `Visualization.TABBABLE`.
+#:
+#: Tables were excluded with the counters on 2026-10-29 ("dont use tabs on
+#: counters only on chart visualization") on the reasoning that a table is
+#: already a grid of numbers. That reasoning was about the *table* rather
+#: than about the widget: the useful case is a widget that opens on its
+#: table and offers the charts of the same query beside it, which the rule
+#: made impossible. Asked for again on 2026-11-02.
+TABBABLE = models.Visualization.TABBABLE
 
 
 def clean_tabs(visualization, options):
@@ -89,7 +93,7 @@ def clean_tabs(visualization, options):
     widget still draws, and a dashboard that will not save because one stale
     id is in a options blob helps nobody.
     """
-    if visualization is None or visualization.type != TABBABLE:
+    if visualization is None or visualization.type not in TABBABLE:
         return []
 
     wanted = (options or {}).get("tabs")
@@ -114,7 +118,7 @@ def clean_tabs(visualization, options):
         for row in models.Visualization.query.filter(
             models.Visualization.id.in_(ids),
             models.Visualization.query_id == visualization.query_id,
-            models.Visualization.type == TABBABLE,
+            models.Visualization.type.in_(TABBABLE),
         )
     }
     return [one for one in ids if one in siblings][: MAX_WIDGET_TABS - 1]

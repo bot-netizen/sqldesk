@@ -2058,6 +2058,16 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
 
 @generic_repr("id", "name", "type", "query_id")
 class Visualization(TimestampMixin, BelongsToOrgMixin, db.Model):
+    #: What may carry a widget's tabs, and what may be one.
+    #:
+    #: Charts and tables. A counter stays out: it is one number, and a strip
+    #: of buttons over a single number is chrome around nothing.
+    #:
+    #: Here rather than beside the handler that enforces it, because the
+    #: serializer enforces it too and importing the handler from there is a
+    #: cycle. The rule belongs to the visualization either way.
+    TABBABLE = ("CHART", "TABLE")
+
     id = primary_key("Visualization")
     type = Column(db.String(100))
     query_id = Column(key_type("Query"), db.ForeignKey("queries.id"))
