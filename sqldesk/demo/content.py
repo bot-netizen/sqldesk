@@ -216,6 +216,12 @@ VISUALIZATIONS = [
     ("This quarter at a glance", "GAUGE", "Against target", {"valueColumn": "share_of_target", "min": 0, "max": 120}),
     ("This quarter at a glance", "PROGRESS", "Target attainment", {"valueColumn": "share_of_target", "target": 100}),
     ("Recent orders", "TABLE", "Recent orders", {}),
+    (
+        "Recent orders",
+        "CHART",
+        "Those orders, plotted",
+        {"globalSeriesType": "scatter", "columnMapping": {"ordered_at": "x", "total": "y"}},
+    ),
     ("Recent orders", "DETAILS", "One order, in full", {}),
     ("Order totals", "BOXPLOT", "Order totals by region", {}),
     ("Order totals", "HISTOGRAM", "How big is an order?", {"column": "total", "bins": 30}),
@@ -291,8 +297,11 @@ DASHBOARD_WIDGETS = [
     ("Target attainment", 1),
     ("Categories by weight", 1),
     ("One order, in full", 1),
-    # A table with charts beside it: the case tables-with-tabs exists for.
-    ("Recent orders", 2, ["Revenue, daily"]),
+    # A table with a chart beside it: the case tables-with-tabs exists for.
+    # The chart is of the table's *own* query, which is the rule -- a tab of
+    # some other query would have to fetch, and fetching once is the whole
+    # point of a tab.
+    ("Recent orders", 2, ["Those orders, plotted"]),
 ]
 
 

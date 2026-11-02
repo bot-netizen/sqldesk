@@ -69,6 +69,24 @@ class TestTheDemoCoversEveryVisualization(TestCase):
             for tab in entry[2] if len(entry) > 2 else []:
                 self.assertIn(tab, made, "{!r} is offered as a tab but is not made".format(tab))
 
+    def test_every_tab_belongs_to_its_widget_s_own_query(self):
+        """
+        The rule that makes tabs worth having: a dashboard fetches the query
+        once and draws it several ways. A tab of some *other* query would
+        have to fetch, and the server drops it -- so a demo that pairs them
+        across queries silently shows a widget with no tabs, which is what
+        this one did.
+        """
+        query_of = {name: query for query, _, name, _ in content.VISUALIZATIONS}
+
+        for entry in content.DASHBOARD_WIDGETS:
+            for tab in entry[2] if len(entry) > 2 else []:
+                self.assertEqual(
+                    query_of[entry[0]],
+                    query_of[tab],
+                    "{!r} offers {!r} as a tab, but they are built on different queries".format(entry[0], tab),
+                )
+
     def test_visualization_names_are_unique(self):
         # They are the handle the dashboard places widgets by.
         names = [name for _, _, name, _ in content.VISUALIZATIONS]
