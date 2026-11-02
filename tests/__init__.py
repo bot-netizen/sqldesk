@@ -51,6 +51,47 @@ _schema_built = False
 _truncate_all = None
 
 
+#: Everything `sqlalchemy_searchable` creates beside the tables:
+#: `queries_search_vector_update`, `tsq_parse` and friends. `drop_all` drops
+#: tables, so these outlive it -- and `create_all` then refuses to make them
+#: again with `DuplicateFunction: function "queries_search_vector_update"
+#: already exists`.
+#:
+#: Invisible until the schema stopped being rebuilt per test: CI starts from
+#: an empty database every time, so the *first* run always worked, and the
+#: second run onwards failed on any machine that keeps its test database --
+#: which is every developer's.
+#:
+#: Extension-owned functions are left alone; dropping those would take the
+#: extension with them.
+_DROP_FUNCTIONS = """
+DO $$
+DECLARE one record;
+BEGIN
+    FOR one IN
+        SELECT p.oid::regprocedure AS signature
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public'
+          AND NOT EXISTS (
+              SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e'
+          )
+    LOOP
+        EXECUTE 'DROP FUNCTION IF EXISTS ' || one.signature || ' CASCADE';
+    END LOOP;
+END $$;
+"""
+
+
+def _drop_leftover_functions(app):
+    connection = db.get_engine(app).connect()
+    try:
+        with connection.begin():
+            connection.execute(_DROP_FUNCTIONS)
+    finally:
+        connection.close()
+
+
 def _reset_database(app):
     """
     Give the test an empty database without rebuilding the schema.
@@ -77,6 +118,7 @@ def _reset_database(app):
 
     if not _schema_built:
         db.drop_all()
+        _drop_leftover_functions(app)
         # `create_all` only creates the full-text search trigger if the
         # mappers are already configured. `sqlalchemy_searchable`'s
         # `make_searchable` attaches its per-table DDL listeners from the
