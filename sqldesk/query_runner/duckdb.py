@@ -117,7 +117,12 @@ class DuckDB(BaseSQLQueryRunner):
         # uploads. Set by the data source before the first query (see
         # `confine_to`); until then SQL can read no files at all.
         self.upload_dir = None
-        self._connect()
+        # Not connected here. The directory this source may read is set
+        # afterwards by `confine_to`, and a connection opened before that is
+        # one that has to be thrown away -- which is what it used to be, at
+        # the cost of locking the file's configuration against the connection
+        # that replaced it.
+        self._con = None
 
     def confine_to(self, directory) -> None:
         """
@@ -132,7 +137,11 @@ class DuckDB(BaseSQLQueryRunner):
         directory = os.path.join(directory, "")
         if directory != self.upload_dir:
             self.upload_dir = directory
-            self._connect()
+            # Only if something is already open. Otherwise the connection is
+            # opened on first use, by which time this has already been set --
+            # which is the whole reason it is lazy.
+            if self._con is not None:
+                self._connect()
 
     @classmethod
     def name(cls):
@@ -191,7 +200,7 @@ class DuckDB(BaseSQLQueryRunner):
         key = self._connection_key()
         cached = DuckDB._connections.get(key)
         if cached is not None and self._is_alive(cached):
-            self.con = cached
+            self._con = cached
             return
         # A cached connection outlives any single query, so it can be closed or
         # invalidated underneath us -- the database file replaced, say. Without
@@ -210,8 +219,23 @@ class DuckDB(BaseSQLQueryRunner):
         # private database -- and that is the default, which is why a `dbpath`
         # the configuration form offers could not be used at all.
         self._release_other_connections()
-        self.con = self._open_connection()
-        DuckDB._connections[key] = self.con
+        self._con = self._open_connection()
+        DuckDB._connections[key] = self._con
+
+    @property
+    def con(self):
+        """
+        This runner's connection, opened when it is first wanted.
+
+        Lazy because `confine_to` decides what the connection is allowed to
+        read, and it is called after construction -- so connecting eagerly
+        meant opening one connection to answer nothing and a second to do
+        the work, with DuckDB's per-database configuration lock sitting
+        between them.
+        """
+        if self._con is None or not self._is_alive(self._con):
+            self._connect()
+        return self._con
 
     def _release_other_connections(self) -> None:
         """Close every cached connection to this runner's file."""
