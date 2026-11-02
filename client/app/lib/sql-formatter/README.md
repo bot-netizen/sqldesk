@@ -3,12 +3,20 @@
 `sql-formatter` 2.3.3 by ZeroTurnaround, MIT licensed — the licence is in
 `LICENSE` beside this file.
 
-**It is not stock.** The copy carries one modification: `core/Tokenizer.js`
-treats `{{ param }}`, `${param}` and `r'...'` as single tokens, so that
-formatting a query does not tear its parameter placeholders apart. Those
-patterns are requested in `languages/StandardSqlFormatter.js`. There is a test
-for it in `client/app/lib/queryFormat.test.js`, and it is the reason this is
-vendored rather than installed.
+**It is not stock.** The copy carries two modifications, both in
+`core/Tokenizer.js`, and both are the reason this is vendored rather than
+installed. There are tests for each in `client/app/lib/queryFormat.test.js`.
+
+1. **Parameters stay whole.** `{{ param }}`, `${param}` and `r'...'` are
+   single tokens, so formatting a query does not tear its placeholders apart.
+   Those patterns are requested in `languages/StandardSqlFormatter.js`.
+
+2. **Numbers may carry an exponent.** `NUMBER_REGEX` accepts `1e-12` and
+   `2.5e+8`. Stock, the tokenizer reads `1e` as a word, then a minus, then
+   `12` -- and the formatter spaces out what it takes to be a binary
+   operator, so `1e-12` comes back as `1e -12`, which is a syntax error. Only
+   a *signed* exponent does this, which is why `3e10` was fine and the fault
+   went unnoticed.
 
 It was previously pulled from a git tarball in another organisation's GitHub
 account, which would have broken every install the day that repository moved or
