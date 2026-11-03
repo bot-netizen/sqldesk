@@ -1,4 +1,5 @@
 import importlib
+import logging
 import os
 import ssl
 
@@ -852,10 +853,26 @@ STREAM_QUERY_MEMORY_MB = int(os.environ.get("SQLDESK_STREAM_QUERY_MEMORY_MB", "5
 # workers of its own and it cannot.
 MCP_QUEUE = os.environ.get("SQLDESK_MCP_QUEUE", "")
 # How long one MCP request may spend waiting on workers, all its tool calls
-# together. Derived from gunicorn's own timeout, with room to answer: a wait
-# that outlives it kills the web worker mid-reply, and the client sees a
-# dropped connection rather than "still running".
-MCP_TIME_BUDGET = max(10, int(os.environ.get("SQLDESK_GUNICORN_TIMEOUT", "60")) - 10)
+# together. Ten minutes, because the queries people point a model at are the
+# slow ones -- it was fifty seconds, derived from gunicorn's default timeout,
+# and a model asking a real question hit it constantly.
+#
+# It cannot simply be raised on its own: MCP answers inside a web request, so
+# a budget longer than gunicorn's timeout means the worker is killed
+# mid-reply and the client sees a dropped connection rather than an answer.
+# `bin/docker-entrypoint` sizes gunicorn's timeout from this, and the clamp
+# below is for the install that sets the timeout by hand and forgets.
+MCP_TIME_BUDGET = int(os.environ.get("SQLDESK_MCP_TIME_BUDGET", "600"))
+_GUNICORN_TIMEOUT = int(os.environ.get("SQLDESK_GUNICORN_TIMEOUT", str(MCP_TIME_BUDGET + 60)))
+if MCP_TIME_BUDGET > _GUNICORN_TIMEOUT - 10:
+    logging.getLogger(__name__).warning(
+        "SQLDESK_MCP_TIME_BUDGET is %ss but gunicorn's timeout is %ss, which would kill the worker "
+        "mid-reply; using %ss. Raise SQLDESK_GUNICORN_TIMEOUT to give MCP the time.",
+        MCP_TIME_BUDGET,
+        _GUNICORN_TIMEOUT,
+        max(10, _GUNICORN_TIMEOUT - 10),
+    )
+    MCP_TIME_BUDGET = max(10, _GUNICORN_TIMEOUT - 10)
 # How long the MCP audit keeps a row, in days; 0 keeps them all. Every call
 # writes one, refused ones included, so without a limit it is the table that
 # grows fastest on an instance a model talks to all day.

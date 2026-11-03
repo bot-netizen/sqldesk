@@ -29,7 +29,10 @@ x-sqldesk-environment: &sqldesk-environment
   SQLDESK_METRICS_TOKEN: "${SQLDESK_METRICS_TOKEN:-}"
   SQLDESK_NOTEBOOK_EXECUTOR_URL: "http://executor:5000"
   SQLDESK_NOTEBOOK_EXECUTOR_TOKEN: "dev-executor-token"
-  SQLDESK_GUNICORN_TIMEOUT: 60
+  # Left to the entrypoint, which sizes it from the MCP budget -- pinned at
+  # 60 here it clamped MCP back to 50 seconds, which is the thing that was
+  # too short.
+  # SQLDESK_GUNICORN_TIMEOUT: 60
   # Set secret keys in the .env file
 services:
   server:
