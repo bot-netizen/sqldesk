@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-02T23:21:36.265Z",
-    "fileCount": 719,
+    "lastScanned": "2026-11-03T23:41:44.179Z",
+    "fileCount": 720,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "2d3485db50295de0541922ab87f96138a1fea9f05f380ea60a87da884a5adeac",
-    "storeUpdatedAt": "2026-11-02T23:21:36.284Z",
-    "rootHash": "9ad890fd73061151"
+    "renderedHash": "a60e0e52eda7c68e3846892ba0832ece51d0dd97033dbdf668f1cb96eb741f7c",
+    "storeUpdatedAt": "2026-11-03T23:41:44.192Z",
+    "rootHash": "a6d9fafb095ff068"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -18617,6 +18617,15 @@
           "tokens": 111
         }
       ]
+    },
+    "client/app/pages/dashboards/PublicDashboardPage.branding.test.js": {
+      "description": "Declares PAGES",
+      "tokens": 383,
+      "hash": "e3808a7ff710b35e",
+      "size": 1339,
+      "mtimeMs": 1793749304002.1404,
+      "updatedAt": "2026-11-03T23:41:44.178Z",
+      "source": "hook"
     }
   },
   "preamble": [

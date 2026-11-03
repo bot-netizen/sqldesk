@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-02T23:21:36.265Z
-> Files: 719 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-03T23:41:44.179Z
+> Files: 720 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -683,6 +683,7 @@
 - `DashboardPage.jsx` — AddWidgetContainer — renders chart — uses useState, useEffect (~2566 tok)
 - `DashboardPage.less` — Styles: 9 rules (~543 tok)
 - `dashboards.routes.jsx` — DashboardFolders (~719 tok)
+- `PublicDashboardPage.branding.test.js` — Declares PAGES (~383 tok)
 - `PublicDashboardPage.jsx` — PublicDashboard (~1057 tok)
 - `PublicDashboardPage.less` — Styles: 1 rules (~148 tok)
 - `WallDashboardPage.jsx` — A dashboard for a screen on the wall: dark, no chrome, big type, and able to (~1651 tok)
