@@ -186,27 +186,42 @@ def _dashboard(org, user, visualizations):
             db.session.delete(widget)
         db.session.flush()
 
-    # Laid out left to right, wrapping at the full width. The grid is six
-    # rows per widget, which is what the dashboard's own default is.
-    row, column = 0, 0
+    # Laid out left to right, wrapping at the full width.
+    #
+    # The board is 24 columns wide, so a half-width widget is 12 and a full
+    # one is 24 -- see `dashboard-grid-options.js`. Height comes from what
+    # each visualization asks for, because a counter and a table do not want
+    # the same one.
+    #
+    # A row advances by the tallest widget standing in it, not by a fixed
+    # step: a short counter beside a tall chart must not leave the next row
+    # overlapping the chart.
+    columns, half = 24, 12
+    row, column, tallest = 0, 0, 0
+
     for entry in content.DASHBOARD_WIDGETS:
         name, width = entry[0], entry[1]
         tabs = entry[2] if len(entry) > 2 else []
         visualization = visualizations.get(name)
         if visualization is None:
             continue
-        if column + width > 2:
-            row, column = row + 6, 0
-        options = {
-            "position": {"col": column * 3, "row": row, "sizeX": width * 3, "sizeY": 6},
-        }
+
+        size_x = half * width
+        size_y = content.HEIGHTS.get(visualization.type, 6)
+
+        if column + size_x > columns:
+            row, column, tallest = row + tallest, 0, 0
+
+        options = {"position": {"col": column, "row": row, "sizeX": size_x, "sizeY": size_y}}
         tab_ids = [visualizations[one].id for one in tabs if one in visualizations]
         if tab_ids:
             options["tabs"] = tab_ids
         db.session.add(models.Widget(dashboard=dashboard, visualization=visualization, options=options, width=width))
-        column += width
-        if column >= 2:
-            row, column = row + 6, 0
+
+        column += size_x
+        tallest = max(tallest, size_y)
+        if column >= columns:
+            row, column, tallest = row + tallest, 0, 0
     return dashboard
 
 

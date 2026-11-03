@@ -224,7 +224,7 @@ VISUALIZATIONS = [
     ),
     ("Recent orders", "DETAILS", "One order, in full", {}),
     ("Order totals", "BOXPLOT", "Order totals by region", {}),
-    ("Order totals", "HISTOGRAM", "How big is an order?", {"column": "total", "bins": 30}),
+    ("Order totals", "HISTOGRAM", "How big is an order?", {"valueColumn": "total", "binCount": 30}),
     ("Signup funnel", "FUNNEL", "Signup funnel", {"stepCol": {"colName": "step"}, "valueCol": {"colName": "people"}}),
     ("Cohort retention", "COHORT", "Retention by signup week", {"timeInterval": "weekly"}),
     ("Channel to category to region", "SANKEY", "Channel to category to region", {}),
@@ -239,7 +239,11 @@ VISUALIZATIONS = [
         "Revenue by country",
         "CHOROPLETH",
         "Revenue by country",
-        {"countryCodeColumn": "country_code", "countryCodeType": "iso_a3", "valueColumn": "revenue"},
+        # `keyColumn` and `targetField`, not `countryCodeColumn`: that
+        # spelling is not one the choropleth reads, so it joined nothing,
+        # had no bounds to fit, and took the page down with "Invalid LatLng
+        # object: (NaN, NaN)".
+        {"mapType": "countries", "keyColumn": "country_code", "targetField": "iso_a3", "valueColumn": "revenue"},
     ),
     (
         "Cities",
@@ -257,7 +261,7 @@ VISUALIZATIONS = [
         "Service health over a month",
         "STATE_TIMELINE",
         "A month of service health",
-        {"labelColumn": "service", "timeColumn": "day", "stateColumn": "status"},
+        {"laneColumn": "service", "startColumn": "day", "stateColumn": "status"},
     ),
     (
         "Region scorecard",
@@ -268,8 +272,45 @@ VISUALIZATIONS = [
 ]
 
 
+#: How tall each kind of visualization wants to be, in grid rows.
+#:
+#: Taken from what each one registers for itself in viz-lib -- a counter is
+#: six rows and a table is twenty-eight, and a demo that gave them both the
+#: same height would be a demo of a squashed table. Kept here rather than
+#: read across because Python cannot see a TypeScript registration; the
+#: numbers are checked against viz-lib by a test.
+HEIGHTS = {
+    "BOXPLOT": 16,
+    "CALENDAR_HEATMAP": 12,
+    "CHART": 16,
+    "CHOROPLETH": 16,
+    "COHORT": 16,
+    "COUNTER": 6,
+    "DETAILS": 4,
+    "FUNNEL": 20,
+    "GAUGE": 12,
+    "HISTOGRAM": 16,
+    "MAP": 16,
+    "PIVOT": 20,
+    "PROGRESS": 12,
+    "RADAR": 16,
+    "SANKEY": 14,
+    "STATE_TIMELINE": 12,
+    "STATUS_GRID": 10,
+    "SUNBURST_SEQUENCE": 14,
+    "TABLE": 28,
+    "TREEMAP": 16,
+    "WATERFALL": 16,
+    "WORD_CLOUD": 16,
+}
+
 #: The dashboard, as `(visualization name, width)` in reading order. Width is
 #: in half-widths: 1 is half the board, 2 is the full width.
+#:
+#: The board is **24 columns** (`client/app/config/dashboard-grid-options.js`),
+#: so a half is 12 and a full is 24. Getting that wrong is not subtle: the
+#: first version of this used 3 and 6, and every widget came out an eighth of
+#: the page wide with its chart squashed into the corner.
 DASHBOARD = "Demo: everything, drawn"
 DASHBOARD_WIDGETS = [
     ("Revenue this quarter", 1),

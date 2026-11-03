@@ -269,6 +269,57 @@ class TestSeeding(BaseTestCase):
         self.assertIsNotNone(models.Query.query.get(my_query.id))
 
 
+class TestTheBoardIsLaidOutOnTheRealGrid(TestCase):
+    """
+    The first version of this laid widgets out as if the board were six
+    columns wide. It is twenty-four, so every widget came out an eighth of
+    the page with its chart squashed into the corner -- and nothing failed,
+    because a position is just four numbers and any four are valid.
+
+    Both numbers are read from the client here rather than trusted.
+    """
+
+    CLIENT = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "client",
+        "app",
+        "config",
+        "dashboard-grid-options.js",
+    )
+
+    def grid_columns(self):
+        with open(self.CLIENT, encoding="utf-8") as f:
+            return int(re.search(r"columns:\s*(\d+)", f.read()).group(1))
+
+    def test_a_full_width_widget_fills_the_board(self):
+        # 24 here and 12 for a half; if the client's grid ever changes, this
+        # is what says the demo has to change with it.
+        self.assertEqual(24, self.grid_columns())
+
+    def test_every_height_matches_what_the_visualization_asks_for(self):
+        """
+        Each visualization registers its own `defaultRows`. A demo that gave
+        a counter and a table the same height would be a demo of a squashed
+        table.
+        """
+        for entry in os.listdir(VIZ):
+            index = os.path.join(VIZ, entry, "index.ts")
+            if not os.path.exists(index):
+                continue
+            with open(index, encoding="utf-8") as f:
+                source = f.read()
+            type_ = re.search(r'^\s*type:\s*"([A-Z_]+)"', source, re.M)
+            rows = re.search(r"defaultRows:\s*(\d+)", source)
+            if not type_ or not rows:
+                continue
+            with self.subTest(visualization=type_.group(1)):
+                self.assertEqual(
+                    int(rows.group(1)),
+                    content.HEIGHTS.get(type_.group(1)),
+                    "{} asks for {} rows".format(type_.group(1), rows.group(1)),
+                )
+
+
 class TestTheFixtureTheBrowserTestsRead(TestCase):
     """
     `viz-lib/src/visualizations/__demo-fixture.json` carries each demo
