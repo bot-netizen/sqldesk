@@ -269,6 +269,46 @@ class TestSeeding(BaseTestCase):
         self.assertIsNotNone(models.Query.query.get(my_query.id))
 
 
+class TestTheFixtureTheBrowserTestsRead(TestCase):
+    """
+    `viz-lib/src/visualizations/__demo-fixture.json` carries each demo
+    visualization's options and the columns its query really returns, so a
+    jest test can ask every visualization's own `getOptions` whether those
+    options mean anything.
+
+    Generated from this file, so it has to be regenerated when the demo
+    changes -- and this is what says so, rather than the jest test quietly
+    checking a stale copy of last month's demo.
+    """
+
+    FIXTURE = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "viz-lib",
+        "src",
+        "visualizations",
+        "__demo-fixture.json",
+    )
+
+    def test_it_matches_the_demo_it_was_generated_from(self):
+        import json
+
+        with open(self.FIXTURE, encoding="utf-8") as f:
+            stored = json.load(f)
+
+        expected = [
+            {"type": type_, "name": name, "query": query, "options": options}
+            for query, type_, name, options in content.VISUALIZATIONS
+        ]
+        found = [{k: one[k] for k in ("type", "name", "query", "options")} for one in stored]
+
+        self.assertEqual(
+            expected,
+            found,
+            "the demo has changed since the fixture was generated -- regenerate it, "
+            "or the browser-side check is reading an old demo",
+        )
+
+
 class TestTheDataIsRelativeToToday(TestCase):
     def test_the_days_are_counted_back_from_now(self):
         # A demo whose "last 90 days" ended in 2026 is a demo of nothing, so
