@@ -6,6 +6,8 @@
 }
 
 .visual-card {
+  // So a badge can sit in the corner.
+  position: relative;
   background: #ffffff;
   border: 1px solid fade(@sqldesk-gray, 15%);
   border-radius: var(--radius-card);
@@ -78,4 +80,24 @@
       height: 48px;
     }
   }
+}
+
+/*
+  A word in a card's corner. Quiet: it is saying one thing about this card,
+  not competing with the name.
+*/
+.visual-card-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-warning-text, #8a5a00);
+  background: var(--color-warning-surface, #fdf3e2);
+  border: 1px solid var(--color-warning-border, #f0dcb6);
 }

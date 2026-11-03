@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-03T23:41:44.179Z",
-    "fileCount": 720,
+    "lastScanned": "2026-11-03T23:50:13.631Z",
+    "fileCount": 721,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "a60e0e52eda7c68e3846892ba0832ece51d0dd97033dbdf668f1cb96eb741f7c",
-    "storeUpdatedAt": "2026-11-03T23:41:44.192Z",
-    "rootHash": "a6d9fafb095ff068"
+    "renderedHash": "453466a07c1e73cab33c12c89901f0e11f4fd69354358d111bd172838bf8f728",
+    "storeUpdatedAt": "2026-11-03T23:50:13.644Z",
+    "rootHash": "92c84c4a4ad68b3a"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -18625,6 +18625,15 @@
       "size": 1339,
       "mtimeMs": 1793749304002.1404,
       "updatedAt": "2026-11-03T23:41:44.178Z",
+      "source": "hook"
+    },
+    "client/app/pages/data-sources/DataSourcesList.test.js": {
+      "description": "Declares sources",
+      "tokens": 398,
+      "hash": "b23d5696a0a2a2e5",
+      "size": 1393,
+      "mtimeMs": 1793749813462.0645,
+      "updatedAt": "2026-11-03T23:50:13.630Z",
       "source": "hook"
     }
   },

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-03T23:41:44.179Z
-> Files: 720 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-03T23:50:13.631Z
+> Files: 721 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -744,6 +744,7 @@
 ## client/app/pages/data-sources/
 
 - `DataSourcesList.jsx` — DataSourcesListComponent (~1380 tok)
+- `DataSourcesList.test.js` — Declares sources (~398 tok)
 - `EditDataSource.jsx` — DESCRIPTION_FIELD (~2133 tok)
 - `UploadedFilesPanel.jsx` — formatSize — renders modal (~1625 tok)
 

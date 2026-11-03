@@ -3,6 +3,7 @@ import React from "react";
 import PropTypes from "prop-types";
 
 import Modal from "antd/lib/modal";
+import Input from "antd/lib/input";
 import navigateTo from "@/components/ApplicationArea/navigateTo";
 import LoadingState from "@/components/items-list/components/LoadingState";
 import DynamicForm from "@/components/dynamic-form/DynamicForm";
@@ -137,6 +138,64 @@ class EditDataSource extends React.Component {
     });
   };
 
+  /*
+    The kill switch.
+
+    The backend has had this since query pools landed -- `paused_at` on the
+    row, checked by ad-hoc queries, scheduled refreshes, live dashboards, the
+    catalog and MCP -- but there was no way to reach it except the API, which
+    is the same as not having it when a warehouse is falling over.
+
+    The reason is asked for and shown to whoever runs into it. "Paused" with
+    no explanation makes somebody debug a thing that is not broken.
+  */
+  pauseDataSource = (callback) => {
+    const { dataSource } = this.state;
+    let reason = "";
+
+    Modal.confirm({
+      title: `Pause ${dataSource.name}?`,
+      content: (
+        <div>
+          <p>
+            Nothing will be sent to it until it is resumed — not queries, not scheduled refreshes, not live
+            dashboards, not AI clients. Nothing is deleted.
+          </p>
+          <Input
+            placeholder="Why, for whoever runs into it"
+            onChange={(event) => {
+              reason = event.target.value;
+            }}
+          />
+        </div>
+      ),
+      okText: "Pause",
+      okType: "danger",
+      onOk: () =>
+        DataSource.pause(dataSource, reason)
+          .then((updated) => {
+            notification.success(`${dataSource.name} is paused.`);
+            this.setState({ dataSource: { ...dataSource, ...updated } });
+          })
+          .catch(() => notification.error("Could not pause this data source."))
+          .finally(callback),
+      onCancel: callback,
+      maskClosable: true,
+      autoFocusButton: null,
+    });
+  };
+
+  resumeDataSource = (callback) => {
+    const { dataSource } = this.state;
+    DataSource.resume(dataSource)
+      .then((updated) => {
+        notification.success(`${dataSource.name} is running again.`);
+        this.setState({ dataSource: { ...dataSource, ...updated } });
+      })
+      .catch(() => notification.error("Could not resume this data source."))
+      .finally(callback);
+  };
+
   testConnection = (callback) => {
     const { dataSource } = this.state;
     DataSource.test({ id: dataSource.id })
@@ -169,6 +228,9 @@ class EditDataSource extends React.Component {
       type,
       actions: [
         { name: "Delete", type: "danger", callback: this.deleteDataSource },
+        dataSource.paused
+          ? { name: "Resume", type: "primary", callback: this.resumeDataSource }
+          : { name: "Pause", callback: this.pauseDataSource },
         { name: "Test Connection", pullRight: true, callback: this.testConnection, disableWhenDirty: true },
       ],
       onSubmit: this.saveDataSource,

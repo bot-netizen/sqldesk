@@ -18,6 +18,12 @@ const DataSource = {
   save: (data) => axios.post(`api/data_sources/${data.id}`, data),
   test: (data) => axios.post(`api/data_sources/${data.id}/test`),
   delete: ({ id }) => axios.delete(`api/data_sources/${id}`),
+
+  // The kill switch. Everything that would reach this warehouse checks it --
+  // ad-hoc queries, scheduled refreshes, live dashboards, the catalog and
+  // MCP -- so pausing stops the lot without deleting anything.
+  pause: ({ id }, reason) => axios.post(`api/data_sources/${id}/pause`, { reason }),
+  resume: ({ id }) => axios.delete(`api/data_sources/${id}/pause`),
   fetchSchema: (data, refresh = false) => {
     const params = {};
 

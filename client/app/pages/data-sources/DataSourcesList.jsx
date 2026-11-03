@@ -22,6 +22,10 @@ export function DataSourcesListComponent({ dataSources, onClickCreate }) {
     imgSrc: `${IMG_ROOT}/${dataSource.type}.png`,
     imgLabel: dataSource.type,
     href: `data_sources/${dataSource.id}`,
+    // Said here as well as on the source's own page: an admin looking for
+    // why everything is failing should see it in the list rather than by
+    // opening each one.
+    badge: dataSource.paused ? "Paused" : null,
   }));
 
   return isEmpty(dataSources) ? (
