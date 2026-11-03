@@ -29,14 +29,12 @@ import { Query } from "@/services/query";
 import location from "@/services/location";
 import useScreenshotMode, { inScreenshotMode } from "@/lib/hooks/useScreenshotMode";
 
-import logoUrl from "@/assets/images/sqldesk_icon.svg";
 import Spinner from "@/components/Spinner";
 
 function VisualizationEmbedHeader({ queryName, queryDescription, visualization }) {
   return (
     <div className="embed-heading p-b-10 p-r-15 p-l-15">
       <h3>
-        <img src={logoUrl} alt="SQLDesk" style={{ height: "24px", verticalAlign: "text-bottom" }} />
         <VisualizationName visualization={visualization} queryName={queryName} /> {queryName}
         {queryDescription && (
           <small>
@@ -121,10 +119,10 @@ function VisualizationEmbedFooter({
       )}
       {queryUrl && (
         <span className="hidden-print">
-          <Tooltip title="Open in SQLDesk">
+          <Tooltip title="Open the query">
             <Link.Button className="icon-button" href={queryUrl} target="_blank">
               <i className="fa fa-external-link" aria-hidden="true" />
-              <span className="sr-only">Open in SQLDesk</span>
+              <span className="sr-only">Open the query</span>
             </Link.Button>
           </Tooltip>
           {!query.hasParameters() && (
