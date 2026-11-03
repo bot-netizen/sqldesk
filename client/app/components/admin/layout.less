@@ -1,6 +1,24 @@
 @import "../../assets/less/inc/tokens";
 
 .admin-page-layout {
+  /*
+    The same gutter every list page uses.
+
+    `base.less` takes the max-width off the container here so the wide tables
+    get the room they need, and that left the page with no horizontal gutter
+    at all: the tab strip, the caption and the cards all ran flush into the
+    viewport, and the cards' rounded corners were cut off by the edge.
+    Matching `.list-page-shell` means Admin sits where every other page sits.
+  */
+  padding: var(--sp-6) var(--sp-7) var(--sp-7);
+
+  .container {
+    /* Bootstrap's own 15px on top of the gutter above would make the two
+       edges disagree by exactly that much. */
+    padding-left: 0;
+    padding-right: 0;
+  }
+
   .ant-table {
     overflow-x: auto;
   }
