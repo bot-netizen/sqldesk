@@ -188,8 +188,21 @@ export default function initChoropleth(container: any, onBoundsChange: any) {
     updateBounds,
     destroy() {
       unwatchResize();
-      _map.removeControl(_legend); // _map.remove() does not cleanup controls - bug in Leaflet?
-      _map.remove();
+      // Guarded, because tearing down is also what happens when setting up
+      // went wrong -- and an error thrown here replaces the one that
+      // explains it. A choropleth given no GeoJSON fails on bounds it
+      // cannot compute, then failed again in here with "Cannot read
+      // properties of undefined (reading '_removePath')", which is the one
+      // that reached the console and says nothing about the cause.
+      try {
+        if (_legend) {
+          _map.removeControl(_legend); // _map.remove() does not clean up controls - bug in Leaflet?
+        }
+        _map.remove();
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.warn("the choropleth could not be cleaned up", error);
+      }
     },
   };
 }

@@ -65,6 +65,29 @@ describe("the demo's visualization options", () => {
         });
       });
 
+      test("sets only keys the visualization reads", () => {
+        /*
+          The check that was missing. `getOptions` merges what it is given
+          over its defaults, so an invented key is simply carried along --
+          the chart never reads it, falls back to nothing, and fails
+          somewhere far away.
+
+          The choropleth was given `countryCodeColumn` where it reads
+          `keyColumn`. It joined nothing, had no bounds to fit, and the
+          dashboard died on "Invalid LatLng object: (NaN, NaN)" with nothing
+          pointing back here.
+
+          Anything `getOptions({})` does not produce is a key this
+          visualization has no opinion about.
+        */
+        const visualization = (registeredVisualizations as any)[entry.type];
+        const data = { columns: entry.columns, rows: entry.rows || [] };
+        const known = Object.keys(visualization.getOptions({}, data));
+
+        const unknown = Object.keys(entry.options).filter(one => !known.includes(one));
+        expect(unknown).toEqual([]);
+      });
+
       test("its own getOptions accepts them", () => {
         const visualization = (registeredVisualizations as any)[entry.type];
         expect(visualization).toBeDefined();

@@ -444,8 +444,8 @@
     "name": "How big is an order?",
     "query": "Order totals",
     "options": {
-      "column": "total",
-      "bins": 30
+      "valueColumn": "total",
+      "binCount": 30
     },
     "columns": [
       {
@@ -588,8 +588,9 @@
     "name": "Revenue by country",
     "query": "Revenue by country",
     "options": {
-      "countryCodeColumn": "country_code",
-      "countryCodeType": "iso_a3",
+      "mapType": "countries",
+      "keyColumn": "country_code",
+      "targetField": "iso_a3",
       "valueColumn": "revenue"
     },
     "columns": [
@@ -668,8 +669,8 @@
     "name": "A month of service health",
     "query": "Service health over a month",
     "options": {
-      "labelColumn": "service",
-      "timeColumn": "day",
+      "laneColumn": "service",
+      "startColumn": "day",
       "stateColumn": "status"
     },
     "columns": [
