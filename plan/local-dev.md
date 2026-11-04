@@ -5,6 +5,18 @@ The test install is **minikube**, reached at **http://localhost:5090** through
 rollout and every node restart; restart it. **5090 is the user's** — use 5091
 for anything of your own, and never kill a forward you did not start.
 
+**Stop restarting it by hand.** The forward binds to one pod, so every
+rollout kills it — the error is always `lost connection to pod`. A loop
+reconnects in about a second and survives any number of rollouts:
+
+```
+while true; do kubectl port-forward svc/sqldesk 5090:5000; sleep 1; done
+```
+
+The service is NodePort 31983, but the node IP (192.168.49.2) is inside the
+docker driver's VM and is not routable from the host — `curl` gets nothing.
+There is no port-forward-free URL on this setup; the loop is the answer.
+
 ## There is no login Claude can use, so UI changes go unverified
 
 The cluster needs a sign-in and nothing in the repo supplies one. Three ways
@@ -24,6 +36,35 @@ contents link that navigated away. Those are exactly what is going unchecked.
 **The fix is one line here**: a throwaway account and password for the
 minikube install, which holds no real data. Until it exists, say plainly in
 the report that the visual check did not happen rather than implying it did.
+
+Tried again on 2026-11-03 and blocked the same way, so stop trying: pasting
+the password via the clipboard fails too (Chromium ignores synthetic paste
+from CDP), and reading the session cookie out of the jar to hand to the
+browser is refused as credential materialization, correctly. The API key the
+user supplied that day belongs to `test.user`, who is **not an admin** — it
+authenticates `/api/*` fine but no admin page will ever render for it.
+
+### What to do instead: read the CSS out of the shipped image
+
+For a styling change this is better than a screenshot anyway, because it
+proves the LESS compiled as intended into the artifact that is actually
+deployed, which a screenshot of a stale pod does not:
+
+```
+kubectl exec deploy/sqldesk-server -- \
+  grep -n -A 6 'admin-tab-content' /app/client/dist/admin.*.css
+```
+
+Two traps. The assets are in **`/app/client/dist/`**, not `dist/static/` —
+grepping the wrong path returns zero hits and looks exactly like "the image
+does not have my change". And styles are code-split per page, so a class
+that belongs to the admin pages is in `admin.*.css`, not `app.css`; grep
+`/app/client/dist/*.css` rather than guessing the chunk. The CSS is not
+minified, so ordinary `grep -A` reads fine.
+
+This checks the cascade too: the compiled file shows whether a rule lands
+after the antd rule it has to beat, which is the part that usually decides
+whether an override works.
 
 ## Building an image for it
 
