@@ -200,6 +200,14 @@ jobs:
   merge:
     runs-on: ubuntu-24.04
     needs: build
+    # The same `always()` the build job needs, and for the same reason one
+    # step further along. `tested` is skipped for anything that is not a tag,
+    # and an implicit `success()` is false when *any* ancestor was skipped --
+    # not just a direct dependency. So on a push to main, or a manual run,
+    # both platforms built and pushed their digests and then nothing ever
+    # assembled them into a tagged image. The build went green with no image
+    # at the end of it, which is the worst way for this to fail.
+    if: always() && needs.build.result == 'success'
     permissions:
       contents: read
       packages: write
