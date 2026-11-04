@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-03T23:50:13.631Z
-> Files: 721 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-04T00:51:31.082Z
+> Files: 723 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -909,7 +909,7 @@
 - `0.8-plan.md` — SQLDesk 0.8.0 — Notebooks (~1133 tok)
 - `0.8.1-plan.md` — SQLDesk 0.8.1 — Notebooks people can live in (~1296 tok)
 - `agent-context.md` — What an agent is given, and what it costs (~1666 tok)
-- `local-dev.md` — The local cluster, and what keeps breaking (~1935 tok)
+- `local-dev.md` — The local cluster, and what keeps breaking (~2713 tok)
 - `open-questions.md` — Waiting on Iqbal (~614 tok)
 - `README.md` — Project documentation (~508 tok)
 
@@ -922,6 +922,7 @@
 ## sqldesk/cli/
 
 - `demo.py` — seed, remove, run (~1280 tok)
+- `users.py` — build_groups, grant_admin, create, create_root (~3433 tok)
 
 ## sqldesk/demo/
 
@@ -990,6 +991,7 @@
 - `test_audit.py` — AuditTestCase: ran, setUp, test_an_empty_month_is_zero_rather_than_an_error, test_it_counts_the_exec (~2305 tok)
 - `test_build_hygiene.py` — /__pycache__` was shipping. (~824 tok)
 - `test_chart.py` — TestTheMigrationJob: template, metadata_name, test_its_name_is_the_same_on_every_upgrade, test_the_p (~975 tok)
+- `test_cli.py` — DataSourceCommandTests: test_interactive_new, test_options_new, test_bad_type_new, test_bad_options_ (~7326 tok)
 - `test_demo.py` — TestTheDemoCoversEveryVisualization: registered_types, test_every_registered_type_is_demonstrated, t (~2551 tok)
 - `test_discovery_documents.py` — TestTheKeepListMatchesTheCode: documents_the_dockerfile_keeps, documents_the_code_asks_for, test_eve (~1084 tok)
 - `test_executor_spark.py` — FakeFrame: limit, toPandas, test_nothing_is_opened_until_something_is_asked_of_it, test_the_first_re (~1845 tok)

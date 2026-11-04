@@ -462,3 +462,10 @@ description: chronological action log per session, consolidated weekly
 | 18:21 | Created tests/test_demo.py | — | ~2551 |
 | 18:41 | Created client/app/pages/dashboards/PublicDashboardPage.branding.test.js | — | ~383 |
 | 18:50 | Created client/app/pages/data-sources/DataSourcesList.test.js | — | ~398 |
+| 19:46 | Edited sqldesk/cli/users.py | added error handling | ~328 |
+| 19:46 | Edited sqldesk/cli/users.py | modified _still_owns() | ~574 |
+| 19:47 | Edited tests/test_cli.py | modified test_delete_bad() | ~660 |
+| 19:47 | Edited tests/test_cli.py | modified test_the_reason_matches_the_longest_table_name() | ~312 |
+| 19:48 | Edited tests/test_cli.py | expanded (+10 lines) | ~257 |
+| 19:51 | Edited plan/local-dev.md | expanded (+12 lines) | ~218 |
+| 19:51 | Edited plan/local-dev.md | expanded (+29 lines) | ~437 |

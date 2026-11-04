@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-03T23:50:13.631Z",
-    "fileCount": 721,
+    "lastScanned": "2026-11-04T00:51:31.082Z",
+    "fileCount": 723,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "453466a07c1e73cab33c12c89901f0e11f4fd69354358d111bd172838bf8f728",
-    "storeUpdatedAt": "2026-11-03T23:50:13.644Z",
-    "rootHash": "92c84c4a4ad68b3a"
+    "renderedHash": "e08ae2d2dab1f3b41df6b8059b864b1b5adbfc889f3ddff66de0e919a1bf99b2",
+    "storeUpdatedAt": "2026-11-04T00:51:31.103Z",
+    "rootHash": "d7228305300915d3"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -14332,11 +14332,11 @@
     },
     "plan/local-dev.md": {
       "description": "The local cluster, and what keeps breaking",
-      "tokens": 1935,
-      "hash": "5f1d30ce11d02e77",
-      "size": 7754,
-      "mtimeMs": 1792931273978.067,
-      "updatedAt": "2026-10-25T12:27:54.174Z",
+      "tokens": 2713,
+      "hash": "b86fe4cfb8ebe1e8",
+      "size": 10876,
+      "mtimeMs": 1793753490912.1553,
+      "updatedAt": "2026-11-04T00:51:31.081Z",
       "source": "hook"
     },
     "docs/tools/chrome.py": {
@@ -18635,6 +18635,126 @@
       "mtimeMs": 1793749813462.0645,
       "updatedAt": "2026-11-03T23:50:13.630Z",
       "source": "hook"
+    },
+    "sqldesk/cli/users.py": {
+      "description": "build_groups, grant_admin, create, create_root",
+      "tokens": 3433,
+      "hash": "084bf8fd6155d35d",
+      "size": 12014,
+      "mtimeMs": 1793753192777.5483,
+      "updatedAt": "2026-11-04T00:46:32.984Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "build_groups",
+          "kind": "fn",
+          "startLine": 15,
+          "endLine": 37,
+          "tokens": 158
+        },
+        {
+          "name": "grant_admin",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 86,
+          "tokens": 380
+        },
+        {
+          "name": "create",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 141,
+          "tokens": 404
+        },
+        {
+          "name": "create_root",
+          "kind": "fn",
+          "startLine": 142,
+          "endLine": 216,
+          "tokens": 780
+        },
+        {
+          "name": "_still_owns",
+          "kind": "fn",
+          "startLine": 217,
+          "endLine": 240,
+          "tokens": 206
+        },
+        {
+          "name": "delete",
+          "kind": "fn",
+          "startLine": 241,
+          "endLine": 278,
+          "tokens": 389
+        },
+        {
+          "name": "password",
+          "kind": "fn",
+          "startLine": 279,
+          "endLine": 315,
+          "tokens": 301
+        },
+        {
+          "name": "invite",
+          "kind": "fn",
+          "startLine": 316,
+          "endLine": 346,
+          "tokens": 341
+        },
+        {
+          "name": "list_command",
+          "kind": "fn",
+          "startLine": 347,
+          "endLine": 386,
+          "tokens": 379
+        }
+      ]
+    },
+    "tests/test_cli.py": {
+      "description": "DataSourceCommandTests: test_interactive_new, test_options_new, test_bad_type_new, test_bad_options_",
+      "tokens": 7326,
+      "hash": "38bc001b2a99fbca",
+      "size": 25639,
+      "mtimeMs": 1793753287660.5308,
+      "updatedAt": "2026-11-04T00:48:07.833Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "DataSourceCommandTests",
+          "kind": "class",
+          "startLine": 13,
+          "endLine": 239,
+          "tokens": 2233
+        },
+        {
+          "name": "GroupCommandTests",
+          "kind": "class",
+          "startLine": 240,
+          "endLine": 329,
+          "tokens": 883
+        },
+        {
+          "name": "OrganizationCommandTests",
+          "kind": "class",
+          "startLine": 330,
+          "endLine": 393,
+          "tokens": 636
+        },
+        {
+          "name": "UserCommandTests",
+          "kind": "class",
+          "startLine": 394,
+          "endLine": 642,
+          "tokens": 2956
+        },
+        {
+          "name": "MigrationCommandTests",
+          "kind": "class",
+          "startLine": 643,
+          "endLine": 674,
+          "tokens": 530
+        }
+      ]
     }
   },
   "preamble": [
