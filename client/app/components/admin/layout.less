@@ -33,6 +33,18 @@
     overflow: hidden;
   }
 
+  /*
+    Every tab's content, inset to the same line as the caption above it.
+
+    `@sp-5` horizontally so a control lines up with the description's first
+    character rather than starting at the panel's edge, and room at the top
+    so the first thing down -- usually a select -- does not sit against the
+    caption's bottom rule.
+  */
+  .admin-tab-content {
+    padding: @sp-5;
+  }
+
   .ant-table {
     overflow-x: auto;
   }
