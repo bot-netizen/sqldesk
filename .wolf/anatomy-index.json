@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-04T00:51:31.082Z",
-    "fileCount": 723,
+    "lastScanned": "2026-11-04T01:13:29.436Z",
+    "fileCount": 724,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "e08ae2d2dab1f3b41df6b8059b864b1b5adbfc889f3ddff66de0e919a1bf99b2",
-    "storeUpdatedAt": "2026-11-04T00:51:31.103Z",
-    "rootHash": "d7228305300915d3"
+    "renderedHash": "a47dddc94e0cc6a6e7ed25f8e48465e45415e65f052d6408a6417d915fb0e44a",
+    "storeUpdatedAt": "2026-11-04T01:13:29.449Z",
+    "rootHash": "97ac2d06c767f10a"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -17437,41 +17437,111 @@
       "source": "hook"
     },
     "client/app/pages/notebooks/NotebookCell.jsx": {
-      "description": "KINDS",
-      "tokens": 5653,
-      "hash": "7e6761effd20dc96",
-      "size": 19795,
-      "mtimeMs": 1793445172633.278,
-      "updatedAt": "2026-10-31T11:12:52.767Z",
+      "description": "EARLIER_CELLS",
+      "tokens": 12595,
+      "hash": "445a57f560c93661",
+      "size": 44089,
+      "mtimeMs": 1793754759726.8506,
+      "updatedAt": "2026-11-04T01:12:39.924Z",
       "source": "hook",
       "symbols": [
         {
           "name": "NotebookCell",
           "kind": "fn",
-          "startLine": 42,
-          "endLine": 378,
-          "tokens": 3474
+          "startLine": 66,
+          "endLine": 489,
+          "tokens": 4482
+        },
+        {
+          "name": "RunsOn",
+          "kind": "fn",
+          "startLine": 490,
+          "endLine": 579,
+          "tokens": 955
+        },
+        {
+          "name": "describeWhatItRunsOn",
+          "kind": "fn",
+          "startLine": 580,
+          "endLine": 604,
+          "tokens": 312
         },
         {
           "name": "CellTitle",
           "kind": "fn",
-          "startLine": 379,
-          "endLine": 447,
-          "tokens": 505
+          "startLine": 605,
+          "endLine": 641,
+          "tokens": 362
+        },
+        {
+          "name": "CellHandle",
+          "kind": "fn",
+          "startLine": 642,
+          "endLine": 743,
+          "tokens": 1057
+        },
+        {
+          "name": "AvailableToRead",
+          "kind": "fn",
+          "startLine": 744,
+          "endLine": 780,
+          "tokens": 299
         },
         {
           "name": "summarise",
           "kind": "fn",
-          "startLine": 448,
-          "endLine": 468,
-          "tokens": 168
+          "startLine": 781,
+          "endLine": 804,
+          "tokens": 187
         },
         {
           "name": "CellOutput",
           "kind": "fn",
-          "startLine": 469,
-          "endLine": 559,
-          "tokens": 984
+          "startLine": 805,
+          "endLine": 1018,
+          "tokens": 2320
+        },
+        {
+          "name": "elapsedLabel",
+          "kind": "fn",
+          "startLine": 1019,
+          "endLine": 1030,
+          "tokens": 97
+        },
+        {
+          "name": "RunningFor",
+          "kind": "fn",
+          "startLine": 1031,
+          "endLine": 1071,
+          "tokens": 423
+        },
+        {
+          "name": "useDragHeight",
+          "kind": "fn",
+          "startLine": 1072,
+          "endLine": 1107,
+          "tokens": 296
+        },
+        {
+          "name": "DragStrip",
+          "kind": "fn",
+          "startLine": 1108,
+          "endLine": 1134,
+          "tokens": 214
+        },
+        {
+          "name": "ResizablePane",
+          "kind": "fn",
+          "startLine": 1135,
+          "endLine": 1173,
+          "tokens": 380
+        },
+        {
+          "name": "TableResizeHandle",
+          "kind": "fn",
+          "startLine": 1174,
+          "endLine": 1222,
+          "tokens": 333
         }
       ]
     },
@@ -17547,12 +17617,12 @@
       ]
     },
     "client/app/pages/notebooks/notebook.less": {
-      "description": "Styles: 25 rules",
-      "tokens": 872,
-      "hash": "0a91053f38448ed5",
-      "size": 3268,
-      "mtimeMs": 1793371433322.516,
-      "updatedAt": "2026-10-30T14:43:53.454Z",
+      "description": "Styles: 48 rules",
+      "tokens": 6054,
+      "hash": "b2e1b58583146168",
+      "size": 22701,
+      "mtimeMs": 1793754792886.2031,
+      "updatedAt": "2026-11-04T01:13:13.059Z",
       "source": "hook"
     },
     "client/app/pages/notebooks/NotebookCell.test.js": {
@@ -18753,6 +18823,31 @@
           "startLine": 643,
           "endLine": 674,
           "tokens": 530
+        }
+      ]
+    },
+    "client/app/pages/notebooks/CellFigure.jsx": {
+      "description": "CellFigure",
+      "tokens": 974,
+      "hash": "e1326d6c249fd933",
+      "size": 3409,
+      "mtimeMs": 1793754809267.9263,
+      "updatedAt": "2026-11-04T01:13:29.435Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "CellFigure",
+          "kind": "fn",
+          "startLine": 22,
+          "endLine": 49,
+          "tokens": 204
+        },
+        {
+          "name": "PlotlyFigure",
+          "kind": "fn",
+          "startLine": 50,
+          "endLine": 99,
+          "tokens": 520
         }
       ]
     }

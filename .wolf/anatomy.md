@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-04T00:51:31.082Z
-> Files: 723 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-04T01:13:29.436Z
+> Files: 724 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -782,12 +782,13 @@
 
 ## client/app/pages/notebooks/
 
+- `CellFigure.jsx` — CellFigure (~974 tok)
 - `CellVisualizationDialog.jsx` — CellVisualizationDialog — renders modal (~1459 tok)
 - `EditableTitle.jsx` — EditableTitle (~730 tok)
 - `Notebook.jsx` — NotebookPage (~3690 tok)
-- `notebook.less` — Styles: 25 rules (~872 tok)
+- `notebook.less` — Styles: 48 rules (~6054 tok)
 - `Notebook.test.js` — Notebook: fixture, open (~1074 tok)
-- `NotebookCell.jsx` — KINDS (~5653 tok)
+- `NotebookCell.jsx` — EARLIER_CELLS (~12595 tok)
 - `NotebookCell.test.js` — Notebook: aCell, mount (~1778 tok)
 - `NotebookHelpDialog.jsx` — Rule — renders modal (~1235 tok)
 - `NotebookList.jsx` — subtitle (~1706 tok)
