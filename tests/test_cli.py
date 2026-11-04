@@ -4,6 +4,7 @@ import mock
 from click.testing import CliRunner
 
 from sqldesk.cli import manager
+from sqldesk.cli.users import OWNED_BY_TABLE, _still_owns
 from sqldesk.models import DataSource, Group, Organization, User, db
 from sqldesk.query_runner import query_runners
 from sqldesk.utils.configuration import ConfigurationContainer
@@ -468,6 +469,72 @@ class UserCommandTests(BaseTestCase):
         result = runner.invoke(manager, ["users", "delete", "foobar@example.com"])
         self.assertIn("Deleted 0 users", result.output)
         self.assertEqual(User.query.count(), ucount)
+
+    # Twenty-nine tables point at a user and almost none of those columns are
+    # nullable, so anybody who has used the install at all cannot be deleted.
+    # That is deliberate -- removing a person should not take their dashboards
+    # with them -- but it used to arrive as a raw psycopg2 traceback, which
+    # tells an operator nothing about what to do next.
+    def test_delete_refuses_a_user_who_owns_something(self):
+        user = self.factory.create_user(email="foobar@example.com")
+        self.factory.create_query(user=user)
+        ucount = User.query.count()
+
+        result = CliRunner().invoke(manager, ["users", "delete", "foobar@example.com"])
+
+        self.assertEqual(result.exit_code, 1)
+        self.assertIn("Cannot delete foobar@example.com", result.output)
+        self.assertIn("Disable the account instead", result.output)
+        # Saving a query writes a `changes` row too, and Postgres reports
+        # whichever constraint it happens to check first, so which of the two
+        # reasons comes back is not ours to pin. That it is a reason at all,
+        # and not a constraint name or a traceback, is the whole point.
+        self.assertTrue(
+            any(reason in result.output for _, reason in OWNED_BY_TABLE),
+            "no human reason in: {}".format(result.output),
+        )
+        self.assertNotIn("fkey", result.output)
+        self.assertNotIn("psycopg2", result.output)
+        self.assertEqual(User.query.count(), ucount)
+
+    # `--org` compared the relationship to an id rather than to the
+    # organization, which every other command in this file gets right. The
+    # filter it built did not do what it said, so the scoping was decorative.
+    def test_delete_is_scoped_to_the_named_org(self):
+        other = self.factory.create_org()
+        self.factory.create_user(email="foobar@example.com", org=other)
+        ucount = User.query.count()
+
+        result = CliRunner().invoke(manager, ["users", "delete", "foobar@example.com", "--org", self.factory.org.slug])
+
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("Deleted 0 users", result.output)
+        self.assertEqual(User.query.count(), ucount)
+
+    # `events_` is a substring of `mcp_events_`, so a shortest-first scan
+    # reports "recorded activity" for an MCP row. The list is ordered longest
+    # first to stop that; this is what holds the order in place.
+    def test_the_reason_matches_the_longest_table_name(self):
+        class Refusal(Exception):
+            def __init__(self, constraint):
+                self.orig = 'violates foreign key constraint "{}"'.format(constraint)
+
+        self.assertEqual(_still_owns(Refusal("mcp_events_user_id_fkey")), "they have recorded MCP activity")
+        self.assertEqual(_still_owns(Refusal("events_user_id_fkey")), "they have recorded activity")
+        self.assertEqual(
+            _still_owns(Refusal("dashboard_subscriptions_user_id_fkey")), "they are subscribed to dashboards"
+        )
+        self.assertEqual(_still_owns(Refusal("dashboards_user_id_fkey")), "they own dashboards")
+        self.assertIsNone(_still_owns(Refusal("something_we_have_never_seen_fkey")))
+
+    def test_delete_finds_the_user_in_the_named_org(self):
+        self.factory.create_user(email="foobar@example.com")
+        ucount = User.query.count()
+
+        result = CliRunner().invoke(manager, ["users", "delete", "foobar@example.com", "--org", self.factory.org.slug])
+
+        self.assertEqual(result.exit_code, 0)
+        self.assertEqual(User.query.count(), ucount - 1)
 
     def test_password(self):
         self.factory.create_user(email="foobar@example.com")

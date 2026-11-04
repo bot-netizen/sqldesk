@@ -2063,6 +2063,39 @@
         "0.8.1"
       ],
       "date": "2026-11-01"
+    },
+    {
+      "id": "bug-123",
+      "error_message": "manage users delete <email> -> sqlalchemy.exc.IntegrityError: ForeignKeyViolation: update or delete on table \"users\" violates foreign key constraint \"events_user_id_fkey\" on table \"events\"",
+      "root_cause": "The command does a plain session.delete on the User row. events.user_id is a non-cascading foreign key and a single login writes one event, so any account that has ever been used cannot be deleted. The command only works on an account that has done literally nothing -- which is almost never the account you want to remove. The failure surfaces as a raw psycopg2 traceback with no hint about what to do instead.",
+      "fix": "sqldesk/cli/users.py: delete() catches the IntegrityError, rolls back and names what the account still owns, pointing at disable instead. Deletion is deliberately NOT forced -- 29 tables reference users and most of those columns are NOT NULL, so making delete succeed would mean cascading away the person's queries, dashboards and alerts, which is not what anyone means by removing a user. _still_owns maps the failing constraint to a phrase, ordered longest table name first because 'events_' is a substring of 'mcp_events_'. Same commit fixes a second bug in the same function: --org filtered on `User.org == org.id`, comparing the relationship to an integer where every other call site passes the instance, so the scoping never worked.",
+      "tags": [
+        "cli",
+        "users",
+        "postgres",
+        "foreign-key",
+        "admin",
+        "fixed"
+      ],
+      "date": "2026-11-03"
+    },
+    {
+      "error_message": "Missing error handling in delete()",
+      "file": "sqldesk/cli/users.py",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-124",
+      "timestamp": "2026-11-04T00:46:20.744Z",
+      "last_seen": "2026-11-04T00:46:20.744Z",
+      "occurrences": 1,
+      "related_bugs": []
     }
   ],
   "applied_observations": {
@@ -2141,7 +2174,8 @@
     "f8dab580-bd41-4f43-af0c-70f3d70a3d24": true,
     "28b38f07-75ac-48b3-9ec2-89896a120960": true,
     "c5b09340-9bff-40a4-8b0a-c4591224a334": true,
-    "7fbab7e0-b98a-441d-9be5-03950e326cc1": true
+    "7fbab7e0-b98a-441d-9be5-03950e326cc1": true,
+    "35f84c81-6d5c-4d50-b32e-779bf980011b": true
   },
-  "next_id": 119
+  "next_id": 125
 }
