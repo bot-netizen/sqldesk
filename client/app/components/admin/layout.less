@@ -19,6 +19,20 @@
     padding-right: 0;
   }
 
+  /*
+    `.tiled` rounds this panel's corners, and the tab strip is its first
+    child with a white background of its own -- a square child paints over
+    a rounded parent, so the top two corners came out sharp while every
+    other page's panels are round.
+
+    Clipping to the border box is what makes the radius hold. Safe here:
+    the only overlay on these pages is the date-range Select, and antd
+    renders its dropdown in a portal on the body rather than inside this.
+  */
+  > .container > .bg-white.tiled {
+    overflow: hidden;
+  }
+
   .ant-table {
     overflow-x: auto;
   }

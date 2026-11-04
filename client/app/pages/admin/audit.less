@@ -10,12 +10,20 @@
     margin-bottom: 16px;
   }
 
+  /*
+    The two numbers and the strip of days.
+
+    Padded on all four sides rather than 16px flat: the bars are flush to
+    the bottom of their own box, so with an even padding the strip sat hard
+    against the card's rounded corner and read as though it had overflowed
+    it. More room below than above gives the bars somewhere to stand.
+  */
   .audit-totals {
     display: flex;
     align-items: flex-end;
     gap: 32px;
     margin-bottom: 20px;
-    padding: 16px;
+    padding: 20px 24px 24px;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-card);
@@ -44,7 +52,10 @@
     align-items: flex-end;
     justify-content: flex-start;
     gap: 2px;
-    flex: 1 1 auto;
+    /* Only as wide as its bars need. `flex: 1 1 auto` stretched the strip
+       across the whole card, which put its right edge in the card's corner
+       for no reason -- there is nothing out there to draw. */
+    flex: 0 1 auto;
     height: 48px;
     min-width: 120px;
   }
