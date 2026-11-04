@@ -82,6 +82,29 @@ helm upgrade sqldesk charts/sqldesk --reset-then-reuse-values \
   --set streams.enabled=true --set uploads.enabled=true
 ```
 
+### When that upgrade fails on a conflict
+
+```
+conflict with "kubectl-set" using apps/v1:
+  .spec.template.spec.containers[name="server"].image
+```
+
+Somebody deployed once with `kubectl set image`, which made `kubectl-set`
+the server-side-apply owner of that field, and Helm 4 will not take a field
+another manager owns. The fix is one flag:
+
+```
+helm upgrade ... --force-conflicts
+```
+
+**Not `--take-ownership`** — that concerns Helm's own ownership annotations
+and does nothing here; it was tried twice on 2026-11-03 and failed
+identically both times. And **do not reset `managedFields` to `[{}]`** to
+clear the owner: the apiserver then attributes every pre-existing field to a
+synthetic `before-first-apply` manager, and the same conflict returns under
+a new name. That detour cost three failed upgrades before `--force-conflicts`
+turned out to be the whole answer.
+
 `--reset-then-reuse-values`, not `--reuse-values`: the latter keeps the *old
 chart's* defaults, so new values arrive nil.
 
