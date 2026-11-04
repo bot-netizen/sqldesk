@@ -15,25 +15,17 @@ import "./lazyComponents";
   So each one is put through its own `getOptions` with the columns the demo
   query really returns, and asked to name a column that exists.
 */
-type Entry = {
-  type: string;
-  name: string;
-  query: string;
-  options: Record<string, any>;
-  columns: { name: string; type: string }[];
-};
-
-const entries = fixture as Entry[];
+const entries = fixture;
 
 /** Every column name a visualization could legitimately point at. */
-function columnNames(entry: Entry) {
+function columnNames(entry) {
   return entry.columns.map(one => one.name);
 }
 
 /** The option values that look like a column reference. */
-function referencedColumns(options: any): string[] {
-  const found: string[] = [];
-  const walk = (value: any, key: string) => {
+function referencedColumns(options) {
+  const found = [];
+  const walk = (value, key) => {
     if (typeof value === "string" && /column|col$|colname|^column$/i.test(key)) {
       found.push(value);
     } else if (Array.isArray(value)) {
@@ -80,7 +72,7 @@ describe("the demo's visualization options", () => {
           Anything `getOptions({})` does not produce is a key this
           visualization has no opinion about.
         */
-        const visualization = (registeredVisualizations as any)[entry.type];
+        const visualization = registeredVisualizations[entry.type];
         const data = { columns: entry.columns, rows: entry.rows || [] };
         const known = Object.keys(visualization.getOptions({}, data));
 
@@ -89,7 +81,7 @@ describe("the demo's visualization options", () => {
       });
 
       test("its own getOptions accepts them", () => {
-        const visualization = (registeredVisualizations as any)[entry.type];
+        const visualization = registeredVisualizations[entry.type];
         expect(visualization).toBeDefined();
 
         const data = { columns: entry.columns, rows: entry.rows || [] };
