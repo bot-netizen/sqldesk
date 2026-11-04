@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import Alert from "antd/lib/alert";
+import resizeObserver from "@/services/resizeObserver";
 
 /*
   A picture a Python cell ended on.
@@ -52,6 +53,7 @@ export function PlotlyFigure({ spec }) {
 
   useEffect(() => {
     let live = true;
+    let unwatch = null;
     // The dynamic import is the point: webpack puts plotly in a chunk of its
     // own, fetched the first time a notebook actually shows one of these.
     import(/* webpackChunkName: "plotly" */ "plotly.js-dist-min")
@@ -65,10 +67,25 @@ export function PlotlyFigure({ spec }) {
           responsive: true,
           displaylogo: false,
         });
+        /*
+          `responsive: true` watches the *window*, not this element. Dragging
+          the cell's handle changes the box without the window moving at all,
+          so the plot kept the size it was first drawn at and the drag looked
+          like it was adding blank space. The same observer the charts use
+          tells it to redraw.
+        */
+        unwatch = resizeObserver(holder.current, () => {
+          if (holder.current) {
+            plotly.Plots.resize(holder.current);
+          }
+        });
       })
       .catch(() => live && setFailed("That chart could not be drawn."));
     return () => {
       live = false;
+      if (unwatch) {
+        unwatch();
+      }
     };
   }, [spec]);
 

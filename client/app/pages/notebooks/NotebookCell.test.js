@@ -5,7 +5,10 @@ import NotebookCell, {
   AvailableToRead,
   CellHandle,
   CellOutput,
-  ResizableChart,
+  ResizablePane,
+  TableResizeHandle,
+  RunningFor,
+  elapsedLabel,
   RunsOn,
   describeWhatItRunsOn,
   summarise,
@@ -360,7 +363,11 @@ describe("the output", () => {
     // that is a prop holding an element, and shallow does not render into
     // props -- the same trap as an antd Dropdown's overlay.
     const chartTab = output.find("TabPane").filterWhere((one) => one.key() === "chart");
-    expect(mountFully(<div>{chartTab.prop("tab")}</div>).find('[data-test="RemoveChart"]').exists()).toBe(true);
+    expect(
+      mountFully(<div>{chartTab.prop("tab")}</div>)
+        .find('[data-test="RemoveChart"]')
+        .exists()
+    ).toBe(true);
   });
 
   it("offers no way back when nothing can take one", () => {
@@ -419,7 +426,10 @@ describe("what the cell printed", () => {
       <CellOutput
         cell={aCell({ last_run_at: "x" })}
         produced="text"
-        result={{ data: { columns: [{ name: "output" }], rows: [{ output: "looked at it" }] }, printed: "looked at it" }}
+        result={{
+          data: { columns: [{ name: "output" }], rows: [{ output: "looked at it" }] },
+          printed: "looked at it",
+        }}
       />
     );
 
@@ -674,9 +684,7 @@ describe("what a cell runs on", () => {
     );
 
     // The Select carries the same value, so match on the option's own text.
-    const unseen = control.findWhere(
-      (node) => node.name() === "Option" && node.prop("value") === "source:99"
-    );
+    const unseen = control.findWhere((node) => node.name() === "Option" && node.prop("value") === "source:99");
     expect(unseen.exists()).toBe(true);
     expect(unseen.prop("disabled")).toBe(true);
   });
@@ -684,9 +692,7 @@ describe("what a cell runs on", () => {
   it("hangs its menu on the page, so it travels with the cell", () => {
     // The window is not this app's scroller, so an overlay anchored to the
     // body stays where it opened while the page moves under it.
-    const control = shallow(
-      <RunsOn cell={aCell()} dataSources={sources} canEdit onChange={jest.fn()} />
-    );
+    const control = shallow(<RunsOn cell={aCell()} dataSources={sources} canEdit onChange={jest.fn()} />);
 
     const page = document.createElement("div");
     page.className = "notebook-page";
@@ -719,32 +725,32 @@ describe("sizing a chart", () => {
     );
 
   it("draws it at a readable height by default", () => {
-    expect(withChart().find("ResizableChart").prop("height")).toBe(420);
+    expect(withChart().find("ResizablePane").prop("height")).toBe(420);
   });
 
   it("uses the height the cell was dragged to", () => {
-    expect(withChart({ chartHeight: 680 }).find("ResizableChart").prop("height")).toBe(680);
+    expect(withChart({ chartHeight: 680 }).find("ResizablePane").prop("height")).toBe(680);
   });
 
   it("offers a handle to drag", () => {
     const chart = mountFully(
-      <ResizableChart height={400} onResize={jest.fn()}>
+      <ResizablePane height={400} onResize={jest.fn()}>
         <div />
-      </ResizableChart>
+      </ResizablePane>
     );
 
-    expect(chart.find('[data-test="ChartResizeHandle"]').exists()).toBe(true);
+    expect(chart.find('[data-test="CellPaneHandle"]').exists()).toBe(true);
   });
 
   it("saves the height once, on release, not on every pixel", () => {
     // A save per mouse move would be a hundred requests for one drag.
     const onResize = jest.fn();
     const chart = mountFully(
-      <ResizableChart height={400} onResize={onResize}>
+      <ResizablePane height={400} onResize={onResize}>
         <div />
-      </ResizableChart>
+      </ResizablePane>
     );
-    chart.find('[data-test="ChartResizeHandle"]').first().simulate("mousedown", { clientY: 100 });
+    chart.find('[data-test="CellPaneHandle"]').first().simulate("mousedown", { clientY: 100 });
     window.dispatchEvent(new MouseEvent("mousemove", { clientY: 150 }));
     window.dispatchEvent(new MouseEvent("mousemove", { clientY: 220 }));
     expect(onResize).not.toHaveBeenCalled();
@@ -758,11 +764,11 @@ describe("sizing a chart", () => {
   it("will not let a chart be dragged smaller than its own handle", () => {
     const onResize = jest.fn();
     const chart = mountFully(
-      <ResizableChart height={200} onResize={onResize}>
+      <ResizablePane height={200} onResize={onResize}>
         <div />
-      </ResizableChart>
+      </ResizablePane>
     );
-    chart.find('[data-test="ChartResizeHandle"]').first().simulate("mousedown", { clientY: 500 });
+    chart.find('[data-test="CellPaneHandle"]').first().simulate("mousedown", { clientY: 500 });
     window.dispatchEvent(new MouseEvent("mousemove", { clientY: 0 }));
     window.dispatchEvent(new MouseEvent("mouseup"));
 
@@ -771,12 +777,122 @@ describe("sizing a chart", () => {
 
   it("offers no handle to a reader who cannot change the notebook", () => {
     const chart = mountFully(
-      <ResizableChart height={400}>
+      <ResizablePane height={400}>
         <div />
-      </ResizableChart>
+      </ResizablePane>
     );
 
-    expect(chart.find('[data-test="ChartResizeHandle"]').exists()).toBe(false);
+    expect(chart.find('[data-test="CellPaneHandle"]').exists()).toBe(false);
+  });
+});
+
+/*
+  The other two things a cell can output, which had no say in their height.
+
+  A chart could be dragged; a table was pinned at 320px of scrolling body and
+  a picture at whatever size it was drawn, so "resize the output" worked on
+  one of the three things a cell can produce. The Plotly figure a Python cell
+  ends on was the one people hit, because that is what the demo notebook
+  finishes with.
+*/
+describe("sizing the table", () => {
+  const rows = { columns: [{ name: "id" }], rows: [{ id: 1 }] };
+  const withTable = (options = {}, extras = {}) =>
+    shallow(
+      <CellOutput cell={aCell({ last_run_at: "x", options })} produced="table" result={{ data: rows }} {...extras} />
+    );
+
+  it("scrolls at a readable height by default", () => {
+    expect(withTable().find("Table").prop("scroll")).toEqual({ x: true, y: 320 });
+  });
+
+  it("scrolls at the height the cell was dragged to", () => {
+    expect(withTable({ tableHeight: 540 }).find("Table").prop("scroll")).toEqual({ x: true, y: 540 });
+  });
+
+  it("offers a handle to whoever can change the notebook", () => {
+    const onResizeTable = jest.fn();
+    expect(withTable({}, { onResizeTable }).find("TableResizeHandle").prop("onResize")).toBe(onResizeTable);
+  });
+
+  it("offers a reader none", () => {
+    const handle = mountFully(<TableResizeHandle height={320} />);
+
+    expect(handle.find('[data-test="TableResizeHandle"]').exists()).toBe(false);
+  });
+
+  it("drags the scrolling body, and saves once on release", () => {
+    const onResize = jest.fn();
+    const handle = mountFully(<TableResizeHandle height={320} onResize={onResize} />);
+
+    handle.find('[data-test="TableResizeHandle"]').first().simulate("mousedown", { clientY: 100 });
+    window.dispatchEvent(new MouseEvent("mousemove", { clientY: 260 }));
+    expect(onResize).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new MouseEvent("mouseup"));
+
+    expect(onResize).toHaveBeenCalledTimes(1);
+    expect(onResize).toHaveBeenCalledWith(480);
+  });
+});
+
+describe("sizing a picture", () => {
+  const figure = { columns: [{ name: "figure" }], rows: [{ figure: { kind: "png", data: "abc" } }] };
+  const withFigure = (options = {}, extras = {}) =>
+    shallow(
+      <CellOutput cell={aCell({ last_run_at: "x", options })} produced="figure" result={{ data: figure }} {...extras} />
+    );
+
+  it("draws it at a readable height by default", () => {
+    expect(withFigure().find("ResizablePane").prop("height")).toBe(420);
+  });
+
+  it("uses the height the cell was dragged to", () => {
+    expect(withFigure({ figureHeight: 700 }).find("ResizablePane").prop("height")).toBe(700);
+  });
+
+  it("hands the pane the cell's own saver, so a Plotly figure can be dragged", () => {
+    const onResizeFigure = jest.fn();
+
+    expect(withFigure({}, { onResizeFigure }).find("ResizablePane").prop("onResize")).toBe(onResizeFigure);
+  });
+});
+
+/*
+  What a cell says while it is running.
+
+  A slow cell looked exactly like a finished one -- the Run button became a
+  Stop button and nothing else moved -- so the only way to tell was to notice
+  which icon was showing.
+*/
+describe("how long a cell has been running", () => {
+  it("counts in tenths while somebody is deciding whether to wait", () => {
+    expect(elapsedLabel(0)).toBe("0.0s");
+    expect(elapsedLabel(4200)).toBe("4.2s");
+    expect(elapsedLabel(9900)).toBe("9.9s");
+  });
+
+  it("drops the tenths once they are only noise", () => {
+    expect(elapsedLabel(10000)).toBe("10s");
+    expect(elapsedLabel(42700)).toBe("42s");
+  });
+
+  it("counts minutes past a minute, zero padded so it does not jump", () => {
+    expect(elapsedLabel(60000)).toBe("1m 00s");
+    expect(elapsedLabel(72000)).toBe("1m 12s");
+    expect(elapsedLabel(605000)).toBe("10m 05s");
+  });
+
+  // A clock that counts backwards is worse than no clock.
+  it("never counts below zero when the clocks disagree", () => {
+    expect(elapsedLabel(-500)).toBe("0.0s");
+  });
+
+  it("still says it is going when there is no start time to count from", () => {
+    const running = mountFully(<RunningFor since={null} />);
+
+    expect(running.find('[data-test="CellRunning"]').exists()).toBe(true);
+    expect(running.find(".notebook-cell-running-for").exists()).toBe(false);
   });
 });
 

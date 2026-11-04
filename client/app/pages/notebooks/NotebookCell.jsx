@@ -7,6 +7,7 @@ import Select from "antd/lib/select";
 import Tooltip from "antd/lib/tooltip";
 import Table from "antd/lib/table";
 import Tabs from "antd/lib/tabs";
+import LoadingOutlinedIcon from "@ant-design/icons/LoadingOutlined";
 import PlusOutlinedIcon from "@ant-design/icons/PlusOutlined";
 import CloseOutlinedIcon from "@ant-design/icons/CloseOutlined";
 import { map, size } from "lodash";
@@ -78,6 +79,10 @@ export default function NotebookCell({
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  // When the run on screen began, so the header can say how long it has been
+  // going. Local to this browser: the server does not report a start time for
+  // a cell somebody else set running.
+  const [startedAt, setStartedAt] = useState(null);
   // Started from the overflow menu rather than by clicking the handle: one
   // click on the handle copies it, which is what somebody about to write the
   // next cell wants, and renaming is the rarer thing.
@@ -129,6 +134,7 @@ export default function NotebookCell({
   const run = useCallback(() => {
     setError(null);
     setBusy(true);
+    setStartedAt(Date.now());
     onRunningChanged(true);
     // Saved first, so what runs is what is on the screen. A cell whose text
     // only reached the server on blur would run its previous version, which is
@@ -145,6 +151,7 @@ export default function NotebookCell({
       .finally(() => {
         if (mounted.current) {
           setBusy(false);
+          setStartedAt(null);
           onRunningChanged(false);
         }
       });
@@ -191,10 +198,7 @@ export default function NotebookCell({
     somebody who folds a notebook into a readable report has done work, and
     that work is for whoever opens it next -- not only for their own browser.
   */
-  const setOption = useCallback(
-    (changes) => save({ options: { ...(cell.options || {}), ...changes } }),
-    [cell, save]
-  );
+  const setOption = useCallback((changes) => save({ options: { ...(cell.options || {}), ...changes } }), [cell, save]);
 
   const collapsed = !!(cell.options || {}).collapsed;
   const hideCode = !!(cell.options || {}).hideCode;
@@ -272,14 +276,17 @@ export default function NotebookCell({
         */}
         <RunsOn cell={cell} dataSources={dataSources} canEdit={canEdit} cluster={cluster} onChange={save} />
         {busy || running === cell.id ? (
-          <Button
-            size="small"
-            className="notebook-cell-run"
-            icon={<PauseOutlinedIcon />}
-            onClick={stop}
-            data-test="StopCell"
-            aria-label="Stop this cell"
-          />
+          <>
+            <RunningFor since={startedAt} />
+            <Button
+              size="small"
+              className="notebook-cell-run"
+              icon={<PauseOutlinedIcon />}
+              onClick={stop}
+              data-test="StopCell"
+              aria-label="Stop this cell"
+            />
+          </>
         ) : (
           <Tooltip title={notice}>
             <Button
@@ -365,7 +372,6 @@ export default function NotebookCell({
             />
           </Dropdown>
         )}
-
       </div>
 
       {/*
@@ -434,6 +440,8 @@ export default function NotebookCell({
           onRemoveChart={removeChart}
           onAddVisualization={canEdit ? visualize : null}
           onResizeChart={canEdit ? (chartHeight) => setOption({ chartHeight }) : null}
+          onResizeTable={canEdit ? (tableHeight) => setOption({ tableHeight }) : null}
+          onResizeFigure={canEdit ? (figureHeight) => setOption({ figureHeight }) : null}
         />
       )}
     </div>
@@ -741,9 +749,7 @@ export function AvailableToRead({ available, canEdit }) {
           {nth > 0 && ", "}
           <Tooltip
             title={
-              size(one.columns)
-                ? `${one.name}: ${map(one.columns, (column) => column.name).join(", ")}`
-                : one.name
+              size(one.columns) ? `${one.name}: ${map(one.columns, (column) => column.name).join(", ")}` : one.name
             }
           >
             <code>{one.name}</code>
@@ -790,7 +796,19 @@ export function summarise(cell, produced) {
   shown are the truncated slice the server stored for display; the whole result
   is in the notebook's own store, which is what the next cell reads.
 */
-export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisualization, onResizeChart }) {
+export function CellOutput({
+  cell,
+  produced,
+  result,
+  onRemoveChart,
+  onAddVisualization,
+  onResizeChart,
+  onResizeTable,
+  onResizeFigure,
+}) {
+  // Read up here because the figure branch returns before the chart's own
+  // declarations are reached.
+  const figureHeight = (cell.options || {}).figureHeight || 420;
   // `result` is the endpoint's answer -- `{id, data, row_count, handed_on}` --
   // so the rows are one level in. Reading it as the rows themselves drew an
   // empty table and an empty printout, which is what the test caught.
@@ -828,7 +846,19 @@ export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisuali
             {printed}
           </pre>
         )}
-        <CellFigure figure={picture} />
+        {/*
+          A picture gets the same handle as a chart. It is the output a
+          Python cell most often ends on -- a Plotly figure, a matplotlib
+          PNG -- and it was the one output with no say in its own height.
+        */}
+        <ResizablePane
+          height={figureHeight}
+          onResize={onResizeFigure}
+          label="Drag to resize this picture"
+          test="CellFigurePane"
+        >
+          <CellFigure figure={picture} />
+        </ResizablePane>
       </div>
     );
   }
@@ -867,6 +897,11 @@ export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisuali
   const chart = (cell.options || {}).visualization;
   const shown = size(data.rows);
 
+  // The height of the scrolling body, which is the number the handle under
+  // the table drags. Kept on the cell beside the chart's, so a result sized
+  // to be readable stays that way for whoever opens the notebook next.
+  const tableHeight = (cell.options || {}).tableHeight || 320;
+
   const table = (
     <>
       <Table
@@ -874,8 +909,9 @@ export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisuali
         columns={columns}
         dataSource={map(data.rows, (row, index) => ({ ...row, key: index }))}
         pagination={false}
-        scroll={{ x: true, y: 320 }}
+        scroll={{ x: true, y: tableHeight }}
       />
+      <TableResizeHandle height={tableHeight} onResize={onResizeTable} />
       {/*
         What this is a slice *of*. The whole result is in the notebook's own
         store and is what the next cell reads -- so saying "1,000 rows" here
@@ -944,9 +980,14 @@ export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisuali
             }
             key="chart"
           >
-            <ResizableChart height={chartHeight} onResize={onResizeChart}>
+            <ResizablePane
+              height={chartHeight}
+              onResize={onResizeChart}
+              label="Drag to resize this chart"
+              test="CellChart"
+            >
               <Renderer type={chart.type} data={data} options={chart.options} visualizationName={chart.name} />
-            </ResizableChart>
+            </ResizablePane>
           </Tabs.TabPane>
         )}
       </Tabs>
@@ -955,7 +996,63 @@ export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisuali
 }
 
 /*
-  A chart you drag to the height you want.
+  How long this cell has been running.
+
+  A cell that takes a while used to look exactly like a cell that had
+  finished: the Run button became a Stop button and nothing else moved, so
+  the only way to tell a slow query from a finished one was to notice which
+  icon was showing. A number that goes up says "still going" without anybody
+  having to read the toolbar.
+
+  Tenths below ten seconds, because that is the range where a person is
+  deciding whether to wait; whole seconds after, because a flickering tenths
+  digit for two minutes is noise. The clock ticks four times a second rather
+  than on a rounder number -- a timer on a one-second period visibly stutters
+  against the second it is displaying.
+*/
+export function elapsedLabel(ms) {
+  const seconds = Math.max(0, ms) / 1000;
+  if (seconds < 10) {
+    return `${seconds.toFixed(1)}s`;
+  }
+  if (seconds < 60) {
+    return `${Math.floor(seconds)}s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ${String(Math.floor(seconds - minutes * 60)).padStart(2, "0")}s`;
+}
+
+export function RunningFor({ since }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!since) {
+      return;
+    }
+    setNow(Date.now());
+    const tick = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(tick);
+  }, [since]);
+
+  return (
+    <span className="notebook-cell-running" data-test="CellRunning" role="status" aria-live="polite">
+      <LoadingOutlinedIcon />
+      {/*
+        Without a start time -- a cell somebody else set running, which
+        arrives as notebook state rather than as a run this browser began --
+        the spinner still says "going", and that is all that can honestly be
+        said.
+      */}
+      {since ? <span className="notebook-cell-running-for">{elapsedLabel(now - since)}</span> : null}
+    </span>
+  );
+}
+
+RunningFor.propTypes = { since: PropTypes.number };
+RunningFor.defaultProps = { since: null };
+
+/*
+  Dragging a height, shared by everything a cell can output.
 
   The handle is a strip across the bottom, the way a dashboard widget is
   resized -- grabbing an edge is the gesture people already know here. The
@@ -966,9 +1063,8 @@ export function CellOutput({ cell, produced, result, onRemoveChart, onAddVisuali
   -- which every drag does -- leaves the element behind, and a handler bound
   to the handle stops getting moves the moment it does.
 */
-export function ResizableChart({ height, onResize, children }) {
+export function useDragHeight(height, onResize, min) {
   const [dragging, setDragging] = useState(null);
-  const shown = dragging === null ? height : dragging;
 
   const start = useCallback(
     (e) => {
@@ -981,9 +1077,9 @@ export function ResizableChart({ height, onResize, children }) {
       let latest = was;
 
       const move = (moved) => {
-        // A floor, because a chart dragged to nothing cannot be dragged
+        // A floor, because something dragged to nothing cannot be dragged
         // back: the handle would have no room to sit in.
-        latest = Math.max(160, Math.round(was + (moved.clientY - from)));
+        latest = Math.max(min, Math.round(was + (moved.clientY - from)));
         setDragging(latest);
       };
       const done = () => {
@@ -997,33 +1093,98 @@ export function ResizableChart({ height, onResize, children }) {
       window.addEventListener("mousemove", move);
       window.addEventListener("mouseup", done);
     },
-    [height, onResize]
+    [height, onResize, min]
   );
 
+  return { shown: dragging === null ? height : dragging, dragging, start };
+}
+
+function DragStrip({ dragging, onMouseDown, label, test }) {
   return (
-    <div className="notebook-cell-chart" style={{ height: shown }} data-test="CellChart">
-      <div className="notebook-cell-chart-body">{children}</div>
-      {onResize && (
-        <div
-          className={cx("notebook-cell-chart-handle", { "is-dragging": dragging !== null })}
-          onMouseDown={start}
-          role="separator"
-          aria-label="Drag to resize this chart"
-          aria-orientation="horizontal"
-          data-test="ChartResizeHandle"
-        />
-      )}
+    <div
+      className={cx("notebook-cell-pane-handle", { "is-dragging": dragging !== null })}
+      onMouseDown={onMouseDown}
+      role="separator"
+      aria-label={label}
+      aria-orientation="horizontal"
+      data-test={test}
+    />
+  );
+}
+
+DragStrip.propTypes = {
+  dragging: PropTypes.number,
+  onMouseDown: PropTypes.func.isRequired,
+  label: PropTypes.string.isRequired,
+  test: PropTypes.string.isRequired,
+};
+
+DragStrip.defaultProps = { dragging: null };
+
+/*
+  Anything you drag to the height you want: a chart, and a picture a Python
+  cell ended on. Both are drawn into whatever room they are given, so the
+  pane owns the height and the content fills it.
+*/
+export function ResizablePane({ height, onResize, min, label, test, children }) {
+  const { shown, dragging, start } = useDragHeight(height, onResize, min);
+
+  return (
+    <div className="notebook-cell-pane" style={{ height: shown }} data-test={test}>
+      <div className="notebook-cell-pane-body">{children}</div>
+      {onResize && <DragStrip dragging={dragging} onMouseDown={start} label={label} test={`${test}Handle`} />}
     </div>
   );
 }
 
-ResizableChart.propTypes = {
+ResizablePane.propTypes = {
   height: PropTypes.number,
   onResize: PropTypes.func,
+  min: PropTypes.number,
+  label: PropTypes.string,
+  test: PropTypes.string,
   children: PropTypes.node,
 };
 
-ResizableChart.defaultProps = { height: 420, onResize: null, children: null };
+ResizablePane.defaultProps = {
+  height: 420,
+  onResize: null,
+  min: 160,
+  label: "Drag to resize",
+  test: "CellPane",
+};
+
+/*
+  A table is not wrapped the way a chart is.
+
+  antd scrolls the *body* at `scroll.y` while the header stays put, so the
+  number being dragged is the body's height, not the table's. Wrapping the
+  whole thing in a fixed-height box would fight that: the header, the
+  horizontal scrollbar and the row count underneath would all have to be
+  subtracted from the height by hand, and they are not all the same size on
+  every install. The strip sits under the table and drags `scroll.y`
+  directly, which is the number that actually decides how much you see.
+*/
+export function TableResizeHandle({ height, onResize, min }) {
+  const { dragging, start } = useDragHeight(height, onResize, min);
+
+  if (!onResize) {
+    return null;
+  }
+  return (
+    <div className="notebook-cell-table-handle">
+      <DragStrip dragging={dragging} onMouseDown={start} label="Drag to resize this table" test="TableResizeHandle" />
+    </div>
+  );
+}
+
+TableResizeHandle.propTypes = {
+  height: PropTypes.number,
+  onResize: PropTypes.func,
+  min: PropTypes.number,
+};
+
+TableResizeHandle.defaultProps = { height: 320, onResize: null, min: 120 };
 
 CellOutput.propTypes = {
   cell: PropTypes.object.isRequired,
@@ -1032,6 +1193,8 @@ CellOutput.propTypes = {
   onRemoveChart: PropTypes.func,
   onAddVisualization: PropTypes.func,
   onResizeChart: PropTypes.func,
+  onResizeTable: PropTypes.func,
+  onResizeFigure: PropTypes.func,
 };
 
 CellOutput.defaultProps = {
@@ -1040,4 +1203,6 @@ CellOutput.defaultProps = {
   onRemoveChart: null,
   onAddVisualization: null,
   onResizeChart: null,
+  onResizeTable: null,
+  onResizeFigure: null,
 };

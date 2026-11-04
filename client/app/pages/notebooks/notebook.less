@@ -1,3 +1,5 @@
+@import (reference) "~@/assets/less/inc/visualizations/fills-its-box";
+
 /*
   A notebook page: a column of cells, each a card.
 
@@ -755,17 +757,61 @@
   people already know here, and it needs somewhere to live that does not
   overlap the chart's own axis.
 */
-.notebook-cell-chart {
+.notebook-cell-pane {
   width: 100%;
   position: relative;
   padding-bottom: 10px;
 }
 
-.notebook-cell-chart-body {
+/*
+  The body is the box the content is told to fill.
+
+  `position: relative` is load-bearing: `.visualization-fills-its-box()`
+  pins the renderer to all four edges of its nearest positioned ancestor,
+  and without it the chart escapes to the page.
+
+  That mixin is the whole reason dragging a chart does anything. viz-lib
+  ships `.chart-visualization-container { height: 400px }`, so a chart is
+  400px tall wherever it is put -- the pane grew, the chart did not, and the
+  drag looked broken because all it added was blank space. A dashboard
+  widget and the query page already mix this in for exactly the same
+  reason.
+*/
+.notebook-cell-pane-body {
   height: 100%;
+  position: relative;
+
+  .visualization-fills-its-box();
 }
 
-.notebook-cell-chart-handle {
+/*
+  A picture fills the pane the same way, which for a PNG means fitting
+  inside it rather than overflowing: a matplotlib figure is a raster of
+  whatever size it was saved at.
+*/
+.notebook-cell-pane-body .notebook-cell-figure {
+  height: 100%;
+  min-height: 0;
+
+  img {
+    max-height: 100%;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+  }
+}
+
+/*
+  The table's strip sits under the table rather than over it: antd scrolls
+  the body, so there is no edge of its own to grab.
+*/
+.notebook-cell-table-handle {
+  position: relative;
+  height: 10px;
+  margin-top: 2px;
+}
+
+.notebook-cell-pane-handle {
   position: absolute;
   left: 0;
   right: 0;
@@ -922,6 +968,33 @@
 .notebook-cell-run {
   width: 30px;
   min-width: 30px;
+}
+
+/*
+  "Still going", next to the button that stops it.
+
+  The number is tabular so the row does not jiggle as the digits change --
+  proportional figures move the Stop button left and right once a second,
+  which is exactly the kind of movement that pulls the eye to the one place
+  nothing is happening. A min-width holds the space 1m 00s needs, so the
+  button stops shifting when the clock crosses a minute.
+*/
+.notebook-cell-running {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+
+  .anticon {
+    font-size: 12px;
+  }
+}
+
+.notebook-cell-running-for {
+  font-variant-numeric: tabular-nums;
+  min-width: 42px;
 }
 
 .notebook-header-run {
