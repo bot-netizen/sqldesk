@@ -117,6 +117,10 @@ class DuckDB(BaseSQLQueryRunner):
         # uploads. Set by the data source before the first query (see
         # `confine_to`); until then SQL can read no files at all.
         self.upload_dir = None
+        # Whether this connection has to be able to write. Uploads do, because
+        # they are views this runner creates; a database somebody pointed
+        # `dbpath` at does not -- we only read it.
+        self._needs_write = False
         # Not connected here. The directory this source may read is set
         # afterwards by `confine_to`, and a connection opened before that is
         # one that has to be thrown away -- which is what it used to be, at
@@ -237,6 +241,31 @@ class DuckDB(BaseSQLQueryRunner):
             self._connect()
         return self._con
 
+    def _read_only(self) -> bool:
+        """
+        Whether to open the file read-only, which is what lets more than one
+        process use it.
+
+        **DuckDB allows one writer per file, across the whole machine.** A
+        data source pointed at a real database is read by the web process and
+        by every worker, so the second one to open it is refused:
+
+            IO Error: Could not set lock on file "...": Conflicting lock is
+            held in PID 0
+
+        Read-only has no such limit -- any number of readers share a file --
+        and reading is all a pointed-at database ever needs. Uploads are the
+        exception, because their views are written by this runner, and they
+        live in `:memory:`, where every connection has a private database and
+        the question does not arise.
+
+        A file that is not there yet cannot be opened read-only at all, so
+        that case falls back and lets DuckDB create it.
+        """
+        if self.dbpath == ":memory:" or self._needs_write:
+            return False
+        return os.path.exists(self.dbpath)
+
     def _release_other_connections(self) -> None:
         """Close every cached connection to this runner's file."""
         for key in [one for one in DuckDB._connections if one[0] == self.dbpath]:
@@ -261,7 +290,7 @@ class DuckDB(BaseSQLQueryRunner):
         # into it by 2.0 is a file their own DuckDB 1.x would stop opening.
         # Opening alone does not rewrite one, so this only bites when we write
         # -- and this keeps what we write readable where it was before.
-        con = duckdb.connect(self.dbpath, config=storage_config())
+        con = duckdb.connect(self.dbpath, read_only=self._read_only(), config=storage_config())
         # Extensions first: installing one needs the network and a directory
         # of its own, both of which the lines below take away.
         self._load_extensions(con)
@@ -327,6 +356,13 @@ class DuckDB(BaseSQLQueryRunner):
         Upload" data source's dbpath, they'll be dropped on the next upload
         or delete.
         """
+        # Writing views needs a writable connection. Reconnect if this one
+        # was opened read-only -- which it is by default for a file, so that
+        # several processes can read it at once.
+        if files and not self._needs_write:
+            self._needs_write = True
+            self._connect()
+
         current_view_names = {view_name for view_name, _path, _load in files}
         for stale_view in self._existing_views() - current_view_names:
             try:

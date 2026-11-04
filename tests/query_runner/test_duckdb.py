@@ -428,3 +428,55 @@ class TestColumnTypes(TestCase):
     def test_an_unknown_type_is_a_string_rather_than_nothing(self):
         self.assertEqual(duckdb_type("SOME_FUTURE_TYPE"), TYPE_STRING)
         self.assertIsNone(duckdb_type(None))
+
+
+class TestItOpensAFileReadOnly(TestCase):
+    """
+    DuckDB allows one writer per file, across the whole machine -- so a data
+    source pointed at a real database was readable by whichever process got
+    there first and refused to every other one:
+
+        IO Error: Could not set lock on file "...": Conflicting lock is held
+        in PID 0
+
+    The web process and each worker are separate processes, so that is every
+    install with a `dbpath` set. Measured both ways: a read-write holder
+    refuses the next process, and any number of read-only ones share a file.
+
+    Uploads are the exception and do not have the problem: their views are
+    written by this runner, and they live in `:memory:`, where every
+    connection has a private database.
+    """
+
+    def runner(self, dbpath):
+        from sqldesk.query_runner.duckdb import DuckDB
+
+        return DuckDB({"dbpath": dbpath})
+
+    def test_memory_is_writable(self):
+        self.assertFalse(self.runner(":memory:")._read_only())
+
+    def test_an_existing_file_is_read_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "someones.duckdb")
+            open(path, "wb").close()
+
+            self.assertTrue(self.runner(path)._read_only())
+
+    def test_a_file_that_does_not_exist_yet_is_not(self):
+        # Nothing to open read-only; DuckDB has to be allowed to create it.
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "not-there-yet.duckdb")
+
+            self.assertFalse(self.runner(path)._read_only())
+
+    def test_registering_uploads_asks_for_write(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "someones.duckdb")
+            open(path, "wb").close()
+            runner = self.runner(path)
+            self.assertTrue(runner._read_only())
+
+            runner._needs_write = True
+
+            self.assertFalse(runner._read_only())
