@@ -204,7 +204,7 @@ reasoning, and a test now refuses a container that states no fallback height.
 ### A demo of everything
 
 **`manage demo seed`** builds a complete install out of nothing: a DuckDB file
-it generates, fifteen queries over it, one visualization of every type in the
+it generates, 19 queries over it, one visualization of every type in the
 catalog, a dashboard laid out with them, and a notebook that chains SQL into
 Python and back. `manage demo remove` takes it all out again.
 

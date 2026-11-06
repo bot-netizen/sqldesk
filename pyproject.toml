@@ -92,9 +92,15 @@ dependencies = [
 [tool.black]
 target-version = ['py38']
 line-length = 119
+# `.claude` holds the git worktrees the desktop app makes for its sessions,
+# each a full copy of this repository. Black does not read .gitignore, so
+# running it from the repository root reported files in those copies -- the
+# same way pytest collected every test three times over before
+# `norecursedirs` excluded them. Nothing there is ours to format.
 force-exclude = '''
 /(
   migrations
+  | \.claude
 )/
 '''
 

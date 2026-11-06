@@ -430,6 +430,11 @@ DASHBOARD_WIDGETS = [
     ("Target attainment", 1),
     ("Categories by weight", 1),
     ("One order, in full", 1),
+    ("How the channel mix moves", 2),
+    ("How order sizes moved", 2),
+    ("Regions and channels, connected", 1),
+    ("Which region is unlike the others", 1),
+    ("Region and channel, as a tree", 2),
     # A table with a chart beside it: the case tables-with-tabs exists for.
     # The chart is of the table's *own* query, which is the rule -- a tab of
     # some other query would have to fetch, and fetching once is the whole

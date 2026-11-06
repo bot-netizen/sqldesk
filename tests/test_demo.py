@@ -269,6 +269,66 @@ class TestSeeding(BaseTestCase):
         self.assertIsNotNone(models.Query.query.get(my_query.id))
 
 
+class TestEveryVisualizationReachesTheBoard(TestCase):
+    """
+    The demo built one of every visualization and put only some of them on
+    the dashboard.
+
+    `DASHBOARD_WIDGETS` is written by hand and `_dashboard` skips an entry it
+    cannot resolve with a bare `continue`, so a visualization added to
+    `VISUALIZATIONS` and left out of the layout is created, stored, and never
+    drawn -- and nothing fails. Five of them had accumulated that way:
+    streamgraph, candlestick, network, parallel and tree, which are precisely
+    the newest and least-exercised shapes in the catalog.
+
+    `test_it_makes_the_lot` cannot catch this. It compares the widget count
+    against `len(DASHBOARD_WIDGETS)` -- the hand-written list against itself
+    -- so it is satisfied by any list, including one missing five entries.
+    This compares the layout against what the demo actually *builds*.
+    """
+
+    def test_every_visualization_the_demo_builds_is_on_the_dashboard(self):
+        laid_out = {entry[0] for entry in content.DASHBOARD_WIDGETS}
+        laid_out |= {tab for entry in content.DASHBOARD_WIDGETS if len(entry) > 2 for tab in entry[2]}
+
+        built = {name for _query, _type, name, _options in content.VISUALIZATIONS}
+        missing = sorted(built - laid_out)
+
+        self.assertEqual(
+            [],
+            missing,
+            "built by the demo but never placed on the dashboard, so never drawn: {}".format(", ".join(missing)),
+        )
+
+    def test_every_type_in_the_catalog_reaches_the_board(self):
+        """
+        The same question asked per *type* rather than per visualization,
+        which is the claim the demo exists to make: open this dashboard and
+        you have seen every visualization draw.
+        """
+        laid_out = {entry[0] for entry in content.DASHBOARD_WIDGETS}
+        laid_out |= {tab for entry in content.DASHBOARD_WIDGETS if len(entry) > 2 for tab in entry[2]}
+
+        on_board = {type_ for _query, type_, name, _options in content.VISUALIZATIONS if name in laid_out}
+        every_type = {type_ for _query, type_, _name, _options in content.VISUALIZATIONS}
+        missing = sorted(every_type - on_board)
+
+        self.assertEqual([], missing, "types with no widget on the demo dashboard: {}".format(", ".join(missing)))
+
+    def test_the_layout_names_nothing_that_does_not_exist(self):
+        """
+        The other direction, and the reason the gap was silent: `_dashboard`
+        drops an unresolvable name without a word, so a typo in the layout is
+        a missing widget rather than an error.
+        """
+        built = {name for _query, _type, name, _options in content.VISUALIZATIONS}
+        named = [entry[0] for entry in content.DASHBOARD_WIDGETS]
+        named += [tab for entry in content.DASHBOARD_WIDGETS if len(entry) > 2 for tab in entry[2]]
+        unknown = sorted(set(named) - built)
+
+        self.assertEqual([], unknown, "named in the layout but never built: {}".format(", ".join(unknown)))
+
+
 class TestTheBoardIsLaidOutOnTheRealGrid(TestCase):
     """
     The first version of this laid widgets out as if the board were six
