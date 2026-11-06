@@ -31,6 +31,20 @@ group by 1
 order by 1""",
     ),
     (
+        "Every region, measured four ways",
+        "Four measures per region, for finding the one that behaves unlike the rest.",
+        """select p.country as region,
+       sum(o.total) as revenue,
+       count(*) as orders,
+       sum(o.units) as units,
+       round(avg(o.total), 2) as avg_order
+from orders o
+join customers c on c.customer_id = o.customer_id
+join places p on p.country_code = c.country_code
+group by 1
+order by 2 desc""",
+    ),
+    (
         "Who sells to whom",
         "Region to region trade, as a plain relationship rather than a flow.",
         """select p.country as region,
@@ -263,6 +277,15 @@ VISUALIZATIONS = [
     ("Cohort retention", "COHORT", "Retention by signup week", {"timeInterval": "weekly"}),
     ("Channel to category to region", "SANKEY", "Channel to category to region", {}),
     (
+        "Every region, measured four ways",
+        "PARALLEL",
+        "Which region is unlike the others",
+        {
+            "dimensionColumns": ["revenue", "orders", "units", "avg_order"],
+            "seriesColumn": "region",
+        },
+    ),
+    (
         "Who sells to whom",
         "NETWORK",
         "Regions and channels, connected",
@@ -351,6 +374,7 @@ HEIGHTS = {
     "HISTOGRAM": 16,
     "MAP": 16,
     "NETWORK": 18,
+    "PARALLEL": 16,
     "PIVOT": 20,
     "PROGRESS": 12,
     "RADAR": 16,

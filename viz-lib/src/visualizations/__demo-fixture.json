@@ -536,6 +536,42 @@
     ]
   },
   {
+    "type": "PARALLEL",
+    "name": "Which region is unlike the others",
+    "query": "Every region, measured four ways",
+    "options": {
+      "dimensionColumns": [
+        "revenue",
+        "orders",
+        "units",
+        "avg_order"
+      ],
+      "seriesColumn": "region"
+    },
+    "columns": [
+      {
+        "name": "region",
+        "type": "string"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      },
+      {
+        "name": "units",
+        "type": "integer"
+      },
+      {
+        "name": "avg_order",
+        "type": "float"
+      }
+    ]
+  },
+  {
     "type": "NETWORK",
     "name": "Regions and channels, connected",
     "query": "Who sells to whom",

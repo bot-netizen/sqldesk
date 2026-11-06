@@ -363,6 +363,10 @@ export const VARIANTS: Record<string, Variant[]> = {
     { name: "defaults", options: {} },
     { name: "directed, unsized, unlabelled", options: { directed: true, sizeByWeight: false, showLabels: false } },
   ],
+  PARALLEL: [
+    { name: "defaults", options: {} },
+    { name: "without a legend", options: { showLegend: false } },
+  ],
   STREAMGRAPH: [
     { name: "defaults", options: {} },
     { name: "without a legend", options: { showLegend: false } },

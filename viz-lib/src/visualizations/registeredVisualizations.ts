@@ -14,6 +14,7 @@ import gaugeVisualization from "./gauge";
 import histogramVisualization from "./histogram";
 import mapVisualization from "./map";
 import networkVisualization from "./network";
+import parallelVisualization from "./parallel";
 import pivotVisualization from "./pivot";
 import progressVisualization from "./progress";
 import radarVisualization from "./radar";
@@ -114,6 +115,7 @@ each(
     histogramVisualization,
     mapVisualization,
     networkVisualization,
+    parallelVisualization,
     pivotVisualization,
     progressVisualization,
     radarVisualization,
