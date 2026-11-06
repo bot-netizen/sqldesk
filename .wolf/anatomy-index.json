@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-04T01:36:44.940Z",
-    "fileCount": 724,
+    "lastScanned": "2026-11-06T09:14:07.546Z",
+    "fileCount": 725,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "07b513ddc4f747992396b1708b0ac49d7cb8762bd3d69f9e9828b4b21ffce48f",
-    "storeUpdatedAt": "2026-11-04T01:36:44.964Z",
-    "rootHash": "b71a0d1d6e889943"
+    "renderedHash": "29dcb23dc777a2ea28d4c8ad63dba75d5021feb8b22ee67557051c2578a6e7f7",
+    "storeUpdatedAt": "2026-11-06T09:14:07.560Z",
+    "rootHash": "d24de2a61d7100db"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -18847,6 +18847,45 @@
           "startLine": 50,
           "endLine": 99,
           "tokens": 520
+        }
+      ]
+    },
+    "viz-lib/src/visualizations/chart/echarts/followCursor.ts": {
+      "description": "A series' drawn position at the x under the pointer.",
+      "tokens": 1617,
+      "hash": "0dfbc03e5f8c1cd1",
+      "size": 5658,
+      "mtimeMs": 1793956447375.7324,
+      "updatedAt": "2026-11-06T09:14:07.545Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Candidate",
+          "kind": "section",
+          "startLine": 21,
+          "endLine": 34,
+          "tokens": 144
+        },
+        {
+          "name": "nearestSeries",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 65,
+          "tokens": 295
+        },
+        {
+          "name": "followCursor",
+          "kind": "fn",
+          "startLine": 66,
+          "endLine": 152,
+          "tokens": 651
+        },
+        {
+          "name": "pointAt",
+          "kind": "fn",
+          "startLine": 153,
+          "endLine": 178,
+          "tokens": 276
         }
       ]
     }

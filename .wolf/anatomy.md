@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-04T01:36:44.940Z
-> Files: 724 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-06T09:14:07.546Z
+> Files: 725 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -1067,6 +1067,7 @@
 - `buildOption.rollup.test.ts` — ROWS: series, drawn (~1698 tok)
 - `buildOption.threshold.test.ts` — The measure out of a datum, whichever shape it is in. (~1862 tok)
 - `buildOption.ts` — What ECharts asks for on a value axis when nobody tells it otherwise. (~11349 tok)
+- `followCursor.ts` — A series' drawn position at the x under the pointer. (~1617 tok)
 
 ## viz-lib/src/visualizations/table/
 
