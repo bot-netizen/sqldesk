@@ -1,4 +1,4 @@
-import buildOption, { STAGE, buildGraph, prepareDataRows, problemWith } from "./buildOption";
+import buildOption, { STAGE, buildGraph, prepareDataRows, problemWith, stageOrder } from "./buildOption";
 
 const columns = [{ name: "value" }, { name: "stage1" }, { name: "stage2" }];
 
@@ -161,5 +161,90 @@ describe("node names", () => {
     nodes.forEach((node: any) => {
       expect(node.name).not.toMatch(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/);
     });
+  });
+});
+
+/*
+  How many stages a funnel is allowed.
+
+  The loop counted to five and stopped, whatever it was handed: a query
+  returning eight stage columns drew the first five and dropped the rest,
+  with nothing said. An ad funnel is longer than five before anybody
+  mentions attribution -- impression, bid, win, render, view, click, visit,
+  convert is eight.
+*/
+describe("a funnel longer than five stages", () => {
+  function path(stages: string[], value: number) {
+    const row: any = { value };
+    stages.forEach((stage, i) => {
+      row[`stage${i + 1}`] = stage;
+    });
+    return row;
+  }
+
+  const AD_FUNNEL = ["Impression", "Bid", "Win", "Render", "View", "Click", "Visit", "Convert"];
+
+  // "Exit" is the terminal node every sankey already ends on; it is what
+  // gives the last real stage something to flow into.
+  test("every stage it was given is drawn", () => {
+    const { nodes } = buildGraph([path(AD_FUNNEL, 100)]);
+
+    expect(nodes.map((n: any) => n.displayName)).toEqual([...AD_FUNNEL, "Exit"]);
+  });
+
+  test("the flows run all the way to the last one", () => {
+    const { links } = buildGraph([path(AD_FUNNEL, 100)]);
+
+    // Seven hops between eight stages, then the exit.
+    expect(links).toHaveLength(8);
+    expect(links[6].source).toContain("Visit");
+    expect(links[6].target).toContain("Convert");
+    expect(links[7].target).toContain("Exit");
+  });
+
+  test("the depths are consecutive, so nothing is drawn in the wrong column", () => {
+    const { nodes } = buildGraph([path(AD_FUNNEL, 100)]);
+
+    expect(nodes.map((n: any) => n.depth)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+  });
+
+  test("five still works exactly as it did", () => {
+    const five = ["a", "b", "c", "d", "e"];
+    const { nodes, links } = buildGraph([path(five, 10)]);
+
+    expect(nodes.map((n: any) => n.displayName)).toEqual([...five, "Exit"]);
+    expect(links).toHaveLength(5);
+  });
+
+  test("two stages is a funnel too", () => {
+    const { nodes, links } = buildGraph([path(["in", "out"], 7)]);
+
+    expect(nodes.map((n: any) => n.displayName)).toEqual(["in", "out", "Exit"]);
+    expect(links).toHaveLength(2);
+  });
+});
+
+/*
+  Past nine stages the column names stop sorting the way they read.
+*/
+describe("the order the stage columns go in", () => {
+  test("stage10 comes after stage9, not after stage1", () => {
+    const scrambled = ["stage10", "stage2", "stage1", "stage11", "stage9"];
+
+    expect(stageOrder(scrambled)).toEqual(["stage1", "stage2", "stage9", "stage10", "stage11"]);
+  });
+
+  test("the value column is not a stage", () => {
+    expect(stageOrder(["stage1", "value", "stage2"])).toEqual(["stage1", "stage2"]);
+  });
+
+  test("columns without a number keep their alphabetical order", () => {
+    expect(stageOrder(["source", "medium", "campaign"])).toEqual(["campaign", "medium", "source"]);
+  });
+
+  test("a twelve stage funnel stays in the order it was written", () => {
+    const columns = Array.from({ length: 12 }, (_, i) => `stage${i + 1}`);
+
+    expect(stageOrder([...columns].reverse())).toEqual(columns);
   });
 });

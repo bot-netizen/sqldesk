@@ -12,13 +12,7 @@ export default function Editor() {
           <strong>stage2</strong> - stage 2 value (or null)
         </li>
         <li>
-          <strong>stage3</strong> - stage 3 value (or null)
-        </li>
-        <li>
-          <strong>stage4</strong> - stage 4 value (or null)
-        </li>
-        <li>
-          <strong>stage5</strong> - stage 5 value (or null)
+          <strong>stage3</strong> … <strong>stageN</strong> - as many further stages as the funnel has (or null)
         </li>
         <li>
           <strong>value</strong> - number of times this sequence occurred

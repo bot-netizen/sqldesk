@@ -3,9 +3,10 @@ import { every, filter, find, isFinite, isNaN, isNil, isNumber, isString, keys, 
 import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
 import { NO_ROWS } from "@/visualizations/shared/components/Problem";
 
-// The data shape is the inherited one: up to five stage columns plus a `value`
-// column, one row per path through the stages. That contract is unchanged --
-// only the drawing moved off d3 v3.
+// The data shape is the inherited one: stage columns plus a `value` column,
+// one row per path through the stages. Inherited except for the count --
+// five was hard-coded in the loop, and is now however many the query
+// returns.
 
 // d3 v3's `scale.category20`, so existing sankeys keep their colours.
 const CATEGORY_20 = [
@@ -76,15 +77,39 @@ function normalizeName(name: any) {
  * links by node name, so that pair has to be folded into the name itself and
  * the label shown separately.
  */
+/**
+ * The stage columns, left to right.
+ *
+ * Sorted by the number in the name where there is one, so `stage10` follows
+ * `stage9` instead of `stage1`. A plain alphabetical sort was fine while
+ * five was the limit and becomes a scrambled funnel the moment somebody
+ * needs ten -- the flows still draw, in the wrong order, which is the kind
+ * of wrong that gets believed.
+ *
+ * Columns with no number keep their alphabetical place among themselves and
+ * sort before the numbered ones, so a query using plain names is unchanged.
+ */
+export function stageOrder(columns: string[]): string[] {
+  const stages = filter(columns, (key) => key !== "value");
+  return sortBy(stages, [
+    (key: string) => {
+      const digits = /(\d+)\s*$/.exec(key);
+      return digits ? 1 : 0;
+    },
+    (key: string) => {
+      const digits = /(\d+)\s*$/.exec(key);
+      return digits ? parseInt(digits[1], 10) : 0;
+    },
+    (key: string) => key,
+  ]);
+}
+
 export function buildGraph(rows: any[]): { nodes: SankeyNode[]; links: SankeyLink[] } {
   const nodesByKey = new Map<string, SankeyNode>();
   const linksByKey = new Map<string, SankeyLink>();
   const color = categoryColors();
 
-  const dataKeys = sortBy(
-    filter(keys(rows[0] || {}), (key) => key !== "value"),
-    (key) => key
-  );
+  const dataKeys = stageOrder(keys(rows[0] || {}));
 
   function nodeFor(label: any, depth: number) {
     const displayName = normalizeName(label);
@@ -122,12 +147,19 @@ export function buildGraph(rows: any[]): { nodes: SankeyNode[]; links: SankeyLin
     }
   }
 
+  // However many stage columns the query returned. This used to count to
+  // five and stop, whatever it was given: a funnel with eight stages drew
+  // its first five and silently dropped the rest, which looks like the
+  // query is wrong rather than the chart. Ad funnels in particular run
+  // long -- impression, bid, win, render, view, click, visit, convert is
+  // eight before anybody mentions attribution.
+  const stages = dataKeys.length;
   rows.forEach((row: any) => {
-    for (let depth = 1; depth <= 4; depth += 1) {
+    for (let depth = 1; depth < stages; depth += 1) {
       addLink(row[dataKeys[depth - 1]], row[dataKeys[depth]], row.value || 0, depth);
     }
     // Ensures the last stage has a corresponding exit node.
-    addLink(row[dataKeys[4]], null, row.value || 0, 5);
+    addLink(row[dataKeys[stages - 1]], null, row.value || 0, stages);
   });
 
   return {
