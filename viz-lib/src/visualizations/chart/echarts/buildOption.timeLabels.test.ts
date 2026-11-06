@@ -1,7 +1,7 @@
 import moment from "moment";
 import getOptions from "../getOptions";
 import buildOption from "./buildOption";
-import { timeAxisFormatter, timePointerFormatter, timeSpan } from "./utils";
+import { timeAxisFormatter, timeAxisInterval, timeAxisTicks, timePointerFormatter, timeSpan } from "./utils";
 
 function series(name: string, points: [any, any][]) {
   return { name, type: "line", data: points.map(([x, y]) => ({ x, y, $raw: { x, y } })) };
@@ -73,12 +73,18 @@ describe("reading the time off a chart", () => {
     });
 
     test("years for a span of years, months for a span of months", () => {
-      expect(timeAxisFormatter(5 * 365 * DAY)(Date.parse("2026-09-24T00:00:00Z"))).toBe("2026");
-      expect(timeAxisFormatter(200 * DAY)(Date.parse("2026-09-24T00:00:00Z"))).toBe("Sep 2026");
+      // Years once the ticks are a year apart; months while they are quarters.
+      expect(timeAxisFormatter(15 * 365 * DAY)(Date.parse("2026-09-24T00:00:00Z"))).toBe("2026");
+      expect(timeAxisFormatter(5 * 365 * DAY)(Date.parse("2026-09-24T00:00:00Z"))).toBe("Sep 2026");
+      expect(timeAxisFormatter(2 * 365 * DAY)(Date.parse("2026-09-24T00:00:00Z"))).toBe("Sep 2026");
+      // Two hundred days ticks every four weeks, which can land twice in a month.
+      expect(timeAxisFormatter(200 * DAY)(Date.parse("2026-09-24T00:00:00Z"))).toBe("24 Sep");
     });
 
-    test("seconds only once they are what tells two points apart", () => {
-      expect(timeAxisFormatter(5 * 60000)(Date.parse("2026-09-24T20:50:00Z"))).toBe("20:50");
+    test("seconds only once they are what tells two ticks apart", () => {
+      // Ten minutes ticks every minute; five ticks every thirty seconds.
+      expect(timeAxisFormatter(10 * 60000)(Date.parse("2026-09-24T20:50:00Z"))).toBe("20:50");
+      expect(timeAxisFormatter(5 * 60000)(Date.parse("2026-09-24T20:50:00Z"))).toBe("20:50:00");
       expect(timeAxisFormatter(60000)(Date.parse("2026-09-24T20:50:00Z"))).toBe("20:50:00");
     });
   });
@@ -129,5 +135,63 @@ describe("reading the time off a chart", () => {
       expect(timeSpan([{ data: [{ x: at("2026-09-01T00:00:00Z"), y: 1 }] }])).toBe(0);
       expect(timeSpan([])).toBe(0);
     });
+  });
+});
+
+describe("Visualizations -> Chart -> ECharts -> a label for every tick", () => {
+  /*
+    Found in the streams picture taken for the website: three minutes of a
+    topic, a tick every fifteen seconds, and "23:24" under four of them. The
+    labels were chosen from the span and the ticks from the span divided by
+    thirteen, and nothing held the two together. This walks spans from
+    seconds to decades and reads the labels of neighbouring ticks.
+  */
+  const SECOND = 1000;
+  const MINUTE = 60 * SECOND;
+  const HOUR = 60 * MINUTE;
+  const DAY = 24 * HOUR;
+  const spans = [
+    10 * SECOND,
+    45 * SECOND,
+    2 * MINUTE,
+    3 * MINUTE,
+    5 * MINUTE,
+    6 * MINUTE,
+    10 * MINUTE,
+    40 * MINUTE,
+    2 * HOUR,
+    9 * HOUR,
+    30 * HOUR,
+    3 * DAY,
+    4 * DAY,
+    6 * DAY,
+    10 * DAY,
+    30 * DAY,
+    90 * DAY,
+    120 * DAY,
+    200 * DAY,
+    364 * DAY,
+    2 * 365 * DAY,
+    3 * 365 * DAY,
+    5 * 365 * DAY,
+    9 * 365 * DAY,
+  ];
+  const from = Date.parse("2026-01-03T07:00:00Z");
+
+  test.each(spans)("no two neighbouring ticks share a label across %d ms", (span) => {
+    const label = timeAxisFormatter(span);
+    const ticks = timeAxisTicks(from, from + span, timeAxisInterval(span) as number);
+    expect(ticks.length).toBeGreaterThan(1);
+    for (let i = 1; i < ticks.length; i += 1) {
+      expect(label(ticks[i])).not.toBe(label(ticks[i - 1]));
+    }
+  });
+
+  test("the three minutes the picture showed read as distinct times", () => {
+    const start = Date.parse("2026-11-06T23:24:00Z");
+    const span = 3 * MINUTE;
+    const label = timeAxisFormatter(span);
+    const ticks = timeAxisTicks(start, start + span, timeAxisInterval(span) as number);
+    expect(ticks.slice(0, 4).map(label)).toEqual(["23:24:00", "23:24:15", "23:24:30", "23:24:45"]);
   });
 });

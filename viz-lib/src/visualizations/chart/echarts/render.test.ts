@@ -77,7 +77,12 @@ describe("Visualizations -> Chart -> ECharts -> rendering for real", () => {
     );
 
     expect(svg).not.toMatch(/>1789\d{9}</);
-    expect(svg).toMatch(/>\d{2}:\d{2}</);
+    // With seconds where the ticks are closer than a minute -- five minutes
+    // ticks every thirty seconds -- and never the same label twice: a tick at
+    // 20:50:30 labelled "20:50" sits between two points and names neither.
+    const labels = svg.match(/>\d{2}:\d{2}(:\d{2})?</g) || [];
+    expect(labels.length).toBeGreaterThan(1);
+    expect(new Set(labels).size).toBe(labels.length);
   });
 
   const cases: [string, any[], any][] = [
