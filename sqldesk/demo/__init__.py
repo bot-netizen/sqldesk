@@ -236,6 +236,13 @@ def _notebook(org, user, source):
         db.session.add(notebook)
         db.session.flush()
     else:
+        # Reseeding over a demo somebody has actually run. The runs point at
+        # the cells and do not cascade, so deleting a cell out from under
+        # its own history fails -- the same constraint `remove` trips over,
+        # reached by the other road.
+        models.NotebookRun.query.filter(models.NotebookRun.notebook_id == notebook.id).delete(
+            synchronize_session=False
+        )
         for cell in list(notebook.cells):
             db.session.delete(cell)
         db.session.flush()

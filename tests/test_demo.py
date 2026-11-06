@@ -410,6 +410,10 @@ class TestRemovingADemoThatWasActuallyUsed(BaseTestCase):
         )
         models.db.session.commit()
 
+        # Reseeding over it hits the same constraint by the other road:
+        # `_notebook` reuses the notebook and deletes its cells.
+        demo.seed(org, self.factory.user)
+
         gone = demo.remove(org)
 
         self.assertEqual(1, gone["notebooks"])

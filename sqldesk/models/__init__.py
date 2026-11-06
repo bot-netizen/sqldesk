@@ -217,6 +217,26 @@ class DataSource(BelongsToOrgMixin, db.Model):
         QueryResult.query.filter(QueryResult.data_source == self).delete()
         for upload in UploadedFile.query.filter(UploadedFile.data_source == self):
             upload.delete()
+        # What the catalog knows about this source goes with it. These three
+        # tables carry a NOT NULL reference and do not cascade, so without
+        # this the delete fails outright -- which means deleting a data
+        # source worked until somebody described one of its tables, and then
+        # stopped. The catalog arrived after this method was written and
+        # nothing brought the two together.
+        #
+        # Columns before tables: `catalog_columns` hangs off `catalog_tables`
+        # and does not cascade either, so taking the tables first fails one
+        # constraint further down.
+        tables = [row.id for row in CatalogTable.query.filter(CatalogTable.data_source_id == self.id)]
+        if tables:
+            CatalogColumn.query.filter(CatalogColumn.catalog_table_id.in_(tables)).delete(synchronize_session=False)
+        for described in (CatalogMeasure, CatalogRelationship, CatalogTable):
+            described.query.filter(described.data_source_id == self.id).delete(synchronize_session=False)
+        # A cell pointing at a deleted source keeps its text and loses its
+        # source, the same bargain a query gets two lines up.
+        NotebookCell.query.filter(NotebookCell.data_source_id == self.id).update(
+            dict(data_source_id=None), synchronize_session=False
+        )
         res = db.session.delete(self)
         db.session.commit()
 

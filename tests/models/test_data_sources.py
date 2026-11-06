@@ -4,7 +4,16 @@ import mock
 from mock import patch
 
 from sqldesk import settings
-from sqldesk.models import DataSource, Query, QueryResult
+from sqldesk.models import (
+    CatalogColumn,
+    CatalogMeasure,
+    CatalogRelationship,
+    CatalogTable,
+    DataSource,
+    Query,
+    QueryResult,
+    db,
+)
 from sqldesk.utils.configuration import ConfigurationContainer
 from tests import BaseTestCase
 
@@ -177,3 +186,79 @@ class TestDataSourceDelete(BaseTestCase):
         data_source.delete()
 
         mock_redis.assert_called_with(data_source._schema_key)
+
+
+class TestDeletingASourceTheCatalogKnowsAbout(BaseTestCase):
+    """
+    Deleting a data source worked until somebody described one of its tables.
+
+    `catalog_tables`, `catalog_measures` and `catalog_relationships` all
+    carry a NOT NULL reference to `data_sources` and none of them cascade,
+    so the delete failed outright with a ForeignKeyViolation. The catalog
+    arrived after `DataSource.delete` was written and nothing brought the
+    two together; every test here created a source with queries and results
+    on it and never with a catalog.
+    """
+
+    def describe(self, data_source):
+        org = data_source.org
+        table = CatalogTable(org_id=org.id, data_source_id=data_source.id, name="orders")
+        db.session.add(table)
+        db.session.flush()
+        db.session.add(CatalogColumn(catalog_table_id=table.id, name="total"))
+        db.session.add(
+            CatalogMeasure(
+                org_id=org.id,
+                data_source_id=data_source.id,
+                table_name="orders",
+                name="revenue",
+                kind="sum",
+                column_name="total",
+            )
+        )
+        db.session.add(
+            CatalogRelationship(
+                org_id=org.id,
+                data_source_id=data_source.id,
+                left_table="orders",
+                left_column="customer_id",
+                right_table="customers",
+                right_column="id",
+            )
+        )
+        db.session.commit()
+        return table
+
+    def test_a_described_source_can_still_be_deleted(self):
+        data_source = self.factory.create_data_source()
+        self.describe(data_source)
+
+        data_source.delete()
+
+        self.assertIsNone(DataSource.query.get(data_source.id))
+
+    def test_what_the_catalog_knew_goes_with_it(self):
+        data_source = self.factory.create_data_source()
+        table = self.describe(data_source)
+
+        data_source.delete()
+
+        self.assertEqual(0, CatalogTable.query.filter(CatalogTable.data_source_id == data_source.id).count())
+        self.assertEqual(0, CatalogMeasure.query.filter(CatalogMeasure.data_source_id == data_source.id).count())
+        self.assertEqual(
+            0, CatalogRelationship.query.filter(CatalogRelationship.data_source_id == data_source.id).count()
+        )
+        # Columns hang off tables and do not cascade either, so taking the
+        # tables first fails one constraint further down.
+        self.assertEqual(0, CatalogColumn.query.filter(CatalogColumn.catalog_table_id == table.id).count())
+
+    def test_another_source_keeps_its_catalog(self):
+        mine = self.factory.create_data_source()
+        theirs = self.factory.create_data_source(name="Untouched")
+        self.describe(mine)
+        self.describe(theirs)
+
+        mine.delete()
+
+        self.assertEqual(1, CatalogTable.query.filter(CatalogTable.data_source_id == theirs.id).count())
+        self.assertEqual(1, CatalogMeasure.query.filter(CatalogMeasure.data_source_id == theirs.id).count())
