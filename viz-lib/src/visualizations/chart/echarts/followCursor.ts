@@ -54,6 +54,118 @@ export function nearestSeries(candidates: Candidate[], cursorY: number, within: 
 /** How far from a line the cursor can be and still be reading it. */
 export const FOLLOW_RADIUS = 40;
 
+/*
+  Telling the tooltip which row the cursor is on.
+
+  Dimming the other lines answers "which line is this" on the plot, and the
+  screenshot that prompted this shows it working -- but the tooltip beside it
+  lists eight series in identical weight, so the number you came for is still
+  found by matching a colour swatch against a band. The row has to say it.
+
+  The tooltip cannot be told after the fact. `axisTrigger` renders it at the
+  point it calls `dispatchTooltipActually`, and only emits `updateAxisPointer`
+  once it returns -- so anything this file sets in that handler is one event
+  behind, which is wrong precisely when the cursor stops moving to read a
+  value. The formatter therefore asks, at the moment it renders, and both the
+  dimming and the bold row come from that one answer.
+*/
+
+/** Shared between the tooltip formatter and the chart, so they never disagree. */
+export interface FocusTracker {
+  /** Pixels from the top of the canvas, or null when the cursor is away. */
+  cursorY: number | null;
+  /** Installed by `followCursor` once there is a chart to measure against. */
+  resolve: ((items: any[]) => number | null) | null;
+  /** The series the cursor is reading, given the tooltip's own items. */
+  focusedFrom(items: any[]): number | null;
+}
+
+export function createFocusTracker(): FocusTracker {
+  return {
+    cursorY: null,
+    resolve: null,
+    focusedFrom(items: any[]) {
+      if (this.cursorY === null || !this.resolve || !items || items.length < 2) {
+        return null;
+      }
+      return this.resolve(items);
+    },
+  };
+}
+
+/**
+ * Where this series is actually drawn at `dataIndex`, in pixels.
+ *
+ * `getLayout("points")` rather than converting the raw value, because a
+ * stacked series is not drawn at its own number: `pointsLayout` swaps in the
+ * stack result dimension before projecting, so a band in a stacked area sits
+ * at its cumulative height. Converting the raw value would measure the cursor
+ * against a line that is not on the screen -- and a stacked area is exactly
+ * the chart this was reported on.
+ *
+ * Falls back for series that keep no point array (bars), and finally to the
+ * raw conversion, which is right for everything unstacked.
+ */
+export function drawnY(chart: any, seriesIndex: number, dataIndex: number, raw?: [any, any] | null): number | null {
+  const finite = (y: any) => (typeof y === "number" && isFinite(y) ? y : null);
+  try {
+    const model = chart.getModel().getSeriesByIndex(seriesIndex);
+    const data = model && model.getData();
+    if (data) {
+      const points = data.getLayout("points");
+      if (points && dataIndex >= 0 && dataIndex * 2 + 1 < points.length) {
+        const y = finite(points[dataIndex * 2 + 1]);
+        if (y !== null) {
+          return y;
+        }
+      }
+      const layout: any = data.getItemLayout ? data.getItemLayout(dataIndex) : null;
+      if (layout) {
+        // A bar is a rectangle; the top of it is what the eye follows.
+        const y = Array.isArray(layout) ? finite(layout[1]) : finite(layout.y);
+        if (y !== null) {
+          return y;
+        }
+      }
+    }
+  } catch (e) {
+    // Fall through to the conversion below.
+  }
+  if (raw) {
+    try {
+      const pixel = chart.convertToPixel({ seriesIndex }, raw);
+      return pixel ? finite(pixel[1]) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * The tooltip's own items, measured against the cursor.
+ *
+ * The items are what is about to be printed, so resolving from them keeps the
+ * bold row and the lit line describing the same series by construction rather
+ * than by two code paths agreeing.
+ */
+export function focusedFromItems(chart: any, items: any[], cursorY: number): number | null {
+  const candidates: Candidate[] = [];
+  each(items, (item: any) => {
+    if (!item || item.seriesIndex === undefined || item.seriesIndex === null) {
+      return;
+    }
+    const value = item.value;
+    const raw: [any, any] | null = Array.isArray(value)
+      ? [value[0], value[1]]
+      : value === null || value === undefined
+        ? null
+        : [item.dataIndex, value];
+    candidates.push({ seriesIndex: item.seriesIndex, y: drawnY(chart, item.seriesIndex, item.dataIndex, raw) });
+  });
+  return nearestSeries(candidates, cursorY, FOLLOW_RADIUS);
+}
+
 type Disposer = () => void;
 
 /**
@@ -63,11 +175,20 @@ type Disposer = () => void;
  * grid never fires `updateAxisPointer`, and one with a single series has
  * nothing to pick between, so both simply do nothing.
  */
-export function followCursor(chart: any): Disposer {
+export function followCursor(chart: any, focus?: FocusTracker): Disposer {
   let cursorY: number | null = null;
   let lit: number | null = null;
 
   const zr = chart.getZr();
+
+  // The tooltip asks this while it renders, which is before this file's own
+  // `updateAxisPointer` handler runs. One answer, two uses.
+  if (focus) {
+    focus.resolve = (items: any[]) => {
+      const at = focus.cursorY;
+      return at === null ? null : focusedFromItems(chart, items, at);
+    };
+  }
 
   const clear = () => {
     if (lit !== null) {
@@ -78,10 +199,16 @@ export function followCursor(chart: any): Disposer {
 
   const onMove = (event: any) => {
     cursorY = event.offsetY;
+    if (focus) {
+      focus.cursorY = cursorY;
+    }
   };
 
   const onLeave = () => {
     cursorY = null;
+    if (focus) {
+      focus.cursorY = null;
+    }
     clear();
   };
 
@@ -138,6 +265,12 @@ export function followCursor(chart: any): Disposer {
     zr.off("mousemove", onMove);
     zr.off("globalout", onLeave);
     chart.off("updateAxisPointer", onPointer);
+    if (focus) {
+      // A disposed chart cannot be measured, and a formatter left holding one
+      // would throw into a tooltip rather than fail to bold a row.
+      focus.resolve = null;
+      focus.cursorY = null;
+    }
     clear();
   };
 }

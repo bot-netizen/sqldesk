@@ -268,10 +268,36 @@ function timeTicksFor(chartData: any[], span: number): number[] {
   return high > low ? timeAxisTicks(low, high, interval) : [];
 }
 
+/**
+ * The row for the series the cursor is reading, marked so it is found at a
+ * glance.
+ *
+ * Bold *and* a rule in the series' own colour, rather than colouring the
+ * text: a pale series -- the Tokyo blue on the chart this was reported from
+ * -- would be less legible coloured than it is now, so the colour goes where
+ * it identifies without having to be read. The tint is neutral grey at low
+ * alpha, which lands correctly on a light or a dark tooltip without knowing
+ * which it is on.
+ *
+ * Every row carries the same padding whether it is focused or not, so the
+ * list does not shift under the cursor as the focus moves down it.
+ */
+export function tooltipRow(html: string, focused: boolean, color?: string): string {
+  if (!focused) {
+    return `<div style="padding:1px 5px;border-left:3px solid transparent">${html}</div>`;
+  }
+  const rule = color ? escapeHtml(String(color)) : "currentColor";
+  return (
+    `<div style="padding:1px 5px;border-left:3px solid ${rule};` +
+    `background:rgba(127,127,127,0.16);border-radius:2px;font-weight:700">${html}</div>`
+  );
+}
+
 export function buildTooltipFormatter(
   options: any,
   horizontal: boolean,
-  formatPointerTime?: ((value: any) => string) | null
+  formatPointerTime?: ((value: any) => string) | null,
+  focus?: { focusedFrom(items: any[]): number | null } | null
 ) {
   const formatNumber = createNumberFormatter(options.numberFormat);
   const formatPercent = createNumberFormatter(options.percentFormat);
@@ -295,6 +321,17 @@ export function buildTooltipFormatter(
       Array.isArray(params) && x !== undefined && x !== null && x !== ""
         ? `<div style="font-weight:600;margin-bottom:2px">${escapeHtml(String(x))}</div>`
         : "";
+    // Only an axis tooltip lists several series to choose between; a pie or a
+    // box shows the one thing already under the pointer.
+    let focused: number | null = null;
+    if (Array.isArray(params) && focus) {
+      try {
+        focused = focus.focusedFrom(items);
+      } catch (e) {
+        focused = null;
+      }
+    }
+
     return (
       heading +
       map(items, (item) => {
@@ -306,8 +343,9 @@ export function buildTooltipFormatter(
           "@@yPercent": formatPercent(value),
         };
         const text = options.textFormat ? formatSimpleTemplate(options.textFormat, context) : null;
-        return text || `${item.marker} ${context["@@name"]}: ${context["@@y"]}`;
-      }).join("<br/>")
+        const html = text || `${item.marker} ${context["@@name"]}: ${context["@@y"]}`;
+        return tooltipRow(html, focused !== null && item.seriesIndex === focused, item.color);
+      }).join("")
     );
   };
 }
@@ -703,7 +741,8 @@ function buildHeatmap(chartData: any[], options: any) {
 export default function buildOption(
   chartData: any[],
   options: any,
-  size?: { width: number; height: number }
+  size?: { width: number; height: number },
+  focus?: { focusedFrom(items: any[]): number | null } | null
 ): BuiltOption {
   const isPie = options.globalSeriesType === "pie";
   const isHeatmap = options.globalSeriesType === "heatmap";
@@ -971,7 +1010,7 @@ export default function buildOption(
       confine: true,
       formatter: isBox
         ? buildBoxTooltipFormatter(options)
-        : buildTooltipFormatter(options, horizontal, formatPointerTime),
+        : buildTooltipFormatter(options, horizontal, formatPointerTime, focus),
     },
     series,
   };

@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RendererPropTypes } from "@/visualizations/prop-types";
 import useEChart from "@/visualizations/echarts/useEChart";
 import useElementSize from "@/visualizations/shared/useElementSize";
 import trim from "lodash/trim";
 import getChartData from "../getChartData";
 import buildOption, { buildLinkContext, fillLinkTemplate } from "../echarts/buildOption";
-import { followCursor } from "../echarts/followCursor";
+import { createFocusTracker, followCursor } from "../echarts/followCursor";
 
 export interface EChartsChartProps {
   data: { rows: any[]; columns: any[] };
@@ -19,8 +19,12 @@ export default function EChartsChart({ options, data }: EChartsChartProps) {
   // does not rebuild the chart on every pixel. Height is all that is read --
   // it decides how many y labels fit.
   const bucket = { width: Math.round(size.width / 10) * 10, height: Math.round(size.height / 10) * 10 };
+  // One tracker for the life of the chart, so rebuilding the option on new
+  // data does not hand the tooltip a tracker nothing is writing the cursor
+  // to. `useRef` rather than `useMemo`, which is allowed to forget.
+  const focus = useRef(createFocusTracker()).current;
   const built = useMemo(
-    () => buildOption(getChartData(data.rows, options), options, bucket.height ? bucket : undefined),
+    () => buildOption(getChartData(data.rows, options), options, bucket.height ? bucket : undefined, focus),
     [data, options, bucket.height] // eslint-disable-line react-hooks/exhaustive-deps
   );
   const { setContainer, chart } = useEChart(built.option, built.signature);
@@ -33,8 +37,8 @@ export default function EChartsChart({ options, data }: EChartsChartProps) {
     if (!chart) {
       return;
     }
-    return followCursor(chart);
-  }, [chart]);
+    return followCursor(chart, focus);
+  }, [chart, focus]);
 
   useEffect(() => {
     if (!chart || !options.enableLink) {
