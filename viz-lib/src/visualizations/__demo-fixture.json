@@ -536,6 +536,40 @@
     ]
   },
   {
+    "type": "CANDLESTICK",
+    "name": "How order sizes moved",
+    "query": "Order sizes, day by day",
+    "options": {
+      "xColumn": "day",
+      "openColumn": "open",
+      "closeColumn": "close",
+      "lowColumn": "low",
+      "highColumn": "high"
+    },
+    "columns": [
+      {
+        "name": "day",
+        "type": "date"
+      },
+      {
+        "name": "open",
+        "type": "float"
+      },
+      {
+        "name": "close",
+        "type": "float"
+      },
+      {
+        "name": "low",
+        "type": "float"
+      },
+      {
+        "name": "high",
+        "type": "float"
+      }
+    ]
+  },
+  {
     "type": "STREAMGRAPH",
     "name": "How the channel mix moves",
     "query": "Revenue by day and channel",

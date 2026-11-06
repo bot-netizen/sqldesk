@@ -31,6 +31,18 @@ group by 1
 order by 1""",
     ),
     (
+        "Order sizes, day by day",
+        "The spread of a day's orders, not just its total: what a candlestick needs.",
+        """select ordered_at::date as day,
+       arg_min(total, ordered_at) as open,
+       arg_max(total, ordered_at) as close,
+       min(total) as low,
+       max(total) as high
+from orders
+group by 1
+order by 1""",
+    ),
+    (
         "Revenue by day and channel",
         "The mix over time rather than the total: what the streamgraph is for.",
         """select ordered_at::date as day,
@@ -239,6 +251,18 @@ VISUALIZATIONS = [
     ("Cohort retention", "COHORT", "Retention by signup week", {"timeInterval": "weekly"}),
     ("Channel to category to region", "SANKEY", "Channel to category to region", {}),
     (
+        "Order sizes, day by day",
+        "CANDLESTICK",
+        "How order sizes moved",
+        {
+            "xColumn": "day",
+            "openColumn": "open",
+            "closeColumn": "close",
+            "lowColumn": "low",
+            "highColumn": "high",
+        },
+    ),
+    (
         "Revenue by day and channel",
         "STREAMGRAPH",
         "How the channel mix moves",
@@ -298,6 +322,7 @@ VISUALIZATIONS = [
 HEIGHTS = {
     "BOXPLOT": 16,
     "CALENDAR_HEATMAP": 12,
+    "CANDLESTICK": 16,
     "CHART": 16,
     "CHOROPLETH": 16,
     "COHORT": 16,

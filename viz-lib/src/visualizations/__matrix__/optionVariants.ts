@@ -355,6 +355,10 @@ export const VARIANTS: Record<string, Variant[]> = {
     { name: "defaults", options: {} },
     { name: "with each stage's value", options: { showNodeValues: true } },
   ],
+  CANDLESTICK: [
+    { name: "defaults", options: {} },
+    { name: "with the colours swapped", options: { risingColor: "#dc2626", fallingColor: "#16a34a" } },
+  ],
   STREAMGRAPH: [
     { name: "defaults", options: {} },
     { name: "without a legend", options: { showLegend: false } },

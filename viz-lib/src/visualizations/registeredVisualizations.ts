@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 
 import boxPlotVisualization from "./box-plot";
 import calendarVisualization from "./calendar";
+import candlestickVisualization from "./candlestick";
 import chartVisualization from "./chart";
 import choroplethVisualization from "./choropleth";
 import cohortVisualization from "./cohort";
@@ -101,6 +102,7 @@ each(
   flatten([
     boxPlotVisualization,
     calendarVisualization,
+    candlestickVisualization,
     chartVisualization,
     choroplethVisualization,
     cohortVisualization,
