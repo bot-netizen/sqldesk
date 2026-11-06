@@ -1,9 +1,9 @@
 # Changelog
 
-## 0.8.0-rc.1
+## 0.8.0
 
-Notebooks: the work a saved query cannot hold, where everything else here ends
-in one SELECT.
+Notebooks — the work a saved query cannot hold, where everything else here
+ends in one SELECT — and six more ways to draw what comes back.
 
 ### Notebooks — in beta
 
@@ -107,6 +107,111 @@ sentence rather than quietly cut down.
 
 Who may use notebooks is a permission an administrator grants per group.
 
+### Notebook cells while they run
+
+**A cell says how long it has been running.** A slow cell looked exactly like a
+finished one — the Run button became a Stop button and nothing else moved, so
+the only way to tell was to notice which icon was showing. The header carries a
+spinner and a clock, in tenths under ten seconds.
+
+**All three kinds of output resize.** A cell's output pane has a drag handle,
+and the table, the Plotly figure and the visualization each follow it. Two of
+the three previously resized the space around themselves and not the drawing
+inside it.
+
+### Six shapes the catalog could not make
+
+**Donut.** A third pie style. The pie already set an inner radius for `rose`,
+but a rose encodes value in the radius rather than the angle — so reaching for
+it to get a hole gave you the wrong encoding of your data.
+
+**Streamgraph.** A stacked area with no baseline, for when the question is how
+a mix is changing rather than how much there is in total. Nothing is pinned to
+zero, so every band reads as its own shape instead of as the gap between two
+lines that are both moving. You cannot read an absolute value off one, which is
+why the tooltip carries the numbers.
+
+**Candlestick.** A day that opened at 10, fell to 2 and recovered to 11 draws
+the same stroke on a line chart as one that drifted from 10 to 11. The candle
+keeps the range and the direction, which is the whole reason the shape exists.
+
+**Network.** A sankey draws a flow through ordered stages; a treemap draws a
+hierarchy. Accounts that trade with each other, services that call each other,
+tags that co-occur have no left-to-right order, and a sankey invents one for
+them. Laid out by force, so the shape comes from the connections.
+
+**Parallel coordinates.** A scatter compares two things; six series compare six
+against one axis. Neither answers the question behind most outlier hunting,
+which is about a row's whole profile. Every column gets a vertical axis and
+every row is a line crossing all of them: rows that behave alike run parallel,
+and the one that cuts across the rest is the one to look at.
+
+**Tree.** A treemap and a sunburst both spend their area on size, so a small
+branch under a large one is a sliver whose name you cannot read — and the shape
+of the hierarchy is exactly what nesting hides. A tree spends its space on the
+structure instead: a leaf worth nothing takes the same room as a leaf worth
+millions, which is the point.
+
+### A sankey as long as the funnel
+
+**As many stages as the query has columns.** The loop counted to five and
+stopped, so a query returning eight stage columns had three of them dropped
+with nothing said about it — which reads as the query being wrong rather than
+the chart refusing. An ad funnel is longer than five before attribution is
+mentioned: impression, bid, win, render, view, click, visit, convert.
+
+**Values on the stages.** Reading a funnel means asking what each stage is
+worth, and the only answer was a tooltip, one node at a time — no answer at all
+when the question is where the drop-off is. A checkbox writes the value on each
+stage. Off by default: on an eight-wide funnel the numbers are what make it
+unreadable, and existing sankeys keep the labels they have.
+
+### Charts that read correctly
+
+**Every daily bar was labelled the day before.** Times on an x axis are parsed
+as UTC and ECharts renders in the viewer's own zone unless told otherwise.
+Nothing told it, so a daily bucket stored as midnight UTC was drawn, labelled
+and tooltipped as "2026-09-24 20:00:00" in Toronto — the wrong day, on every
+bar, for everybody west of Greenwich, with a time of day the data never had. It
+was reported as the axis being hard to read, which is what a correctness bug
+looks like from the outside.
+
+**Dates are written the way the span asks for.** A fortnight gets days, two
+years gets months, an hour gets clock time — on the labels, in the tooltip
+heading and on the crosshair, which previously disagreed with each other.
+
+**Ticks are evenly spaced.** A time axis interleaved two rhythms, one anchored
+to the data and one to each month, so gaps alternated between three days and
+seven. The positions are now chosen on a calendar ladder and stated outright,
+because `minInterval` is a request ECharts declines.
+
+**The line under the cursor lifts out of the crowd.** On a chart with a dozen
+lines, every one of them was the same weight and the tooltip was the only way
+to tell which was which. The nearest series to the cursor is highlighted and
+the rest fade.
+
+**The axis name is clear of the legend.** An x axis title sat 7.5px from the
+legend above it and read as part of it; on parallel coordinates the axis names
+were printed through the middle of it.
+
+**Ten visualizations drew at nothing in the editor preview.** A container asking
+for `height: 100%` inside a preview pane that has no height of its own resolves
+to zero, and an ECharts chart has no content to fall back on — so it drew
+perfectly at zero pixels. Five were new; histogram, radar, timeline, treemap
+and waterfall had been blank for longer. Found by measuring rather than
+reasoning, and a test now refuses a container that states no fallback height.
+
+### A demo of everything
+
+**`manage demo seed`** builds a complete install out of nothing: a DuckDB file
+it generates, fifteen queries over it, one visualization of every type in the
+catalog, a dashboard laid out with them, and a notebook that chains SQL into
+Python and back. `manage demo remove` takes it all out again.
+
+It exists because "do the visualizations work" is a question nobody can answer
+by reading code, and the answer rots silently — a chart that breaks breaks on
+somebody's dashboard, not in CI.
+
 ### Warehouses have a ceiling
 
 **Query pools.** Each data source draws from a pool with a budget, so fifty
@@ -128,6 +233,19 @@ that the stream is sampled and the number is therefore an estimate.
 **And the board is honest when its panels disagree**: "2 of 3 streams
 consuming" rather than one badge that implies they agree.
 
+### Data sources and admin
+
+**A data source has a pause button.** `paused_at` has been on the row since
+query pools landed and everything that would touch a warehouse checks it — but
+there was no control, and a kill switch you can only reach with `curl` is not
+one you reach at eight in the morning with a warehouse falling over.
+
+**Admin pages sit where every other page sits.** They had no horizontal gutter,
+so the tab strip and the cards ran flush into the edge of the window with their
+rounded corners cut off; the white panel was square where every other page's is
+round; and each tab padded its own content differently, so none of them lined
+up with each other or with the caption above them.
+
 ### Running it
 
 **A Prometheus endpoint.** `/metrics` reports queue depth, worker saturation,
@@ -144,6 +262,20 @@ keeps writing the old one by default and going back stays possible. One SQL
 change to know about: the single-arrow lambda `x -> x + 1` is re-enabled for
 now, and DuckDB removes it in 2.1.
 
+**MCP gets ten minutes, not fifty seconds.** The queries people point a model
+at are the slow ones, and the budget was derived from gunicorn's default
+timeout. It cannot be raised on its own — MCP answers inside a web request, so
+a budget past gunicorn's timeout means the worker is killed mid-reply and the
+client sees a dropped connection rather than an answer. The entrypoint now
+sizes gunicorn's timeout *from* the budget, with a minute of headroom.
+
+**A DuckDB data source can point at a file.** `dbpath` was offered on the form
+and setting it made the source fail outright, because the runner connected
+before it had been told which directory to allow. DuckDB also permits one
+writer per file across the whole machine, so a file source worked for whichever
+process reached it first and was refused to every other — which on a dashboard
+is most of the widgets. Read-only connections are now shared per file.
+
 ### Fixes
 
 **An alert to Slack says the number.** It carried the alert's name and a link
@@ -151,6 +283,48 @@ and left the value out, which is the one thing somebody woken by it needs.
 
 **Email is no longer sent automatically** to an alert's subscribers when
 another destination is configured.
+
+**The Format button no longer breaks scientific notation.** `1e-12` came back
+as `1e -12`, which is a syntax error. The tokenizer had no rule for an exponent,
+so it read a word, a minus and a number, and spaced out what it took to be an
+operator. Only a *signed* exponent produced it, which is why it went unnoticed.
+
+**Running Queries was empty on every install**, two faults deep: the job ids
+were passed as a lazy generator to something that walks its argument twice, and
+the second pass paired nothing. It returned an empty list and raised nothing.
+
+**Widget tabs no longer need pressing twice.** Everything inside a dashboard
+grid item is a drag handle unless it is named as not being one, so while a
+dashboard was being edited a mousedown on a tab started a drag and swallowed
+the click that followed — a button that worked on the second press, or the
+first, depending on whether the pointer moved a pixel in between.
+
+**A table widget can carry tabs.** Tables were excluded alongside counters on
+the reasoning that a table is already a grid of numbers — which was about the
+table rather than about the widget. The useful case is one that opens on its
+rows and offers the charts of the same query beside them.
+
+**Deleting a user who had ever logged in** failed with a raw database
+traceback: a single login writes a row to `events`, which does not cascade.
+It now names what the account still owns and points at disabling it instead.
+
+**Deleting a data source whose tables had been described** failed the same way.
+The catalog arrived after that method was written and nothing brought the two
+together.
+
+**An embed carries no branding.** A dashboard in a customer's portal, or a
+chart in a wiki, had a "Powered by SQLDesk" footer and a logo linking to
+sqldesk.org. A reader of that page has never heard of the tool and cannot sign
+in to it. The link back to the query stays, because it is useful to whoever
+embedded it, but it says "Open the query" rather than naming us.
+
+**The loading spinner no longer swings on a hinge.** antd puts the gap between
+spinner and label as padding on the icon, and the icon is also the element it
+rotates — so the box was 8px wider than tall and the arc orbited a point four
+pixels off its own centre. The broken profile picture beside it is fixed too.
+
+**A choropleth with no region joined** logged two console errors, the second of
+which hid the first.
 
 ### Documentation
 

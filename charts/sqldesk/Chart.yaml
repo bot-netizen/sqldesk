@@ -5,7 +5,7 @@ type: application
 # The chart's own version, bumped when the chart changes.
 version: 0.8.0
 # The application it installs by default. `image.tag` overrides it.
-appVersion: "0.8.0-rc.1"
+appVersion: "0.8.0"
 home: https://sqldesk.org
 sources:
   - https://github.com/bot-netizen/sqldesk
