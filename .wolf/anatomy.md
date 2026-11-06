@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-06T09:14:07.546Z
-> Files: 725 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-06T11:10:58.307Z
+> Files: 731 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -955,7 +955,7 @@
 
 ## sqldesk/models/
 
-- `__init__.py` — ScheduledQueriesExecutions: refresh, update, get, to_dict + 16 more (~36811 tok)
+- `__init__.py` — ScheduledQueriesExecutions: refresh, update, get, to_dict + 16 more (~41472 tok)
 - `users.py` — PermissionsCheckMixin: sync_last_active_at, update_user_active_at, init_app, has_permission + 28 mor (~4407 tok)
 
 ## sqldesk/notebooks/
@@ -1042,6 +1042,10 @@
 - `test_notebook_cells.py` — CellJobTestCase: setUp, a_cell, test_a_sql_cell_takes_a_slot_and_gives_it_back, note + 8 more (~1710 tok)
 - `test_schedule.py` — TestSchedule: tick, setUp, test_schedules_a_new_job, foo + 23 more (~2392 tok)
 
+## viz-lib/src/visualizations/candlestick/
+
+- `buildOption.ts` — [open, close, low, high] -- ECharts' order, not OHLC. (~1486 tok)
+
 ## viz-lib/src/visualizations/chart/
 
 - `getOptions.ts` — DEFAULT_OPTIONS: getOptions (~1175 tok)
@@ -1069,6 +1073,22 @@
 - `buildOption.ts` — What ECharts asks for on a value axis when nobody tells it otherwise. (~11349 tok)
 - `followCursor.ts` — A series' drawn position at the x under the pointer. (~1617 tok)
 
+## viz-lib/src/visualizations/network/
+
+- `buildOption.ts` — Everything through this node, which is what its size means. (~1928 tok)
+
+## viz-lib/src/visualizations/parallel/
+
+- `buildOption.ts` — How see-through to draw the lines. (~1525 tok)
+
+## viz-lib/src/visualizations/sankey/
+
+- `Editor.tsx` — Editor (~406 tok)
+
+## viz-lib/src/visualizations/streamgraph/
+
+- `buildOption.ts` — A point on the river: when, how much, and which band. (~1532 tok)
+
 ## viz-lib/src/visualizations/table/
 
 - `cellFormat.test.tsx` — rules (~4082 tok)
@@ -1079,3 +1099,7 @@
 ## viz-lib/src/visualizations/table/Editor/
 
 - `CellFormatSection.tsx` — CellFormatSection (~1293 tok)
+
+## viz-lib/src/visualizations/tree/
+
+- `buildOption.ts` — ECharts wants one root. A query returns several top-level branches, so (~1440 tok)

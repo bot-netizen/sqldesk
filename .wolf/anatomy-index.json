@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-06T09:14:07.546Z",
-    "fileCount": 725,
+    "lastScanned": "2026-11-06T11:10:58.307Z",
+    "fileCount": 731,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "29dcb23dc777a2ea28d4c8ad63dba75d5021feb8b22ee67557051c2578a6e7f7",
-    "storeUpdatedAt": "2026-11-06T09:14:07.560Z",
-    "rootHash": "d24de2a61d7100db"
+    "renderedHash": "7e464063a4bb5ed8c50d1612e39c362dcb30575f089c3df8a7bfcd97dac85b3e",
+    "storeUpdatedAt": "2026-11-06T11:10:58.336Z",
+    "rootHash": "a7b0c57a14939805"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -11840,11 +11840,11 @@
     },
     "sqldesk/models/__init__.py": {
       "description": "ScheduledQueriesExecutions: refresh, update, get, to_dict + 16 more",
-      "tokens": 36811,
-      "hash": "a5af09e2c0fce132",
-      "size": 128840,
-      "mtimeMs": 1793106041997.9863,
-      "updatedAt": "2026-10-27T13:00:42.132Z",
+      "tokens": 41472,
+      "hash": "e7d23bf2b394309e",
+      "size": 145155,
+      "mtimeMs": 1793963458127.7734,
+      "updatedAt": "2026-11-06T11:10:58.306Z",
       "source": "hook",
       "symbols": [
         {
@@ -11858,204 +11858,204 @@
           "name": "DataSource",
           "kind": "class",
           "startLine": 119,
-          "endLine": 375,
-          "tokens": 2872
+          "endLine": 388,
+          "tokens": 3128
         },
         {
           "name": "DataSourceGroup",
           "kind": "class",
-          "startLine": 376,
-          "endLine": 389,
+          "startLine": 389,
+          "endLine": 402,
           "tokens": 182
         },
         {
           "name": "UploadedFile",
           "kind": "class",
-          "startLine": 390,
-          "endLine": 528,
+          "startLine": 403,
+          "endLine": 541,
           "tokens": 1715
         },
         {
           "name": "_row_count_of",
           "kind": "fn",
-          "startLine": 529,
-          "endLine": 545,
+          "startLine": 542,
+          "endLine": 558,
           "tokens": 154
         },
         {
           "name": "QueryResult",
           "kind": "class",
-          "startLine": 546,
-          "endLine": 707,
+          "startLine": 559,
+          "endLine": 720,
           "tokens": 1966
         },
         {
           "name": "is_valid_cron",
           "kind": "fn",
-          "startLine": 708,
-          "endLine": 734,
+          "startLine": 721,
+          "endLine": 747,
           "tokens": 304
         },
         {
           "name": "_backoff",
           "kind": "fn",
-          "startLine": 735,
-          "endLine": 745,
+          "startLine": 748,
+          "endLine": 758,
           "tokens": 90
         },
         {
           "name": "should_schedule_next",
           "kind": "fn",
-          "startLine": 746,
-          "endLine": 807,
-          "tokens": 667
+          "startLine": 759,
+          "endLine": 804,
+          "tokens": 594
+        },
+        {
+          "name": "_forget_about",
+          "kind": "fn",
+          "startLine": 805,
+          "endLine": 844,
+          "tokens": 379
         },
         {
           "name": "Query",
           "kind": "class",
-          "startLine": 808,
-          "endLine": 1297,
-          "tokens": 5408
+          "startLine": 845,
+          "endLine": 1378,
+          "tokens": 5907
         },
         {
           "name": "receive_before_insert_update",
           "kind": "fn",
-          "startLine": 1298,
-          "endLine": 1302,
+          "startLine": 1379,
+          "endLine": 1383,
           "tokens": 37
         },
         {
           "name": "query_last_modified_by",
           "kind": "fn",
-          "startLine": 1303,
-          "endLine": 1307,
+          "startLine": 1384,
+          "endLine": 1388,
           "tokens": 48
         },
         {
           "name": "Favorite",
           "kind": "class",
-          "startLine": 1308,
-          "endLine": 1356,
+          "startLine": 1389,
+          "endLine": 1437,
           "tokens": 428
         },
         {
           "name": "next_state",
           "kind": "fn",
-          "startLine": 1357,
-          "endLine": 1389,
+          "startLine": 1438,
+          "endLine": 1470,
           "tokens": 311
         },
         {
           "name": "Alert",
           "kind": "class",
-          "startLine": 1390,
-          "endLine": 1598,
+          "startLine": 1471,
+          "endLine": 1679,
           "tokens": 2484
         },
         {
           "name": "generate_slug",
           "kind": "fn",
-          "startLine": 1599,
-          "endLine": 1608,
+          "startLine": 1680,
+          "endLine": 1689,
           "tokens": 97
         },
         {
           "name": "DashboardFolder",
           "kind": "class",
-          "startLine": 1609,
-          "endLine": 1670,
+          "startLine": 1690,
+          "endLine": 1751,
           "tokens": 745
         },
         {
           "name": "Dashboard",
           "kind": "class",
-          "startLine": 1671,
-          "endLine": 1956,
-          "tokens": 3671
+          "startLine": 1752,
+          "endLine": 2072,
+          "tokens": 4109
         },
         {
           "name": "Visualization",
           "kind": "class",
-          "startLine": 1957,
-          "endLine": 2000,
-          "tokens": 493
+          "startLine": 2073,
+          "endLine": 2114,
+          "tokens": 463
+        },
+        {
+          "name": "Notebook",
+          "kind": "class",
+          "startLine": 2115,
+          "endLine": 2223,
+          "tokens": 1280
+        },
+        {
+          "name": "NotebookCell",
+          "kind": "class",
+          "startLine": 2224,
+          "endLine": 2277,
+          "tokens": 750
+        },
+        {
+          "name": "NotebookRun",
+          "kind": "class",
+          "startLine": 2278,
+          "endLine": 2339,
+          "tokens": 799
         },
         {
           "name": "_token_digest",
           "kind": "fn",
-          "startLine": 2001,
-          "endLine": 2026,
+          "startLine": 2340,
+          "endLine": 2365,
           "tokens": 261
         },
         {
           "name": "Stream",
           "kind": "class",
-          "startLine": 2027,
-          "endLine": 2164,
+          "startLine": 2366,
+          "endLine": 2503,
           "tokens": 2036
         },
         {
           "name": "StreamRollup",
           "kind": "class",
-          "startLine": 2165,
-          "endLine": 2197,
+          "startLine": 2504,
+          "endLine": 2536,
           "tokens": 485
         },
         {
           "name": "SlackWorkspace",
           "kind": "class",
-          "startLine": 2198,
-          "endLine": 2249,
+          "startLine": 2537,
+          "endLine": 2588,
           "tokens": 694
         },
         {
           "name": "OAuthClient",
           "kind": "class",
-          "startLine": 2250,
-          "endLine": 2314,
+          "startLine": 2589,
+          "endLine": 2653,
           "tokens": 768
         },
         {
           "name": "OAuthAuthorizationCode",
           "kind": "class",
-          "startLine": 2315,
-          "endLine": 2355,
+          "startLine": 2654,
+          "endLine": 2694,
           "tokens": 416
         },
         {
           "name": "OAuthToken",
           "kind": "class",
-          "startLine": 2356,
-          "endLine": 2423,
-          "tokens": 787
-        },
-        {
-          "name": "McpEvent",
-          "kind": "class",
-          "startLine": 2424,
-          "endLine": 2481,
-          "tokens": 680
-        },
-        {
-          "name": "CatalogTable",
-          "kind": "class",
-          "startLine": 2482,
-          "endLine": 2545,
-          "tokens": 1049
-        },
-        {
-          "name": "CatalogColumn",
-          "kind": "class",
-          "startLine": 2546,
-          "endLine": 2576,
-          "tokens": 360
-        },
-        {
-          "name": "CatalogMeasure",
-          "kind": "class",
-          "startLine": 2577,
-          "endLine": 3155,
-          "tokens": 6754
+          "startLine": 2695,
+          "endLine": 3522,
+          "tokens": 9995
         }
       ]
     },
@@ -18886,6 +18886,280 @@
           "startLine": 153,
           "endLine": 178,
           "tokens": 276
+        }
+      ]
+    },
+    "viz-lib/src/visualizations/sankey/Editor.tsx": {
+      "description": "Editor",
+      "tokens": 406,
+      "hash": "02dd611df4aa76ad",
+      "size": 1421,
+      "mtimeMs": 1793958036148.8196,
+      "updatedAt": "2026-11-06T09:40:36.313Z",
+      "source": "hook"
+    },
+    "viz-lib/src/visualizations/streamgraph/buildOption.ts": {
+      "description": "A point on the river: when, how much, and which band.",
+      "tokens": 1532,
+      "hash": "378173ca186108f7",
+      "size": 5362,
+      "mtimeMs": 1793958262096.389,
+      "updatedAt": "2026-11-06T09:44:22.262Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "BuiltStreamgraph",
+          "kind": "section",
+          "startLine": 22,
+          "endLine": 37,
+          "tokens": 143
+        },
+        {
+          "name": "problemWith",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 51,
+          "tokens": 155
+        },
+        {
+          "name": "axisValue",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 68,
+          "tokens": 165
+        },
+        {
+          "name": "riverPoints",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 89,
+          "tokens": 240
+        },
+        {
+          "name": "bandsIn",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 99,
+          "tokens": 59
+        },
+        {
+          "name": "buildOption",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 154,
+          "tokens": 522
+        }
+      ]
+    },
+    "viz-lib/src/visualizations/candlestick/buildOption.ts": {
+      "description": "[open, close, low, high] -- ECharts' order, not OHLC.",
+      "tokens": 1486,
+      "hash": "4ea13fae1870314d",
+      "size": 5200,
+      "mtimeMs": 1793958788253.133,
+      "updatedAt": "2026-11-06T09:53:08.422Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "BuiltCandlestick",
+          "kind": "section",
+          "startLine": 23,
+          "endLine": 31,
+          "tokens": 62
+        },
+        {
+          "name": "problemWith",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 45,
+          "tokens": 147
+        },
+        {
+          "name": "axisLabel",
+          "kind": "fn",
+          "startLine": 46,
+          "endLine": 55,
+          "tokens": 90
+        },
+        {
+          "name": "asNumber",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 67,
+          "tokens": 104
+        },
+        {
+          "name": "candlesFrom",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 87,
+          "tokens": 184
+        },
+        {
+          "name": "buildOption",
+          "kind": "fn",
+          "startLine": 88,
+          "endLine": 147,
+          "tokens": 625
+        }
+      ]
+    },
+    "viz-lib/src/visualizations/network/buildOption.ts": {
+      "description": "Everything through this node, which is what its size means.",
+      "tokens": 1928,
+      "hash": "64b3e852688614fd",
+      "size": 6753,
+      "mtimeMs": 1793959076825.0962,
+      "updatedAt": "2026-11-06T09:57:56.995Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "NetworkNode",
+          "kind": "section",
+          "startLine": 24,
+          "endLine": 32,
+          "tokens": 58
+        },
+        {
+          "name": "NetworkEdge",
+          "kind": "section",
+          "startLine": 33,
+          "endLine": 39,
+          "tokens": 34
+        },
+        {
+          "name": "BuiltNetwork",
+          "kind": "section",
+          "startLine": 40,
+          "endLine": 45,
+          "tokens": 28
+        },
+        {
+          "name": "problemWith",
+          "kind": "fn",
+          "startLine": 46,
+          "endLine": 59,
+          "tokens": 144
+        },
+        {
+          "name": "edgeWidth",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 69,
+          "tokens": 112
+        },
+        {
+          "name": "nodeSize",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 84,
+          "tokens": 157
+        },
+        {
+          "name": "buildGraph",
+          "kind": "fn",
+          "startLine": 85,
+          "endLine": 137,
+          "tokens": 532
+        },
+        {
+          "name": "buildOption",
+          "kind": "fn",
+          "startLine": 138,
+          "endLine": 192,
+          "tokens": 579
+        }
+      ]
+    },
+    "viz-lib/src/visualizations/parallel/buildOption.ts": {
+      "description": "How see-through to draw the lines.",
+      "tokens": 1525,
+      "hash": "c9d30c39aaa94432",
+      "size": 5336,
+      "mtimeMs": 1793959309419.9167,
+      "updatedAt": "2026-11-06T10:01:49.589Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "BuiltParallel",
+          "kind": "section",
+          "startLine": 21,
+          "endLine": 26,
+          "tokens": 28
+        },
+        {
+          "name": "problemWith",
+          "kind": "fn",
+          "startLine": 27,
+          "endLine": 46,
+          "tokens": 222
+        },
+        {
+          "name": "lineOpacity",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 59,
+          "tokens": 60
+        },
+        {
+          "name": "asNumber",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 74,
+          "tokens": 115
+        },
+        {
+          "name": "linesFrom",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 109,
+          "tokens": 238
+        },
+        {
+          "name": "buildOption",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 175,
+          "tokens": 623
+        }
+      ]
+    },
+    "viz-lib/src/visualizations/tree/buildOption.ts": {
+      "description": "ECharts wants one root. A query returns several top-level branches, so",
+      "tokens": 1440,
+      "hash": "467bc84f60fc8d27",
+      "size": 5038,
+      "mtimeMs": 1793959528571.0427,
+      "updatedAt": "2026-11-06T10:05:28.732Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "BuiltTreeChart",
+          "kind": "section",
+          "startLine": 27,
+          "endLine": 32,
+          "tokens": 28
+        },
+        {
+          "name": "problemWith",
+          "kind": "fn",
+          "startLine": 33,
+          "endLine": 54,
+          "tokens": 227
+        },
+        {
+          "name": "toEChartsTree",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 69,
+          "tokens": 155
+        },
+        {
+          "name": "buildOption",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 137,
+          "tokens": 700
         }
       ]
     }
