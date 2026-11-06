@@ -6,7 +6,6 @@ import DashboardGrid from "@/components/dashboards/DashboardGrid";
 
 import { Dashboard } from "@/services/dashboard";
 
-
 import useDashboard from "./hooks/useDashboard";
 import LiveBadge from "./components/LiveBadge";
 import DashboardFilters from "./components/DashboardFilters";

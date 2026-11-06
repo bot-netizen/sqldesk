@@ -137,7 +137,12 @@ export default function ShareNotebookButton({ notebook, getExportTarget, onChang
           <span className="m-l-5">{notebook.public_url ? "Shared — show or stop" : "Copy a public link"}</span>
         </Menu.Item>
       )}
-      <Menu.Item key="pdf" disabled={!!busy} onClick={() => runExport("pdf", renderPagedPdf, "pdf")} data-test="SharePdf">
+      <Menu.Item
+        key="pdf"
+        disabled={!!busy}
+        onClick={() => runExport("pdf", renderPagedPdf, "pdf")}
+        data-test="SharePdf"
+      >
         <FilePdfOutlinedIcon />
         <span className="m-l-5">{busy === "pdf" ? "Making the PDF…" : "Download as PDF"}</span>
       </Menu.Item>

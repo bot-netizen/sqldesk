@@ -115,7 +115,10 @@ describe("usePolledData", () => {
   test("the first load failing is escalated: there is nothing to show", async () => {
     const onError = jest.fn();
     const error = httpError(500);
-    render(jest.fn(() => Promise.reject(error)), { onError });
+    render(
+      jest.fn(() => Promise.reject(error)),
+      { onError }
+    );
     await settle();
 
     expect(onError).toHaveBeenCalledWith(error);

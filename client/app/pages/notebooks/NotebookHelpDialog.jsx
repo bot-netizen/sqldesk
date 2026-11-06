@@ -31,8 +31,8 @@ export function NotebookHelpDialog({ dialog }) {
 
         <Rule title="A later cell reads an earlier one by name">
           <p>
-            Name a cell <code>orders</code> and the cells below it can use that name — as a table in SQL, as a
-            dataframe in Python.
+            Name a cell <code>orders</code> and the cells below it can use that name — as a table in SQL, as a dataframe
+            in Python.
           </p>
           <pre>{`-- a SQL cell named "orders", against your warehouse
 select id, city, total from sales where created_at > now() - interval '7 days'`}</pre>
@@ -43,13 +43,13 @@ by_city = orders.groupby("city")["total"].sum().reset_index()
 by_city`}</pre>
           <p>
             <strong>You do not have to remember the name.</strong> It is on the cell, in monospace, beside the title —
-            click it and it is on your clipboard. The names a cell can read are listed under its editor, and typing in
-            a cell completes against them: the cells above, and the columns inside each one.
+            click it and it is on your clipboard. The names a cell can read are listed under its editor, and typing in a
+            cell completes against them: the cells above, and the columns inside each one.
           </p>
           <p>
-            The name is the identifier and the title is for reading. Titling a cell sets the name to match while
-            nothing is referring to it yet, so there is usually only one thing to fill in; after that, renaming it is
-            in the cell’s ⋯ menu and every reference keeps working.
+            The name is the identifier and the title is for reading. Titling a cell sets the name to match while nothing
+            is referring to it yet, so there is usually only one thing to fill in; after that, renaming it is in the
+            cell’s ⋯ menu and every reference keeps working.
           </p>
         </Rule>
 
@@ -90,10 +90,9 @@ px.bar(by_city, x="city", y="total", title="Takings by city")`}</pre>
 
         <Rule title="Notebooks are in beta">
           <p>
-            Which means: use them, they work, and they are supported — and what they do may change between releases
-            in ways the rest of SQLDesk will not. Nothing here will lose your work: a notebook is rows in the
-            database like a query or a dashboard. What may move is the shape of the page and what a cell is allowed
-            to do.
+            Which means: use them, they work, and they are supported — and what they do may change between releases in
+            ways the rest of SQLDesk will not. Nothing here will lose your work: a notebook is rows in the database like
+            a query or a dashboard. What may move is the shape of the page and what a cell is allowed to do.
           </p>
         </Rule>
 

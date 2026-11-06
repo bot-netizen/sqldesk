@@ -5,7 +5,9 @@ import PublicNotebookPage from "./PublicNotebook";
 
 jest.mock("@/services/axios", () => ({ axios: { get: jest.fn() } }));
 jest.mock("./NotebookCell", () => (props) => <div data-test="cell" data-canedit={String(props.canEdit)} />);
-jest.mock("@/components/queries/editor-components", () => ({ getEditorComponents: () => ({ QueryEditor: () => null }) }));
+jest.mock("@/components/queries/editor-components", () => ({
+  getEditorComponents: () => ({ QueryEditor: () => null }),
+}));
 
 const { axios } = require("@/services/axios");
 

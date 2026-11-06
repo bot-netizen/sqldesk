@@ -31,7 +31,7 @@ describe("what an embed says about the tool that drew it", () => {
       // nobody reading an embed ever sees. What matters is the markup.
       const shown = source
         .split("\n")
-        .filter(line => !/^\s*import\b/.test(line))
+        .filter((line) => !/^\s*import\b/.test(line))
         .join("\n");
 
       expect(shown.toLowerCase()).not.toContain("sqldesk");
