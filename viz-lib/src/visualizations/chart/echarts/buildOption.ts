@@ -3,7 +3,16 @@ import { each, extend, filter, isNil, map, max, min, range, reduce, some, sortBy
 import { AllColorPaletteArrays, resolveColorScheme } from "@/visualizations/ColorPalette";
 import { createNumberFormatter, formatSimpleTemplate } from "@/lib/value-format";
 import chooseTextColorForBackground from "@/lib/chooseTextColorForBackground";
-import { cleanNumber, echartsAxisType, getSeriesAxisIndex, normalizeX, seriesId } from "./utils";
+import {
+  cleanNumber,
+  echartsAxisType,
+  getSeriesAxisIndex,
+  normalizeX,
+  seriesId,
+  timeAxisFormatter,
+  timePointerFormatter,
+  timeSpan,
+} from "./utils";
 import { DEFAULT_HEAT_RAMP, HEAT_RAMPS } from "./heatRamps";
 import { SANS } from "@/visualizations/shared/valueOptions";
 import { buildBoxSeries } from "./boxplot";
@@ -234,7 +243,11 @@ function applyPercentValues(seriesData: any[][], options: any) {
   );
 }
 
-export function buildTooltipFormatter(options: any, horizontal: boolean) {
+export function buildTooltipFormatter(
+  options: any,
+  horizontal: boolean,
+  formatPointerTime?: ((value: any) => string) | null
+) {
   const formatNumber = createNumberFormatter(options.numberFormat);
   const formatPercent = createNumberFormatter(options.percentFormat);
   // Pair data is [x, y] upright and [y, x] on its side, so the measure is not
@@ -245,7 +258,14 @@ export function buildTooltipFormatter(options: any, horizontal: boolean) {
     // Which x the numbers are for, as a heading: with several series under one
     // pointer, each line alone says only the series and its value.
     const first = items[0] || {};
-    const x = first.axisValueLabel ?? first.name;
+    // On a time axis `axisValueLabel` is ECharts' own rendering of the
+    // timestamp, which is the thing being replaced; the raw `axisValue` is
+    // the milliseconds behind it. Falling back matters for the box and pie
+    // paths, which have no time axis to format.
+    const x =
+      formatPointerTime && first.axisValue !== undefined && first.axisValue !== null
+        ? formatPointerTime(first.axisValue)
+        : first.axisValueLabel ?? first.name;
     const heading =
       Array.isArray(params) && x !== undefined && x !== null && x !== ""
         ? `<div style="font-weight:600;margin-bottom:2px">${escapeHtml(String(x))}</div>`
@@ -729,6 +749,13 @@ export default function buildOption(
   const barsWantCategories = hasBars && detectedAxisType !== "time";
   const xAxisType = isPie || isBox || barsWantCategories ? "category" : detectedAxisType;
 
+  // How much time the chart covers decides how its timestamps read. Worked
+  // out once: the axis labels, the label under the pointer and the tooltip
+  // heading all have to agree, or the same point reads three ways.
+  const span = xAxisType === "time" ? timeSpan(chartData) : 0;
+  const formatTime = xAxisType === "time" ? timeAxisFormatter(span) : null;
+  const formatPointerTime = xAxisType === "time" ? timePointerFormatter(span) : null;
+
   let categories: any[] = [];
   if (!isPie && xAxisType === "category") {
     const seen = new Set<any>();
@@ -824,11 +851,12 @@ export default function buildOption(
       ...(barsWantCategories && categories.length <= MAX_LABELLED_CATEGORIES
         ? { interval: 0, hideOverlap: false, rotate: horizontal ? 0 : categoryLabelRotation(categories) }
         : { hideOverlap: true }),
-      // A time axis formats its own labels -- "20:51", then "Sep 20" where the
-      // day turns -- from the milliseconds it is given. Turned into text here
-      // they read "1789852380000".
+      // A time axis is handed milliseconds, so turning them into text here
+      // would read "1789852380000". It gets a formatter of its own instead --
+      // ECharts' default labels a run of days as bare numbers with the month
+      // only where it turns, which is unreadable a week either side of it.
       ...(xAxisType === "time"
-        ? {}
+        ? { formatter: formatTime }
         : {
             formatter: (value: any) => {
               const text = String(value);
@@ -839,6 +867,20 @@ export default function buildOption(
   };
 
   const option: any = {
+    /*
+      Read the timestamps back in the zone they were written in.
+
+      `normalizeX` parses every x on a time axis with `moment.utc`, so the
+      number ECharts holds is UTC. Rendering it defaults to the viewer's own
+      zone, and the two disagreed: a daily bucket stored as 2026-09-25 00:00
+      UTC was drawn, labelled and tooltipped as "2026-09-24 20:00:00" in
+      Toronto -- the wrong day, every day, for everybody west of Greenwich,
+      with a time of day on it that the data never had.
+
+      Nobody reported it as a timezone bug, because it does not look like
+      one. It looks like the axis is badly formatted.
+    */
+    useUTC: true,
     // Slow enough to see: a dashboard opening grows from nothing, and a refresh
     // moves from the old values to the new ones -- which is the whole point of
     // a chart that refreshes. Series need stable ids for it (see above).
@@ -870,10 +912,15 @@ export default function buildOption(
         // The x value under the pointer, drawn on the axis itself, so it can
         // be read off where the axis labels are -- they are often thinned out
         // or tilted, and a bar may sit between two of them.
-        label: { show: !isPie && !isBox },
+        label: {
+          show: !isPie && !isBox,
+          ...(formatPointerTime ? { formatter: ({ value }: any) => formatPointerTime(value) } : {}),
+        },
       },
       confine: true,
-      formatter: isBox ? buildBoxTooltipFormatter(options) : buildTooltipFormatter(options, horizontal),
+      formatter: isBox
+        ? buildBoxTooltipFormatter(options)
+        : buildTooltipFormatter(options, horizontal, formatPointerTime),
     },
     series,
   };

@@ -5,6 +5,7 @@ import useElementSize from "@/visualizations/shared/useElementSize";
 import trim from "lodash/trim";
 import getChartData from "../getChartData";
 import buildOption, { buildLinkContext, fillLinkTemplate } from "../echarts/buildOption";
+import { followCursor } from "../echarts/followCursor";
 
 export interface EChartsChartProps {
   data: { rows: any[]; columns: any[] };
@@ -23,6 +24,17 @@ export default function EChartsChart({ options, data }: EChartsChartProps) {
     [data, options, bucket.height] // eslint-disable-line react-hooks/exhaustive-deps
   );
   const { setContainer, chart } = useEChart(built.option, built.signature);
+
+  // Which line the cursor is reading, dimmed in on every chart that has more
+  // than one. Set up once per chart rather than per option change: it reads
+  // the live series off the instance when the pointer moves, so it does not
+  // go stale when the data does.
+  useEffect(() => {
+    if (!chart) {
+      return;
+    }
+    return followCursor(chart);
+  }, [chart]);
 
   useEffect(() => {
     if (!chart || !options.enableLink) {

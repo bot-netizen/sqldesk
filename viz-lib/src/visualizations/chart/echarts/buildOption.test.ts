@@ -270,8 +270,13 @@ describe("Visualizations -> Chart -> ECharts -> buildOption", () => {
 
       expect(built.option.xAxis.type).toBe("time");
       expect(built.option.series[0].data[0][0]).toBe(Date.parse("2026-09-19T20:50:00Z"));
-      // ...and ECharts labels it as times, not as "1789852380000".
-      expect(built.option.xAxis.axisLabel.formatter).toBeUndefined();
+      // ...and it is labelled as a time, not as "1789852380000". This used to
+      // assert there was no formatter at all, on the grounds that a time axis
+      // formats itself. It does, just not legibly enough -- see
+      // `timeAxisFormatter`, which now owns every time label.
+      // Seconds, because these two points are a minute apart: ECharts puts
+      // ticks between them, and without seconds they would all read "20:50".
+      expect(built.option.xAxis.axisLabel.formatter(Date.parse("2026-09-19T20:50:00Z"))).toBe("20:50:00");
     });
 
     test("ISO dates in text columns count as times too", () => {

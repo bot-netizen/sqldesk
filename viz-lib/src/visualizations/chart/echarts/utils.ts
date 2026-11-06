@@ -1,4 +1,4 @@
-import { includes, isNil, mapValues } from "lodash";
+import { each, includes, isNil, mapValues } from "lodash";
 import moment from "moment";
 
 // Every chart type the renderer can draw. Plotly used to catch anything absent
@@ -170,4 +170,89 @@ export function getSeriesAxisIndex(seriesName: string, options: any): 0 | 1 {
  */
 export function seriesId(name: string): string {
   return `series:${name}`;
+}
+
+const MINUTE = 60000;
+const HOUR = 3600000;
+const DAY = 86400000;
+
+/**
+ * How a timestamp on the x axis should read, given how much time the chart
+ * covers.
+ *
+ * ECharts' own time axis labels a run of days as bare numbers -- "15", "22",
+ * "29" -- and prints the month only where it turns. On a three-month chart
+ * that is a row of numbers with two words in it, and nobody can say what
+ * "22" is without counting back to the nearest month name. These say the
+ * month on every label and let `hideOverlap` drop whichever will not fit,
+ * which costs a few labels and leaves every surviving one readable on its
+ * own.
+ *
+ * Within a day the dates are the thing that goes missing instead: a row of
+ * "06:00 18:00 06:00 18:00" with a lone "3" in it. Midnight carries the date
+ * here, so each run of times is anchored to the day it belongs to.
+ */
+export function timeAxisFormatter(span: number): (value: any) => string {
+  if (span >= 3 * 365 * DAY) {
+    return (value) => moment.utc(value).format("YYYY");
+  }
+  if (span >= 120 * DAY) {
+    return (value) => moment.utc(value).format("MMM YYYY");
+  }
+  if (span >= 3 * DAY) {
+    return (value) => moment.utc(value).format("D MMM");
+  }
+  if (span >= 2 * HOUR) {
+    return (value) => {
+      const at = moment.utc(value);
+      return at.hour() === 0 && at.minute() === 0 ? at.format("D MMM") : at.format("HH:mm");
+    };
+  }
+  // Seconds only once they are what distinguishes one point from the next.
+  // Carried on every label of a five-minute chart they are three characters
+  // of ":00" on each.
+  if (span >= 2 * MINUTE) {
+    return (value) => moment.utc(value).format("HH:mm");
+  }
+  return (value) => moment.utc(value).format("HH:mm:ss");
+}
+
+/**
+ * The same timestamp where there is room to be unambiguous: the label on the
+ * axis under the pointer, and the heading above the tooltip.
+ *
+ * Fuller than the axis, because it is one label rather than thirty, and it is
+ * the one a person reads when they want to know exactly which point they are
+ * looking at. A day gets its weekday -- "is that bar a Sunday?" is most of
+ * why anybody hovers a daily chart -- and no time of day, which on daily
+ * buckets is a midnight that means nothing and reads as precision that is
+ * not there.
+ */
+export function timePointerFormatter(span: number): (value: any) => string {
+  if (span >= 3 * 365 * DAY) {
+    return (value) => moment.utc(value).format("MMM YYYY");
+  }
+  if (span >= 3 * DAY) {
+    return (value) => moment.utc(value).format("ddd D MMM YYYY");
+  }
+  if (span >= 2 * HOUR) {
+    return (value) => moment.utc(value).format("ddd D MMM, HH:mm");
+  }
+  return (value) => moment.utc(value).format("ddd D MMM, HH:mm:ss");
+}
+
+/** The time a chart covers, in milliseconds, or 0 when it covers no time. */
+export function timeSpan(chartData: any[]): number {
+  let low = Infinity;
+  let high = -Infinity;
+  each(chartData, (series: any) =>
+    each(series.data, (point: any) => {
+      const x = normalizeX(point.x, "time");
+      if (!isNil(x)) {
+        low = Math.min(low, x);
+        high = Math.max(high, x);
+      }
+    })
+  );
+  return high > low ? high - low : 0;
 }
