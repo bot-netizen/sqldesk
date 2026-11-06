@@ -187,6 +187,37 @@
     ]
   },
   {
+    "type": "TREE",
+    "name": "Region and channel, as a tree",
+    "query": "Revenue by region and channel",
+    "options": {
+      "pathColumns": [
+        "region",
+        "channel"
+      ],
+      "valueColumn": "revenue",
+      "layout": "horizontal"
+    },
+    "columns": [
+      {
+        "name": "region",
+        "type": "string"
+      },
+      {
+        "name": "channel",
+        "type": "string"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      }
+    ]
+  },
+  {
     "type": "WORD_CLOUD",
     "name": "Categories by weight",
     "query": "Revenue by category",

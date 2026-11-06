@@ -24,6 +24,7 @@ import streamgraphVisualization from "./streamgraph";
 import sunburstVisualization from "./sunburst";
 import tableVisualization from "./table";
 import timelineVisualization from "./timeline";
+import treeVisualization from "./tree";
 import treemapVisualization from "./treemap";
 import waterfallVisualization from "./waterfall";
 import wordCloudVisualization from "./word-cloud";
@@ -125,6 +126,7 @@ each(
     sunburstVisualization,
     tableVisualization,
     timelineVisualization,
+    treeVisualization,
     treemapVisualization,
     waterfallVisualization,
     wordCloudVisualization,

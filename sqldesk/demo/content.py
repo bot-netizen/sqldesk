@@ -250,6 +250,12 @@ VISUALIZATIONS = [
     ("Revenue by region and channel", "PIVOT", "Region against channel", {}),
     ("Revenue by category", "TREEMAP", "Where the money is", {}),
     (
+        "Revenue by region and channel",
+        "TREE",
+        "Region and channel, as a tree",
+        {"pathColumns": ["region", "channel"], "valueColumn": "revenue", "layout": "horizontal"},
+    ),
+    (
         "Revenue by category",
         "WORD_CLOUD",
         "Categories by weight",
@@ -384,6 +390,7 @@ HEIGHTS = {
     "STATUS_GRID": 10,
     "SUNBURST_SEQUENCE": 14,
     "TABLE": 28,
+    "TREE": 18,
     "TREEMAP": 16,
     "WATERFALL": 16,
     "WORD_CLOUD": 16,

@@ -1,5 +1,5 @@
 import buildTree, { treeDepth, UNNAMED } from "./tree";
-import getOptions from "./getOptions";
+import getOptions, { clampVisibleDepth } from "./getOptions";
 import buildOption from "./buildOption";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -206,5 +206,31 @@ describe("the treemap", () => {
     const different = build({ pathColumns: ["product", "region"] }).signature;
     expect(alsoSame).toBe(same);
     expect(different).not.toBe(same);
+  });
+});
+
+/*
+  `Math.round(Number(v)) || 2` turns a deliberate 0 into 2, because 0 is
+  falsy. A depth meant to clamp to the shallowest came back as the default
+  instead. Found while building the tree visualization, which copied the
+  line before the bug in it was noticed.
+*/
+describe("how deep a treemap opens", () => {
+  test("zero clamps to the shallowest, rather than falling back to the default", () => {
+    expect(clampVisibleDepth(0)).toBe(1);
+  });
+
+  test("a real depth is kept", () => {
+    expect(clampVisibleDepth(3)).toBe(3);
+  });
+
+  test("deeper than it draws is held at the limit", () => {
+    expect(clampVisibleDepth(99)).toBe(4);
+  });
+
+  test("anything that is not a number is the default", () => {
+    expect(clampVisibleDepth("deep")).toBe(2);
+    expect(clampVisibleDepth(undefined)).toBe(2);
+    expect(clampVisibleDepth(null)).toBe(2);
   });
 });

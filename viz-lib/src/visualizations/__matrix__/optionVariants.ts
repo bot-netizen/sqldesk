@@ -367,6 +367,11 @@ export const VARIANTS: Record<string, Variant[]> = {
     { name: "defaults", options: {} },
     { name: "without a legend", options: { showLegend: false } },
   ],
+  TREE: [
+    { name: "defaults", options: {} },
+    { name: "radial, with values", options: { layout: "radial", showValues: true } },
+    { name: "top down, fully open", options: { layout: "vertical", initialDepth: 6 } },
+  ],
   STREAMGRAPH: [
     { name: "defaults", options: {} },
     { name: "without a legend", options: { showLegend: false } },
