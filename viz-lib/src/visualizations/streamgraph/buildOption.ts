@@ -4,6 +4,7 @@ import escapeHtml from "@/lib/escapeHtml";
 import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
 import { NO_ROWS } from "@/visualizations/shared/components/Problem";
 import { createNumberFormatter } from "@/lib/value-format";
+import { timeAxisFormatter, timeAxisInterval, timeAxisTicks, timePointerFormatter } from "../chart/echarts/utils";
 import { StreamgraphOptions } from "./getOptions";
 
 /*
@@ -48,13 +49,21 @@ export function problemWith(data: any, options: StreamgraphOptions): string | nu
   return null;
 }
 
-/** A date reads as a date; anything else is a label, left as it came. */
+/**
+ * A date becomes milliseconds; anything else stays the label it was.
+ *
+ * Milliseconds rather than a formatted string, because a zone-less string
+ * is read differently by whoever reads it: ECharts takes "2026-08-10
+ * 00:00:00" as UTC under `useUTC`, and `Date.parse` takes it as local, so
+ * the ticks were computed four hours away from where they were drawn. A
+ * number means the same instant to everybody.
+ */
 export function axisValue(value: any): string | number {
   if (moment.isMoment(value)) {
-    return value.isValid() ? value.format("YYYY-MM-DD HH:mm:ss") : String(value);
+    return value.isValid() ? value.valueOf() : String(value);
   }
   if (value instanceof Date) {
-    return moment.utc(value).format("YYYY-MM-DD HH:mm:ss");
+    return Number.isNaN(value.getTime()) ? "" : value.getTime();
   }
   return value === null || value === undefined ? "" : String(value);
 }
@@ -107,8 +116,22 @@ export default function buildOption(data: any, rawOptions: StreamgraphOptions): 
   const bands = bandsIn(points);
   const format = createNumberFormatter(rawOptions.valueFormat);
 
+  // The same treatment the chart's time axis gets, for the same reasons:
+  // values are parsed as UTC and must be rendered as UTC or every daily
+  // point is labelled a day early, and ECharts' own labels are a run of
+  // bare numbers. See chart/echarts/utils.
+  const first = points.length && typeof points[0][0] === "number" ? (points[0][0] as number) : NaN;
+  const last =
+    points.length && typeof points[points.length - 1][0] === "number" ? (points[points.length - 1][0] as number) : NaN;
+  const span = Number.isFinite(first) && Number.isFinite(last) ? Math.max(0, last - first) : 0;
+  const interval = timeAxisInterval(span);
+  const ticks = interval && Number.isFinite(first) ? timeAxisTicks(first, last, interval) : [];
+  const formatTime = timeAxisFormatter(span);
+  const formatPointerTime = timePointerFormatter(span);
+
   const option = {
     ...ECHARTS_MOTION,
+    useUTC: true,
     tooltip: {
       trigger: "axis",
       confine: true,
@@ -123,8 +146,8 @@ export default function buildOption(data: any, rawOptions: StreamgraphOptions): 
       bottom: rawOptions.showLegend ? 46 : 20,
       left: 10,
       right: 10,
-      axisTick: { show: true },
-      axisLabel: { hideOverlap: true },
+      axisLabel: { hideOverlap: true, formatter: formatTime, ...(ticks.length ? { customValues: ticks } : {}) },
+      ...(ticks.length ? { axisTick: { show: true, customValues: ticks } } : {}),
       splitLine: { show: false },
     },
     series: [
@@ -140,9 +163,8 @@ export default function buildOption(data: any, rawOptions: StreamgraphOptions): 
         tooltip: {
           formatter: (params: any) => {
             const point = params.value || [];
-            return `${escapeHtml(String(point[0]))}<br/>${escapeHtml(String(point[2]))}: ${escapeHtml(
-              format(point[1])
-            )}`;
+            const when = typeof point[0] === "number" ? formatPointerTime(point[0]) : String(point[0]);
+            return `${escapeHtml(when)}<br/>${escapeHtml(String(point[2]))}: ${escapeHtml(format(point[1]))}`;
           },
         },
       },

@@ -141,3 +141,43 @@ describe("parallel coordinates", () => {
     });
   });
 });
+
+/*
+  Two things that made the chart unreadable, both about where things sit
+  rather than what they show.
+*/
+describe("where the chart puts its furniture", () => {
+  const data = {
+    columns: [{ name: "region" }, { name: "revenue" }, { name: "orders" }, { name: "units" }],
+    rows: [
+      { region: "a", revenue: 10, orders: 2, units: 5 },
+      { region: "b", revenue: 20, orders: 4, units: 9 },
+    ],
+  };
+  const opts = (overrides: any = {}) =>
+    getOptions({ dimensionColumns: ["revenue", "orders", "units"], ...overrides }, {
+      columns: data.columns,
+      rows: [],
+    } as any);
+
+  // "start" on a vertical axis is its foot, which is where the legend is:
+  // "orders" and "units" were printed through the middle of it.
+  test("axis names sit above their axes, clear of the legend", () => {
+    const { option } = buildOption(data, opts());
+
+    expect(option.parallel.parallelAxisDefault.nameLocation).toBe("end");
+  });
+
+  test("and there is room above for them", () => {
+    const { option } = buildOption(data, opts());
+
+    expect(option.parallel.top).toBeGreaterThanOrEqual(option.parallel.parallelAxisDefault.nameGap);
+  });
+
+  test("a legend gets its own room at the foot", () => {
+    const withLegend = buildOption(data, opts({ seriesColumn: "region" })).option;
+    const without = buildOption(data, opts()).option;
+
+    expect(withLegend.parallel.bottom).toBeGreaterThan(without.parallel.bottom);
+  });
+});

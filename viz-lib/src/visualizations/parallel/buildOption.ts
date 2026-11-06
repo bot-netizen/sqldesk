@@ -136,11 +136,22 @@ export default function buildOption(data: any, rawOptions: ParallelOptions): Bui
     parallel: {
       left: 40,
       right: 40,
-      top: 24,
-      bottom: grouped && rawOptions.showLegend ? 46 : 24,
+      // Room above for the axis names, which sit over their axes now.
+      top: 38,
+      bottom: grouped && rawOptions.showLegend ? 58 : 24,
       parallelAxisDefault: {
-        nameLocation: "start",
-        nameGap: 14,
+        /*
+          The names go above the axes, not below them.
+
+          `nameLocation: "start"` puts a vertical axis' name at its foot --
+          which is where the legend is, and on a chart with ten series the
+          two sat on top of each other: "orders" and "units" were printed
+          through the middle of the legend. Above each axis is also where a
+          parallel plot conventionally labels them, so this reads better
+          even with no legend to collide with.
+        */
+        nameLocation: "end",
+        nameGap: 16,
         axisLabel: { formatter: (value: any) => format(value) },
       },
     },

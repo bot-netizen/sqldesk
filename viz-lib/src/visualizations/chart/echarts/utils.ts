@@ -256,3 +256,77 @@ export function timeSpan(chartData: any[]): number {
   );
   return high > low ? high - low : 0;
 }
+
+/**
+ * How far apart the ticks on a time axis should be.
+ *
+ * Left to itself ECharts anchors one rhythm to the data's start and another
+ * to each month, and draws both: a 90-day axis came out "15, 22, 29, 5, 8,
+ * 15, 22, 29, 6, 8" -- mostly weekly, with a three-day step wherever a
+ * month began. Months are not a whole number of weeks, so the two rhythms
+ * cannot agree, and nothing about the result says which gap is which.
+ *
+ * Choosing the step ourselves makes every gap the same. The candidates are
+ * durations people actually think in, and the smallest one that keeps the
+ * axis under `most` labels wins -- so the step grows with the range rather
+ * than the label count growing without limit.
+ */
+const TICK_STEPS = [
+  1000,
+  5 * 1000,
+  15 * 1000,
+  30 * 1000,
+  MINUTE,
+  5 * MINUTE,
+  15 * MINUTE,
+  30 * MINUTE,
+  HOUR,
+  3 * HOUR,
+  6 * HOUR,
+  12 * HOUR,
+  DAY,
+  2 * DAY,
+  7 * DAY,
+  14 * DAY,
+  28 * DAY,
+  91 * DAY,
+  182 * DAY,
+  365 * DAY,
+];
+
+export function timeAxisInterval(span: number, most = 13): number | undefined {
+  if (!span || span <= 0) {
+    return undefined;
+  }
+  const step = TICK_STEPS.find((candidate) => span / candidate <= most);
+  // Past a decade the steps run out; ECharts' own choice of year boundaries
+  // is regular enough once a tick is a year or more apart.
+  return step === undefined ? undefined : step;
+}
+
+/**
+ * The exact timestamps to put ticks on.
+ *
+ * `minInterval`/`maxInterval` are a request, not an instruction: ECharts'
+ * time axis still snaps to calendar boundaries, and a month is not a whole
+ * number of days-times-anything, so asking for a four-day step produced
+ * "13, 17, 21, 25 Aug, 5 Sep" -- four days apart until the month turned
+ * and then eleven. Handing it the positions outright is the only way the
+ * gaps come out equal, and ECharts has taken `customValues` since 5.5.
+ *
+ * Anchored to the first point rather than to a round date, so the left end
+ * of the axis is always labelled; an axis whose first tick floats several
+ * days in looks like the data starts later than it does.
+ */
+export function timeAxisTicks(from: number, to: number, interval: number): number[] {
+  if (!interval || interval <= 0 || !(to > from)) {
+    return [];
+  }
+  const ticks: number[] = [];
+  // A guard rather than a limit anybody should reach: a pathological
+  // interval against a long span would otherwise build an endless array.
+  for (let at = from; at <= to && ticks.length < 400; at += interval) {
+    ticks.push(at);
+  }
+  return ticks;
+}

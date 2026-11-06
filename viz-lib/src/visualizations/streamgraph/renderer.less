@@ -1,15 +1,19 @@
 /*
-  Sized by its box rather than by a number.
+  A height of its own, and a mixin that takes it away again.
 
-  The older visualizations set a fixed height here and are pulled back to
-  their container by `.visualization-fills-its-box()` in the application's
-  stylesheet -- a list every new container would otherwise have to be added
-  to, in a file in the other package. Filling the box directly needs no
-  entry in that list and behaves the same in a widget, on the query page
-  and in a notebook cell.
+  `height: 100%` looks tidier and is wrong here: the editor's preview puts
+  the renderer inside a `.scrollbox`, which has no height of its own, and a
+  percentage against an indefinite parent resolves to nothing -- so the
+  chart drew at zero pixels and the preview pane was simply blank. Every
+  older visualization states a number for exactly this reason.
+
+  Where there *is* a box to fill -- a dashboard widget, the query page, a
+  notebook cell -- `.visualization-fills-its-box()` pins this container to
+  its edges and overrides the number. See
+  client/app/assets/less/inc/visualizations/fills-its-box.
 */
 .streamgraph-visualization-container {
   width: 100%;
-  height: 100%;
-  min-height: 0;
+  height: 400px;
+  overflow: hidden;
 }

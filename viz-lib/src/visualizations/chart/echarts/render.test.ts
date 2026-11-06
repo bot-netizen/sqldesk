@@ -285,3 +285,102 @@ describe("Visualizations -> Chart -> ECharts -> registration", () => {
     expect(source).toContain("VisualMapComponent");
   });
 });
+
+/*
+  Two things you cannot see in an option object, only in what gets drawn.
+
+  Both were reported from screenshots, and both are about position rather
+  than data: an axis whose tick gaps were uneven, and an axis name sitting
+  on top of the legend.
+*/
+describe("what the drawn axis looks like", () => {
+  /** Absolute y: ECharts puts text inside a translated group. */
+  function textAt(svg: string) {
+    return Array.from(svg.matchAll(/<text\b([^>]*)>([^<]*)<\/text>/g)).map((m: any) => {
+      const attrs = m[1] as string;
+      const own = /\sy="([-\d.]+)"/.exec(attrs);
+      const moved = /transform="[^"]*translate\(\s*([-\d.]+)[ ,]+([-\d.]+)/.exec(attrs);
+      return {
+        y: (own ? parseFloat(own[1]) : 0) + (moved ? parseFloat(moved[2]) : 0),
+        text: (m[2] as string).trim(),
+      };
+    });
+  }
+
+  const moment = require("moment"); // eslint-disable-line global-require
+
+  function daily(days: number) {
+    const start = moment.utc("2026-08-10T00:00:00Z");
+    return Array.from({ length: days }, (_, d) => [start.clone().add(d, "days"), 100 + d]);
+  }
+
+  /*
+    ECharts anchors one tick rhythm to the data and another to each month,
+    and draws both -- so a 90-day axis came out "15, 22, 29, 5, 8, 15",
+    weekly except where a month turned and the step was three days. A month
+    is not a whole number of weeks, so the two can never agree.
+  */
+  test("every gap between time ticks is the same", () => {
+    const { svg } = render(
+      [{ ...series("revenue", daily(90)), type: "line" }],
+      options({ globalSeriesType: "line", xAxis: { type: "-", labels: { enabled: true } } })
+    );
+
+    const dates = textAt(svg)
+      .map((t) => moment.utc(t.text, "D MMM", true))
+      .filter((m: any) => m.isValid())
+      .map((m: any) => m.valueOf())
+      .sort((a: number, b: number) => a - b);
+
+    expect(dates.length).toBeGreaterThan(4);
+    const gaps = dates.slice(1).map((at: number, i: number) => at - dates[i]);
+    expect(new Set(gaps).size).toBe(1);
+  });
+
+  // Asserted on the ticks rather than the drawing: a narrow chart thins
+  // its labels, which is `hideOverlap` doing its job -- it drops alternate
+  // ones, so the gaps stay equal and the first label may not survive.
+  test("and the ticks start where the data starts, not some way in", () => {
+    const { built } = render(
+      [{ ...series("revenue", daily(90)), type: "line" }],
+      options({ globalSeriesType: "line", xAxis: { type: "-", labels: { enabled: true } } })
+    );
+
+    const ticks = built.option.xAxis.axisLabel.customValues;
+
+    expect(ticks[0]).toBe(Date.parse("2026-08-10T00:00:00Z"));
+    expect(new Set(ticks.slice(1).map((at: number, i: number) => at - ticks[i])).size).toBe(1);
+  });
+
+  /*
+    The name is drawn `nameGap` below the axis plus its own height, about
+    42px, while only 24 was reserved for the labels. The missing room came
+    out of the legend, which the name then sat on.
+  */
+  test("the x axis name clears the legend below it", () => {
+    const data = ["a", "b", "c", "d"].map((name, i) => ({
+      ...series(
+        name,
+        [1, 2, 3].map((x) => [`cat${x}`, x * (i + 1)])
+      ),
+      type: "line",
+    }));
+    const { svg } = render(
+      data,
+      options({
+        globalSeriesType: "line",
+        xAxis: { type: "category", title: { text: "the x axis name" }, labels: { enabled: true } },
+        legend: { enabled: true, placement: "below" },
+      })
+    );
+
+    const texts = textAt(svg);
+    const name = texts.find((t) => t.text === "the x axis name");
+    const legendTop = Math.min(...texts.filter((t) => ["a", "b", "c", "d"].includes(t.text)).map((t) => t.y));
+
+    expect(name).toBeDefined();
+    // A line of this text is about 12px tall, so anything under that is a
+    // collision however it is measured.
+    expect(legendTop - (name as any).y).toBeGreaterThan(14);
+  });
+});

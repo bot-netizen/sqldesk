@@ -97,8 +97,10 @@ describe("the streamgraph", () => {
   });
 
   describe("the axis value", () => {
-    test("a date reads as a date", () => {
-      expect(axisValue(moment.utc("2026-09-24T00:00:00Z"))).toBe("2026-09-24 00:00:00");
+    // Milliseconds, not a formatted string: a zone-less string means one
+    // instant to ECharts under `useUTC` and another to `Date.parse`.
+    test("a date becomes the instant it is", () => {
+      expect(axisValue(moment.utc("2026-09-24T00:00:00Z"))).toBe(Date.parse("2026-09-24T00:00:00Z"));
     });
 
     test("anything else is left as the label it was", () => {
@@ -160,5 +162,52 @@ describe("the streamgraph", () => {
       expect(built.problem).toBeTruthy();
       expect(built.option.series).toEqual([]);
     });
+  });
+});
+
+/*
+  The time axis, which the streamgraph did not get when the chart did.
+
+  Two faults travelled together: values parsed as UTC and drawn in the
+  viewer's zone, so every daily band was a day early; and ECharts' own tick
+  rhythm, which anchors one series of ticks to the data and another to each
+  month and draws both -- "15, 22, 29, 5, 8, 15", weekly except where a
+  month turned.
+*/
+describe("the streamgraph's time axis", () => {
+  function overDays(days: number) {
+    const start = moment.utc("2026-08-10T00:00:00Z");
+    const rows: any[] = [];
+    for (let d = 0; d < days; d += 1) {
+      ["paid", "organic"].forEach((channel, i) => {
+        rows.push({ day: start.clone().add(d, "days"), channel, revenue: 100 + d + i });
+      });
+    }
+    return { columns, rows };
+  }
+
+  test("is drawn in the zone its values were parsed in", () => {
+    expect(buildOption(overDays(30), options()).option.useUTC).toBe(true);
+  });
+
+  test("puts its ticks at even intervals, starting at the first point", () => {
+    const { option } = buildOption(overDays(90), options());
+    const ticks = option.singleAxis.axisLabel.customValues;
+
+    expect(ticks[0]).toBe(Date.parse("2026-08-10T00:00:00Z"));
+    const gaps = ticks.slice(1).map((at: number, i: number) => at - ticks[i]);
+    expect(new Set(gaps).size).toBe(1);
+  });
+
+  test("labels them the way every other time axis is labelled", () => {
+    const { option } = buildOption(overDays(90), options());
+
+    expect(option.singleAxis.axisLabel.formatter(Date.parse("2026-09-24T00:00:00Z"))).toBe("24 Sep");
+  });
+
+  test("a chart covering no time asks for no ticks of its own", () => {
+    const { option } = buildOption(overDays(1), options());
+
+    expect(option.singleAxis.axisLabel.customValues).toBeUndefined();
   });
 });

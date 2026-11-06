@@ -93,3 +93,55 @@ describe("a page's styles are in a stylesheet that page loads", () => {
     }
   });
 });
+
+/*
+  A visualization that cannot be seen in the editor.
+
+  `.visualization-fills-its-box()` pins a container to all four edges of
+  its box, and it is mixed into exactly three places: the dashboard grid,
+  the query page and a notebook cell. The editor's preview is not one of
+  them -- it puts the renderer in a `.scrollbox`, which has no height of
+  its own -- so a pinned container with no height of its own draws at zero
+  pixels there and the preview pane is blank. It looks like the
+  visualization is broken; it is drawing perfectly, at nothing.
+
+  Shipped exactly that way with parallel coordinates. Every container that
+  was already in the list states a pixel height for this reason, which is
+  the rule being written down here rather than invented.
+*/
+describe("every visualization can be seen outside a box that sizes it", () => {
+  const VIZ_ROOT = path.join(LESS_ROOT, "..", "..", "viz-lib", "src", "visualizations");
+  const MIXIN = path.join(LESS_ROOT, "assets/less/inc/visualizations/fills-its-box.less");
+
+  /** The container classes `.visualization-fills-its-box()` pins. */
+  function pinnedContainers() {
+    const source = fs.readFileSync(MIXIN, "utf8");
+    return Array.from(source.matchAll(/^\s*\.([a-z0-9-]+-visualization-container)[,{]/gm)).map((m) => m[1]);
+  }
+
+  /** What a container's own rule says, wherever viz-lib declares it. */
+  function ownRule(selector) {
+    for (const file of lessFiles(VIZ_ROOT)) {
+      const source = fs.readFileSync(file, "utf8");
+      const match = new RegExp(`^\\.${selector}\\s*\\{([^}]*)\\}`, "m").exec(source);
+      if (match) {
+        return match[1];
+      }
+    }
+    return null;
+  }
+
+  test("the list is not empty, or this test proves nothing", () => {
+    expect(pinnedContainers().length).toBeGreaterThan(4);
+  });
+
+  test("each pinned container also states a height for everywhere else", () => {
+    const withoutFallback = pinnedContainers().filter((selector) => {
+      const body = ownRule(selector);
+      // Declared outside viz-lib -- not this package's to assert about.
+      return body !== null && !/height:\s*\d+px/.test(body);
+    });
+
+    expect(withoutFallback).toEqual([]);
+  });
+});

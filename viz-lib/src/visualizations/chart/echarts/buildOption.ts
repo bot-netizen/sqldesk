@@ -10,6 +10,8 @@ import {
   normalizeX,
   seriesId,
   timeAxisFormatter,
+  timeAxisInterval,
+  timeAxisTicks,
   timePointerFormatter,
   timeSpan,
 } from "./utils";
@@ -28,6 +30,9 @@ const ECHARTS_SPLIT_NUMBER = 5;
 
 /** Roughly what the x axis takes out of the plot: labels, tick and gap. */
 const X_AXIS_HEIGHT = 24;
+
+/** What the axis name below the plot needs beyond the labels' own room. */
+const X_AXIS_NAME_ROOM = 18;
 
 /** Below this, labels stop reading as a scale and start reading as a stack. */
 const LABEL_BREATHING_ROOM = 55;
@@ -241,6 +246,26 @@ function applyPercentValues(seriesData: any[][], options: any) {
       point.y = isNil(point.y) || !total ? null : (point.y / total) * 100;
     })
   );
+}
+
+/** The tick positions for a time axis, evenly spaced from the first point. */
+function timeTicksFor(chartData: any[], span: number): number[] {
+  const interval = timeAxisInterval(span);
+  if (!interval) {
+    return [];
+  }
+  let low = Infinity;
+  let high = -Infinity;
+  each(chartData, (series: any) =>
+    each(series.data, (point: any) => {
+      const x = normalizeX(point.x, "time");
+      if (!isNil(x)) {
+        low = Math.min(low, x);
+        high = Math.max(high, x);
+      }
+    })
+  );
+  return high > low ? timeAxisTicks(low, high, interval) : [];
 }
 
 export function buildTooltipFormatter(
@@ -764,6 +789,10 @@ export default function buildOption(
   const span = xAxisType === "time" ? timeSpan(chartData) : 0;
   const formatTime = xAxisType === "time" ? timeAxisFormatter(span) : null;
   const formatPointerTime = xAxisType === "time" ? timePointerFormatter(span) : null;
+  // Where the ticks go. ECharts' own choice interleaves a rhythm anchored
+  // to the data with one anchored to each month, so the gaps come out
+  // uneven wherever a month turns -- see `timeAxisTicks`.
+  const timeTicks = xAxisType === "time" ? timeTicksFor(chartData, span) : [];
 
   let categories: any[] = [];
   if (!isPie && xAxisType === "category") {
@@ -810,7 +839,20 @@ export default function buildOption(
   // Worked out once and used both by the grid below and to decide how many
   // labels the value axis can carry without crowding.
   const gridTop = 14;
-  const gridBottom = (legend.below ? 36 : 10) + (slider && !horizontal ? 30 : 0);
+  /*
+    Room under the axis for its name.
+
+    The name is drawn `nameGap` (30) below the axis line plus its own
+    height, so it wants about 42px; `X_AXIS_HEIGHT` reserves 24 for the
+    labels alone. The missing 18 came out of whatever was underneath --
+    the legend, which the name then sat on top of, or the edge of the
+    canvas when there was no legend to borrow from.
+
+    Sideways the axes swap: the measures run along the bottom, so the name
+    down there is the y axis'.
+  */
+  const bottomName = horizontal ? nameOf(options.yAxis[0]) : nameOf(options.xAxis);
+  const gridBottom = (legend.below ? 36 : 10) + (slider && !horizontal ? 30 : 0) + (bottomName ? X_AXIS_NAME_ROOM : 0);
   const measuredHeight = size && size.height ? size.height : 0;
   // Where each panel sits. With one panel this is the whole band, and its
   // height is what `plotHeight` has always been.
@@ -865,7 +907,7 @@ export default function buildOption(
       // ECharts' default labels a run of days as bare numbers with the month
       // only where it turns, which is unreadable a week either side of it.
       ...(xAxisType === "time"
-        ? { formatter: formatTime }
+        ? { formatter: formatTime, ...(timeTicks.length ? { customValues: timeTicks } : {}) }
         : {
             formatter: (value: any) => {
               const text = String(value);
