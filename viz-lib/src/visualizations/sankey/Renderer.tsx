@@ -7,8 +7,8 @@ import Problem from "../shared/components/Problem";
 import buildOption from "./buildOption";
 import "./renderer.less";
 
-export default function Renderer({ data }: { data: SankeyDataType }) {
-  const built = useMemo(() => buildOption(data), [data]);
+export default function Renderer({ data, options }: { data: SankeyDataType; options?: any }) {
+  const built = useMemo(() => buildOption(data, options), [data, options]);
   const { setContainer } = useEChart(built.problem ? {} : built.option, built.signature);
 
   if (built.problem) {

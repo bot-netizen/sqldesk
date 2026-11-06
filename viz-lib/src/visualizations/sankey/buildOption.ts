@@ -1,5 +1,19 @@
 import escapeHtml from "@/lib/escapeHtml";
-import { every, filter, find, isFinite, isNaN, isNil, isNumber, isString, keys, map, mapValues, sortBy } from "lodash";
+import {
+  each,
+  every,
+  filter,
+  find,
+  isFinite,
+  isNaN,
+  isNil,
+  isNumber,
+  isString,
+  keys,
+  map,
+  mapValues,
+  sortBy,
+} from "lodash";
 import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
 import { NO_ROWS } from "@/visualizations/shared/components/Problem";
 
@@ -214,7 +228,37 @@ export interface BuiltSankey {
   problem: string | null;
 }
 
-export default function buildOption(data: any): BuiltSankey {
+/**
+ * What each node is worth: everything flowing into it, or for the first
+ * column, everything flowing out.
+ *
+ * Read off the links rather than the rows because that is what the chart
+ * actually draws -- a row whose path stops early contributes to the stages
+ * it reached and not to the ones it did not, and the links already encode
+ * that. Summing the rows per column would count a dropped path as if it had
+ * gone the distance.
+ */
+export function nodeValues(nodes: SankeyNode[], links: SankeyLink[]): Map<string, number> {
+  const incoming = new Map<string, number>();
+  const outgoing = new Map<string, number>();
+  each(links, (link) => {
+    incoming.set(link.target, (incoming.get(link.target) || 0) + link.value);
+    outgoing.set(link.source, (outgoing.get(link.source) || 0) + link.value);
+  });
+  const values = new Map<string, number>();
+  each(nodes, (node) => {
+    const into = incoming.get(node.name);
+    values.set(node.name, into === undefined ? outgoing.get(node.name) || 0 : into);
+  });
+  return values;
+}
+
+/** Thousands separated, which is the whole point of putting it on the chart. */
+export function formatNodeValue(value: number): string {
+  return value.toLocaleString("en-US");
+}
+
+export default function buildOption(data: any, options: any = {}): BuiltSankey {
   const rows = prepareDataRows(data.rows);
   const problem = problemWith({ ...data, rows });
   if (problem) {
@@ -229,6 +273,12 @@ export default function buildOption(data: any): BuiltSankey {
   const lastDepth = nodes.reduce((deepest, node) => Math.max(deepest, node.depth), 0);
   const positioned = map(nodes, (node) => (node.depth === lastDepth ? { ...node, label: { position: "left" } } : node));
 
+  // What each stage is worth, on the stage. Off by default: on a wide funnel
+  // the numbers are what makes it unreadable, and on a narrow one they are
+  // the first thing anybody asks for.
+  const values = nodeValues(nodes, links);
+  const showValues = options.showNodeValues === true;
+
   const option = {
     ...ECHARTS_MOTION,
     tooltip: {
@@ -239,7 +289,14 @@ export default function buildOption(data: any): BuiltSankey {
           ? `${escapeHtml(params.data.source.split(STAGE)[0])} → ${escapeHtml(params.data.target.split(STAGE)[0])}: ${escapeHtml(
               params.data.value
             )}`
-          : escapeHtml(params.data.displayName),
+          : (() => {
+              // The value is in the tooltip whether or not the labels show
+              // it: hovering a node to find out what it is worth should not
+              // depend on a display setting.
+              const value = values.get(params.data.name);
+              const name = escapeHtml(params.data.displayName);
+              return value === undefined ? name : `${name}: ${escapeHtml(formatNodeValue(value))}`;
+            })(),
     },
     series: [
       {
@@ -248,7 +305,16 @@ export default function buildOption(data: any): BuiltSankey {
         data: positioned,
         links,
         emphasis: { focus: "adjacency" },
-        label: { formatter: (params: any) => params.data.displayName },
+        label: {
+          formatter: (params: any) => {
+            const name = params.data.displayName;
+            if (!showValues) {
+              return name;
+            }
+            const value = values.get(params.data.name);
+            return value === undefined ? name : `${name}  ${formatNodeValue(value)}`;
+          },
+        },
         lineStyle: { color: "gradient", opacity: 0.4 },
         left: 10,
         right: 10,
@@ -259,5 +325,7 @@ export default function buildOption(data: any): BuiltSankey {
   };
 
   // The set of nodes is the shape; the same nodes with new weights can tween.
-  return { option, signature: JSON.stringify(map(nodes, "name")), problem: null };
+  // The toggle is part of the shape: without it in the signature ECharts
+  // merges the new option over the old one and the labels never change.
+  return { option, signature: JSON.stringify([showValues, map(nodes, "name")]), problem: null };
 }

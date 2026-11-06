@@ -1,4 +1,12 @@
-import buildOption, { STAGE, buildGraph, prepareDataRows, problemWith, stageOrder } from "./buildOption";
+import buildOption, {
+  STAGE,
+  buildGraph,
+  formatNodeValue,
+  nodeValues,
+  prepareDataRows,
+  problemWith,
+  stageOrder,
+} from "./buildOption";
 
 const columns = [{ name: "value" }, { name: "stage1" }, { name: "stage2" }];
 
@@ -246,5 +254,93 @@ describe("the order the stage columns go in", () => {
     const columns = Array.from({ length: 12 }, (_, i) => `stage${i + 1}`);
 
     expect(stageOrder([...columns].reverse())).toEqual(columns);
+  });
+});
+
+/*
+  What each stage is worth, written on the stage.
+
+  Reading a funnel means asking "how much got this far", and the answer was
+  only ever one node at a time in a tooltip. These pin the sum being the
+  flow actually drawn rather than the rows counted per column: a path that
+  stops at stage three contributes to three and not to four, and summing
+  rows would count it the whole way.
+*/
+describe("a stage's value", () => {
+  function path(stages: (string | null)[], value: number) {
+    const row: any = { value };
+    stages.forEach((stage, i) => {
+      row[`stage${i + 1}`] = stage;
+    });
+    return row;
+  }
+
+  test("is everything flowing into it", () => {
+    const { nodes, links } = buildGraph([path(["a", "b"], 30), path(["a", "b"], 12)]);
+    const values = nodeValues(nodes, links);
+
+    expect(values.get(nodes.find((n: any) => n.displayName === "b")!.name)).toBe(42);
+  });
+
+  test("is everything flowing out of it, for the first column", () => {
+    const { nodes, links } = buildGraph([path(["a", "b"], 30), path(["a", "c"], 12)]);
+    const values = nodeValues(nodes, links);
+
+    expect(values.get(nodes.find((n: any) => n.displayName === "a")!.name)).toBe(42);
+  });
+
+  // The whole reason it is read off the links: a path that stopped early
+  // never reached the later stages, and counting rows per column would say
+  // it did.
+  test("a path that stopped early is not counted at the stages it never reached", () => {
+    const { nodes, links } = buildGraph([path(["a", "b", "c"], 100), path(["a", "b", null], 40)]);
+    const values = nodeValues(nodes, links);
+    const at = (name: string) => values.get(nodes.find((n: any) => n.displayName === name)!.name);
+
+    expect(at("a")).toBe(140);
+    expect(at("b")).toBe(140);
+    expect(at("c")).toBe(100);
+  });
+
+  test("is written with thousands separated, which is why it is there", () => {
+    expect(formatNodeValue(1234567)).toBe("1,234,567");
+  });
+
+  describe("on the chart", () => {
+    const data = {
+      columns: [{ name: "value" }, { name: "stage1" }, { name: "stage2" }],
+      rows: [path(["Impression", "Click"], 4200)],
+    };
+
+    test("labels are names alone until asked otherwise", () => {
+      const { option } = buildOption(data);
+      const label = option.series[0].label.formatter;
+      const node = option.series[0].data[0];
+
+      expect(label({ data: node })).toBe("Impression");
+    });
+
+    test("and carry the value once they are", () => {
+      const { option } = buildOption(data, { showNodeValues: true });
+      const label = option.series[0].label.formatter;
+      const node = option.series[0].data[0];
+
+      expect(label({ data: node })).toBe("Impression  4,200");
+    });
+
+    // Hovering a node to find out what it is worth should not depend on a
+    // display setting somebody else left off.
+    test("the tooltip says it either way", () => {
+      const { option } = buildOption(data);
+      const node = option.series[0].data[0];
+
+      expect(option.tooltip.formatter({ dataType: "node", data: node })).toBe("Impression: 4,200");
+    });
+
+    // Without the toggle in the signature ECharts merges the new option over
+    // the old and the labels never change.
+    test("turning it on redraws rather than merging into the old labels", () => {
+      expect(buildOption(data).signature).not.toBe(buildOption(data, { showNodeValues: true }).signature);
+    });
   });
 });
