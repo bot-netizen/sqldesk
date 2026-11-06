@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-06T11:10:58.307Z",
-    "fileCount": 731,
+    "lastScanned": "2026-11-06T17:33:20.662Z",
+    "fileCount": 732,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "7e464063a4bb5ed8c50d1612e39c362dcb30575f089c3df8a7bfcd97dac85b3e",
-    "storeUpdatedAt": "2026-11-06T11:10:58.336Z",
-    "rootHash": "a7b0c57a14939805"
+    "renderedHash": "a2d46d207ce1dc583c2d577735b68f8896abdf8c9df1a44ab04d76b992d90fdd",
+    "storeUpdatedAt": "2026-11-06T17:33:20.682Z",
+    "rootHash": "a458d597780c1635"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -19160,6 +19160,24 @@
           "startLine": 70,
           "endLine": 137,
           "tokens": 700
+        }
+      ]
+    },
+    "viz-lib/src/visualizations/chart/echarts/tooltipFocus.test.ts": {
+      "description": "OPTIONS: items, chartWith",
+      "tokens": 2168,
+      "hash": "8167f396e173a680",
+      "size": 7587,
+      "mtimeMs": 1793986400509.1165,
+      "updatedAt": "2026-11-06T17:33:20.661Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "items",
+          "kind": "fn",
+          "startLine": 19,
+          "endLine": 210,
+          "tokens": 1950
         }
       ]
     }

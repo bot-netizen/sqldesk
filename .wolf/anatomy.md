@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-06T11:10:58.307Z
-> Files: 731 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-06T17:33:20.662Z
+> Files: 732 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -1072,6 +1072,7 @@
 - `buildOption.threshold.test.ts` — The measure out of a datum, whichever shape it is in. (~1862 tok)
 - `buildOption.ts` — What ECharts asks for on a value axis when nobody tells it otherwise. (~11349 tok)
 - `followCursor.ts` — A series' drawn position at the x under the pointer. (~1617 tok)
+- `tooltipFocus.test.ts` — OPTIONS: items, chartWith (~2168 tok)
 
 ## viz-lib/src/visualizations/network/
 
