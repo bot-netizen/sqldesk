@@ -225,7 +225,13 @@ max-complexity = 15
 "__init__.py" = ["F401"]
 
 [tool.pytest.ini_options]
-norecursedirs = ["*.egg", ".eggs", "dist", "build", "docs", ".tox"]
+# `.claude` holds the git worktrees the desktop app makes for its sessions,
+# each a full copy of this repository -- so pytest collected every test
+# three more times under different paths, hit the duplicate module
+# basenames, and gave up with hundreds of collection errors before running
+# anything. Locally only: CI checks out clean and never saw it, which is
+# why a suite that passes in CI could not be run at a desk.
+norecursedirs = ["*.egg", ".eggs", "dist", "build", "docs", ".tox", ".claude", "node_modules"]
 filterwarnings = [
     "once::DeprecationWarning",
     "once::PendingDeprecationWarning",
