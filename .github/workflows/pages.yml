@@ -42,6 +42,11 @@ jobs:
           python -m pip install markdown-it-py==4.2.0 pyyaml==6.0.3
           python docs/tools/blog.py
 
+      # The index the search box reads: every section of the guide, every
+      # release and every post. After the blog, so the posts are in it.
+      - name: Build the search index
+        run: python docs/tools/search.py
+
       # The pages, not the working papers: the plans and the tool that
       # regenerates the navigation live in docs/ too, and uploading the
       # directory as it stands published them.

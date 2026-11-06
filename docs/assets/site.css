@@ -626,6 +626,50 @@ footer a {
   top: 76px;
   font-size: 14.5px;
 }
+
+/* The page's own sections, on the right, where there is room for them.
+   A long page is read by jumping, and the sidebar only says which page. */
+.doc-toc {
+  display: none;
+}
+@media (min-width: 1240px) {
+  .doc-layout.has-toc {
+    grid-template-columns: 240px minmax(0, 1fr) 200px;
+  }
+  .doc-toc {
+    display: block;
+    position: sticky;
+    top: 76px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    font-size: 13.5px;
+    border-left: 1px solid var(--rule-soft);
+    padding-left: 16px;
+  }
+}
+.doc-toc h4 {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin: 0 0 8px;
+  font-weight: 500;
+}
+.doc-toc a {
+  display: block;
+  padding: 4px 0;
+  color: var(--muted);
+  text-decoration: none;
+  line-height: 1.35;
+}
+.doc-toc a:hover {
+  color: var(--accent-ink);
+}
+.doc-toc a[aria-current="location"] {
+  color: var(--accent-ink);
+  font-weight: 500;
+}
 .doc-nav h4 {
   font-family: var(--mono);
   font-size: 11px;

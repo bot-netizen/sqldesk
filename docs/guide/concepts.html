@@ -21,6 +21,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/search.css">
 <script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
@@ -44,6 +45,11 @@
       <a href="../blog/index.html">Blog</a>
       <a href="../releases.html">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+      <button class="search-open" type="button" data-search-open aria-label="Search the docs">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="m10.4 10.4 3.4 3.4"/></svg>
+        <span class="search-open-label">Search</span><kbd class="search-key" data-search-key>/</kbd>
+      </button>
       <button class="theme-toggle" type="button" data-theme-toggle
               aria-label="Switch to dark mode" title="Switch to dark mode">
         <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -60,7 +66,7 @@
   </div>
 </header>
 
-<div class="wrap doc-layout">
+<div class="wrap doc-layout has-toc">
   <nav class="doc-nav" aria-label="Documentation">
       <h4>Start here</h4>
       <a href="overview.html">Overview</a>
@@ -87,49 +93,61 @@
 <p>Nine words, used precisely throughout. Most confusion about SQLDesk is really confusion between two of
 these — a parameter and a filter especially.</p>
 
-<h2>Data source</h2>
+<h2 id="data-source">Data source</h2>
 <p>A connection to somewhere data lives: a Postgres database, a Trino cluster, a BigQuery project, a
 Google Sheet. It holds the credentials, which are encrypted, and it belongs to one or more
 <em>groups</em>. Whoever is in a group can use the data source; whoever is not cannot see it at all.</p>
 
-<h2>Query</h2>
+<h2 id="query">Query</h2>
 <p>SQL, saved, against one data source. A query has an owner, can be scheduled, forked and published.</p>
 
-<h2>Query result</h2>
+<h2 id="query-result">Query result</h2>
 <p>What came back the last time a query ran, kept in SQLDesk's own database. Opening a dashboard shows
 the stored result rather than running the query again, which is why a dashboard opens quickly and why
 what it shows has an age on it.</p>
 
-<h2>Visualization</h2>
+<h2 id="visualization">Visualization</h2>
 <p>A way of drawing one query's result — a table, a line chart, a counter, a gauge. A query can have
 several, and they all draw the same rows. Changing the SQL changes all of them at once.</p>
 
-<h2>Dashboard and widget</h2>
+<h2 id="dashboard-and-widget">Dashboard and widget</h2>
 <p>A dashboard is a grid of <em>widgets</em>. A widget is either a visualization from some query, or a
 textbox. Two widgets showing the same query share one fetch, so a dashboard with five views of one query
 fetches its stored result once.</p>
 
-<h2>Parameter</h2>
+<h2 id="parameter">Parameter</h2>
 <p>A hole in the SQL, written <code>{{ region }}</code>. The value is substituted before the query runs, so
 the warehouse does different work. Parameters can be text, numbers, dates, or a list of allowed values.</p>
 
-<h2>Filter</h2>
+<h2 id="filter">Filter</h2>
 <p>Not a parameter. A filter narrows rows <em>already fetched</em>, in the browser, by naming a column
 <code>something::filter</code> in the SELECT. Nothing is re-run. Use a parameter to change what the
 warehouse does; use a filter to slice what it already returned.</p>
 
-<h2>Group</h2>
+<h2 id="group">Group</h2>
 <p>How permission works. A user belongs to groups; a data source is available to groups, fully or
 view-only. Viewing and running is groups all the way down. Editing a query or dashboard can also be granted
 to named people, once an admin turns on <em>Enable experimental multiple owners support</em> under
 Settings &rarr; General.</p>
 
-<h2>Alert</h2>
+<h2 id="alert">Alert</h2>
 <p>A rule over one query's result — a column, a comparison, a value — and a list of destinations. It is
 checked after the query runs, not on a timer of its own, so an alert on an unscheduled query only fires
 when somebody runs it.</p>
 <div class="doc-next"><a class="btn btn-ghost" href="overview.html">&larr; Overview</a><a class="btn btn-primary" href="architecture.html">Architecture &rarr;</a></div>
   </main>
+  <nav class="doc-toc" aria-label="On this page">
+    <h4>On this page</h4>
+    <a href="#data-source">Data source</a>
+    <a href="#query">Query</a>
+    <a href="#query-result">Query result</a>
+    <a href="#visualization">Visualization</a>
+    <a href="#dashboard-and-widget">Dashboard and widget</a>
+    <a href="#parameter">Parameter</a>
+    <a href="#filter">Filter</a>
+    <a href="#group">Group</a>
+    <a href="#alert">Alert</a>
+  </nav>
 </div>
 
 <footer>
@@ -142,5 +160,6 @@ when somebody runs it.</p>
 </footer>
 
 <script src="../assets/theme.js" defer></script>
+<script src="../assets/search.js" defer></script>
 </body>
 </html>

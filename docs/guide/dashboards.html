@@ -21,6 +21,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/search.css">
 <script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
@@ -44,6 +45,11 @@
       <a href="../blog/index.html">Blog</a>
       <a href="../releases.html">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+      <button class="search-open" type="button" data-search-open aria-label="Search the docs">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="m10.4 10.4 3.4 3.4"/></svg>
+        <span class="search-open-label">Search</span><kbd class="search-key" data-search-key>/</kbd>
+      </button>
       <button class="theme-toggle" type="button" data-theme-toggle
               aria-label="Switch to dark mode" title="Switch to dark mode">
         <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -60,7 +66,7 @@
   </div>
 </header>
 
-<div class="wrap doc-layout">
+<div class="wrap doc-layout has-toc">
   <nav class="doc-nav" aria-label="Documentation">
       <h4>Start here</h4>
       <a href="overview.html">Overview</a>
@@ -87,12 +93,12 @@
 <p>A dashboard is a grid of widgets — visualizations from any number of queries, plus textboxes for the
 words that explain them.</p>
 
-<h2>Arranging</h2>
+<h2 id="arranging">Arranging</h2>
 <p>Press <strong>Edit</strong> to move and resize. The grid is twenty-four columns wide, so a widget can
 take a third of the width as easily as a half. <strong>Nothing is saved until you press Done Editing</strong>
 — moving a widget and navigating away changes nothing, deliberately.</p>
 
-<h2>Filters and parameters</h2>
+<h2 id="filters-and-parameters">Filters and parameters</h2>
 <p>Two different things that look alike on screen:</p>
 <dl>
   <dt>Dashboard-level parameters</dt>
@@ -257,12 +263,25 @@ stored, and kept encrypted with the same key as your data source credentials. If
 settings page says so &mdash; from here a revoked token looks exactly like a working one until something
 is sent.</p>
 
-<h2>On a wall</h2>
+<h2 id="on-a-wall">On a wall</h2>
 <p>A dashboard can be made <strong>live</strong>: the server refreshes it every 30 seconds to 5 minutes,
 once for everyone looking, and only while somebody has it open. <code>/wall/dashboards/&lt;token&gt;</code>
 gives a version with no chrome, for a screen nobody interacts with.</p>
 <div class="doc-next"><a class="btn btn-ghost" href="visualizations.html">&larr; Visualizations</a><a class="btn btn-primary" href="streams.html">Streams &rarr;</a></div>
   </main>
+  <nav class="doc-toc" aria-label="On this page">
+    <h4>On this page</h4>
+    <a href="#arranging">Arranging</a>
+    <a href="#filters-and-parameters">Filters and parameters</a>
+    <a href="#views">Several views on one panel</a>
+    <a href="#textboxes">Textboxes</a>
+    <a href="#folders">Folders</a>
+    <a href="#streaming">Streaming dashboards</a>
+    <a href="#sharing">Sharing</a>
+    <a href="#subscriptions">Sending it on a schedule</a>
+    <a href="#slack">Sending it to Slack</a>
+    <a href="#on-a-wall">On a wall</a>
+  </nav>
 </div>
 
 <footer>
@@ -275,5 +294,6 @@ gives a version with no chrome, for a screen nobody interacts with.</p>
 </footer>
 
 <script src="../assets/theme.js" defer></script>
+<script src="../assets/search.js" defer></script>
 </body>
 </html>

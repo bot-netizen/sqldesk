@@ -100,3 +100,97 @@ class TestTheDeploymentDefaults(unittest.TestCase):
                 at = at[key]
             self.assertFalse(at, "{} is no longer off by default".format(value))
             self.assertIn("<code>{}</code>".format(value), text)
+
+
+TOOLS = os.path.join(DOCS, "tools")
+
+
+def _tool(name):
+    """A module from docs/tools, which is not a package and is run as a script."""
+    import importlib.util
+    import sys
+
+    if TOOLS not in sys.path:
+        sys.path.insert(0, TOOLS)
+    spec = importlib.util.spec_from_file_location("site_" + name, os.path.join(TOOLS, name + ".py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class TestTheGuideCanBeJumpedInto(unittest.TestCase):
+    """
+    Search sends somebody to a section, and the list on the right of a guide
+    page links to its sections: both need every section to have an id, and the
+    pages to be the ones chrome.py writes.
+    """
+
+    def test_every_section_has_an_id(self):
+        chrome = _tool("chrome")
+        for filename, _title, _section in chrome.PAGES:
+            if filename.startswith("../"):
+                continue
+            body = page("guide/" + filename)
+            for heading in re.findall(r"<h2(?:\s[^>]*)?>", body):
+                self.assertIn(
+                    ' id="', heading, "a section of guide/{} has no id: run docs/tools/chrome.py".format(filename)
+                )
+
+    def test_the_pages_are_what_chrome_writes(self):
+        chrome = _tool("chrome")
+        for filename, _title, _section in chrome.PAGES:
+            if filename.startswith("../"):
+                continue
+            path = os.path.join(DOCS, "guide", filename)
+            expected = chrome.render(filename, chrome._description(path), chrome.anchor_headings(chrome._read(path)))
+            self.assertEqual(
+                expected, page("guide/" + filename), "guide/{} is stale: run docs/tools/chrome.py".format(filename)
+            )
+
+    def test_no_page_uses_an_id_twice(self):
+        for name in ["index.html", "releases.html"] + ["guide/" + f for f in os.listdir(os.path.join(DOCS, "guide"))]:
+            if not name.endswith(".html"):
+                continue
+            ids = re.findall(r'\sid="([^"]+)"', page(name))
+            repeated = sorted({i for i in ids if ids.count(i) > 1})
+            self.assertEqual([], repeated, "{} uses these ids more than once".format(name))
+
+    def test_every_link_the_application_makes_into_the_guide_lands(self):
+        """The help links in the app name sections by id; renaming one breaks them silently."""
+        root = os.path.dirname(DOCS)
+        found = set()
+        for folder in ("client/app", "sqldesk", "viz-lib/src"):
+            for directory, _dirs, files in os.walk(os.path.join(root, folder)):
+                for name in files:
+                    if name.endswith((".js", ".jsx", ".ts", ".tsx", ".py")):
+                        with open(os.path.join(directory, name), encoding="utf-8", errors="ignore") as f:
+                            found.update(re.findall(r"guide/([a-z-]+\.html)#([\w-]+)", f.read()))
+
+        self.assertTrue(found)
+        for filename, anchor in found:
+            self.assertIn(' id="{}"'.format(anchor), page("guide/" + filename), "guide/{}#{}".format(filename, anchor))
+
+
+class TestTheSearchIndex(unittest.TestCase):
+    def test_it_covers_every_guide_page_and_the_releases(self):
+        records = _tool("search").build()
+        chrome = _tool("chrome")
+        urls = {record["u"].split("#")[0] for record in records}
+        for filename, _title, _section in chrome.PAGES:
+            if not filename.startswith("../"):
+                self.assertIn("guide/" + filename, urls)
+        self.assertIn("releases.html", urls)
+
+    def test_every_result_lands_somewhere(self):
+        for record in _tool("search").build():
+            path, _, anchor = record["u"].partition("#")
+            self.assertTrue(os.path.exists(os.path.join(DOCS, path)), record["u"])
+            if anchor:
+                self.assertIn(' id="{}"'.format(anchor), page(path), record["u"])
+
+    def test_a_section_carries_its_own_words_and_not_the_next_ones(self):
+        records = _tool("search").build()
+        by_url = {record["u"]: record for record in records}
+        streams = by_url["guide/streams.html#received-at"]
+        self.assertIn("_received_at", streams["t"])
+        self.assertNotIn("Running, paused, cold", streams["t"])

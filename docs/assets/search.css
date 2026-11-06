@@ -1,0 +1,174 @@
+/*
+ * Search: the button in the bar and the box it opens.
+ *
+ * Its own file because the front page and the releases page carry their own
+ * inline styles rather than site.css. Everything here is written against the
+ * variables all three define, so it follows the theme switch without a rule
+ * of its own for dark.
+ */
+
+/* Shown only where search.js runs, like the theme switch. */
+.search-open {
+  display: none;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 8px 0 10px;
+  margin-left: 6px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font: 500 13px/1 var(--sans);
+  cursor: pointer;
+}
+.js .search-open {
+  display: inline-flex;
+}
+.search-open:hover {
+  color: var(--ink);
+  border-color: var(--accent-edge);
+}
+.search-open svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+}
+.search-key {
+  font: 500 11px/1 var(--mono);
+  color: var(--faint);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 3px 5px;
+  background: var(--sunken);
+}
+/* The bar wraps on a phone, and every pixel of it is a link somebody needs. */
+@media (max-width: 620px) {
+  .search-open {
+    margin-left: auto;
+    padding: 0 9px;
+  }
+  .search-open-label,
+  .search-key {
+    display: none;
+  }
+}
+
+.search-dialog {
+  width: min(640px, calc(100vw - 32px));
+  max-height: min(70vh, 640px);
+  margin: 12vh auto auto;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-card, 12px);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+.search-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.search-dialog::backdrop {
+  background: rgba(20, 18, 24, 0.45);
+}
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--rule-soft, var(--rule));
+}
+.search-box svg {
+  width: 18px;
+  height: 18px;
+  color: var(--faint);
+  flex: 0 0 auto;
+}
+.search-box input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: 400 17px/1.4 var(--sans);
+}
+.search-box input::-webkit-search-cancel-button {
+  display: none;
+}
+.search-close {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--sunken);
+  color: var(--muted);
+  font: 500 11px/1 var(--mono);
+  padding: 5px 7px;
+  cursor: pointer;
+}
+.search-status {
+  margin: 0;
+  padding: 10px 16px 4px;
+  font: 400 12.5px/1.4 var(--sans);
+  color: var(--faint);
+}
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 4px 8px 8px;
+  overflow-y: auto;
+  flex: 1;
+}
+.search-results a {
+  display: block;
+  padding: 9px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--ink);
+}
+.search-results a[aria-selected="true"],
+.search-results a:hover {
+  background: var(--accent-wash);
+}
+.search-where {
+  display: block;
+  font: 500 14px/1.35 var(--sans);
+}
+.search-snippet {
+  display: block;
+  margin-top: 3px;
+  font: 400 13px/1.5 var(--sans);
+  color: var(--muted);
+}
+.search-results mark {
+  background: none;
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+.search-help {
+  margin: 0;
+  padding: 9px 16px;
+  border-top: 1px solid var(--rule-soft, var(--rule));
+  font: 400 12px/1.4 var(--sans);
+  color: var(--faint);
+}
+.search-help kbd {
+  font: 500 11px/1 var(--mono);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 2px 5px;
+  margin-right: 2px;
+  background: var(--sunken);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .search-dialog[open] {
+    animation: search-in 0.14s ease-out;
+  }
+}
+@keyframes search-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
