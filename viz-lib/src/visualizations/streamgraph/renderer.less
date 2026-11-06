@@ -1,0 +1,15 @@
+/*
+  Sized by its box rather than by a number.
+
+  The older visualizations set a fixed height here and are pulled back to
+  their container by `.visualization-fills-its-box()` in the application's
+  stylesheet -- a list every new container would otherwise have to be added
+  to, in a file in the other package. Filling the box directly needs no
+  entry in that list and behaves the same in a widget, on the query page
+  and in a notebook cell.
+*/
+.streamgraph-visualization-container {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}

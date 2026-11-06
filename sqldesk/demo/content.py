@@ -31,6 +31,16 @@ group by 1
 order by 1""",
     ),
     (
+        "Revenue by day and channel",
+        "The mix over time rather than the total: what the streamgraph is for.",
+        """select ordered_at::date as day,
+       channel,
+       sum(total) as revenue
+from orders
+group by 1, 2
+order by 1, 2""",
+    ),
+    (
         "Revenue by region and channel",
         "The same money, cut two ways. Feeds the pivot and the heatmap.",
         """select p.country as region,
@@ -228,6 +238,12 @@ VISUALIZATIONS = [
     ("Signup funnel", "FUNNEL", "Signup funnel", {"stepCol": {"colName": "step"}, "valueCol": {"colName": "people"}}),
     ("Cohort retention", "COHORT", "Retention by signup week", {"timeInterval": "weekly"}),
     ("Channel to category to region", "SANKEY", "Channel to category to region", {}),
+    (
+        "Revenue by day and channel",
+        "STREAMGRAPH",
+        "How the channel mix moves",
+        {"xColumn": "day", "seriesColumn": "channel", "valueColumn": "revenue"},
+    ),
     ("Channel to category to region", "SUNBURST_SEQUENCE", "The same flow, as rings", {}),
     (
         "Revenue bridge",
@@ -296,6 +312,7 @@ HEIGHTS = {
     "RADAR": 16,
     "SANKEY": 14,
     "STATE_TIMELINE": 12,
+    "STREAMGRAPH": 16,
     "STATUS_GRID": 10,
     "SUNBURST_SEQUENCE": 14,
     "TABLE": 28,

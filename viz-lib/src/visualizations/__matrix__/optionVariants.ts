@@ -351,7 +351,14 @@ export const VARIANTS: Record<string, Variant[]> = {
   ],
 
   BOXPLOT: [{ name: "defaults", options: {} }],
-  SANKEY: [{ name: "defaults", options: {} }],
+  SANKEY: [
+    { name: "defaults", options: {} },
+    { name: "with each stage's value", options: { showNodeValues: true } },
+  ],
+  STREAMGRAPH: [
+    { name: "defaults", options: {} },
+    { name: "without a legend", options: { showLegend: false } },
+  ],
   SUNBURST_SEQUENCE: [{ name: "defaults", options: {} }],
   DETAILS: [{ name: "defaults", options: {} }],
   TABLE: [

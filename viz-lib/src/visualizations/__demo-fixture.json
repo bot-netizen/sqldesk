@@ -536,6 +536,30 @@
     ]
   },
   {
+    "type": "STREAMGRAPH",
+    "name": "How the channel mix moves",
+    "query": "Revenue by day and channel",
+    "options": {
+      "xColumn": "day",
+      "seriesColumn": "channel",
+      "valueColumn": "revenue"
+    },
+    "columns": [
+      {
+        "name": "day",
+        "type": "date"
+      },
+      {
+        "name": "channel",
+        "type": "string"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      }
+    ]
+  },
+  {
     "type": "SUNBURST_SEQUENCE",
     "name": "The same flow, as rings",
     "query": "Channel to category to region",

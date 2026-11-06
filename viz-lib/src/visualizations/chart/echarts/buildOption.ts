@@ -549,13 +549,22 @@ function buildPieSeries(chartData: any[], options: any, legendWidthShare = 0) {
   // angles are. Every slice needs a floor to stand on, so the inner radius is
   // not zero.
   const rose = options.pieStyle === "rose";
+  // A donut is a pie with the middle taken out: same angles, same data, and
+  // room in the centre for the total. 60% of the outer radius is the usual
+  // proportion -- tighter reads as a pie somebody damaged, wider leaves a
+  // ring too thin to compare slices in.
+  const donut = options.pieStyle === "donut";
   const outer = chartData.length > 1 ? 55 : 65;
   return map(chartData, (series, seriesIndex) => ({
     id: seriesId(series.name),
     name: series.name,
     type: "pie",
     ...(rose ? { roseType: "area" } : {}),
-    radius: rose ? [`${Math.round(outer * 0.25)}%`, `${outer}%`] : `${outer}%`,
+    radius: rose
+      ? [`${Math.round(outer * 0.25)}%`, `${outer}%`]
+      : donut
+        ? [`${Math.round(outer * 0.6)}%`, `${outer}%`]
+        : `${outer}%`,
     center: chartData.length > 1 ? [`${((seriesIndex % 2) + 0.5) * (span / 2)}%`, "50%"] : [`${span / 2}%`, "50%"],
     data: map(series.data, (point: any, index: number) => ({
       name: String(point.x),
