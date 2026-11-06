@@ -644,6 +644,7 @@ function QuerySource(props) {
                 queryResult={queryResult}
                 selectedVisualization={selectedVisualization}
                 isQueryExecuting={isQueryExecuting}
+                isStream={isStream}
                 executionStatus={executionStatus}
                 executionStartedAt={updatedAt}
                 isCancelling={isExecutionCancelling}

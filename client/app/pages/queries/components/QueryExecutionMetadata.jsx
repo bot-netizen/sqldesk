@@ -31,7 +31,15 @@ export default function QueryExecutionMetadata({
   showEditVisualizationButton,
   onEditVisualization,
   extraActions,
+  isStream,
 }) {
+  // A stream query re-runs every couple of seconds for as long as somebody
+  // watches, so it is nearly always "executing" -- and this corner said "Query
+  // in queue" with a timer counting up from Start streaming, about a query
+  // that had answered seconds before and never goes near a queue. The strip
+  // at the top of the page already says what the stream is doing; here a
+  // stream reads like a finished result that keeps being replaced.
+  const showRun = isQueryExecuting && !isStream;
   const queryResultData = useQueryResultData(queryResult);
   const openAddToDashboardDialog = useAddToDashboardDialog(query);
   const openEmbedDialog = useEmbedDialog(query);
@@ -70,16 +78,20 @@ export default function QueryExecutionMetadata({
           )}
           <strong>{queryResultData.rows.length}</strong> {pluralize("row", queryResultData.rows.length)}
         </span>
-        <span className="m-l-5">
-          {!isQueryExecuting && (
-            <React.Fragment>
-              <strong>{durationHumanize(queryResultData.runtime)}</strong>
-              <span className="hidden-xs"> runtime</span>
-            </React.Fragment>
-          )}
-          {isQueryExecuting && <span>Running&hellip;</span>}
-        </span>
-        {!isUndefined(queryResultData.metadata.data_scanned) && !isQueryExecuting && (
+        {/* A window is read in milliseconds and every reading replaces the
+            last, so a runtime would only ever say "0 seconds". */}
+        {!isStream && (
+          <span className="m-l-5">
+            {!showRun && (
+              <React.Fragment>
+                <strong>{durationHumanize(queryResultData.runtime)}</strong>
+                <span className="hidden-xs"> runtime</span>
+              </React.Fragment>
+            )}
+            {showRun && <span>Running&hellip;</span>}
+          </span>
+        )}
+        {!isUndefined(queryResultData.metadata.data_scanned) && !showRun && (
           <span className="m-l-5">
             Data Scanned <strong>{prettySize(queryResultData.metadata.data_scanned)}</strong>
           </span>
@@ -92,7 +104,7 @@ export default function QueryExecutionMetadata({
           during a run that is exactly the question being answered. */}
       <div>
         <span className="m-r-10">
-          {isQueryExecuting ? (
+          {showRun ? (
             <React.Fragment>
               <strong data-test="QueryExecutionStatus">{executionStatusMessage(executionStatus, isCancelling)}</strong>
               {executionStartedAt && (
@@ -132,6 +144,7 @@ QueryExecutionMetadata.propTypes = {
   showEditVisualizationButton: PropTypes.bool,
   onEditVisualization: PropTypes.func,
   extraActions: PropTypes.node,
+  isStream: PropTypes.bool,
 };
 
 QueryExecutionMetadata.defaultProps = {
@@ -144,4 +157,5 @@ QueryExecutionMetadata.defaultProps = {
   showEditVisualizationButton: false,
   onEditVisualization: () => {},
   extraActions: null,
+  isStream: false,
 };
