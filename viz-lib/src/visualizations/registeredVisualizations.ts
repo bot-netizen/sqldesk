@@ -13,6 +13,7 @@ import funnelVisualization from "./funnel";
 import gaugeVisualization from "./gauge";
 import histogramVisualization from "./histogram";
 import mapVisualization from "./map";
+import networkVisualization from "./network";
 import pivotVisualization from "./pivot";
 import progressVisualization from "./progress";
 import radarVisualization from "./radar";
@@ -112,6 +113,7 @@ each(
     gaugeVisualization,
     histogramVisualization,
     mapVisualization,
+    networkVisualization,
     pivotVisualization,
     progressVisualization,
     radarVisualization,

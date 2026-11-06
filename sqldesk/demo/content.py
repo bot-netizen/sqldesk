@@ -31,6 +31,18 @@ group by 1
 order by 1""",
     ),
     (
+        "Who sells to whom",
+        "Region to region trade, as a plain relationship rather than a flow.",
+        """select p.country as region,
+       o.channel as partner,
+       sum(o.total) as revenue
+from orders o
+join customers c on c.customer_id = o.customer_id
+join places p on p.country_code = c.country_code
+group by 1, 2
+order by 3 desc""",
+    ),
+    (
         "Order sizes, day by day",
         "The spread of a day's orders, not just its total: what a candlestick needs.",
         """select ordered_at::date as day,
@@ -251,6 +263,12 @@ VISUALIZATIONS = [
     ("Cohort retention", "COHORT", "Retention by signup week", {"timeInterval": "weekly"}),
     ("Channel to category to region", "SANKEY", "Channel to category to region", {}),
     (
+        "Who sells to whom",
+        "NETWORK",
+        "Regions and channels, connected",
+        {"sourceColumn": "region", "targetColumn": "partner", "valueColumn": "revenue"},
+    ),
+    (
         "Order sizes, day by day",
         "CANDLESTICK",
         "How order sizes moved",
@@ -332,6 +350,7 @@ HEIGHTS = {
     "GAUGE": 12,
     "HISTOGRAM": 16,
     "MAP": 16,
+    "NETWORK": 18,
     "PIVOT": 20,
     "PROGRESS": 12,
     "RADAR": 16,

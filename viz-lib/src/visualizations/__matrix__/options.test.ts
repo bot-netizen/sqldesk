@@ -19,7 +19,7 @@ describe("every visualization's options", () => {
   test("the matrix covers every registered visualization", () => {
     // A new visualization with no variants listed would otherwise be tested
     // by nothing at all and nobody would notice.
-    expect(types.length).toBe(24);
+    expect(types.length).toBe(25);
     types.forEach((type) => expect(VARIANTS[type]).toBeDefined());
   });
 

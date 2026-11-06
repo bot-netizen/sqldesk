@@ -536,6 +536,30 @@
     ]
   },
   {
+    "type": "NETWORK",
+    "name": "Regions and channels, connected",
+    "query": "Who sells to whom",
+    "options": {
+      "sourceColumn": "region",
+      "targetColumn": "partner",
+      "valueColumn": "revenue"
+    },
+    "columns": [
+      {
+        "name": "region",
+        "type": "string"
+      },
+      {
+        "name": "partner",
+        "type": "string"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      }
+    ]
+  },
+  {
     "type": "CANDLESTICK",
     "name": "How order sizes moved",
     "query": "Order sizes, day by day",
