@@ -1,4 +1,4 @@
-import buildSingleImagePdf, { fitToPage } from "./singleImagePdf";
+import buildSingleImagePdf, { buildImagePdf, fitToPage, A4_PORTRAIT } from "./singleImagePdf";
 
 // A byte sequence standing in for JPEG data, including bytes that would break
 // a string-based assembler (nulls, high bytes, and a literal "endstream").
@@ -85,5 +85,54 @@ describe("buildSingleImagePdf", () => {
       title: "Q3 (final) \\ draft",
     });
     expect(asLatin1(withParens)).toContain("(Q3 \\(final\\) \\\\ draft)");
+  });
+});
+
+
+/*
+  Many pages, which is what a notebook is.
+
+  The thing worth testing is the cross-reference table: a PDF whose object
+  offsets are wrong opens to nothing with no error at all, and with three
+  objects per page there is a lot more arithmetic to get wrong than there was
+  for one sheet.
+*/
+describe("buildImagePdf over several pages", () => {
+  const three = buildImagePdf({
+    pages: [
+      { jpegBytes: fakeJpeg, imageWidth: 1200, imageHeight: 1700 },
+      { jpegBytes: fakeJpeg, imageWidth: 1200, imageHeight: 1700 },
+      { jpegBytes: fakeJpeg, imageWidth: 1200, imageHeight: 400 },
+    ],
+    title: "Quarter",
+    page: A4_PORTRAIT,
+    align: "top",
+  });
+  const text = asLatin1(three);
+
+  test("declares one page object per page", () => {
+    expect(text).toContain("/Type /Pages /Kids [3 0 R 6 0 R 9 0 R] /Count 3");
+    expect((text.match(/\/Type \/Page[^s]/g) || []).length).toBe(3);
+  });
+
+  test("every object offset in the xref lands on that object", () => {
+    const startxref = parseInt(text.slice(text.lastIndexOf("startxref") + 9), 10);
+    const entries = text.slice(startxref).match(/^(\d{10}) 00000 n $/gm);
+    // Catalog, page tree, three objects per page, info.
+    expect(entries).toHaveLength(2 + 3 * 3 + 1);
+    entries.forEach((entry, i) => {
+      const offset = parseInt(entry.slice(0, 10), 10);
+      expect(text.slice(offset, offset + `${i + 1} 0 obj`.length)).toBe(`${i + 1} 0 obj`);
+    });
+  });
+
+  test("the last short page sits at the top of its sheet, not floating mid-paper", () => {
+    const box = fitToPage(1200, 400, A4_PORTRAIT, "top");
+    expect(box.offsetY).toBeGreaterThan(0);
+    expect(box.offsetY + box.height).toBeCloseTo(A4_PORTRAIT.height, 5);
+  });
+
+  test("refuses to write a PDF with no pages at all", () => {
+    expect(() => buildImagePdf({ pages: [], title: "Empty" })).toThrow(/at least one page/);
   });
 });

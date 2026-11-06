@@ -1,6 +1,6 @@
 import { getFontEmbedCSS, toSvg } from "html-to-image";
 import { revealAllCharts } from "@sqldesk/viz/lib/services/offscreen";
-import buildSingleImagePdf, { A4_LANDSCAPE } from "./singleImagePdf";
+import buildSingleImagePdf, { buildImagePdf, A4_LANDSCAPE, A4_PORTRAIT } from "./singleImagePdf";
 import composeExportCanvas, { PAGE_FURNITURE } from "./compose";
 import { capitalizeFirst, formatDateTime } from "@/lib/utils";
 import { currentUser } from "@/services/auth";
@@ -437,7 +437,23 @@ function drawGap(context, x, y, width, height, scale) {
   cannot be drawn becomes a labelled gap instead of the reason there is no
   file at all.
 */
-async function captureGrid(container, { scale, background }) {
+/*
+  What counts as a tile, per page.
+
+  The capture draws tiles rather than the whole container in one go, so a
+  widget that will not render is a labelled gap instead of a blank export,
+  and twelve of them inline their images at once rather than in turn.
+
+  It has to be told what a tile is. A dashboard's are grid items; a
+  notebook's are cells -- and a notebook asked with the dashboard's selector
+  matched nothing at all, so nothing was drawn and both exports came out as
+  an empty page. There was no error: an empty list of tiles is exactly what
+  an empty dashboard looks like.
+*/
+export const DASHBOARD_TILES = ".react-grid-item";
+export const NOTEBOOK_TILES = ".notebook-cell";
+
+async function captureGrid(container, { scale, background, tiles = DASHBOARD_TILES }) {
   const box = container.getBoundingClientRect();
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(container.scrollWidth * scale);
@@ -451,7 +467,7 @@ async function captureGrid(container, { scale, background }) {
   // five copies of each.
   const fontEmbedCSS = await getFontEmbedCSS(container, { preferredFontFormat: "woff2" });
 
-  const items = Array.from(container.querySelectorAll(".react-grid-item"));
+  const items = Array.from(container.querySelectorAll(tiles));
   let failedWidgets = 0;
 
   // All at once rather than in turn: copying styles is work on this thread,
@@ -505,7 +521,7 @@ async function captureGrid(container, { scale, background }) {
 
 // Capture once, then lay it onto the branded page. Both exports share this
 // so a PDF and an image of the same dashboard are the same artefact.
-async function capturePage(element, { title, owner, format }) {
+async function capturePage(element, { title, owner, format, tiles = DASHBOARD_TILES }) {
   // Before anything is drawn: the answer for a dashboard that is too big
   // should be immediate, not the end of a wait.
   checkSize(element, format);
@@ -518,7 +534,7 @@ async function capturePage(element, { title, owner, format }) {
 
   let grid;
   try {
-    grid = await captureGrid(element, { scale, background: surfaceColor() });
+    grid = await captureGrid(element, { scale, background: surfaceColor(), tiles });
   } catch (error) {
     throw asError(error, "The dashboard could not be captured.");
   }
@@ -537,7 +553,7 @@ async function capturePage(element, { title, owner, format }) {
     5000,
     "Composing the page"
   );
-  return { canvas, skippedImages, failedWidgets: grid.failedWidgets };
+  return { canvas, scale, skippedImages, failedWidgets: grid.failedWidgets };
 }
 
 /*
@@ -545,8 +561,8 @@ async function capturePage(element, { title, owner, format }) {
   and what is missing from it, so the caller can say so rather than hand over
   a map with no map on it and no explanation.
 */
-export async function renderDashboardToPng(element, { title, owner } = {}) {
-  const { canvas, skippedImages, failedWidgets } = await capturePage(element, { title, owner, format: PNG });
+export async function renderDashboardToPng(element, { title, owner, tiles } = {}) {
+  const { canvas, skippedImages, failedWidgets } = await capturePage(element, { title, owner, format: PNG, tiles });
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
   return { blob, skippedImages, failedWidgets };
 }
@@ -577,6 +593,106 @@ export async function renderDashboardToPdf(element, { title, owner } = {}) {
     title,
   });
   return { blob: new Blob([pdf], { type: "application/pdf" }), skippedImages, failedWidgets };
+}
+
+/*
+  Where to cut a tall capture into pages, in canvas pixels.
+
+  A notebook is a document, so it gets as many pages as it needs -- but a
+  document whose pages are cut every 842 points is a sliced screenshot: the
+  break lands halfway down a table, or through the middle of a chart, and the
+  reader has to carry the top half of a row to the next sheet. `breaks` are
+  the places a cut would be invisible, which for a notebook is the bottom of
+  each cell.
+
+  Each page takes the lowest break that still fits on it, so pages are as
+  full as they can be without splitting anything. A cell taller than a page
+  has no good cut, so it is cut at the page edge -- there is nothing else to
+  do with it, and refusing to export is worse.
+*/
+export function pageCuts({ height, pageHeight, breaks = [] }) {
+  if (!(pageHeight > 0)) {
+    return [height];
+  }
+  const usable = breaks.filter((one) => one > 0 && one < height).sort((a, b) => a - b);
+  const cuts = [];
+  let start = 0;
+
+  while (height - start > pageHeight) {
+    // Bound per iteration so the filter closes over this page's window
+    // rather than over a variable the loop is still moving.
+    const from = start;
+    const limit = from + pageHeight;
+    const fits = usable.filter((one) => one > from && one <= limit);
+    // `limit` when nothing fits, which is a cell taller than the page.
+    const cut = fits.length ? fits[fits.length - 1] : limit;
+    cuts.push(cut);
+    start = cut;
+  }
+  cuts.push(height);
+  return cuts;
+}
+
+function sliceOf(source, top, bottom) {
+  const slice = document.createElement("canvas");
+  slice.width = source.width;
+  slice.height = Math.max(1, Math.round(bottom - top));
+  const ctx = slice.getContext("2d");
+  // White first: a JPEG has no alpha, so the untouched parts of a short last
+  // page would encode as black.
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, slice.width, slice.height);
+  ctx.drawImage(source, 0, Math.round(top), source.width, slice.height, 0, 0, source.width, slice.height);
+  return slice;
+}
+
+/*
+  The whole page as a document, over as many sheets as it takes.
+
+  No one-page rule here, and that is the difference from `renderDashboardToPdf`:
+  a dashboard PDF is a one-page report, and a notebook is a study somebody
+  wants to print and read. The only ceiling left is the one the browser puts
+  on a canvas, which `captureScale` answers by drawing smaller rather than
+  refusing -- so this is asked with the picture's size rule, not the report's.
+
+  Portrait, because a notebook is read down the page.
+*/
+export async function renderPagedPdf(element, { title, owner, breaks = [] } = {}) {
+  let captured;
+  try {
+    captured = await capturePage(element, { title, owner, format: PNG, tiles: NOTEBOOK_TILES });
+  } catch (error) {
+    if (error instanceof TooBigToExport) {
+      // The ceiling that is left is the browser's canvas, and the picture's
+      // wording for it talks about dashboards and images -- neither of which
+      // is what somebody printing a notebook asked for.
+      throw new TooBigToExport(
+        "This notebook is longer than the browser can draw in one go. Fold the cells you do not need " +
+          "printed, or split the study across two notebooks."
+      );
+    }
+    throw error;
+  }
+  const { canvas, scale, skippedImages, failedWidgets } = captured;
+  // The capture sits below the header and inside the margins, so a cut taken
+  // from the element's own coordinates has to be moved down by both.
+  const top = PAGE_FURNITURE.top * scale;
+  const pageHeight = canvas.width * (A4_PORTRAIT.height / A4_PORTRAIT.width);
+  const cuts = pageCuts({
+    height: canvas.height,
+    pageHeight,
+    breaks: breaks.map((one) => top + one * scale),
+  });
+
+  const pages = [];
+  for (let at = 0, start = 0; at < cuts.length; at += 1) {
+    const slice = sliceOf(canvas, start, cuts[at]);
+    pages.push({ jpegBytes: jpegBytesOf(slice), imageWidth: slice.width, imageHeight: slice.height });
+    start = cuts[at];
+  }
+
+  const pdf = buildImagePdf({ pages, title, page: A4_PORTRAIT, align: "top", kind: "Notebook" });
+  return { blob: new Blob([pdf], { type: "application/pdf" }), skippedImages, failedWidgets, pages: pages.length };
 }
 
 export function downloadBlob(blob, filename) {

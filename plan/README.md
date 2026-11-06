@@ -20,8 +20,9 @@ belongs here, where a rename cannot reach it.
 | [agent-context.md](agent-context.md) | What an agent is actually given over MCP, measured in tokens, and what to cut |
 | [0.7.7-verification.md](0.7.7-verification.md) | What was exercised on the running install before it went out, and what it answered |
 | [0.7.8-plan.md](0.7.8-plan.md) | 0.7.8 Second Look: twelve reports from using 0.7.7, and the three that were nothing |
-| [0.7.10-plan.md](0.7.10-plan.md) | What is next: alerts over MCP, so an agent can debug one |
-| [0.8-plan.md](0.8-plan.md) | The release after: notebooks, and knowing what a query costs |
+| [0.7.10-plan.md](0.7.10-plan.md) | 0.7.10 Prism: panels, widget views, the roll-up, and alerts over MCP |
+| [0.8-plan.md](0.8-plan.md) | The next release: notebooks, query pools, and knowing what a query costs |
+| [0.8-notebooks.md](0.8-notebooks.md) | Notebooks: why they exist, where user code is allowed to run, and the decisions still open |
 | [open-questions.md](open-questions.md) | What is waiting on Iqbal |
 
 ## Keeping it true

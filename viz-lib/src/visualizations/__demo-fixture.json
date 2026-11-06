@@ -1,0 +1,876 @@
+[
+  {
+    "type": "CHART",
+    "name": "Revenue, daily",
+    "query": "Revenue by day",
+    "options": {
+      "globalSeriesType": "line",
+      "columnMapping": {
+        "day": "x",
+        "revenue": "y"
+      }
+    },
+    "columns": [
+      {
+        "name": "day",
+        "type": "date"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      },
+      {
+        "name": "units",
+        "type": "integer"
+      }
+    ]
+  },
+  {
+    "type": "CHART",
+    "name": "Orders, daily",
+    "query": "Revenue by day",
+    "options": {
+      "globalSeriesType": "column",
+      "columnMapping": {
+        "day": "x",
+        "orders": "y"
+      }
+    },
+    "columns": [
+      {
+        "name": "day",
+        "type": "date"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      },
+      {
+        "name": "units",
+        "type": "integer"
+      }
+    ]
+  },
+  {
+    "type": "CHART",
+    "name": "Units, daily",
+    "query": "Revenue by day",
+    "options": {
+      "globalSeriesType": "area",
+      "columnMapping": {
+        "day": "x",
+        "units": "y"
+      }
+    },
+    "columns": [
+      {
+        "name": "day",
+        "type": "date"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      },
+      {
+        "name": "units",
+        "type": "integer"
+      }
+    ]
+  },
+  {
+    "type": "CHART",
+    "name": "Share by category",
+    "query": "Revenue by category",
+    "options": {
+      "globalSeriesType": "pie",
+      "columnMapping": {
+        "category": "x",
+        "revenue": "y"
+      }
+    },
+    "columns": [
+      {
+        "name": "category",
+        "type": "string"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      }
+    ]
+  },
+  {
+    "type": "CALENDAR_HEATMAP",
+    "name": "Orders per day",
+    "query": "Revenue by day",
+    "options": {
+      "dateColumn": "day",
+      "valueColumn": "orders"
+    },
+    "columns": [
+      {
+        "name": "day",
+        "type": "date"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      },
+      {
+        "name": "units",
+        "type": "integer"
+      }
+    ]
+  },
+  {
+    "type": "PIVOT",
+    "name": "Region against channel",
+    "query": "Revenue by region and channel",
+    "options": {},
+    "columns": [
+      {
+        "name": "region",
+        "type": "string"
+      },
+      {
+        "name": "channel",
+        "type": "string"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      }
+    ]
+  },
+  {
+    "type": "TREEMAP",
+    "name": "Where the money is",
+    "query": "Revenue by category",
+    "options": {},
+    "columns": [
+      {
+        "name": "category",
+        "type": "string"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      }
+    ]
+  },
+  {
+    "type": "TREE",
+    "name": "Region and channel, as a tree",
+    "query": "Revenue by region and channel",
+    "options": {
+      "pathColumns": [
+        "region",
+        "channel"
+      ],
+      "valueColumn": "revenue",
+      "layout": "horizontal"
+    },
+    "columns": [
+      {
+        "name": "region",
+        "type": "string"
+      },
+      {
+        "name": "channel",
+        "type": "string"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      }
+    ]
+  },
+  {
+    "type": "WORD_CLOUD",
+    "name": "Categories by weight",
+    "query": "Revenue by category",
+    "options": {
+      "column": "category",
+      "frequenciesColumn": "revenue"
+    },
+    "columns": [
+      {
+        "name": "category",
+        "type": "string"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      }
+    ]
+  },
+  {
+    "type": "COUNTER",
+    "name": "Revenue this quarter",
+    "query": "This quarter at a glance",
+    "options": {
+      "counterColName": "revenue",
+      "stringDecimal": 0,
+      "stringDecChar": ".",
+      "stringThouSep": ","
+    },
+    "columns": [
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      },
+      {
+        "name": "customers",
+        "type": "integer"
+      },
+      {
+        "name": "average_order",
+        "type": "float"
+      },
+      {
+        "name": "share_of_target",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "GAUGE",
+    "name": "Against target",
+    "query": "This quarter at a glance",
+    "options": {
+      "valueColumn": "share_of_target",
+      "min": 0,
+      "max": 120
+    },
+    "columns": [
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      },
+      {
+        "name": "customers",
+        "type": "integer"
+      },
+      {
+        "name": "average_order",
+        "type": "float"
+      },
+      {
+        "name": "share_of_target",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "PROGRESS",
+    "name": "Target attainment",
+    "query": "This quarter at a glance",
+    "options": {
+      "valueColumn": "share_of_target",
+      "target": 100
+    },
+    "columns": [
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      },
+      {
+        "name": "customers",
+        "type": "integer"
+      },
+      {
+        "name": "average_order",
+        "type": "float"
+      },
+      {
+        "name": "share_of_target",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "TABLE",
+    "name": "Recent orders",
+    "query": "Recent orders",
+    "options": {},
+    "columns": [
+      {
+        "name": "order_id",
+        "type": "integer"
+      },
+      {
+        "name": "ordered_at",
+        "type": "datetime"
+      },
+      {
+        "name": "customer",
+        "type": "string"
+      },
+      {
+        "name": "channel",
+        "type": "string"
+      },
+      {
+        "name": "category",
+        "type": "string"
+      },
+      {
+        "name": "units",
+        "type": "integer"
+      },
+      {
+        "name": "total",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "CHART",
+    "name": "Those orders, plotted",
+    "query": "Recent orders",
+    "options": {
+      "globalSeriesType": "scatter",
+      "columnMapping": {
+        "ordered_at": "x",
+        "total": "y"
+      }
+    },
+    "columns": [
+      {
+        "name": "order_id",
+        "type": "integer"
+      },
+      {
+        "name": "ordered_at",
+        "type": "datetime"
+      },
+      {
+        "name": "customer",
+        "type": "string"
+      },
+      {
+        "name": "channel",
+        "type": "string"
+      },
+      {
+        "name": "category",
+        "type": "string"
+      },
+      {
+        "name": "units",
+        "type": "integer"
+      },
+      {
+        "name": "total",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "DETAILS",
+    "name": "One order, in full",
+    "query": "Recent orders",
+    "options": {},
+    "columns": [
+      {
+        "name": "order_id",
+        "type": "integer"
+      },
+      {
+        "name": "ordered_at",
+        "type": "datetime"
+      },
+      {
+        "name": "customer",
+        "type": "string"
+      },
+      {
+        "name": "channel",
+        "type": "string"
+      },
+      {
+        "name": "category",
+        "type": "string"
+      },
+      {
+        "name": "units",
+        "type": "integer"
+      },
+      {
+        "name": "total",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "BOXPLOT",
+    "name": "Order totals by region",
+    "query": "Order totals",
+    "options": {},
+    "columns": [
+      {
+        "name": "region",
+        "type": "string"
+      },
+      {
+        "name": "category",
+        "type": "string"
+      },
+      {
+        "name": "total",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "HISTOGRAM",
+    "name": "How big is an order?",
+    "query": "Order totals",
+    "options": {
+      "valueColumn": "total",
+      "binCount": 30
+    },
+    "columns": [
+      {
+        "name": "region",
+        "type": "string"
+      },
+      {
+        "name": "category",
+        "type": "string"
+      },
+      {
+        "name": "total",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "FUNNEL",
+    "name": "Signup funnel",
+    "query": "Signup funnel",
+    "options": {
+      "stepCol": {
+        "colName": "step"
+      },
+      "valueCol": {
+        "colName": "people"
+      }
+    },
+    "columns": [
+      {
+        "name": "step",
+        "type": "string"
+      },
+      {
+        "name": "people",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "COHORT",
+    "name": "Retention by signup week",
+    "query": "Cohort retention",
+    "options": {
+      "timeInterval": "weekly"
+    },
+    "columns": [
+      {
+        "name": "cohort_date",
+        "type": "date"
+      },
+      {
+        "name": "week_number",
+        "type": "integer"
+      },
+      {
+        "name": "value",
+        "type": "integer"
+      },
+      {
+        "name": "total",
+        "type": "integer"
+      }
+    ]
+  },
+  {
+    "type": "SANKEY",
+    "name": "Channel to category to region",
+    "query": "Channel to category to region",
+    "options": {},
+    "columns": [
+      {
+        "name": "stage1",
+        "type": "string"
+      },
+      {
+        "name": "stage2",
+        "type": "string"
+      },
+      {
+        "name": "stage3",
+        "type": "string"
+      },
+      {
+        "name": "value",
+        "type": "integer"
+      }
+    ]
+  },
+  {
+    "type": "PARALLEL",
+    "name": "Which region is unlike the others",
+    "query": "Every region, measured four ways",
+    "options": {
+      "dimensionColumns": [
+        "revenue",
+        "orders",
+        "units",
+        "avg_order"
+      ],
+      "seriesColumn": "region"
+    },
+    "columns": [
+      {
+        "name": "region",
+        "type": "string"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      },
+      {
+        "name": "units",
+        "type": "integer"
+      },
+      {
+        "name": "avg_order",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "NETWORK",
+    "name": "Regions and channels, connected",
+    "query": "Who sells to whom",
+    "options": {
+      "sourceColumn": "region",
+      "targetColumn": "partner",
+      "valueColumn": "revenue"
+    },
+    "columns": [
+      {
+        "name": "region",
+        "type": "string"
+      },
+      {
+        "name": "partner",
+        "type": "string"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "CANDLESTICK",
+    "name": "How order sizes moved",
+    "query": "Order sizes, day by day",
+    "options": {
+      "xColumn": "day",
+      "openColumn": "open",
+      "closeColumn": "close",
+      "lowColumn": "low",
+      "highColumn": "high"
+    },
+    "columns": [
+      {
+        "name": "day",
+        "type": "date"
+      },
+      {
+        "name": "open",
+        "type": "float"
+      },
+      {
+        "name": "close",
+        "type": "float"
+      },
+      {
+        "name": "low",
+        "type": "float"
+      },
+      {
+        "name": "high",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "STREAMGRAPH",
+    "name": "How the channel mix moves",
+    "query": "Revenue by day and channel",
+    "options": {
+      "xColumn": "day",
+      "seriesColumn": "channel",
+      "valueColumn": "revenue"
+    },
+    "columns": [
+      {
+        "name": "day",
+        "type": "date"
+      },
+      {
+        "name": "channel",
+        "type": "string"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "SUNBURST_SEQUENCE",
+    "name": "The same flow, as rings",
+    "query": "Channel to category to region",
+    "options": {},
+    "columns": [
+      {
+        "name": "stage1",
+        "type": "string"
+      },
+      {
+        "name": "stage2",
+        "type": "string"
+      },
+      {
+        "name": "stage3",
+        "type": "string"
+      },
+      {
+        "name": "value",
+        "type": "integer"
+      }
+    ]
+  },
+  {
+    "type": "WATERFALL",
+    "name": "Revenue bridge",
+    "query": "Revenue bridge",
+    "options": {
+      "labelColumn": "step",
+      "valueColumn": "change",
+      "totalColumn": "is_total"
+    },
+    "columns": [
+      {
+        "name": "step",
+        "type": "string"
+      },
+      {
+        "name": "change",
+        "type": "integer"
+      },
+      {
+        "name": "is_total",
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "type": "CHOROPLETH",
+    "name": "Revenue by country",
+    "query": "Revenue by country",
+    "options": {
+      "mapType": "countries",
+      "keyColumn": "country_code",
+      "targetField": "iso_a3",
+      "valueColumn": "revenue"
+    },
+    "columns": [
+      {
+        "name": "country_code",
+        "type": "string"
+      },
+      {
+        "name": "country",
+        "type": "string"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "MAP",
+    "name": "Where the customers are",
+    "query": "Cities",
+    "options": {
+      "latColName": "latitude",
+      "lonColName": "longitude",
+      "classify": "country"
+    },
+    "columns": [
+      {
+        "name": "city",
+        "type": "string"
+      },
+      {
+        "name": "country",
+        "type": "string"
+      },
+      {
+        "name": "latitude",
+        "type": "float"
+      },
+      {
+        "name": "longitude",
+        "type": "float"
+      },
+      {
+        "name": "revenue",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "STATUS_GRID",
+    "name": "Services right now",
+    "query": "Service health today",
+    "options": {
+      "nameColumn": "service",
+      "statusColumn": "status",
+      "valueColumn": "uptime"
+    },
+    "columns": [
+      {
+        "name": "service",
+        "type": "string"
+      },
+      {
+        "name": "status",
+        "type": "string"
+      },
+      {
+        "name": "uptime",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "type": "STATE_TIMELINE",
+    "name": "A month of service health",
+    "query": "Service health over a month",
+    "options": {
+      "laneColumn": "service",
+      "startColumn": "day",
+      "stateColumn": "status"
+    },
+    "columns": [
+      {
+        "name": "service",
+        "type": "string"
+      },
+      {
+        "name": "day",
+        "type": "date"
+      },
+      {
+        "name": "status",
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "type": "RADAR",
+    "name": "Regions compared",
+    "query": "Region scorecard",
+    "options": {
+      "labelColumn": "region",
+      "valueColumns": [
+        "revenue_k",
+        "orders",
+        "average_order",
+        "customers"
+      ]
+    },
+    "columns": [
+      {
+        "name": "region",
+        "type": "string"
+      },
+      {
+        "name": "revenue_k",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      },
+      {
+        "name": "average_order",
+        "type": "float"
+      },
+      {
+        "name": "customers",
+        "type": "integer"
+      }
+    ]
+  }
+]

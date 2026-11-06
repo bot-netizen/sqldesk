@@ -1,8 +1,18 @@
+/*
+    A height of its own, for everywhere that does not give it one.
+
+    `height: 100%` against a parent whose own height is indefinite -- the
+    editor's preview `.scrollbox` -- resolves to nothing, and an ECharts
+    container has no content to fall back on, so the preview pane was
+    blank. The widget and the query page pin this to their box through
+    `.visualization-fills-its-box()`, which overrides the number; the
+    number is what everywhere else uses.
+  */
 .treemap-visualization-container {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 100%;
+  height: 400px;
 }
 
 .treemap-visualization-chart {

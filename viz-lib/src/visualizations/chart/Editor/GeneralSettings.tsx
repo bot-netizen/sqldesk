@@ -237,6 +237,9 @@ export default function GeneralSettings({ options, data, onOptionsChange }: any)
             <Select.Option value="pie" data-test="Chart.PieStyle.Pie">
               Pie: the angle carries the value
             </Select.Option>
+            <Select.Option value="donut" data-test="Chart.PieStyle.Donut">
+              Donut: a pie with the middle out
+            </Select.Option>
             <Select.Option value="rose" data-test="Chart.PieStyle.Rose">
               Rose: equal angles, the radius carries the value
             </Select.Option>

@@ -1,5 +1,6 @@
 import datetime
 import json
+import os
 from unittest import mock
 
 from sqldesk import mcp, models, settings, utils
@@ -1031,8 +1032,41 @@ class TestLimits(McpTestCase):
         self.assertIn("used its time", error[0])
         enqueue.assert_not_called()
 
+    def test_the_budget_is_ten_minutes(self):
+        """
+        It was fifty seconds, derived from gunicorn's default timeout, and the
+        queries people point a model at are the slow ones -- so a real
+        question hit the ceiling constantly.
+        """
+        self.assertEqual(600, settings.MCP_TIME_BUDGET)
+
     def test_the_budget_stays_under_the_web_servers_timeout(self):
-        self.assertLess(settings.MCP_TIME_BUDGET, 60)
+        """
+        MCP answers inside a web request. A budget past gunicorn's timeout
+        means the worker is killed mid-reply and the client sees a dropped
+        connection rather than an answer -- so the two have to move together,
+        and `bin/docker-entrypoint` sizes the timeout from the budget.
+        """
+        allowed = int(os.environ.get("SQLDESK_GUNICORN_TIMEOUT", str(settings.MCP_TIME_BUDGET + 60)))
+
+        self.assertLessEqual(settings.MCP_TIME_BUDGET, allowed - 10)
+
+    def test_a_timeout_too_small_for_the_budget_clamps_rather_than_killing_workers(self):
+        """
+        The install that sets the timeout by hand and forgets. Clamped and
+        said out loud, because the alternative is web workers dying mid-reply
+        for a reason nothing on the page explains.
+        """
+        import importlib
+
+        # Restored outside the patch, not inside it: reloading while the
+        # environment is still patched leaves every later test reading the
+        # clamped value, which is how this one first broke the test above it.
+        self.addCleanup(importlib.reload, settings)
+
+        with mock.patch.dict(os.environ, {"SQLDESK_GUNICORN_TIMEOUT": "60", "SQLDESK_MCP_TIME_BUDGET": "600"}):
+            reloaded = importlib.reload(settings)
+            self.assertEqual(50, reloaded.MCP_TIME_BUDGET)
 
 
 class TestCsrf(McpTestCase):
@@ -2287,12 +2321,22 @@ class TestDrawingAResultOverMcp(McpTestCase):
         self.assertTrue(dashboard.is_draft)
         self.assertEqual(self.author.id, dashboard.user_id)
 
-        # Two to a row, in the order given. Without a position every widget
-        # sits at the origin, stacked on top of the others.
+        # Laid out in the order given, and **sized by what each one holds** --
+        # the same table the browser uses when somebody drags a widget on. Six
+        # rows for everything was 150 pixels: three rows of a table, and a
+        # chart reduced to a strip.
         placed = {widget.visualization_id: widget.options["position"] for widget in dashboard.widgets}  # noqa: B020
+
+        # A stat is small and a table is tall; the old layout made them equal.
+        self.assertEqual(6, placed[first.id]["sizeY"])
+        self.assertEqual(28, placed[second.id]["sizeY"])
+        self.assertEqual(16, placed[third.id]["sizeY"])
+
+        # The stat and the table share the top row -- 8 columns and 12 fit in
+        # 24 -- and the chart drops below the taller of them.
         self.assertEqual({"col": 0, "row": 0}, {k: placed[first.id][k] for k in ("col", "row")})
-        self.assertEqual({"col": 12, "row": 0}, {k: placed[second.id][k] for k in ("col", "row")})
-        self.assertEqual({"col": 0, "row": 6}, {k: placed[third.id][k] for k in ("col", "row")})
+        self.assertEqual({"col": 8, "row": 0}, {k: placed[second.id][k] for k in ("col", "row")})
+        self.assertEqual({"col": 0, "row": 28}, {k: placed[third.id][k] for k in ("col", "row")})
 
     def test_the_reply_says_where_to_find_the_dashboard(self):
         visualization = self.draw(kind="table")

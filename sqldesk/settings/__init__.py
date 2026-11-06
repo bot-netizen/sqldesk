@@ -1,4 +1,5 @@
 import importlib
+import logging
 import os
 import ssl
 
@@ -310,6 +311,24 @@ UPLOAD_UNLOAD_AFTER_DAYS = int(os.environ.get("SQLDESK_UPLOAD_UNLOAD_AFTER_DAYS"
 #: upload time with the numbers in the message, because "quota exceeded" with
 #: no figures is a message nobody can act on.
 UPLOAD_QUOTA_MB = int(os.environ.get("SQLDESK_UPLOAD_QUOTA_MB", "5120"))
+
+#: The storage format DuckDB writes, for every file we create.
+#:
+#: DuckDB 2.0 writes storage version 69; 1.5.6, which 0.7.x shipped, reads
+#: only 64 to 68. So a stream window or an uploaded database that 0.8 has
+#: written is one 0.7.10 cannot open, and an operator who upgraded and wanted
+#: to go back would find every stream store unreadable. Kafka is the source of
+#: truth for those, so nothing is *lost* -- but "delete these files before you
+#: roll back" is a sentence no release should need.
+#:
+#: Writing the older format costs nothing measurable and keeps the upgrade
+#: reversible, so it is the default. An install that will never go back can
+#: set this to `latest` and have whatever 2.0 improved about the format; it is
+#: a one-way door the moment they do.
+#:
+#: Only applies to files DuckDB *writes*. Opening one read-write does not
+#: rewrite it, which is what keeps somebody's own uploaded database intact.
+DUCKDB_STORAGE_COMPATIBILITY = os.environ.get("SQLDESK_DUCKDB_STORAGE_COMPATIBILITY", "v1.5.0")
 # Time limit (in seconds) for scheduled queries. Set this to -1 to execute without a time limit.
 # Time limit (in seconds) for adhoc queries. Set this to -1 to execute without
 # a time limit.
@@ -629,6 +648,47 @@ MCP_MAX_QUERY_COST = float(os.environ.get("SQLDESK_MCP_MAX_QUERY_COST", "0"))
 #: is the one estimate here that is money rather than a proxy for it.
 MCP_MAX_QUERY_BYTES = int(os.environ.get("SQLDESK_MCP_MAX_QUERY_BYTES", "0"))
 
+#: A bearer token a Prometheus scraper shows at `/metrics`. Empty means the
+#: endpoint is not mounted at all -- off rather than refusing, because an
+#: endpoint that exists and says no is one more thing to explain.
+#:
+#: What it exposes is queue depth, worker saturation, pool use and database
+#: connections, read at the moment of the scrape. The labels carry pool and
+#: queue names, which carry data source names, which is the other reason it is
+#: behind a token.
+METRICS_TOKEN = os.environ.get("SQLDESK_METRICS_TOKEN", "")
+
+
+# --- Notebooks -------------------------------------------------------------
+#
+# A notebook is a chain of cells where everything else in SQLDesk ends in one
+# SELECT. Its intermediates are large and disposable, so they live in a DuckDB
+# file per notebook rather than in Postgres. See sqldesk/notebooks.
+
+#: Where the Python interpreter lives, if this install has one. Empty means
+#: no Python cells: they say so on the cell rather than failing when run, and
+#: the picker says what the kind needs. Off by default because it is another
+#: container to run and most installs want SQL cells only.
+NOTEBOOK_EXECUTOR_URL = os.environ.get("SQLDESK_NOTEBOOK_EXECUTOR_URL", "")
+
+#: What the executor checks requests against. Not a credential of anybody's --
+#: it only says "this is the SQLDesk that interpreter serves", so that a
+#: process which happens to reach it cannot run code on it. Nothing a cell can
+#: read: the interpreter throws its environment away before any cell runs.
+NOTEBOOK_EXECUTOR_TOKEN = os.environ.get("SQLDESK_NOTEBOOK_EXECUTOR_TOKEN", "")
+
+#: Rows one cell may hand to the next. The handoff is a file, so this is not
+#: about Postgres -- it is the number that sizes everything downstream: the
+#: Parquet shipped to an interpreter and the dataframe it builds from it. Past
+#: this the honest answer is a SQL cell that aggregates.
+NOTEBOOK_ROW_BUDGET = int(os.environ.get("SQLDESK_NOTEBOOK_ROW_BUDGET", "5000000"))
+
+#: Rows of a cell's result kept for display, in `query_results`, as JSON in
+#: one Postgres column. Small on purpose: this is the half somebody reads on
+#: the page, and the whole result is a table away in the notebook's own store.
+NOTEBOOK_DISPLAY_ROWS = int(os.environ.get("SQLDESK_NOTEBOOK_DISPLAY_ROWS", "1000"))
+
+
 # --- Streams ---------------------------------------------------------------
 #
 # A stream is a window, not a pipeline: SQLDesk keeps minutes of raw events and
@@ -699,6 +759,82 @@ STREAM_MAX_PER_USER = int(os.environ.get("SQLDESK_STREAM_MAX_PER_USER", "2"))
 #: A forgotten tab would otherwise hold a slot all day.
 STREAM_MAX_MINUTES = int(os.environ.get("SQLDESK_STREAM_MAX_MINUTES", "30"))
 
+
+#: Whether a subscription with no destination emails the subscriber.
+#:
+#: It used to, unconditionally: subscribing to an alert meant being emailed
+#: whether or not anybody asked for mail, on an install that may have no mail
+#: server at all. Removed on 2026-10-29 -- email is a destination somebody
+#: picks, like every other.
+#:
+#: Off by default, because a default nobody chose is the thing being removed.
+#: Set it for an install that was relying on the old behaviour and has not yet
+#: given its alerts destinations.
+ALERT_EMAIL_FALLBACK = parse_boolean(os.environ.get("SQLDESK_ALERT_EMAIL_FALLBACK", "false"))
+
+
+#: Query pools: how much work a resource may be given at once, whatever the
+#: workers are doing. Written as `name=slots`, comma separated:
+#:
+#:     SQLDESK_QUERY_POOLS="warehouse=8,reporting=4,vendor-api=2"
+#:
+#: A data source draws from a pool of its own unless its `query_pool` option
+#: names another, so two sources on one machine can be made to share a budget.
+def _parse_pools(raw):
+    pools = {}
+    for pair in (raw or "").split(","):
+        name, _, slots = pair.partition("=")
+        name = name.strip()
+        if not name:
+            continue
+        try:
+            pools[name] = max(0, int(slots.strip()))
+        except (TypeError, ValueError):
+            # A typo should not take the whole setting with it, and a pool
+            # that failed to parse falls back to the default like any other.
+            continue
+    return pools
+
+
+def _parse_shares(raw):
+    """`interactive=50:100,mcp=0:25` into `{name: (floor, ceiling)}`."""
+    shares = {}
+    for pair in (raw or "").split(","):
+        name, _, span = pair.partition("=")
+        floor, _, ceiling = span.partition(":")
+        name = name.strip()
+        if not name:
+            continue
+        try:
+            shares[name] = (max(0, min(100, int(floor))), max(0, min(100, int(ceiling))))
+        except (TypeError, ValueError):
+            continue
+    return shares
+
+
+#: Override the built-in table in `sqldesk/pools.py`. Empty means use it.
+QUERY_POOL_SHARES = _parse_shares(os.environ.get("SQLDESK_QUERY_POOL_SHARES", ""))
+
+QUERY_POOLS = _parse_pools(os.environ.get("SQLDESK_QUERY_POOLS", ""))
+
+#: What a pool nobody has configured is worth. Zero is unlimited, and it is
+#: the default on purpose: an upgrade must not suddenly cap an install that
+#: has been running a nightly batch of thirty refreshes for a year. Set it to
+#: put a ceiling under everything at once.
+QUERY_SLOTS_DEFAULT = int(os.environ.get("SQLDESK_QUERY_SLOTS_DEFAULT", "0"))
+
+#: How long a slot survives without being renewed. Longer than the gap between
+#: renewals by a wide margin, so a slow query does not drop its own slot; short
+#: enough that a worker killed mid-query frees it while somebody is still
+#: waiting.
+QUERY_SLOT_TTL_SECONDS = int(os.environ.get("SQLDESK_QUERY_SLOT_TTL_SECONDS", "120"))
+
+#: How long a query waits for room before giving up and saying so. A worker
+#: waiting is a worker doing nothing, so this is deliberately short: contention
+#: means the resource is busy, and telling somebody that quickly is better than
+#: holding a process to find out.
+QUERY_SLOT_WAIT_SECONDS = int(os.environ.get("SQLDESK_QUERY_SLOT_WAIT_SECONDS", "10"))
+
 # How long a running job is given to finish when its worker is told to stop --
 # a deploy, a scale-down, a node drain. Under the pod's 300 s grace period and
 # supervisord's 290 s, so the job finishes or fails on its own terms before
@@ -717,10 +853,26 @@ STREAM_QUERY_MEMORY_MB = int(os.environ.get("SQLDESK_STREAM_QUERY_MEMORY_MB", "5
 # workers of its own and it cannot.
 MCP_QUEUE = os.environ.get("SQLDESK_MCP_QUEUE", "")
 # How long one MCP request may spend waiting on workers, all its tool calls
-# together. Derived from gunicorn's own timeout, with room to answer: a wait
-# that outlives it kills the web worker mid-reply, and the client sees a
-# dropped connection rather than "still running".
-MCP_TIME_BUDGET = max(10, int(os.environ.get("SQLDESK_GUNICORN_TIMEOUT", "60")) - 10)
+# together. Ten minutes, because the queries people point a model at are the
+# slow ones -- it was fifty seconds, derived from gunicorn's default timeout,
+# and a model asking a real question hit it constantly.
+#
+# It cannot simply be raised on its own: MCP answers inside a web request, so
+# a budget longer than gunicorn's timeout means the worker is killed
+# mid-reply and the client sees a dropped connection rather than an answer.
+# `bin/docker-entrypoint` sizes gunicorn's timeout from this, and the clamp
+# below is for the install that sets the timeout by hand and forgets.
+MCP_TIME_BUDGET = int(os.environ.get("SQLDESK_MCP_TIME_BUDGET", "600"))
+_GUNICORN_TIMEOUT = int(os.environ.get("SQLDESK_GUNICORN_TIMEOUT", str(MCP_TIME_BUDGET + 60)))
+if MCP_TIME_BUDGET > _GUNICORN_TIMEOUT - 10:
+    logging.getLogger(__name__).warning(
+        "SQLDESK_MCP_TIME_BUDGET is %ss but gunicorn's timeout is %ss, which would kill the worker "
+        "mid-reply; using %ss. Raise SQLDESK_GUNICORN_TIMEOUT to give MCP the time.",
+        MCP_TIME_BUDGET,
+        _GUNICORN_TIMEOUT,
+        max(10, _GUNICORN_TIMEOUT - 10),
+    )
+    MCP_TIME_BUDGET = max(10, _GUNICORN_TIMEOUT - 10)
 # How long the MCP audit keeps a row, in days; 0 keeps them all. Every call
 # writes one, refused ones included, so without a limit it is the table that
 # grows fastest on an instance a model talks to all day.

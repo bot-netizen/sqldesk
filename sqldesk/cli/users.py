@@ -189,6 +189,47 @@ def create_root(email, name, google_auth=False, password=None, organization="def
         exit(1)
 
 
+#: What a user still owns, by the table that refuses to let go of them.
+#: Twenty-nine tables point at `users` and almost none of those columns are
+#: nullable, so a refusal is the ordinary answer for any account that has
+#: been used at all. Naming the thing beats handing somebody a constraint.
+#: Longest table names first: `events_` is a substring of `mcp_events_`.
+OWNED_BY_TABLE = [
+    ("notification_destinations", "they own notification destinations"),
+    ("dashboard_subscriptions", "they are subscribed to dashboards"),
+    ("catalog_verified_queries", "they verified queries in the catalog"),
+    ("alert_subscriptions", "they are subscribed to alerts"),
+    ("access_permissions", "permissions were granted to or by them"),
+    ("query_snippets", "they own query snippets"),
+    ("notebook_runs", "they have run notebooks"),
+    ("mcp_events", "they have recorded MCP activity"),
+    ("dashboards", "they own dashboards"),
+    ("favorites", "they have favourites"),
+    ("notebooks", "they own notebooks"),
+    ("queries", "they own queries"),
+    ("changes", "they have edited queries or dashboards"),
+    ("streams", "they have started streams"),
+    ("alerts", "they own alerts"),
+    ("events", "they have recorded activity"),
+]
+
+
+def _still_owns(error):
+    """
+    Why a delete was refused, in words.
+
+    Postgres names the constraint ("queries_user_id_fkey") and the table it
+    is on, so either spelling is enough to find the row. Unrecognised tables
+    fall through to None and the caller says something vaguer rather than
+    guessing wrong.
+    """
+    text = str(getattr(error, "orig", error))
+    for table, owns in OWNED_BY_TABLE:
+        if "{}_".format(table) in text or 'table "{}"'.format(table) in text:
+            return owns
+    return None
+
+
 @manager.command()
 @argument("email")
 @option(
@@ -200,13 +241,29 @@ def create_root(email, name, google_auth=False, password=None, organization="def
 def delete(email, organization=None):
     """
     Delete user EMAIL.
+
+    Only an account that owns nothing can be removed. A user is referenced
+    from their queries, dashboards, alerts and edits, and none of those
+    references cascade on purpose -- removing somebody should not quietly
+    take the work they left behind with them. For anyone who has actually
+    used the install, disable the account instead: it keeps their work and
+    stops them logging in.
     """
+    query = models.User.query.filter(models.User.email == email)
     if organization:
         org = models.Organization.get_by_slug(organization)
-        deleted_count = models.User.query.filter(models.User.email == email, models.User.org == org.id).delete()
-    else:
-        deleted_count = models.User.query.filter(models.User.email == email).delete(synchronize_session=False)
-    models.db.session.commit()
+        query = query.filter(models.User.org == org)
+
+    try:
+        deleted_count = query.delete(synchronize_session=False)
+        models.db.session.commit()
+    except IntegrityError as e:
+        models.db.session.rollback()
+        owns = _still_owns(e)
+        print("Cannot delete {}: {}.".format(email, owns or "something in the database still refers to them"))
+        print("Disable the account instead -- that keeps their work and stops the login.")
+        exit(1)
+
     print("Deleted %d users." % deleted_count)
 
 

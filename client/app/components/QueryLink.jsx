@@ -21,8 +21,13 @@ import "./QueryLink.less";
   The expanded dialog and the standalone embed page still show both. Neither
   of them has the repetition problem -- each is one visualization on its own --
   and on an embed the query's name is the only context there is.
+
+  `preferQueryName` is the third case: a widget showing several of its
+  query's visualizations behind buttons. There the visualization's name is
+  already on the button you pressed, so putting it in the title as well says
+  one thing twice and leaves the query -- "5 min vs last week" -- unnamed.
 */
-function QueryLink({ query, visualization, readOnly }) {
+function QueryLink({ query, visualization, readOnly, preferQueryName }) {
   const getUrl = () => {
     let hash = null;
     if (visualization) {
@@ -37,7 +42,7 @@ function QueryLink({ query, visualization, readOnly }) {
     return query.getUrl(false, hash);
   };
 
-  const name = visualizationNameOf(visualization, query.name);
+  const name = preferQueryName ? query.name : visualizationNameOf(visualization, query.name);
 
   const QueryLinkWrapper = (props) => (readOnly ? <span {...props} /> : <Link href={getUrl()} {...props} />);
 
@@ -52,9 +57,11 @@ QueryLink.propTypes = {
   query: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
   visualization: VisualizationType,
   readOnly: PropTypes.bool,
+  preferQueryName: PropTypes.bool,
 };
 
 QueryLink.defaultProps = {
+  preferQueryName: false,
   visualization: null,
   readOnly: false,
 };

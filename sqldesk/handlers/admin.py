@@ -15,7 +15,13 @@ from sqldesk.ai.catalog.semantic import catalog_documents
 from sqldesk.authentication import current_org
 from sqldesk.handlers import routes
 from sqldesk.handlers.base import json_response, record_event
-from sqldesk.monitor import get_db_sizes, get_overview, get_running_queries, rq_status
+from sqldesk.monitor import (
+    get_audit,
+    get_db_sizes,
+    get_overview,
+    get_running_queries,
+    rq_status,
+)
 from sqldesk.permissions import (
     has_access,
     require_access,
@@ -77,6 +83,12 @@ def queries_rq_status():
     return json_response(rq_status())
 
 
+#: The longest window the audit will read. `events` gets a row per execution
+#: and is never trimmed, so an unbounded window is a table scan somebody asked
+#: for by typing a number into a URL.
+MAX_AUDIT_DAYS = 365
+
+
 @routes.route("/api/admin/overview", methods=["GET"])
 @login_required
 @require_super_admin
@@ -89,6 +101,25 @@ def admin_overview():
     contradicting itself.
     """
     return json_response(get_overview(current_org.id))
+
+
+@routes.route("/api/admin/audit", methods=["GET"])
+@login_required
+@require_super_admin
+def admin_audit():
+    """
+    Where the month went, rather than what is happening now.
+
+    `overview` is read while something is wrong and describes this hour. This
+    is read afterwards, or on the first of the month, and reads the same
+    `events` rows as a history -- which nothing did before, though every
+    execution has been written there since the fork.
+
+    The window is capped: `events` has a row per execution and no retention,
+    so a year on a busy install is a scan nobody meant to ask for.
+    """
+    days = min(max(request.args.get("days", 30, type=int), 1), MAX_AUDIT_DAYS)
+    return json_response(get_audit(current_org.id, days=days))
 
 
 @routes.route("/api/admin/queries/running", methods=["GET"])

@@ -1,9 +1,20 @@
 import escapeHtml from "@/lib/escapeHtml";
-import { each, extend, filter, isNil, map, max, range, reduce, some, sortBy, uniq } from "lodash";
+import { each, extend, filter, isNil, map, max, min, range, reduce, some, sortBy, uniq } from "lodash";
 import { AllColorPaletteArrays, resolveColorScheme } from "@/visualizations/ColorPalette";
 import { createNumberFormatter, formatSimpleTemplate } from "@/lib/value-format";
 import chooseTextColorForBackground from "@/lib/chooseTextColorForBackground";
-import { cleanNumber, echartsAxisType, getSeriesAxisIndex, normalizeX, seriesId } from "./utils";
+import {
+  cleanNumber,
+  echartsAxisType,
+  getSeriesAxisIndex,
+  normalizeX,
+  seriesId,
+  timeAxisFormatter,
+  timeAxisInterval,
+  timeAxisTicks,
+  timePointerFormatter,
+  timeSpan,
+} from "./utils";
 import { DEFAULT_HEAT_RAMP, HEAT_RAMPS } from "./heatRamps";
 import { SANS } from "@/visualizations/shared/valueOptions";
 import { buildBoxSeries } from "./boxplot";
@@ -19,6 +30,9 @@ const ECHARTS_SPLIT_NUMBER = 5;
 
 /** Roughly what the x axis takes out of the plot: labels, tick and gap. */
 const X_AXIS_HEIGHT = 24;
+
+/** What the axis name below the plot needs beyond the labels' own room. */
+const X_AXIS_NAME_ROOM = 18;
 
 /** Below this, labels stop reading as a scale and start reading as a stack. */
 const LABEL_BREATHING_ROOM = 55;
@@ -76,6 +90,48 @@ export const MAX_LABELLED_CATEGORIES = 50;
 export function categoryLabelRotation(categories: any[]): number {
   const needed = reduce(categories, (total, category) => total + Math.min(String(category).length, 20) * 7 + 12, 0);
   return needed > 700 ? 45 : 0;
+}
+
+/**
+ * The min and max somebody typed into the axis editor, if they typed any.
+ *
+ * The editor has written `rangeMin` and `rangeMax` into the options since the
+ * fork and **nothing ever read them**, so setting either did nothing at all --
+ * on every chart type, not only the bubble chart it was noticed on.
+ *
+ * `isFinite` rather than a truthiness check, because 0 is a perfectly ordinary
+ * bound and the obvious `axisOptions.rangeMin ? ...` would drop it. Each side
+ * is independent: a minimum of 0 with no maximum leaves the top automatic,
+ * which is what somebody pinning an axis to zero actually wants.
+ */
+/** An axis title, however it was saved. */
+function nameOf(axisOptions: any) {
+  if (!axisOptions || !axisOptions.title) {
+    return undefined;
+  }
+  return axisOptions.title.text || axisOptions.title || undefined;
+}
+
+/**
+ * Room for a rotated axis name, outside whatever the labels take.
+ *
+ * `containLabel` reserves space for the tick *labels* and not for the axis
+ * name, which ECharts draws `nameGap` further out again -- so on a chart whose
+ * labels are short ("0", "25", "50") the name was simply cut off by the edge
+ * of the canvas. Matching `nameGap` guarantees it lands inside, at the cost of
+ * that much plot width on a chart that has a title to show.
+ */
+const AXIS_NAME_ROOM = 36;
+
+function bounds(axisOptions: any) {
+  const out: { min?: number; max?: number } = {};
+  if (isFinite(axisOptions.rangeMin)) {
+    out.min = Number(axisOptions.rangeMin);
+  }
+  if (isFinite(axisOptions.rangeMax)) {
+    out.max = Number(axisOptions.rangeMax);
+  }
+  return out;
 }
 
 function paletteFor(options: any): string[] {
@@ -192,7 +248,57 @@ function applyPercentValues(seriesData: any[][], options: any) {
   );
 }
 
-export function buildTooltipFormatter(options: any, horizontal: boolean) {
+/** The tick positions for a time axis, evenly spaced from the first point. */
+function timeTicksFor(chartData: any[], span: number): number[] {
+  const interval = timeAxisInterval(span);
+  if (!interval) {
+    return [];
+  }
+  let low = Infinity;
+  let high = -Infinity;
+  each(chartData, (series: any) =>
+    each(series.data, (point: any) => {
+      const x = normalizeX(point.x, "time");
+      if (!isNil(x)) {
+        low = Math.min(low, x);
+        high = Math.max(high, x);
+      }
+    })
+  );
+  return high > low ? timeAxisTicks(low, high, interval) : [];
+}
+
+/**
+ * The row for the series the cursor is reading, marked so it is found at a
+ * glance.
+ *
+ * Bold *and* a rule in the series' own colour, rather than colouring the
+ * text: a pale series -- the Tokyo blue on the chart this was reported from
+ * -- would be less legible coloured than it is now, so the colour goes where
+ * it identifies without having to be read. The tint is neutral grey at low
+ * alpha, which lands correctly on a light or a dark tooltip without knowing
+ * which it is on.
+ *
+ * Every row carries the same padding whether it is focused or not, so the
+ * list does not shift under the cursor as the focus moves down it.
+ */
+export function tooltipRow(html: string, focused: boolean, color?: string): string {
+  if (!focused) {
+    return `<div style="padding:1px 5px;border-left:3px solid transparent">${html}</div>`;
+  }
+  const rule = color ? escapeHtml(String(color)) : "currentColor";
+  return (
+    `<div style="padding:1px 5px;border-left:3px solid ${rule};` +
+    `background:rgba(127,127,127,0.16);border-radius:2px;font-weight:700">${html}</div>`
+  );
+}
+
+export function buildTooltipFormatter(
+  options: any,
+  horizontal: boolean,
+  formatPointerTime?: ((value: any) => string) | null,
+  focus?: { focusedFrom(items: any[]): number | null } | null
+) {
   const formatNumber = createNumberFormatter(options.numberFormat);
   const formatPercent = createNumberFormatter(options.percentFormat);
   // Pair data is [x, y] upright and [y, x] on its side, so the measure is not
@@ -203,11 +309,29 @@ export function buildTooltipFormatter(options: any, horizontal: boolean) {
     // Which x the numbers are for, as a heading: with several series under one
     // pointer, each line alone says only the series and its value.
     const first = items[0] || {};
-    const x = first.axisValueLabel ?? first.name;
+    // On a time axis `axisValueLabel` is ECharts' own rendering of the
+    // timestamp, which is the thing being replaced; the raw `axisValue` is
+    // the milliseconds behind it. Falling back matters for the box and pie
+    // paths, which have no time axis to format.
+    const x =
+      formatPointerTime && first.axisValue !== undefined && first.axisValue !== null
+        ? formatPointerTime(first.axisValue)
+        : first.axisValueLabel ?? first.name;
     const heading =
       Array.isArray(params) && x !== undefined && x !== null && x !== ""
         ? `<div style="font-weight:600;margin-bottom:2px">${escapeHtml(String(x))}</div>`
         : "";
+    // Only an axis tooltip lists several series to choose between; a pie or a
+    // box shows the one thing already under the pointer.
+    let focused: number | null = null;
+    if (Array.isArray(params) && focus) {
+      try {
+        focused = focus.focusedFrom(items);
+      } catch (e) {
+        focused = null;
+      }
+    }
+
     return (
       heading +
       map(items, (item) => {
@@ -219,8 +343,9 @@ export function buildTooltipFormatter(options: any, horizontal: boolean) {
           "@@yPercent": formatPercent(value),
         };
         const text = options.textFormat ? formatSimpleTemplate(options.textFormat, context) : null;
-        return text || `${item.marker} ${context["@@name"]}: ${context["@@y"]}`;
-      }).join("<br/>")
+        const html = text || `${item.marker} ${context["@@name"]}: ${context["@@y"]}`;
+        return tooltipRow(html, focused !== null && item.seriesIndex === focused, item.color);
+      }).join("")
     );
   };
 }
@@ -487,13 +612,22 @@ function buildPieSeries(chartData: any[], options: any, legendWidthShare = 0) {
   // angles are. Every slice needs a floor to stand on, so the inner radius is
   // not zero.
   const rose = options.pieStyle === "rose";
+  // A donut is a pie with the middle taken out: same angles, same data, and
+  // room in the centre for the total. 60% of the outer radius is the usual
+  // proportion -- tighter reads as a pie somebody damaged, wider leaves a
+  // ring too thin to compare slices in.
+  const donut = options.pieStyle === "donut";
   const outer = chartData.length > 1 ? 55 : 65;
   return map(chartData, (series, seriesIndex) => ({
     id: seriesId(series.name),
     name: series.name,
     type: "pie",
     ...(rose ? { roseType: "area" } : {}),
-    radius: rose ? [`${Math.round(outer * 0.25)}%`, `${outer}%`] : `${outer}%`,
+    radius: rose
+      ? [`${Math.round(outer * 0.25)}%`, `${outer}%`]
+      : donut
+        ? [`${Math.round(outer * 0.6)}%`, `${outer}%`]
+        : `${outer}%`,
     center: chartData.length > 1 ? [`${((seriesIndex % 2) + 0.5) * (span / 2)}%`, "50%"] : [`${span / 2}%`, "50%"],
     data: map(series.data, (point: any, index: number) => ({
       name: String(point.x),
@@ -512,6 +646,27 @@ function heatRamp(options: any): string[] {
   // A saved visualization names a Plotly scale; keep that scale's colours
   // rather than quietly recolouring someone's chart on upgrade.
   return HEAT_RAMPS[options.colorScheme] || DEFAULT_HEAT_RAMP;
+}
+
+/**
+ * The ends of a heatmap's colour scale.
+ *
+ * From the data by default, which is the whole point: anchored at zero, a
+ * grid of values between 980 and 1000 comes out one flat colour, and the
+ * chart says nothing. `heatmapFromZero` puts the old behaviour back for the
+ * case where zero is meaningful -- counts, where an empty cell should read as
+ * empty rather than as "the lowest of these".
+ *
+ * A grid whose values are all the same has no range to spread a ramp across;
+ * widening it by one keeps ECharts out of a degenerate scale and leaves every
+ * cell the same colour, which is the truth about that data.
+ */
+function heatRange(cells: any[], options: any) {
+  const values = map(cells, (cell: any) => cell[2]);
+  const highest = values.length ? (max(values) as number) : 0;
+  const lowest = values.length ? (min(values) as number) : 0;
+  const zMin = options.heatmapFromZero ? Math.min(0, lowest) : lowest;
+  return zMin === highest ? { zMin, zMax: highest + 1 } : { zMin, zMax: highest };
 }
 
 function buildHeatmap(chartData: any[], options: any) {
@@ -533,13 +688,33 @@ function buildHeatmap(chartData: any[], options: any) {
     yCategories = yCategories.slice().reverse();
   }
 
-  const data = map(points, (p: any) => [
+  const cells = map(points, (p: any) => [
     xCategories.indexOf(String(p.x)),
     yCategories.indexOf(String(p.y)),
     cleanNumber(p.zVal) || 0,
   ]);
-  const zMax = max(map(data, (d: any) => d[2])) || 0;
   const ramp = heatRamp(options);
+  const { zMin, zMax } = heatRange(cells, options);
+
+  /*
+    Each cell carries its own label colour.
+
+    One colour for every label was the bug: it was chosen for the *darkest*
+    end of the ramp, so on any scale that runs light-to-dark half the labels
+    were drawn in a colour meant for the other half and could not be read.
+    The ramp is spread evenly across the range, so the nearest stop is a good
+    enough guess at the colour a cell will actually be -- near enough to
+    choose black or white against.
+  */
+  const span = zMax - zMin || 1;
+  const data = map(cells, (cell: any) => ({
+    value: cell,
+    label: {
+      color: chooseTextColorForBackground(
+        ramp[Math.min(ramp.length - 1, Math.max(0, Math.round(((cell[2] - zMin) / span) * (ramp.length - 1))))]
+      ),
+    },
+  }));
 
   const series = [
     {
@@ -550,28 +725,31 @@ function buildHeatmap(chartData: any[], options: any) {
       label: {
         show: !!options.showDataLabels,
         formatter: (params: any) => formatNumber(params.value[2]),
-        // Keep labels legible against whichever end of the ramp they land on.
-        color: chooseTextColorForBackground(ramp[ramp.length - 1]),
       },
+      // A hairline between cells, so two neighbours of nearly the same colour
+      // read as two cells rather than one blur. White rather than a grey,
+      // because it reads as a gap at every point on every ramp.
+      itemStyle: { borderColor: "#fff", borderWidth: 1 },
       emphasis: { itemStyle: { borderColor: "#000", borderWidth: 1 } },
       progressive: 1000,
     },
   ];
 
-  return { series, xCategories, yCategories, zMax, ramp };
+  return { series, xCategories, yCategories, zMin, zMax, ramp, formatNumber };
 }
 
 export default function buildOption(
   chartData: any[],
   options: any,
-  size?: { width: number; height: number }
+  size?: { width: number; height: number },
+  focus?: { focusedFrom(items: any[]): number | null } | null
 ): BuiltOption {
   const isPie = options.globalSeriesType === "pie";
   const isHeatmap = options.globalSeriesType === "heatmap";
   const horizontal = !!options.swappedAxes;
 
   if (isHeatmap) {
-    const { series, xCategories, yCategories, zMax, ramp } = buildHeatmap(chartData, options);
+    const { series, xCategories, yCategories, zMin, zMax, ramp, formatNumber } = buildHeatmap(chartData, options);
     const categoryAxis = (data: any[]) => ({ type: "category", data, splitArea: { show: true } });
     const option: any = {
       ...ECHARTS_MOTION,
@@ -585,13 +763,17 @@ export default function buildOption(
       tooltip: {
         trigger: "item",
         confine: true,
+        // The chart's own number format, as the cell labels already use: a
+        // tooltip reading 1234.5678 beside a label reading 1,235 is two
+        // answers to one question.
         formatter: (params: any) =>
           `${escapeHtml(xCategories[params.value[0]])} / ${escapeHtml(yCategories[params.value[1]])}: ${escapeHtml(
-            params.value[2]
+            formatNumber(params.value[2])
           )}`,
       },
       visualMap: {
-        min: 0,
+        // From the data rather than from zero -- see `heatRange`.
+        min: zMin,
         max: zMax,
         calculable: true,
         orient: "horizontal",
@@ -640,6 +822,17 @@ export default function buildOption(
   const barsWantCategories = hasBars && detectedAxisType !== "time";
   const xAxisType = isPie || isBox || barsWantCategories ? "category" : detectedAxisType;
 
+  // How much time the chart covers decides how its timestamps read. Worked
+  // out once: the axis labels, the label under the pointer and the tooltip
+  // heading all have to agree, or the same point reads three ways.
+  const span = xAxisType === "time" ? timeSpan(chartData) : 0;
+  const formatTime = xAxisType === "time" ? timeAxisFormatter(span) : null;
+  const formatPointerTime = xAxisType === "time" ? timePointerFormatter(span) : null;
+  // Where the ticks go. ECharts' own choice interleaves a rhythm anchored
+  // to the data with one anchored to each month, so the gaps come out
+  // uneven wherever a month turns -- see `timeAxisTicks`.
+  const timeTicks = xAxisType === "time" ? timeTicksFor(chartData, span) : [];
+
   let categories: any[] = [];
   if (!isPie && xAxisType === "category") {
     const seen = new Set<any>();
@@ -685,7 +878,20 @@ export default function buildOption(
   // Worked out once and used both by the grid below and to decide how many
   // labels the value axis can carry without crowding.
   const gridTop = 14;
-  const gridBottom = (legend.below ? 36 : 10) + (slider && !horizontal ? 30 : 0);
+  /*
+    Room under the axis for its name.
+
+    The name is drawn `nameGap` (30) below the axis line plus its own
+    height, so it wants about 42px; `X_AXIS_HEIGHT` reserves 24 for the
+    labels alone. The missing 18 came out of whatever was underneath --
+    the legend, which the name then sat on top of, or the edge of the
+    canvas when there was no legend to borrow from.
+
+    Sideways the axes swap: the measures run along the bottom, so the name
+    down there is the y axis'.
+  */
+  const bottomName = horizontal ? nameOf(options.yAxis[0]) : nameOf(options.xAxis);
+  const gridBottom = (legend.below ? 36 : 10) + (slider && !horizontal ? 30 : 0) + (bottomName ? X_AXIS_NAME_ROOM : 0);
   const measuredHeight = size && size.height ? size.height : 0;
   // Where each panel sits. With one panel this is the whole band, and its
   // height is what `plotHeight` has always been.
@@ -704,7 +910,7 @@ export default function buildOption(
   const formatAxisValue = createNumberFormatter(options.numberFormat);
   const valueAxis = (axisOptions: any, plotHeight: number) => ({
     type: echartsAxisType(axisOptions.type) === "category" ? "value" : echartsAxisType(axisOptions.type),
-    name: axisOptions.title ? axisOptions.title.text || axisOptions.title : undefined,
+    name: nameOf(axisOptions),
     nameLocation: "middle",
     nameGap: 36,
     splitNumber: valueAxisSplitNumber(plotHeight),
@@ -712,14 +918,20 @@ export default function buildOption(
     // numerous, like long currency values on a narrow axis.
     axisLabel: { formatter: formatAxisValue, hideOverlap: true },
     scale: !options.series.stacking && !hasBars,
+    ...bounds(axisOptions),
   });
 
   const categoryAxis = {
     type: xAxisType,
     data: xAxisType === "category" ? categories : undefined,
-    name: options.xAxis.title ? options.xAxis.title.text || options.xAxis.title : undefined,
+    name: nameOf(options.xAxis),
     nameLocation: "middle",
     nameGap: 30,
+    // The x axis takes a range too, where it is numeric or a time -- a
+    // scatter or a bubble chart is the case somebody asks for it. On a
+    // category axis ECharts reads min and max as *indexes* into the
+    // categories, which is never what anybody typing a value meant.
+    ...(xAxisType === "category" ? {} : bounds(options.xAxis)),
     axisLabel: {
       show: options.xAxis.labels ? options.xAxis.labels.enabled : true,
       // Every bar gets its own label. ECharts' default drops whichever ones
@@ -729,11 +941,12 @@ export default function buildOption(
       ...(barsWantCategories && categories.length <= MAX_LABELLED_CATEGORIES
         ? { interval: 0, hideOverlap: false, rotate: horizontal ? 0 : categoryLabelRotation(categories) }
         : { hideOverlap: true }),
-      // A time axis formats its own labels -- "20:51", then "Sep 20" where the
-      // day turns -- from the milliseconds it is given. Turned into text here
-      // they read "1789852380000".
+      // A time axis is handed milliseconds, so turning them into text here
+      // would read "1789852380000". It gets a formatter of its own instead --
+      // ECharts' default labels a run of days as bare numbers with the month
+      // only where it turns, which is unreadable a week either side of it.
       ...(xAxisType === "time"
-        ? {}
+        ? { formatter: formatTime, ...(timeTicks.length ? { customValues: timeTicks } : {}) }
         : {
             formatter: (value: any) => {
               const text = String(value);
@@ -744,6 +957,20 @@ export default function buildOption(
   };
 
   const option: any = {
+    /*
+      Read the timestamps back in the zone they were written in.
+
+      `normalizeX` parses every x on a time axis with `moment.utc`, so the
+      number ECharts holds is UTC. Rendering it defaults to the viewer's own
+      zone, and the two disagreed: a daily bucket stored as 2026-09-25 00:00
+      UTC was drawn, labelled and tooltipped as "2026-09-24 20:00:00" in
+      Toronto -- the wrong day, every day, for everybody west of Greenwich,
+      with a time of day on it that the data never had.
+
+      Nobody reported it as a timezone bug, because it does not look like
+      one. It looks like the axis is badly formatted.
+    */
+    useUTC: true,
     // Slow enough to see: a dashboard opening grows from nothing, and a refresh
     // moves from the old values to the new ones -- which is the whole point of
     // a chart that refreshes. Series need stable ids for it (see above).
@@ -775,18 +1002,32 @@ export default function buildOption(
         // The x value under the pointer, drawn on the axis itself, so it can
         // be read off where the axis labels are -- they are often thinned out
         // or tilted, and a bar may sit between two of them.
-        label: { show: !isPie && !isBox },
+        label: {
+          show: !isPie && !isBox,
+          ...(formatPointerTime ? { formatter: ({ value }: any) => formatPointerTime(value) } : {}),
+        },
       },
       confine: true,
-      formatter: isBox ? buildBoxTooltipFormatter(options) : buildTooltipFormatter(options, horizontal),
+      formatter: isBox
+        ? buildBoxTooltipFormatter(options)
+        : buildTooltipFormatter(options, horizontal, formatPointerTime, focus),
     },
     series,
   };
 
   if (!isPie) {
+    // Which sides carry an axis name, which is what decides whether they need
+    // room for one. Sideways the axes swap: the measures run along the
+    // bottom, and the category axis -- described by the x axis settings --
+    // is the one on the left.
+    const leftName = horizontal ? nameOf(options.xAxis) : nameOf(options.yAxis[0]);
+    const rightName = horizontal ? undefined : nameOf(options.yAxis[1] || options.yAxis[0]);
     const gridSides = {
-      left: 12,
-      right: (legend.right ? legend.width + 8 : 12) + (horizontal && slider ? 28 : 0),
+      left: 12 + (leftName ? AXIS_NAME_ROOM : 0),
+      right:
+        (legend.right ? legend.width + 8 : 12) +
+        (horizontal && slider ? 28 : 0) +
+        (rightName && !legend.right ? AXIS_NAME_ROOM : 0),
       containLabel: true,
     };
     // One panel keeps the grid it has always had: pinned top and bottom, free

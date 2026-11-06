@@ -121,6 +121,7 @@ PAGES = [
     ("visualizations.html", "Visualizations", "Using SQLDesk"),
     ("dashboards.html", "Dashboards and textboxes", "Using SQLDesk"),
     ("streams.html", "Streams", "Using SQLDesk"),
+    ("notebooks.html", "Notebooks", "Using SQLDesk"),
     ("alerts.html", "Alerts", "Using SQLDesk"),
     ("mcp.html", "MCP", "AI"),
     ("administration.html", "Administration", "Running it"),

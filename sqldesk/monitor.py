@@ -18,6 +18,10 @@ from sqldesk.models import (
     db,
 )
 
+# The marker a notebook cell writes into its execution event, imported from
+# the side that writes it so the two cannot drift.
+from sqldesk.notebooks.run import NOTEBOOK_CELL
+
 
 def get_redis_status():
     info = redis_connection.info()
@@ -80,6 +84,16 @@ def rq_job_ids():
 
 
 def fetch_jobs(job_ids):
+    """
+    RQ's jobs for these ids.
+
+    `list()` is load-bearing. `Job.fetch_many` walks `job_ids` **twice** --
+    once to queue the pipeline, once to pair the answers back up with the ids
+    -- so handing it a generator exhausts it on the first pass and the second
+    pairs nothing. It returns an empty list, raises nothing, and the page that
+    called it simply shows no rows.
+    """
+    job_ids = list(job_ids)
     return [
         {
             "id": job.id,
@@ -152,7 +166,13 @@ PRESSURE_WARNING = 0.75
 
 
 def started_job_ids():
-    return flatten([StartedJobRegistry(queue=q).get_job_ids() for q in Queue.all(connection=rq_redis_connection)])
+    # A list, not the lazy sequence `flatten` hands back: see `fetch_jobs`,
+    # which walks what it is given twice. This is the call site that was
+    # getting it wrong, and Running Queries was empty on every install
+    # because of it.
+    return list(
+        flatten([StartedJobRegistry(queue=q).get_job_ids() for q in Queue.all(connection=rq_redis_connection)])
+    )
 
 
 def _elapsed_seconds(started_at):
@@ -164,10 +184,27 @@ def _elapsed_seconds(started_at):
     return max(0.0, (datetime.now(timezone.utc) - started_at).total_seconds())
 
 
+def _as_id(value):
+    """
+    A primary key, or None.
+
+    Job metadata is not a database row. An ad-hoc query carries the string
+    `"adhoc"` where a saved one carries a number -- `query_results.py` puts it
+    there and `execution.py` already knows to step around it -- and handing
+    that to an integer primary key raises, which took the whole Running
+    Queries page down with it rather than leaving one cell blank.
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _names(model, ids):
-    if not ids:
+    wanted = {one for one in (_as_id(one) for one in ids) if one is not None}
+    if not wanted:
         return {}
-    return dict(db.session.query(model.id, model.name).filter(model.id.in_(ids)).all())
+    return dict(db.session.query(model.id, model.name).filter(model.id.in_(wanted)).all())
 
 
 def get_running_queries():
@@ -183,9 +220,9 @@ def get_running_queries():
     jobs = [job for job in fetch_jobs(started_job_ids()) if job.get("name") == EXECUTE_QUERY]
 
     metas = [job.get("meta") or {} for job in jobs]
-    queries = _names(Query, {m.get("query_id") for m in metas if m.get("query_id")})
-    users = _names(User, {m.get("user_id") for m in metas if m.get("user_id")})
-    sources = _names(DataSource, {m.get("data_source_id") for m in metas if m.get("data_source_id")})
+    queries = _names(Query, {m.get("query_id") for m in metas})
+    users = _names(User, {m.get("user_id") for m in metas})
+    sources = _names(DataSource, {m.get("data_source_id") for m in metas})
 
     running = []
     for job in jobs:
@@ -194,13 +231,17 @@ def get_running_queries():
             {
                 "job_id": job["id"],
                 "queue": job.get("origin"),
-                "query_id": meta.get("query_id"),
-                "query_name": queries.get(meta.get("query_id")),
+                # Normalised, so an ad-hoc run arrives as nothing rather than
+                # as the word "adhoc" -- which the page would otherwise turn
+                # into a link to `queries/adhoc`. With no id it says "Ad-hoc",
+                # which is what it is.
+                "query_id": _as_id(meta.get("query_id")),
+                "query_name": queries.get(_as_id(meta.get("query_id"))),
                 "user_id": meta.get("user_id"),
                 # Scheduled refreshes have no user, which is worth showing as
                 # what it is rather than as a blank.
-                "user_name": users.get(meta.get("user_id")),
-                "data_source": sources.get(meta.get("data_source_id")),
+                "user_name": users.get(_as_id(meta.get("user_id"))),
+                "data_source": sources.get(_as_id(meta.get("data_source_id"))),
                 "scheduled": bool(meta.get("scheduled")),
                 "mcp": bool(meta.get("mcp")),
                 "started_at": job.get("started_at"),
@@ -311,6 +352,117 @@ def get_activity(org_id, minutes=60):
         "top_users": [{"id": uid, "name": name, "executions": n} for uid, name, n in top_users],
         "per_minute": [[at.isoformat(), n] for at, n in per_minute],
     }
+
+
+def get_audit(org_id, days=30, limit=10):
+    """
+    Who has been expensive this month, rather than this hour.
+
+    `get_activity` answers "what is happening now" and is read while something
+    is wrong. This answers "where did the month go", which is a different
+    question asked at a different time -- and until now nothing read `events`
+    as a history at all, though every execution has been written there since
+    the fork.
+
+    Counted from the same rows and the same index as the hourly view, so the
+    two cannot disagree about what an execution is. A run through the
+    scheduler is not in here: `events` records what a person asked for, which
+    is what an audit is about.
+    """
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    where = (
+        Event.org_id == org_id,
+        Event.action == "execute_query",
+        Event.created_at >= since,
+    )
+    executions = Event.query.filter(*where)
+    counted = func.count().label("executions")
+
+    by_user = (
+        db.session.query(User.id, User.name, counted)
+        .select_from(Event)
+        .join(User, User.id == Event.user_id)
+        .filter(*where)
+        .group_by(User.id, User.name)
+        .order_by(desc(counted))
+        .limit(limit)
+        .all()
+    )
+
+    # By data source, which is the half that says *where* the money went: a
+    # thousand runs against a cached Postgres and a thousand against a
+    # warehouse that bills per scan are not the same month.
+    by_source = (
+        db.session.query(Event.object_id, counted)
+        .filter(*where, Event.object_type == "data_source")
+        .group_by(Event.object_id)
+        .order_by(desc(counted))
+        .limit(limit)
+        .all()
+    )
+    source_names = _names(DataSource, [int(i) for i, _ in by_source if str(i).isdigit()])
+
+    # And by query, so a dashboard refreshing something expensive every minute
+    # is visible as itself rather than as its owner's total.
+    by_query = (
+        db.session.query(Event.additional_properties["query_id"].astext.label("query_id"), counted)
+        .filter(*where, Event.additional_properties["query_id"].astext.isnot(None))
+        .group_by("query_id")
+        .order_by(desc(counted))
+        .limit(limit)
+        .all()
+    )
+    query_names = _names(Query, [int(i) for i, _ in by_query if str(i).isdigit()])
+
+    day = func.date_trunc("day", Event.created_at).label("day")
+    per_day = db.session.query(day, func.count()).filter(*where).group_by(day).order_by(day).all()
+
+    total = executions.count()
+    cached = executions.filter(Event.additional_properties["cache"].astext == "hit").count()
+    return {
+        "window_days": days,
+        "executions": total,
+        # None rather than 0 when nothing ran, as the hourly view does: a ratio
+        # of no executions is not a cache missing everything.
+        "cache_hit_ratio": (cached / total) if total else None,
+        "from_cache": cached,
+        "top_users": [{"id": uid, "name": name, "executions": n} for uid, name, n in by_user],
+        "top_data_sources": [
+            {"id": _as_int(i), "name": source_names.get(_as_int(i), "deleted"), "executions": n} for i, n in by_source
+        ],
+        "top_queries": [_a_query(i, n, query_names) for i, n in by_query],
+        "per_day": [[at.date().isoformat(), n] for at, n in per_day],
+    }
+
+
+def _a_query(value, executions, names):
+    """
+    One row of the by-query breakdown.
+
+    Four cases, and the first version collapsed two of them: a saved query, a
+    saved query that has since been deleted, a notebook cell, and a run that
+    never had a query at all. The last arrives as the string "adhoc", which
+    `int()` cannot read -- so it became `None`, `None` is in no lookup, and
+    five ad-hoc runs were reported on the page as a deleted query.
+    """
+    if value == NOTEBOOK_CELL:
+        # Named rather than counted as the editor: a month spent in notebooks
+        # and a month spent in the editor are different months, and an audit
+        # that cannot tell them apart says less than it looks like it does.
+        return {"id": None, "name": "notebook cell", "executions": executions}
+    found = _as_int(value)
+    if found is None:
+        # Reported as itself: somebody running the editor fifty times is real
+        # information about a month, and it is not a missing query.
+        return {"id": None, "name": "ad-hoc", "executions": executions}
+    return {"id": found, "name": names.get(found, "deleted"), "executions": executions}
+
+
+def _as_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def get_overview(org_id):

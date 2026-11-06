@@ -1,6 +1,6 @@
 {
   "name": "sqldesk-client",
-  "version": "0.7.10",
+  "version": "0.8.0",
   "description": "The frontend part of SQLDesk.",
   "main": "index.js",
   "scripts": {
@@ -68,6 +68,7 @@
     "mousetrap": "^1.6.1",
     "mustache": "^2.3.0",
     "path-to-regexp": "^3.3.0",
+    "plotly.js-dist-min": "4.2.0",
     "prop-types": "^15.6.1",
     "query-string": "^6.9.0",
     "react": "16.14.0",

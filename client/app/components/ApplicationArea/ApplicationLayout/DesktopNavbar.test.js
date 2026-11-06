@@ -221,6 +221,7 @@ describe("DesktopNavbar", () => {
       "admin/storage",
       "admin/queries/running",
       "admin/streams",
+      "admin/audit",
       "admin/queries/outdated",
       "admin/mcp",
     ]);

@@ -693,3 +693,36 @@ def with_ssh_tunnel(query_runner, details):
     query_runner.run_query = tunnel(query_runner.run_query)
 
     return query_runner
+
+
+#: Keeps `x -> x + 1` working in somebody's saved query.
+#:
+#: DuckDB 2.0 made the PEG parser the default, and it refuses the single-arrow
+#: lambda that every DuckDB release before it accepted -- `list_transform(l, x
+#: -> x * 2)` and friends. That is not our syntax to deprecate on a user's
+#: behalf: a query that ran in 0.7.10 should run in 0.8.
+#:
+#: A reprieve rather than a fix. DuckDB removes the flag *and* the syntax in
+#: 2.1, so this buys one release in which to tell people, and the release
+#: notes say so. Applied before `lock_configuration`, which is the only order
+#: that works.
+LEGACY_LAMBDA = "SET lambda_syntax = 'enable_single_arrow'"
+
+
+def storage_config():
+    """
+    The storage format to write, as a DuckDB connection config.
+
+    DuckDB 2.0 writes a file the 1.5.6 in 0.7.x cannot read, and a stream's
+    store is written continuously -- so without this, upgrading to 0.8 would
+    quietly make every window file unopenable by the release somebody might
+    roll back to. Empty when the setting is `latest`, which is how an install
+    opts into the newer format and out of going back.
+
+    Read-only connections take it too. Harmless there, and it keeps the two
+    paths from drifting.
+    """
+    chosen = (settings.DUCKDB_STORAGE_COMPATIBILITY or "").strip()
+    if not chosen or chosen == "latest":
+        return {}
+    return {"storage_compatibility_version": chosen}

@@ -1,6 +1,6 @@
 [project]
 name = "sqldesk"
-version = "0.7.10"
+version = "0.8.0"
 description = "Make Your Company Data Driven. Connect to any data source, easily visualize, dashboard and share your data."
 authors = [
     { name = "SQLDesk contributors" }
@@ -92,9 +92,15 @@ dependencies = [
 [tool.black]
 target-version = ['py38']
 line-length = 119
+# `.claude` holds the git worktrees the desktop app makes for its sessions,
+# each a full copy of this repository. Black does not read .gitignore, so
+# running it from the repository root reported files in those copies -- the
+# same way pytest collected every test three times over before
+# `norecursedirs` excluded them. Nothing there is ours to format.
 force-exclude = '''
 /(
   migrations
+  | \.claude
 )/
 '''
 
@@ -115,7 +121,17 @@ all_ds = [
     "cmem-cmempy==21.2.3",
     "databend-py==0.4.6",
     "databend-sqlalchemy==0.2.4",
-    "duckdb==1.5.6",
+    # 2.0.0 (2026-10-21). The surface we use is unchanged -- connection
+    # semantics, the confinement settings, Parquet, `register`, `cursor`,
+    # `duckdb_tables()` and all 34 type names `description` reports are
+    # byte-identical to 1.5.6's, checked by diffing a probe of each.
+    #
+    # What did change is on disk: 2.0 writes storage version 69 and 1.5.6
+    # reads only 64-68, so a file this version has written is one the last
+    # release cannot open. Opening read-write alone does not rewrite a file --
+    # only writing does -- and `DUCKDB_STORAGE_COMPATIBILITY` keeps what we
+    # write readable by 0.7.x, so the upgrade stays reversible.
+    "duckdb==2.0.0",
     # Avro topics on a Kafka stream, decoded after sampling. Wheels for every
     # platform the image is built on; no compiler at install time.
     "fastavro==1.13.1",
@@ -215,7 +231,13 @@ max-complexity = 15
 "__init__.py" = ["F401"]
 
 [tool.pytest.ini_options]
-norecursedirs = ["*.egg", ".eggs", "dist", "build", "docs", ".tox"]
+# `.claude` holds the git worktrees the desktop app makes for its sessions,
+# each a full copy of this repository -- so pytest collected every test
+# three more times under different paths, hit the duplicate module
+# basenames, and gave up with hundreds of collection errors before running
+# anything. Locally only: CI checks out clean and never saw it, which is
+# why a suite that passes in CI could not be run at a desk.
+norecursedirs = ["*.egg", ".eggs", "dist", "build", "docs", ".tox", ".claude", "node_modules"]
 filterwarnings = [
     "once::DeprecationWarning",
     "once::PendingDeprecationWarning",

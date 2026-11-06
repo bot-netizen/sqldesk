@@ -647,12 +647,18 @@ class TestAnAlertThroughTheSlackApp(SlackTestCase):
         actions = [b for b in self.slack.posted() if b["type"] == "actions"][0]
         self.assertIn("/queries/{}".format(self.query.id), actions["elements"][0]["url"])
 
-    def test_a_triggered_alert_says_so(self):
+    def test_a_triggered_alert_says_what_the_number_was(self):
+        # It used to say "<name> just triggered", which is the one thing the
+        # arrival of the message had already said. Since 0.8 the headline
+        # carries the reading and the line it crossed -- see
+        # sqldesk/alerting.py, shared with the webhook destination.
         self.installed()
 
         self.notify()
 
-        self.assertIn("just triggered", json.dumps(self.slack.posted()))
+        posted = json.dumps(self.slack.posted())
+        self.assertIn(self.alert.name, posted)
+        self.assertIn(str(self.alert.options["value"]), posted)
 
     def test_and_one_that_recovered_says_that(self):
         self.installed()

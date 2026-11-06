@@ -54,6 +54,16 @@ jobs:
           helm template sqldesk charts/sqldesk \
             --set mcp.enabled=true --set streams.enabled=true --set uploads.enabled=true \
             --set server.replicas=2 --set periodicWorker.enabled=false > /dev/null
+          # Notebooks with the policy on, which is the configuration whose
+          # whole point is the policy: an interpreter with no egress.
+          helm template sqldesk charts/sqldesk \
+            --set notebooks.enabled=true --set networkPolicy.enabled=true > /dev/null
+          # And with Spark, where "no egress" becomes one rule and the two
+          # settings have to be written together.
+          helm template sqldesk charts/sqldesk \
+            --set notebooks.enabled=true --set networkPolicy.enabled=true \
+            --set notebooks.spark.remote=sc://spark-connect:15002 \
+            --set 'notebooks.spark.egress[0].ports[0].port=15002' > /dev/null
       - name: Does it parse as Kubernetes objects?
         run: |
           helm template sqldesk charts/sqldesk | python3 -c "

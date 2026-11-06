@@ -4,6 +4,7 @@ import re
 from contextlib import contextmanager
 
 from sqldesk.query_runner import (
+    LEGACY_LAMBDA,
     TYPE_BOOLEAN,
     TYPE_DATE,
     TYPE_DATETIME,
@@ -15,6 +16,7 @@ from sqldesk.query_runner import (
     deferred,
     installed,
     register,
+    storage_config,
 )
 
 logger = logging.getLogger(__name__)
@@ -63,7 +65,7 @@ TYPES_MAP = {
 }
 
 
-def _duckdb_type(declared):
+def duckdb_type(declared):
     """A column's SQLDesk type, from whatever DuckDB called it.
 
     Two things had to change here, and the first had been wrong for a long time.
@@ -115,7 +117,16 @@ class DuckDB(BaseSQLQueryRunner):
         # uploads. Set by the data source before the first query (see
         # `confine_to`); until then SQL can read no files at all.
         self.upload_dir = None
-        self._connect()
+        # Whether this connection has to be able to write. Uploads do, because
+        # they are views this runner creates; a database somebody pointed
+        # `dbpath` at does not -- we only read it.
+        self._needs_write = False
+        # Not connected here. The directory this source may read is set
+        # afterwards by `confine_to`, and a connection opened before that is
+        # one that has to be thrown away -- which is what it used to be, at
+        # the cost of locking the file's configuration against the connection
+        # that replaced it.
+        self._con = None
 
     def confine_to(self, directory) -> None:
         """
@@ -130,7 +141,11 @@ class DuckDB(BaseSQLQueryRunner):
         directory = os.path.join(directory, "")
         if directory != self.upload_dir:
             self.upload_dir = directory
-            self._connect()
+            # Only if something is already open. Otherwise the connection is
+            # opened on first use, by which time this has already been set --
+            # which is the whole reason it is lazy.
+            if self._con is not None:
+                self._connect()
 
     @classmethod
     def name(cls):
@@ -189,14 +204,76 @@ class DuckDB(BaseSQLQueryRunner):
         key = self._connection_key()
         cached = DuckDB._connections.get(key)
         if cached is not None and self._is_alive(cached):
-            self.con = cached
+            self._con = cached
             return
         # A cached connection outlives any single query, so it can be closed or
         # invalidated underneath us -- the database file replaced, say. Without
         # this check one dead connection would fail every subsequent query in
         # the process, which is strictly worse than not caching at all.
-        self.con = self._open_connection()
-        DuckDB._connections[key] = self.con
+        #
+        # Let go of any other connection to this same file first. DuckDB locks
+        # configuration per *database*, not per connection, and the lock lasts
+        # as long as any connection to that file is open -- so the second
+        # connection cannot set `allowed_directories` and is refused outright.
+        #
+        # Which is exactly the sequence every file-backed source follows:
+        # `__init__` connects before it knows the upload directory and locks
+        # the configuration, then `confine_to` asks for a connection that
+        # knows it. Invisible on `:memory:`, where each connect is its own
+        # private database -- and that is the default, which is why a `dbpath`
+        # the configuration form offers could not be used at all.
+        self._release_other_connections()
+        self._con = self._open_connection()
+        DuckDB._connections[key] = self._con
+
+    @property
+    def con(self):
+        """
+        This runner's connection, opened when it is first wanted.
+
+        Lazy because `confine_to` decides what the connection is allowed to
+        read, and it is called after construction -- so connecting eagerly
+        meant opening one connection to answer nothing and a second to do
+        the work, with DuckDB's per-database configuration lock sitting
+        between them.
+        """
+        if self._con is None or not self._is_alive(self._con):
+            self._connect()
+        return self._con
+
+    def _read_only(self) -> bool:
+        """
+        Whether to open the file read-only, which is what lets more than one
+        process use it.
+
+        **DuckDB allows one writer per file, across the whole machine.** A
+        data source pointed at a real database is read by the web process and
+        by every worker, so the second one to open it is refused:
+
+            IO Error: Could not set lock on file "...": Conflicting lock is
+            held in PID 0
+
+        Read-only has no such limit -- any number of readers share a file --
+        and reading is all a pointed-at database ever needs. Uploads are the
+        exception, because their views are written by this runner, and they
+        live in `:memory:`, where every connection has a private database and
+        the question does not arise.
+
+        A file that is not there yet cannot be opened read-only at all, so
+        that case falls back and lets DuckDB create it.
+        """
+        if self.dbpath == ":memory:" or self._needs_write:
+            return False
+        return os.path.exists(self.dbpath)
+
+    def _release_other_connections(self) -> None:
+        """Close every cached connection to this runner's file."""
+        for key in [one for one in DuckDB._connections if one[0] == self.dbpath]:
+            con = DuckDB._connections.pop(key)
+            try:
+                con.close()
+            except Exception:
+                logger.info("a cached DuckDB connection to %s would not close", self.dbpath, exc_info=True)
 
     @staticmethod
     def _is_alive(con) -> bool:
@@ -208,12 +285,24 @@ class DuckDB(BaseSQLQueryRunner):
             return False
 
     def _open_connection(self):
-        con = duckdb.connect(self.dbpath)
+        # The storage format matters here for somebody else's file: a user may
+        # point `dbpath` at a DuckDB database of their own, and a view written
+        # into it by 2.0 is a file their own DuckDB 1.x would stop opening.
+        # Opening alone does not rewrite one, so this only bites when we write
+        # -- and this keeps what we write readable where it was before.
+        con = duckdb.connect(self.dbpath, read_only=self._read_only(), config=storage_config())
         # Extensions first: installing one needs the network and a directory
         # of its own, both of which the lines below take away.
         self._load_extensions(con)
         if self.upload_dir:
             con.execute("SET allowed_directories = ?", [[self.upload_dir]])
+        try:
+            con.execute(LEGACY_LAMBDA)
+        except Exception:
+            # Gone in DuckDB 2.1, along with the syntax it re-enables. An
+            # upload is still perfectly queryable without it, so this must not
+            # be the thing that stops the connection opening.
+            logger.info("this DuckDB does not accept %r; single-arrow lambdas will be refused", LEGACY_LAMBDA)
         con.execute("SET enable_external_access = false")
         con.execute("SET autoinstall_known_extensions = false")
         con.execute("SET autoload_known_extensions = false")
@@ -267,6 +356,13 @@ class DuckDB(BaseSQLQueryRunner):
         Upload" data source's dbpath, they'll be dropped on the next upload
         or delete.
         """
+        # Writing views needs a writable connection. Reconnect if this one
+        # was opened read-only -- which it is by default for a file, so that
+        # several processes can read it at once.
+        if files and not self._needs_write:
+            self._needs_write = True
+            self._connect()
+
         current_view_names = {view_name for view_name, _path, _load in files}
         for stale_view in self._existing_views() - current_view_names:
             try:
@@ -335,7 +431,7 @@ class DuckDB(BaseSQLQueryRunner):
         try:
             cursor = self.con.cursor()
             cursor.execute(query)
-            columns = self.fetch_columns([(d[0], _duckdb_type(d[1])) for d in cursor.description])
+            columns = self.fetch_columns([(d[0], duckdb_type(d[1])) for d in cursor.description])
             rows = [dict(zip((col["name"] for col in columns), row)) for row in cursor.fetchall()]
             data = {"columns": columns, "rows": rows}
             return data, None

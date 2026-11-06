@@ -72,6 +72,7 @@
       <a href="visualizations.html">Visualizations</a>
       <a href="dashboards.html">Dashboards and textboxes</a>
       <a href="streams.html">Streams</a>
+      <a href="notebooks.html">Notebooks</a>
       <a href="alerts.html">Alerts</a>
       <h4>AI</h4>
       <a href="mcp.html">MCP</a>
@@ -158,6 +159,7 @@ Settings &rarr; Groups, and anyone in that group has them.</p>
   <tr><td><code>manage_catalog</code></td><td>Describe tables and columns, agree or deny proposed measures, export the semantic layer. Puts <strong>Catalog</strong> in the top row.</td><td>MCP is on</td></tr>
   <tr><td><code>use_streams</code></td><td>Start a stream and watch it. Starting one takes a slot; watching somebody else's running stream needs no permission at all.</td><td>Streams are on</td></tr>
   <tr><td><code>manage_streams</code></td><td>Choose which of a cluster's topics may be queried, and how much of each is kept. Puts <strong>Streaming Data Sources</strong> beside Data Sources in Settings.</td><td>Streams are on</td></tr>
+  <tr><td><code>use_notebooks</code></td><td>Chain SQL and Python cells together, where a saved query ends in one SELECT. Puts <strong>Notebooks</strong> in the top row. Python cells additionally need an <a href="notebooks.html#interpreter">interpreter</a>, which is a deployment decision rather than a permission.</td><td>Always</td></tr>
   <tr><td><code>manage_live_dashboards</code></td><td>Make a dashboard live, so the server refreshes it for everyone looking.</td><td>Always</td></tr>
   <tr><td><code>keep_uploads</code></td><td>Stop an uploaded file expiring, so it stays until somebody deletes it.</td><td>Files expire at all</td></tr>
   <tr><td><code>use_mcp</code></td><td>Connect a client over MCP, and see what yours has been doing under <strong>My MCP</strong>.</td><td>MCP is on</td></tr>
@@ -222,7 +224,110 @@ development machine it filled the disk and took Postgres with it.</p>
   <tr><td><code>SQLDESK_STREAM_ROW_BUDGET</code></td><td>Rows of raw events kept per stream, 5 million by default. The window follows from this and the rate.</td></tr>
   <tr><td><code>SQLDESK_STREAM_EVENTS_PER_SECOND</code></td><td>Events a second stored from one stream, 5,000 by default. Past it they are sampled and every chart says so. <code>0</code> removes the ceiling, which is how a worker becomes the slowest part of a cluster.</td></tr>
   <tr><td><code>SQLDESK_STREAM_ACTIVE_MINUTES</code></td><td>How long after somebody last looked a stream keeps consuming, 15 by default. <code>0</code> turns streams off entirely.</td></tr>
+  <tr><td><code>SQLDESK_METRICS_TOKEN</code></td><td>A bearer token a Prometheus scraper shows at <code>/metrics</code>. Empty &mdash; the default &mdash; means the endpoint is not mounted at all. See <a href="#metrics">below</a>.</td></tr>
+  <tr><td><code>SQLDESK_NOTEBOOK_EXECUTOR_URL</code></td><td>Where the <a href="notebooks.html#interpreter">interpreter</a> for Python cells is. Empty means Python cells say so rather than running.</td></tr>
+  <tr><td><code>SQLDESK_NOTEBOOK_EXECUTOR_TOKEN</code></td><td>What SQLDesk shows that interpreter. Both sides must match.</td></tr>
+  <tr><td><code>SQLDESK_DUCKDB_STORAGE_COMPATIBILITY</code></td><td>The storage format DuckDB writes, <code>v1.5.0</code> by default so a stream window or uploaded database stays readable by 0.7.x. <code>latest</code> takes the newer format and makes going back a one-way door. See <a href="#duckdb-format">below</a>.</td></tr>
 </table>
+
+<h2 id="metrics">Scraping SQLDesk</h2>
+<p>Set <code>SQLDESK_METRICS_TOKEN</code> and <code>/metrics</code> answers a scraper that shows it as a
+bearer token. Unset &mdash; the default &mdash; the endpoint is <strong>not mounted</strong>, and a wrong
+token gets the same 404 as no token: which half was wrong is not a scanner&rsquo;s business.</p>
+<p>What it reports is what SQLDesk is about to run out of, read at the moment of the scrape rather than
+accumulated:</p>
+<ul>
+  <li><code>sqldesk_queue_depth</code> and <code>sqldesk_queue_started</code>, per queue &mdash; the first
+  thing to look at when SQLDesk feels slow and the warehouse is fine.</li>
+  <li><code>sqldesk_workers</code>, <code>sqldesk_workers_in_state</code> and the job counters &mdash;
+  saturation. Queue depth alone cannot tell a cluster keeping up from one with no workers at all.</li>
+  <li><code>sqldesk_query_pool_in_use</code> against <code>sqldesk_query_pool_limit</code>, per pool.</li>
+  <li><code>sqldesk_stream_slots_in_use</code> against its limit, where a slot is a topic rather than a
+  viewer.</li>
+  <li><code>sqldesk_db_connections_in_use</code> against <code>sqldesk_db_pool_limit</code> &mdash; the
+  thing most likely to fall over, and the thing nothing could see before.</li>
+</ul>
+<p>Two things worth knowing when you build a dashboard on it. The database numbers describe <strong>the
+process that answered</strong>, because a SQLAlchemy pool is per process &mdash; with several web workers
+the useful view is the maximum across them. And a pool with no limit has <em>no</em>
+<code>_limit</code> series rather than a zero, because a zero there would read as &ldquo;no room at
+all&rdquo;, which is its opposite.</p>
+<p>A scrape that cannot read one source still returns the others: during an incident, half the truth is
+worth more than an error page.</p>
+
+<h2 id="duckdb-format">Upgrading to 0.8: the DuckDB file format</h2>
+<p>0.8 ships DuckDB 2.0, and DuckDB 2.0 writes a database file that DuckDB 1.5.6
+&mdash; what 0.7.x shipped &mdash; refuses to open. That matters in exactly one place: the files
+SQLDesk writes for itself, which are <strong>stream windows</strong> and any
+<strong>uploaded database</strong>.</p>
+<p>By default it does not matter at all, because
+<code>SQLDESK_DUCKDB_STORAGE_COMPATIBILITY</code> is set to <code>v1.5.0</code> and those files keep
+the older format. Upgrade, decide you preferred 0.7.10, and go back: everything still opens.</p>
+<p>Two things are worth knowing either way:</p>
+<ul>
+  <li><strong>A file you already had is not rewritten.</strong> Opening one read-write does not
+  change its format &mdash; only writing to it does. So your own uploaded <code>.duckdb</code>
+  database is left exactly as it was unless SQLDesk writes to it.</li>
+  <li><strong>A stream window is disposable by design.</strong> Kafka is the source of truth, so the
+  worst case was never lost data &mdash; it was &ldquo;delete these files before you roll back&rdquo;,
+  which is a sentence no release should need.</li>
+</ul>
+<p>Set it to <code>latest</code> if this install is never going back, and you get whatever 2.0
+improved about the format. It is a one-way door from the moment you do.</p>
+
+<h3 id="duckdb-lambdas">One change you may see in a query</h3>
+<p>DuckDB 2.0 made a new SQL parser the default, and that parser refuses the
+single-arrow lambda every earlier version accepted:</p>
+<pre><code>-- refused by DuckDB 2.0 on its own
+SELECT list_transform(items, x -&gt; x * 2) FROM events;
+
+-- the current spelling
+SELECT list_transform(items, lambda x: x * 2) FROM events;</code></pre>
+<p>SQLDesk re-enables the old spelling on every DuckDB connection it opens, so a query that ran in
+0.7.10 still runs. <strong>That is a reprieve, not a fix</strong> &mdash; DuckDB removes both the
+syntax and the flag that re-enables it in 2.1, so a query using the single arrow should be changed
+now rather than when it breaks.</p>
+<p>One other difference shows up in stream windows: a timestamp field now lands as
+<code>TIMESTAMP WITH TIME ZONE</code> where it used to land as a naive <code>TIMESTAMP</code>.
+That is the more correct reading &mdash; the offset was previously being dropped &mdash; and windows
+created before the upgrade keep the column they already have.</p>
+
+<h2 id="pools">Query pools: capping what a warehouse is given</h2>
+<p>How many queries run at once has always been an accident of deployment: the number of worker
+processes times the number of replicas. The only way to change what a warehouse is subjected to was to
+change the deployment &mdash; and an autoscaler moving replicas while a query runs changed it again
+without anybody asking.</p>
+<p>A <strong>pool</strong> is a ceiling that does not move when the workers do. It is held in Redis,
+which every worker already shares, and is checked at the moment a query begins.</p>
+<p>The budget belongs to the pool rather than to SQLDesk, because the warehouse is what falls over, not
+us &mdash; a single number for the whole install would be the same figure for a Postgres toy and a
+Snowflake bill.</p>
+<p>Every data source draws from a pool of its own unless it names another, so the default behaviour is a
+per-source ceiling with nothing to configure:</p>
+<pre><code>SQLDESK_QUERY_POOLS="warehouse=8,reporting=4,vendor-api=2"</code></pre>
+<p>Point a data source at one by setting <code>query_pool</code> in its options. <strong>Two data
+sources on one machine should name the same pool</strong> &mdash; <code>prod-readonly</code> and
+<code>prod-analytics</code> are two rows here and one warehouse, and capping each at eight hands that
+warehouse sixteen. A pool need not be a database: a rate-limited HTTP connector is the same kind of
+scarce.</p>
+<table>
+  <tr><th>Setting</th><th>What it does</th></tr>
+  <tr><td><code>SQLDESK_QUERY_POOLS</code></td><td>Named pools and their sizes, as
+    <code>name=slots</code> pairs.</td></tr>
+  <tr><td><code>SQLDESK_QUERY_SLOTS_DEFAULT</code></td><td>What a pool nobody configured is worth.
+    <code>0</code> &mdash; unlimited &mdash; by default, so upgrading caps nothing. Set it to put a
+    ceiling under everything at once.</td></tr>
+  <tr><td><code>SQLDESK_QUERY_SLOT_WAIT_SECONDS</code></td><td>How long a query waits for room before
+    giving up and saying so. Short on purpose: a worker waiting is a worker doing nothing.</td></tr>
+  <tr><td><code>SQLDESK_QUERY_SLOT_TTL_SECONDS</code></td><td>How long a slot survives unrenewed. A
+    running query renews its own; this is what frees the slot when a worker is killed.</td></tr>
+</table>
+<p>A query that finds the pool full is refused with a sentence naming the pool and the numbers, rather
+than queueing behind it. <strong>A pool set to zero accepts no new work at all</strong>, which is the
+kill switch for a warehouse in trouble: the data source keeps its queries, dashboards, schema and
+permissions, and simply stops being given anything to do.</p>
+<p>Nothing is capped until you configure it. Unlimited is the default deliberately &mdash; an upgrade
+must not suddenly cap an install that has run a nightly batch of thirty refreshes for a year.</p>
 
 <h2 id="streams">Streams, operationally</h2>
 <p>What a stream costs is different in kind from everything else here: a query costs when somebody runs it,

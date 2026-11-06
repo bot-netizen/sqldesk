@@ -14,7 +14,9 @@ export interface SankeyDataType {
 export default {
   type: "SANKEY",
   name: "Sankey",
-  getOptions: (options: {}) => ({
+  getOptions: (options: { showNodeValues?: boolean }) => ({
+    // Off by default: every existing sankey keeps the labels it has.
+    showNodeValues: false,
     ...options,
   }),
   load: () => import(/* webpackChunkName: "viz-sankey" */ "./components"),

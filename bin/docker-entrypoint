@@ -98,7 +98,18 @@ server() {
   # Recycle gunicorn workers every n-th request. See http://docs.gunicorn.org/en/stable/settings.html#max-requests for more details.
   MAX_REQUESTS=${MAX_REQUESTS:-1000}
   MAX_REQUESTS_JITTER=${MAX_REQUESTS_JITTER:-100}
-  TIMEOUT=${SQLDESK_GUNICORN_TIMEOUT:-60}
+  # Long enough for MCP to finish answering. MCP replies inside a web
+  # request, so a budget longer than this timeout means the worker is killed
+  # mid-reply and the client sees a dropped connection instead of an answer.
+  # Sized from the budget rather than fixed at 60, so raising one does not
+  # silently require remembering the other. A minute of headroom on top, for
+  # the reply itself.
+  #
+  # Affordable because the workers are gthread: a request that waits holds a
+  # thread, not a process, so a longer ceiling does not cost capacity the way
+  # it would with sync workers.
+  MCP_BUDGET=${SQLDESK_MCP_TIME_BUDGET:-600}
+  TIMEOUT=${SQLDESK_GUNICORN_TIMEOUT:-$((MCP_BUDGET + 60))}
   BIND_ADDRESS=${SQLDESK_GUNICORN_BIND:-[::]:5000}
 
   # Threads, not processes alone.

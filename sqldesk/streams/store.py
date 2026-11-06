@@ -23,7 +23,7 @@ import logging
 import os
 import time
 
-from sqldesk.query_runner import deferred
+from sqldesk.query_runner import LEGACY_LAMBDA, deferred, storage_config
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ class Store:
         last = None
         for attempt in range(self.READ_ATTEMPTS):
             try:
-                return duckdb.connect(self.path, read_only=self.read_only)
+                return duckdb.connect(self.path, read_only=self.read_only, config=storage_config())
             except duckdb.IOException as error:
                 last = error
                 if attempt + 1 < self.READ_ATTEMPTS:
@@ -133,6 +133,7 @@ class Store:
         except Exception:
             logger.warning("could not confine a stream store to %s", folder, exc_info=True)
         for statement in (
+            LEGACY_LAMBDA,
             "SET enable_external_access=false",
             "SET autoinstall_known_extensions=false",
             "SET autoload_known_extensions=false",

@@ -1,5 +1,352 @@
 # Changelog
 
+## 0.8.0
+
+Notebooks — the work a saved query cannot hold, where everything else here
+ends in one SELECT — and six more ways to draw what comes back.
+
+### Notebooks — in beta
+
+Shipped and supported, and still settling. Nothing here will lose your work: a
+notebook is rows in the database like a query or a dashboard, and the handoff
+between cells is a file that re-running rebuilds. What may change between
+releases is the shape of the page and what a cell is allowed to do. The app
+says so on the page, not only here.
+
+**A chain of cells, in SQL and in Python.** Pull this, join it to that,
+reshape it, look — with the data source permissions and the result store you
+already have. People do that work in Jupyter today, and when they do, the
+warehouse never hears about it: the lineage, the permissions and the
+scheduling all stop at the edge of somebody's laptop.
+
+**Cells are named, never numbered.** A later cell refers to this one by name —
+a relation in SQL, a dataframe in Python — so inserting, deleting and
+reordering leave every reference pointing at what it meant.
+
+**A SQL cell either queries a data source or reads earlier cells, never
+both**, and says which before you run it. A warehouse has never heard of a
+cell called `orders`, and SQLDesk is not going to push four million rows into
+it to pretend otherwise.
+
+**A Python cell computes; it cannot query.** It reads an earlier cell's output
+and nothing else. That is the strongest decision in the design, for what it
+removes: no credential ever reaches the interpreter, because there is nothing
+for it to reach.
+
+**Stale is shown and never corrected for you.** Every run records which cells
+it read, so a cell whose inputs have re-run since says so — and is left
+exactly as it was. The number on the screen is still the number that was
+computed; re-running it is your decision. Staleness carries down the chain. A
+cell whose input was *deleted* says something different, because that one
+cannot be reproduced at all.
+
+**Three lifetimes, kept apart.** The output on the page is a truncated slice
+in Postgres, which is why reopening a notebook draws instantly and attaches
+nothing. The handoff between cells is the whole result, in a DuckDB file of
+the notebook's own, thrown away and rebuilt by re-running. The record of each
+run is tiny and kept for ever, because that is what makes staleness
+answerable.
+
+**A chart on any cell that produced a table**, with the same editor and the
+same chart types as a query — or one the cell draws itself. End a Python cell
+on a figure and it is rendered: `matplotlib`, `seaborn` and `df.plot()` come
+back as images, and `plotly` comes back interactive, so it can be hovered in
+the notebook and in anything shared from it. Drag a chart's bottom edge to
+resize it, as on a dashboard.
+
+**You never have to remember what a cell is called.** The name a later cell
+types sits on the cell in monospace, one click to copy. Titling a cell *Orders,
+cleaned* names it `orders_cleaned` — while the name is still the generated one
+and nothing refers to it yet, because those references live in other cells' SQL
+and rewriting somebody's query quietly is worse than an unhelpful name. Under
+each editor is a line naming what that cell can read, and typing completes
+against the cells above and the columns inside them. Only what is really
+readable is offered, and only from *above*.
+
+**A notebook reads like a document.** Fold a cell away and one line stands in
+for it; hide the code or the output separately, because reading a finished
+notebook and writing one want opposite things on screen. A contents list down
+the side jumps to a cell by its title.
+
+**Run all, on a worker.** The whole chain in order as one job rather than a
+loop in a browser tab, so closing the tab does not stop it halfway and leave a
+notebook that looks like it ran. It stops at the first cell that fails, because
+everything below would be reading what that cell did not produce.
+
+**And on a cron.** A published notebook can run itself — every morning before
+the standup, every weekday at seven. Cron rather than a query's interval
+because it answers a different question: a query's schedule means *keep this no
+more than an hour stale*, a notebook's means *have this done by the time I
+look*. The expression is checked when it is saved; one that does not parse
+would otherwise quietly mean "never".
+
+**Share it the way a dashboard is shared** — a public link for somebody without
+an account, a PDF, or an image, all behind one button. The PDF runs to as many
+pages as the notebook takes and breaks at cell boundaries, so a page never
+lands halfway down a table. What is captured is the cells, and folded cells
+stay folded: a notebook somebody tidied is the report they meant to send.
+
+**Download a cell's whole output** as CSV — the handoff, not the thousand-row
+slice on the page. A download that quietly handed over a thousand rows of four
+million would be wrong in the way that is hardest to notice.
+
+**`print()` is kept** and shown under the cell. A cell that printed has no
+relation for the next cell to read, and the page says which it produced rather
+than leaving somebody to find out by writing a reference that fails.
+
+**Python runs in a container of its own**, never in the worker — which is the
+process holding every data source's decrypted credentials. Off by default.
+Deny it egress and give it a memory limit, and the sandbox is the container
+rather than a promise.
+
+**And optionally on a Spark cluster**, over Spark Connect. `spark` in a cell
+opens a session the first time something reaches through it, so opening a
+notebook and running pandas-only cells open nothing. A returned Spark
+DataFrame is collected within a bound, and a result over it is refused with a
+sentence rather than quietly cut down.
+
+Who may use notebooks is a permission an administrator grants per group.
+
+### Notebook cells while they run
+
+**A cell says how long it has been running.** A slow cell looked exactly like a
+finished one — the Run button became a Stop button and nothing else moved, so
+the only way to tell was to notice which icon was showing. The header carries a
+spinner and a clock, in tenths under ten seconds.
+
+**All three kinds of output resize.** A cell's output pane has a drag handle,
+and the table, the Plotly figure and the visualization each follow it. Two of
+the three previously resized the space around themselves and not the drawing
+inside it.
+
+### Six shapes the catalog could not make
+
+**Donut.** A third pie style. The pie already set an inner radius for `rose`,
+but a rose encodes value in the radius rather than the angle — so reaching for
+it to get a hole gave you the wrong encoding of your data.
+
+**Streamgraph.** A stacked area with no baseline, for when the question is how
+a mix is changing rather than how much there is in total. Nothing is pinned to
+zero, so every band reads as its own shape instead of as the gap between two
+lines that are both moving. You cannot read an absolute value off one, which is
+why the tooltip carries the numbers.
+
+**Candlestick.** A day that opened at 10, fell to 2 and recovered to 11 draws
+the same stroke on a line chart as one that drifted from 10 to 11. The candle
+keeps the range and the direction, which is the whole reason the shape exists.
+
+**Network.** A sankey draws a flow through ordered stages; a treemap draws a
+hierarchy. Accounts that trade with each other, services that call each other,
+tags that co-occur have no left-to-right order, and a sankey invents one for
+them. Laid out by force, so the shape comes from the connections.
+
+**Parallel coordinates.** A scatter compares two things; six series compare six
+against one axis. Neither answers the question behind most outlier hunting,
+which is about a row's whole profile. Every column gets a vertical axis and
+every row is a line crossing all of them: rows that behave alike run parallel,
+and the one that cuts across the rest is the one to look at.
+
+**Tree.** A treemap and a sunburst both spend their area on size, so a small
+branch under a large one is a sliver whose name you cannot read — and the shape
+of the hierarchy is exactly what nesting hides. A tree spends its space on the
+structure instead: a leaf worth nothing takes the same room as a leaf worth
+millions, which is the point.
+
+### A sankey as long as the funnel
+
+**As many stages as the query has columns.** The loop counted to five and
+stopped, so a query returning eight stage columns had three of them dropped
+with nothing said about it — which reads as the query being wrong rather than
+the chart refusing. An ad funnel is longer than five before attribution is
+mentioned: impression, bid, win, render, view, click, visit, convert.
+
+**Values on the stages.** Reading a funnel means asking what each stage is
+worth, and the only answer was a tooltip, one node at a time — no answer at all
+when the question is where the drop-off is. A checkbox writes the value on each
+stage. Off by default: on an eight-wide funnel the numbers are what make it
+unreadable, and existing sankeys keep the labels they have.
+
+### Charts that read correctly
+
+**Every daily bar was labelled the day before.** Times on an x axis are parsed
+as UTC and ECharts renders in the viewer's own zone unless told otherwise.
+Nothing told it, so a daily bucket stored as midnight UTC was drawn, labelled
+and tooltipped as "2026-09-24 20:00:00" in Toronto — the wrong day, on every
+bar, for everybody west of Greenwich, with a time of day the data never had. It
+was reported as the axis being hard to read, which is what a correctness bug
+looks like from the outside.
+
+**Dates are written the way the span asks for.** A fortnight gets days, two
+years gets months, an hour gets clock time — on the labels, in the tooltip
+heading and on the crosshair, which previously disagreed with each other.
+
+**Ticks are evenly spaced.** A time axis interleaved two rhythms, one anchored
+to the data and one to each month, so gaps alternated between three days and
+seven. The positions are now chosen on a calendar ladder and stated outright,
+because `minInterval` is a request ECharts declines.
+
+**The line under the cursor lifts out of the crowd.** On a chart with a dozen
+lines, every one of them was the same weight and the tooltip was the only way
+to tell which was which. The nearest series to the cursor is highlighted and
+the rest fade.
+
+**The axis name is clear of the legend.** An x axis title sat 7.5px from the
+legend above it and read as part of it; on parallel coordinates the axis names
+were printed through the middle of it.
+
+**Ten visualizations drew at nothing in the editor preview.** A container asking
+for `height: 100%` inside a preview pane that has no height of its own resolves
+to zero, and an ECharts chart has no content to fall back on — so it drew
+perfectly at zero pixels. Five were new; histogram, radar, timeline, treemap
+and waterfall had been blank for longer. Found by measuring rather than
+reasoning, and a test now refuses a container that states no fallback height.
+
+### A demo of everything
+
+**`manage demo seed`** builds a complete install out of nothing: a DuckDB file
+it generates, 19 queries over it, one visualization of every type in the
+catalog, a dashboard laid out with them, and a notebook that chains SQL into
+Python and back. `manage demo remove` takes it all out again.
+
+It exists because "do the visualizations work" is a question nobody can answer
+by reading code, and the answer rots silently — a chart that breaks breaks on
+somebody's dashboard, not in CI.
+
+### Warehouses have a ceiling
+
+**Query pools.** Each data source draws from a pool with a budget, so fifty
+widgets refreshing at once cannot open fifty connections to a warehouse that
+allows ten. Two data sources on one warehouse can share a named pool. A budget
+of zero is the kill switch. A notebook's SQL cell takes a slot like any other
+query — the limit does not get larger because something was typed into a
+notebook.
+
+### Streaming dashboards say what they are doing
+
+**Each panel says what its own topic is doing.** The refresh is per dashboard
+and the events are per widget, so a single "● Live · every 2 seconds" badge
+describes the redraw and nothing about whether data is arriving: a chart that
+stopped twenty minutes ago looked exactly like one keeping up. A panel's
+corner now carries the rate, or `paused`, or — loudest, and never silent —
+that the stream is sampled and the number is therefore an estimate.
+
+**And the board is honest when its panels disagree**: "2 of 3 streams
+consuming" rather than one badge that implies they agree.
+
+### Data sources and admin
+
+**A data source has a pause button.** `paused_at` has been on the row since
+query pools landed and everything that would touch a warehouse checks it — but
+there was no control, and a kill switch you can only reach with `curl` is not
+one you reach at eight in the morning with a warehouse falling over.
+
+**Admin pages sit where every other page sits.** They had no horizontal gutter,
+so the tab strip and the cards ran flush into the edge of the window with their
+rounded corners cut off; the white panel was square where every other page's is
+round; and each tab padded its own content differently, so none of them lined
+up with each other or with the caption above them.
+
+### Running it
+
+**A Prometheus endpoint.** `/metrics` reports queue depth, worker saturation,
+query-pool use, stream slots and database connections, read at the moment of
+the scrape. Behind a bearer token and unmounted without one. StatsD still
+works; this is the shape a cluster already scrapes.
+
+**Archived dashboards are somewhere you can look.** Queries have had an
+archive since the fork; dashboards never got the matching half.
+
+**DuckDB 2.0**, which uploads, stream windows and notebooks all sit on. It
+writes a file format 0.7.x cannot open, so `SQLDESK_DUCKDB_STORAGE_COMPATIBILITY`
+keeps writing the old one by default and going back stays possible. One SQL
+change to know about: the single-arrow lambda `x -> x + 1` is re-enabled for
+now, and DuckDB removes it in 2.1.
+
+**MCP gets ten minutes, not fifty seconds.** The queries people point a model
+at are the slow ones, and the budget was derived from gunicorn's default
+timeout. It cannot be raised on its own — MCP answers inside a web request, so
+a budget past gunicorn's timeout means the worker is killed mid-reply and the
+client sees a dropped connection rather than an answer. The entrypoint now
+sizes gunicorn's timeout *from* the budget, with a minute of headroom.
+
+**A DuckDB data source can point at a file.** `dbpath` was offered on the form
+and setting it made the source fail outright, because the runner connected
+before it had been told which directory to allow. DuckDB also permits one
+writer per file across the whole machine, so a file source worked for whichever
+process reached it first and was refused to every other — which on a dashboard
+is most of the widgets. Read-only connections are now shared per file.
+
+### Fixes
+
+**An alert to Slack says the number.** It carried the alert's name and a link
+and left the value out, which is the one thing somebody woken by it needs.
+
+**Email is no longer sent automatically** to an alert's subscribers when
+another destination is configured.
+
+**The Format button no longer breaks scientific notation.** `1e-12` came back
+as `1e -12`, which is a syntax error. The tokenizer had no rule for an exponent,
+so it read a word, a minus and a number, and spaced out what it took to be an
+operator. Only a *signed* exponent produced it, which is why it went unnoticed.
+
+**Running Queries was empty on every install**, two faults deep: the job ids
+were passed as a lazy generator to something that walks its argument twice, and
+the second pass paired nothing. It returned an empty list and raised nothing.
+
+**Widget tabs no longer need pressing twice.** Everything inside a dashboard
+grid item is a drag handle unless it is named as not being one, so while a
+dashboard was being edited a mousedown on a tab started a drag and swallowed
+the click that followed — a button that worked on the second press, or the
+first, depending on whether the pointer moved a pixel in between.
+
+**A table widget can carry tabs.** Tables were excluded alongside counters on
+the reasoning that a table is already a grid of numbers — which was about the
+table rather than about the widget. The useful case is one that opens on its
+rows and offers the charts of the same query beside them.
+
+**Deleting a user who had ever logged in** failed with a raw database
+traceback: a single login writes a row to `events`, which does not cascade.
+It now names what the account still owns and points at disabling it instead.
+
+**Deleting a data source whose tables had been described** failed the same way.
+The catalog arrived after that method was written and nothing brought the two
+together.
+
+**An embed carries no branding.** A dashboard in a customer's portal, or a
+chart in a wiki, had a "Powered by SQLDesk" footer and a logo linking to
+sqldesk.org. A reader of that page has never heard of the tool and cannot sign
+in to it. The link back to the query stays, because it is useful to whoever
+embedded it, but it says "Open the query" rather than naming us.
+
+**The loading spinner no longer swings on a hinge.** antd puts the gap between
+spinner and label as padding on the icon, and the icon is also the element it
+rotates — so the box was 8px wider than tall and the arc orbited a point four
+pixels off its own centre. The broken profile picture beside it is fixed too.
+
+**A choropleth with no region joined** logged two console errors, the second of
+which hid the first.
+
+### Documentation
+
+**[The notebooks guide](https://sqldesk.org/guide/notebooks.html)** covers how
+they work in full: what a cell is allowed to do, how the handoff is stored,
+what a Spark cluster changes, and how to turn the Python interpreter on without
+handing it anything it should not have.
+
+**[The work a query cannot hold](https://sqldesk.org/blog/the-work-a-query-cannot-hold.html)**
+is five pieces of analysis that do not fit in one SELECT — cross-warehouse
+churn, a month-end reconciliation, a cohort table, a reorder forecast, and the
+investigation that becomes a monthly report — written out as the cells you
+would actually type.
+
+### Upgrading from 0.7.10
+
+Notebooks add three tables; run the migration as usual. Nothing else changes
+shape.
+
+If you use uploads or streams, read the DuckDB note above before rolling back
+to 0.7.x: files written by 0.8 with `latest` set cannot be opened by it.
+
 ## 0.7.10
 
 Charts that can hold more than one idea, and an agent that can reach alerts.

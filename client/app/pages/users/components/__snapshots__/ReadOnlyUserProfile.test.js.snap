@@ -5,10 +5,12 @@ exports[`renders correctly 1`] = `
   className="col-md-4 col-md-offset-4 profile__container"
 >
   <img
-    alt="profile"
-    className="profile__image"
+    alt=""
+    className="user-avatar profile__image"
+    height={40}
+    onError={[Function]}
     src="http://www.images.com/llama.jpg"
-    width="40"
+    width={40}
   />
   <h3
     className="profile__h3"

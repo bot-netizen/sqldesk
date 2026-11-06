@@ -1,4 +1,4 @@
-import { includes, isNil, mapValues } from "lodash";
+import { each, includes, isNil, mapValues } from "lodash";
 import moment from "moment";
 
 // Every chart type the renderer can draw. Plotly used to catch anything absent
@@ -170,4 +170,163 @@ export function getSeriesAxisIndex(seriesName: string, options: any): 0 | 1 {
  */
 export function seriesId(name: string): string {
   return `series:${name}`;
+}
+
+const MINUTE = 60000;
+const HOUR = 3600000;
+const DAY = 86400000;
+
+/**
+ * How a timestamp on the x axis should read, given how much time the chart
+ * covers.
+ *
+ * ECharts' own time axis labels a run of days as bare numbers -- "15", "22",
+ * "29" -- and prints the month only where it turns. On a three-month chart
+ * that is a row of numbers with two words in it, and nobody can say what
+ * "22" is without counting back to the nearest month name. These say the
+ * month on every label and let `hideOverlap` drop whichever will not fit,
+ * which costs a few labels and leaves every surviving one readable on its
+ * own.
+ *
+ * Within a day the dates are the thing that goes missing instead: a row of
+ * "06:00 18:00 06:00 18:00" with a lone "3" in it. Midnight carries the date
+ * here, so each run of times is anchored to the day it belongs to.
+ */
+export function timeAxisFormatter(span: number): (value: any) => string {
+  if (span >= 3 * 365 * DAY) {
+    return (value) => moment.utc(value).format("YYYY");
+  }
+  if (span >= 120 * DAY) {
+    return (value) => moment.utc(value).format("MMM YYYY");
+  }
+  if (span >= 3 * DAY) {
+    return (value) => moment.utc(value).format("D MMM");
+  }
+  if (span >= 2 * HOUR) {
+    return (value) => {
+      const at = moment.utc(value);
+      return at.hour() === 0 && at.minute() === 0 ? at.format("D MMM") : at.format("HH:mm");
+    };
+  }
+  // Seconds only once they are what distinguishes one point from the next.
+  // Carried on every label of a five-minute chart they are three characters
+  // of ":00" on each.
+  if (span >= 2 * MINUTE) {
+    return (value) => moment.utc(value).format("HH:mm");
+  }
+  return (value) => moment.utc(value).format("HH:mm:ss");
+}
+
+/**
+ * The same timestamp where there is room to be unambiguous: the label on the
+ * axis under the pointer, and the heading above the tooltip.
+ *
+ * Fuller than the axis, because it is one label rather than thirty, and it is
+ * the one a person reads when they want to know exactly which point they are
+ * looking at. A day gets its weekday -- "is that bar a Sunday?" is most of
+ * why anybody hovers a daily chart -- and no time of day, which on daily
+ * buckets is a midnight that means nothing and reads as precision that is
+ * not there.
+ */
+export function timePointerFormatter(span: number): (value: any) => string {
+  if (span >= 3 * 365 * DAY) {
+    return (value) => moment.utc(value).format("MMM YYYY");
+  }
+  if (span >= 3 * DAY) {
+    return (value) => moment.utc(value).format("ddd D MMM YYYY");
+  }
+  if (span >= 2 * HOUR) {
+    return (value) => moment.utc(value).format("ddd D MMM, HH:mm");
+  }
+  return (value) => moment.utc(value).format("ddd D MMM, HH:mm:ss");
+}
+
+/** The time a chart covers, in milliseconds, or 0 when it covers no time. */
+export function timeSpan(chartData: any[]): number {
+  let low = Infinity;
+  let high = -Infinity;
+  each(chartData, (series: any) =>
+    each(series.data, (point: any) => {
+      const x = normalizeX(point.x, "time");
+      if (!isNil(x)) {
+        low = Math.min(low, x);
+        high = Math.max(high, x);
+      }
+    })
+  );
+  return high > low ? high - low : 0;
+}
+
+/**
+ * How far apart the ticks on a time axis should be.
+ *
+ * Left to itself ECharts anchors one rhythm to the data's start and another
+ * to each month, and draws both: a 90-day axis came out "15, 22, 29, 5, 8,
+ * 15, 22, 29, 6, 8" -- mostly weekly, with a three-day step wherever a
+ * month began. Months are not a whole number of weeks, so the two rhythms
+ * cannot agree, and nothing about the result says which gap is which.
+ *
+ * Choosing the step ourselves makes every gap the same. The candidates are
+ * durations people actually think in, and the smallest one that keeps the
+ * axis under `most` labels wins -- so the step grows with the range rather
+ * than the label count growing without limit.
+ */
+const TICK_STEPS = [
+  1000,
+  5 * 1000,
+  15 * 1000,
+  30 * 1000,
+  MINUTE,
+  5 * MINUTE,
+  15 * MINUTE,
+  30 * MINUTE,
+  HOUR,
+  3 * HOUR,
+  6 * HOUR,
+  12 * HOUR,
+  DAY,
+  2 * DAY,
+  7 * DAY,
+  14 * DAY,
+  28 * DAY,
+  91 * DAY,
+  182 * DAY,
+  365 * DAY,
+];
+
+export function timeAxisInterval(span: number, most = 13): number | undefined {
+  if (!span || span <= 0) {
+    return undefined;
+  }
+  const step = TICK_STEPS.find((candidate) => span / candidate <= most);
+  // Past a decade the steps run out; ECharts' own choice of year boundaries
+  // is regular enough once a tick is a year or more apart.
+  return step === undefined ? undefined : step;
+}
+
+/**
+ * The exact timestamps to put ticks on.
+ *
+ * `minInterval`/`maxInterval` are a request, not an instruction: ECharts'
+ * time axis still snaps to calendar boundaries, and a month is not a whole
+ * number of days-times-anything, so asking for a four-day step produced
+ * "13, 17, 21, 25 Aug, 5 Sep" -- four days apart until the month turned
+ * and then eleven. Handing it the positions outright is the only way the
+ * gaps come out equal, and ECharts has taken `customValues` since 5.5.
+ *
+ * Anchored to the first point rather than to a round date, so the left end
+ * of the axis is always labelled; an axis whose first tick floats several
+ * days in looks like the data starts later than it does.
+ */
+export function timeAxisTicks(from: number, to: number, interval: number): number[] {
+  if (!interval || interval <= 0 || !(to > from)) {
+    return [];
+  }
+  const ticks: number[] = [];
+  // A guard rather than a limit anybody should reach: a pathological
+  // interval against a long span would otherwise build an endless array.
+  for (let at = from; at <= to && ticks.length < 400; at += interval) {
+    ticks.push(at);
+  }
+  return ticks;
 }

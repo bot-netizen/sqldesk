@@ -1,6 +1,50 @@
 @import "../../assets/less/inc/tokens";
 
 .admin-page-layout {
+  /*
+    The same gutter every list page uses.
+
+    `base.less` takes the max-width off the container here so the wide tables
+    get the room they need, and that left the page with no horizontal gutter
+    at all: the tab strip, the caption and the cards all ran flush into the
+    viewport, and the cards' rounded corners were cut off by the edge.
+    Matching `.list-page-shell` means Admin sits where every other page sits.
+  */
+  padding: var(--sp-6) var(--sp-7) var(--sp-7);
+
+  .container {
+    /* Bootstrap's own 15px on top of the gutter above would make the two
+       edges disagree by exactly that much. */
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /*
+    `.tiled` rounds this panel's corners, and the tab strip is its first
+    child with a white background of its own -- a square child paints over
+    a rounded parent, so the top two corners came out sharp while every
+    other page's panels are round.
+
+    Clipping to the border box is what makes the radius hold. Safe here:
+    the only overlay on these pages is the date-range Select, and antd
+    renders its dropdown in a portal on the body rather than inside this.
+  */
+  > .container > .bg-white.tiled {
+    overflow: hidden;
+  }
+
+  /*
+    Every tab's content, inset to the same line as the caption above it.
+
+    `@sp-5` horizontally so a control lines up with the description's first
+    character rather than starting at the panel's edge, and room at the top
+    so the first thing down -- usually a select -- does not sit against the
+    caption's bottom rule.
+  */
+  .admin-tab-content {
+    padding: @sp-5;
+  }
+
   .ant-table {
     overflow-x: auto;
   }

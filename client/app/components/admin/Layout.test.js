@@ -38,6 +38,7 @@ describe("admin Layout", () => {
       "Storage Status",
       "Running Queries",
       "Streaming Queries",
+      "Audit",
       "Outdated Queries",
       "MCP",
     ]);
@@ -92,5 +93,39 @@ describe("admin Layout", () => {
     adminTabs().forEach((tab) => {
       expect(tab.description.length).toBeGreaterThan(80);
     });
+  });
+});
+
+/*
+  Each admin tab used to pad itself, and they disagreed: System Status 15px
+  all round, Storage and Streams vertically only, Audit and Catalog not at
+  all. So Audit's date picker started at the panel's edge while the caption
+  directly above it was inset, and the totals box ran into the rounded
+  corner.
+
+  One wrapper owns the padding now, which is what keeps the tabs agreeing.
+*/
+describe("where a tab's content sits", () => {
+  test("every tab's content goes in one padded wrapper", () => {
+    const wrapper = mount(
+      <Layout activeTab="audit">
+        <div className="whatever-the-tab-draws" />
+      </Layout>
+    );
+
+    const content = wrapper.find(".admin-tab-content");
+    expect(content.exists()).toBe(true);
+    expect(content.find(".whatever-the-tab-draws").exists()).toBe(true);
+  });
+
+  test("the caption stays outside it, so the two are not inset twice", () => {
+    const wrapper = mount(
+      <Layout activeTab="audit">
+        <div />
+      </Layout>
+    );
+
+    expect(wrapper.find(".admin-tab-content .admin-tab-description").exists()).toBe(false);
+    expect(wrapper.find(".admin-tab-description").exists()).toBe(true);
   });
 });

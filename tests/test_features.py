@@ -108,6 +108,19 @@ class TestGrantingThroughTheEndpoint(BaseTestCase):
             all("label" in f and "description" in f for f in rv.json["client_config"]["grantableFeatures"])
         )
 
+    def test_the_client_is_told_which_features_are_still_settling(self):
+        """
+        One place decides what is beta, and the pages that badge it ask.
+
+        A page carrying its own list is a page that goes on saying "beta"
+        about something that left beta two releases back, which is worse than
+        no badge -- so the flag travels with the feature.
+        """
+        rv = self.make_request("get", "/api/session", user=self.factory.create_admin())
+
+        beta = {f["name"] for f in rv.json["client_config"]["grantableFeatures"] if f.get("beta")}
+        self.assertEqual({"use_notebooks"}, beta)
+
 
 class TestTheStreamPermissions(BaseTestCase):
     """

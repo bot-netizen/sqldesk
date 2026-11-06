@@ -28,7 +28,7 @@ const visualizationDirs = fs
 
 describe("the visualization registry", () => {
   test("registers every visualization in the folder", () => {
-    expect(visualizationDirs.length).toBe(22);
+    expect(visualizationDirs.length).toBe(27);
     expect(Object.keys(registeredVisualizations).length).toBe(visualizationDirs.length);
   });
 

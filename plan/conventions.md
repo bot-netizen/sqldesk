@@ -80,6 +80,17 @@ on it. The wrong one has none, and that is the fastest question to ask.
   ```
 
   2312 passed / 10 skipped that way, against 2305 / 17 without it.
+- **Lint after the last commit, not before it.** 0.7.2 met a red CI because I
+  ran black and ruff, then committed one more fix whose expression got shorter
+  and whose line then fitted on one. The linters are cheap; run them again
+  immediately before the push.
+- **Never run the suite as root.** `docker compose run --user root` is tempting
+  when you need a `pip install` first, and it fails two tests for reasons that
+  have nothing to do with your change: `test_connection_bad_test` expects
+  sqlite to be unable to open `/notexist.db`, and root creates it, and
+  `test_an_unwritable_directory_is_said_plainly` expects a chmod to mean
+  something. Both pass as the `sqldesk` user. Install into a `--target`
+  directory and set `PYTHONPATH` instead, or rebuild.
 - **Never run two backend suites at once** — both `create_all`/`drop_all` the
   same database and the second fails 152 tests in a way that looks like a code
   fault.
@@ -87,6 +98,47 @@ on it. The wrong one has none, and that is the fastest question to ask.
   compose client dies of SIGPIPE, and the container keeps running the suite.
   That orphan is the cause of every "the test database got corrupted" episode
   here. Write to a file and grep the file.
+- **`create_all` builds the search trigger only if the mappers are already
+  configured.** `sqlalchemy_searchable`'s `make_searchable` attaches its
+  per-table DDL listeners from the mapper `after_configured` event, so a
+  `create_all` that runs before anything has configured the mappers creates
+  `queries` without `queries_search_vector_trigger`. `search_vector` is then
+  NULL for every row the table ever holds, every search returns nothing, and
+  not one thing raises: the search tests in
+  `tests/handlers/test_queries.py` just find 0 of 2. `tests/__init__.py`
+  calls `configure_mappers()` before `create_all` for this reason. It was
+  hidden rather than absent while the schema was rebuilt per test -- the
+  first ORM use configured the mappers and every later test got its trigger
+  -- which is why that one file failed when run on its own and
+  passed in a full suite.
+- **The backend suite needs the frontend built, or ten tests fail on a
+  template.** `multi_org.html` is a webpack output in `client/dist/`, not a
+  file in the repository, and the page handlers render it. A fresh worktree
+  has no `client/dist`, so `tests/test_handlers.py`,
+  `tests/handlers/test_embed.py`, `tests/test_security_headers.py`,
+  `tests/models/test_users.py::TestUserDetail::test_sync` and
+  `tests/test_authentication.py::TestJWTAuthentication::test_jwt_from_pem_file`
+  fail with `jinja2.exceptions.TemplateNotFound: multi_org.html`. Nothing is
+  wrong with them. Run `pnpm run build` in the worktree, or read ten
+  template failures as "this checkout has no frontend build" and move on.
+- **Compare suite timing per test, and expect the runner to swing by two.**
+  `backend-unit-tests` on GitHub's shared `ubuntu-22.04` runners has taken
+  25m12s and 46m13s for the same green code on `release/0.8`, and ~58 minutes
+  three times. A slow runner reads exactly like a regression, and was written
+  down as one twice. The wall clock will not tell you which you have; the
+  per-file numbers will. The three ~58-minute runs (41234126211, 41238799209,
+  41346028951) were uniformly **2.36-2.45x** slower than the 25-minute one
+  across all 84 test files that take over five seconds -- among them
+  `test_security_headers.py`, `models/test_users.py` and
+  `ai/test_optimizer.py`, which 0.8 never touched. A code path one release
+  added cannot slow those by the same factor as everything else. What settles
+  it is the step *before* the tests: `Build Docker Images` took 136-142s on
+  those three runs and 104-109s on the two fast ones, so the machine was
+  already slower before a test had run, and nothing in a test suite slows
+  down an image build. Judge the code by the `Run Tests` step divided by its
+  test count, which the job summary does not give you: 1150s/2974 on v0.7.10
+  against 1399s/3430 on release/0.8's fastest green run is **0.387s against
+  0.408s per test**.
 
 ## Commits
 

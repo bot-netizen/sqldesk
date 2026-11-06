@@ -5,7 +5,7 @@
       "error_message": "Significant refactor of widgets.py",
       "file": "sqldesk/handlers/widgets.py",
       "root_cause": "12 lines replaced/restructured",
-      "fix": "Rewrote 24→29 lines (12 removed)",
+      "fix": "Rewrote 24\u219229 lines (12 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -23,7 +23,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/serializers/__init__.py",
       "root_cause": "9 lines replaced/restructured",
-      "fix": "Rewrote 14→5 lines (9 removed)",
+      "fix": "Rewrote 14\u21925 lines (9 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -41,7 +41,7 @@
       "error_message": "Significant refactor of dashboards.py",
       "file": "sqldesk/handlers/dashboards.py",
       "root_cause": "18 lines replaced/restructured",
-      "fix": "Rewrote 20→3 lines (18 removed)",
+      "fix": "Rewrote 20\u21923 lines (18 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -59,7 +59,7 @@
       "error_message": "Significant refactor of test_kind_partition.py",
       "file": "tests/handlers/test_kind_partition.py",
       "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 11→15 lines (5 removed)",
+      "fix": "Rewrote 11\u219215 lines (5 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -76,8 +76,8 @@
     {
       "error_message": "CSS fix: key, href",
       "file": "client/app/pages/queries-list/QueriesList.jsx",
-      "root_cause": "key: \"archive\", → \"archive\", title: \"Archived\", icon: () => <Sidebar.MenuIcon icon=\"fa fa-archive\" />; href: \"queries/archive\", → view.key === \"all\" ? base : `${base",
-      "fix": "Changed key: \"archive\", → \"archive\", title: \"Archived\", icon: () => <Sidebar.MenuIcon icon=\"fa fa-archive\" />; href: \"queries/archive\", → view.key === \"all\" ? base : `${base",
+      "root_cause": "key: \"archive\", \u2192 \"archive\", title: \"Archived\", icon: () => <Sidebar.MenuIcon icon=\"fa fa-archive\" />; href: \"queries/archive\", \u2192 view.key === \"all\" ? base : `${base",
+      "fix": "Changed key: \"archive\", \u2192 \"archive\", title: \"Archived\", icon: () => <Sidebar.MenuIcon icon=\"fa fa-archive\" />; href: \"queries/archive\", \u2192 view.key === \"all\" ? base : `${base",
       "tags": [
         "auto-detected",
         "style-fix",
@@ -95,7 +95,7 @@
       "error_message": "Significant refactor of QueriesList.jsx",
       "file": "client/app/pages/queries-list/QueriesList.jsx",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 7→14 lines (2 removed)",
+      "fix": "Rewrote 7\u219214 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -113,7 +113,7 @@
       "error_message": "Significant refactor of query.js",
       "file": "client/app/services/query.js",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 6→20 lines (2 removed)",
+      "fix": "Rewrote 6\u219220 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -130,8 +130,8 @@
     {
       "error_message": "CSS fix: render",
       "file": "client/app/pages/streams/streams.routes.jsx",
-      "root_cause": "render: () => <Redirect to=\"admin/streams\" />, → () =>",
-      "fix": "Changed render: () => <Redirect to=\"admin/streams\" />, → () =>",
+      "root_cause": "render: () => <Redirect to=\"admin/streams\" />, \u2192 () =>",
+      "fix": "Changed render: () => <Redirect to=\"admin/streams\" />, \u2192 () =>",
       "tags": [
         "auto-detected",
         "style-fix",
@@ -275,7 +275,7 @@
       "error_message": "Significant refactor of index.jsx",
       "file": "client/app/components/ApplicationArea/index.jsx",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 9→28 lines (3 removed)",
+      "fix": "Rewrote 9\u219228 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -311,7 +311,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/mcp/__init__.py",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 5→7 lines (3 removed)",
+      "fix": "Rewrote 5\u21927 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -329,7 +329,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/mcp/__init__.py",
       "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 16→48 lines (5 removed)",
+      "fix": "Rewrote 16\u219248 lines (5 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -347,7 +347,7 @@
       "error_message": "Significant refactor of prometheus.py",
       "file": "sqldesk/query_runner/prometheus.py",
       "root_cause": "15 lines replaced/restructured",
-      "fix": "Rewrote 22→53 lines (15 removed)",
+      "fix": "Rewrote 22\u219253 lines (15 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -382,7 +382,7 @@
     {
       "error_message": "Missing error handling in prometheus.py",
       "file": "sqldesk/query_runner/prometheus.py",
-      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
       "fix": "Added try/catch block",
       "tags": [
         "auto-detected",
@@ -400,7 +400,7 @@
     {
       "error_message": "Missing error handling in sample_value()",
       "file": "sqldesk/query_runner/prometheus.py",
-      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
       "fix": "Added try/catch block",
       "tags": [
         "auto-detected",
@@ -418,7 +418,7 @@
     {
       "error_message": "Missing error handling in api_error()",
       "file": "sqldesk/query_runner/prometheus.py",
-      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
       "fix": "Added try/catch block",
       "tags": [
         "auto-detected",
@@ -437,7 +437,7 @@
       "error_message": "Significant refactor of prometheus.py",
       "file": "sqldesk/query_runner/prometheus.py",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 4→6 lines (2 removed)",
+      "fix": "Rewrote 4\u21926 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -455,7 +455,7 @@
       "error_message": "Wrong operator: == should be !=",
       "file": "sqldesk/query_runner/prometheus.py",
       "root_cause": "Used \"==\" instead of \"!=\"",
-      "fix": "Changed operator == → !=",
+      "fix": "Changed operator == \u2192 !=",
       "tags": [
         "auto-detected",
         "operator-fix",
@@ -473,7 +473,7 @@
       "error_message": "Significant refactor of test_prometheus.py",
       "file": "tests/query_runner/test_prometheus.py",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 7→30 lines (3 removed)",
+      "fix": "Rewrote 7\u219230 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -491,7 +491,7 @@
       "error_message": "Significant refactor of prometheus.py",
       "file": "sqldesk/query_runner/prometheus.py",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 20→35 lines (3 removed)",
+      "fix": "Rewrote 20\u219235 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -508,7 +508,7 @@
     {
       "error_message": "Missing error handling in _timeout()",
       "file": "sqldesk/query_runner/prometheus.py",
-      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
       "fix": "Added try/catch block",
       "tags": [
         "auto-detected",
@@ -699,7 +699,7 @@
       "error_message": "Significant refactor of Dockerfile",
       "file": "Dockerfile",
       "root_cause": "9 lines replaced/restructured",
-      "fix": "Rewrote 35→140 lines (9 removed)",
+      "fix": "Rewrote 35\u2192140 lines (9 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -825,7 +825,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/mcp/__init__.py",
       "root_cause": "14 lines replaced/restructured",
-      "fix": "Rewrote 17→21 lines (14 removed)",
+      "fix": "Rewrote 17\u219221 lines (14 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -843,7 +843,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/mcp/__init__.py",
       "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 7→8 lines (5 removed)",
+      "fix": "Rewrote 7\u21928 lines (5 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -861,7 +861,7 @@
       "error_message": "Significant refactor of index.html",
       "file": "docs/index.html",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 9→21 lines (4 removed)",
+      "fix": "Rewrote 9\u219221 lines (4 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -979,7 +979,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/settings/__init__.py",
       "root_cause": "7 lines replaced/restructured",
-      "fix": "Rewrote 9→15 lines (7 removed)",
+      "fix": "Rewrote 9\u219215 lines (7 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1014,8 +1014,8 @@
     {
       "error_message": "CSS fix: chrome",
       "file": "client/app/components/items-list/components/ListPageControls.jsx",
-      "root_cause": "chrome: Filter holds the → search is server-side",
-      "fix": "Changed chrome: Filter holds the → search is server-side",
+      "root_cause": "chrome: Filter holds the \u2192 search is server-side",
+      "fix": "Changed chrome: Filter holds the \u2192 search is server-side",
       "tags": [
         "auto-detected",
         "style-fix",
@@ -1033,7 +1033,7 @@
       "error_message": "Significant refactor of ListPageControls.jsx",
       "file": "client/app/components/items-list/components/ListPageControls.jsx",
       "root_cause": "17 lines replaced/restructured",
-      "fix": "Rewrote 42→28 lines (17 removed)",
+      "fix": "Rewrote 42\u219228 lines (17 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1051,7 +1051,7 @@
       "error_message": "Significant refactor of ListPageControls.less",
       "file": "client/app/components/items-list/components/ListPageControls.less",
       "root_cause": "10 lines replaced/restructured",
-      "fix": "Rewrote 17→27 lines (10 removed)",
+      "fix": "Rewrote 17\u219227 lines (10 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1069,7 +1069,7 @@
       "error_message": "Significant refactor of ListPageControls.test.js",
       "file": "client/app/components/items-list/components/ListPageControls.test.js",
       "root_cause": "15 lines replaced/restructured",
-      "fix": "Rewrote 34→21 lines (15 removed)",
+      "fix": "Rewrote 34\u219221 lines (15 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1087,7 +1087,7 @@
       "error_message": "Significant refactor of ItemsFetcher.js",
       "file": "client/app/components/items-list/classes/ItemsFetcher.js",
       "root_cause": "17 lines replaced/restructured",
-      "fix": "Rewrote 42→62 lines (17 removed)",
+      "fix": "Rewrote 42\u219262 lines (17 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1159,7 +1159,7 @@
       "error_message": "Significant refactor of buildOption.threshold.test.ts",
       "file": "viz-lib/src/visualizations/chart/echarts/buildOption.threshold.test.ts",
       "root_cause": "10 lines replaced/restructured",
-      "fix": "Rewrote 13→39 lines (10 removed)",
+      "fix": "Rewrote 13\u219239 lines (10 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1213,7 +1213,7 @@
       "error_message": "Significant refactor of cellFormat.ts",
       "file": "viz-lib/src/visualizations/table/cellFormat.ts",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 9→49 lines (3 removed)",
+      "fix": "Rewrote 9\u219249 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1366,7 +1366,7 @@
       "error_message": "Significant refactor of test_data_sources.py",
       "file": "tests/models/test_data_sources.py",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 4→12 lines (2 removed)",
+      "fix": "Rewrote 4\u219212 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1420,7 +1420,7 @@
       "error_message": "Wrong operator: != should be ==",
       "file": "sqldesk/handlers/authentication.py",
       "root_cause": "Used \"!=\" instead of \"==\"",
-      "fix": "Changed operator != → ==",
+      "fix": "Changed operator != \u2192 ==",
       "tags": [
         "auto-detected",
         "operator-fix",
@@ -1438,7 +1438,7 @@
       "error_message": "Significant refactor of test_mcp.py",
       "file": "tests/handlers/test_mcp.py",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 6→48 lines (2 removed)",
+      "fix": "Rewrote 6\u219248 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1474,7 +1474,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/models/__init__.py",
       "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 27→37 lines (5 removed)",
+      "fix": "Rewrote 27\u219237 lines (5 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1510,7 +1510,7 @@
       "error_message": "Significant refactor of slack.py",
       "file": "sqldesk/destinations/slack.py",
       "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 11→13 lines (5 removed)",
+      "fix": "Rewrote 11\u219213 lines (5 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1528,7 +1528,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/models/__init__.py",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 3→9 lines (3 removed)",
+      "fix": "Rewrote 3\u21929 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1564,7 +1564,7 @@
       "error_message": "Significant refactor of users.py",
       "file": "sqldesk/models/users.py",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 7→21 lines (4 removed)",
+      "fix": "Rewrote 7\u219221 lines (4 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1616,7 +1616,7 @@
       "error_message": "Significant refactor of buildOption.ts",
       "file": "viz-lib/src/visualizations/chart/echarts/buildOption.ts",
       "root_cause": "11 lines replaced/restructured",
-      "fix": "Rewrote 26→71 lines (11 removed)",
+      "fix": "Rewrote 26\u219271 lines (11 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1688,7 +1688,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/mcp/__init__.py",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 12→17 lines (3 removed)",
+      "fix": "Rewrote 12\u219217 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1706,7 +1706,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/mcp/__init__.py",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 24→53 lines (4 removed)",
+      "fix": "Rewrote 24\u219253 lines (4 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1724,7 +1724,7 @@
       "error_message": "Significant refactor of __init__.py",
       "file": "sqldesk/mcp/__init__.py",
       "root_cause": "28 lines replaced/restructured",
-      "fix": "Rewrote 34→4 lines (28 removed)",
+      "fix": "Rewrote 34\u21924 lines (28 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1742,7 +1742,7 @@
       "error_message": "Significant refactor of VisualizationWidget.jsx",
       "file": "client/app/components/dashboards/dashboard-widget/VisualizationWidget.jsx",
       "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 13→27 lines (4 removed)",
+      "fix": "Rewrote 13\u219227 lines (4 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1760,7 +1760,7 @@
       "error_message": "Significant refactor of rollup.ts",
       "file": "viz-lib/src/visualizations/chart/rollup.ts",
       "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 12→13 lines (3 removed)",
+      "fix": "Rewrote 12\u219213 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1778,7 +1778,7 @@
       "error_message": "Significant refactor of rollup.ts",
       "file": "viz-lib/src/visualizations/chart/rollup.ts",
       "root_cause": "13 lines replaced/restructured",
-      "fix": "Rewrote 30→19 lines (13 removed)",
+      "fix": "Rewrote 30\u219219 lines (13 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1796,7 +1796,7 @@
       "error_message": "Significant refactor of buildOption.ts",
       "file": "viz-lib/src/visualizations/chart/echarts/buildOption.ts",
       "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 33→53 lines (5 removed)",
+      "fix": "Rewrote 33\u219253 lines (5 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -1809,6 +1809,413 @@
       "last_seen": "2026-10-29T15:42:07.413Z",
       "occurrences": 1,
       "related_bugs": []
+    },
+    {
+      "id": "bug-104",
+      "status": "fixed",
+      "related_bugs": [],
+      "occurrences": 1,
+      "timestamp": "2026-10-30T05:39:00.356453Z",
+      "last_seen": "2026-10-30T05:39:00.356453Z",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "error_message": "AssertionError: expected call not found -- test_slack_notify_calls_requests_post",
+      "file": "tests/handlers/test_destinations.py",
+      "root_cause": "851eabb78 replaced the Slack payload with Block Kit inside an attachment (color/blocks/fallback) but the test still asserted the old shape (text/fields) as byte-exact JSON. The file was never run when that change was made, so the branch carried a failing test until a full suite run surfaced it.",
+      "fix": "Rewrote the test to assert by meaning: the colour, the fallback carrying the reading, a bold leading headline, a verbatim custom body, and both links in the footnotes. Added a second test for the screenshot note a webhook cannot carry. Six mutants confirm each assertion has teeth.",
+      "tags": [
+        "slack",
+        "alerts",
+        "test-drift",
+        "exact-payload-assertion"
+      ]
+    },
+    {
+      "id": "bug-105",
+      "status": "fixed",
+      "related_bugs": [],
+      "occurrences": 1,
+      "timestamp": "2026-10-30T05:39:00.356453Z",
+      "last_seen": "2026-10-30T05:39:00.356453Z",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "error_message": "BinderException: Deprecated lambda arrow (->) detected | IOException: Trying to read a database file with version number 69, but we can only read versions between 64 and 68",
+      "file": "sqldesk/query_runner/__init__.py",
+      "root_cause": "DuckDB 2.0 made the PEG parser the default, which refuses the single-arrow lambda every earlier version accepted, and it writes storage version 69 which the 1.5.6 in 0.7.x cannot open. Neither is in our code: one breaks a user's saved query, the other strands an operator who rolls back.",
+      "fix": "LEGACY_LAMBDA re-enables the old spelling on every connection we open, applied before lock_configuration (the only order that works). storage_config() asks for v1.5.0 via DUCKDB_STORAGE_COMPATIBILITY so files stay readable by 0.7.x; `latest` opts out. Opening a file read-write does not rewrite it, so existing uploads are untouched.",
+      "tags": [
+        "duckdb",
+        "upgrade",
+        "storage-format",
+        "sql-compatibility",
+        "streams",
+        "uploads"
+      ]
+    },
+    {
+      "id": "bug-106",
+      "error_message": "DuckDB 2.0 tests failed in CI: storage version 64 not > 68; single-arrow lambda accepted; Avro timestamp naive",
+      "root_cause": "The duckdb pin was changed in pyproject.toml only. Dockerfile runs `uv sync --frozen`, which uses uv.lock verbatim and does not check pyproject, so every build kept installing 1.5.6 without any warning. Local verification had pip-installed 2.0.0 over the image, hiding it.",
+      "fix": "`uv lock --upgrade-package duckdb` to move uv.lock to 2.0.0 (diff is that version and its hashes only), then rebuild the image. Any dependency change needs the lock regenerated; `--frozen` makes pyproject alone decorative.",
+      "tags": [
+        "duckdb",
+        "uv",
+        "dependencies",
+        "docker",
+        "ci"
+      ]
+    },
+    {
+      "id": "bug-107",
+      "error_message": "FileNotFoundError: No such file or directory: '<notebook dir>/<cell>.handoff.json'",
+      "root_cause": "notebooks/store.py hand_off() opened its scratch JSON file before touching self.connection, and the connection property is what creates the notebook's directory. Only ever failed on a notebook's very first cell, since every later cell found the directory already there.",
+      "fix": "Take `self.connection` at the top of hand_off and use that handle for the CREATE TABLE, so the directory exists before the scratch file is opened. tests/notebooks/test_store.py::test_the_first_cell_of_a_brand_new_notebook_can_write covers it.",
+      "tags": [
+        "notebooks",
+        "duckdb",
+        "filesystem"
+      ]
+    },
+    {
+      "id": "bug-108",
+      "error_message": "Stop on an idle notebook session ended the session and lost every variable",
+      "root_cause": "executor/service.py Session.interrupt() sent SIGINT whenever the session was alive. With no cell running the child is blocked in pipe.recv(), where SIGINT raises KeyboardInterrupt and serve() returns -- so the process exits. Design 4.6 says stop cancels the current cell, not the notebook.",
+      "fix": "interrupt() returns False without signalling when self.running is false: nothing to cancel. Covered by tests/test_executor.py::TestStopping::test_stopping_an_idle_notebook_does_not_throw_it_away. Found because a test was flaky, not because the test was aimed at it.",
+      "tags": [
+        "notebooks",
+        "executor",
+        "signals",
+        "flaky-test"
+      ]
+    },
+    {
+      "id": "bug-109",
+      "error_message": "import pandas -> KeyboardInterrupt (no stack, no message) inside the executor child",
+      "root_cause": "setrlimit on RLIMIT_NPROC or RLIMIT_AS set low. Both count things numpy's BLAS needs at import -- threads for NPROC, reserved address space for AS -- and OpenBLAS's pthread_create failure surfaces in Python as KeyboardInterrupt, which is indistinguishable from a user pressing stop. Measured in this image: NPROC 0 or 64 breaks pandas, 128 works and caps processes at ~34; RLIMIT_AS 512MB kills the process before imports finish, 2048MB breaks pandas, 4096MB works.",
+      "fix": "Both limits default to off in executor/service.py, with the numbers recorded in executor/runner.py:limits. The container's memory limit (compose mem_limit, Kubernetes limits) is the per-session ceiling; a kill there is reported as the interpreter running out of memory. EXECUTOR_MAX_PROCESSES and EXECUTOR_MEMORY_MB remain as opt-in knobs with the thresholds documented.",
+      "tags": [
+        "notebooks",
+        "executor",
+        "rlimit",
+        "pandas",
+        "measurement"
+      ]
+    },
+    {
+      "id": "bug-110",
+      "error_message": "TestStopping intermittently saw session.alive True with dead_reason None",
+      "root_cause": "Two things. The test shared one Flask test client between the thread running the busy cell and the thread sending the stop, and a test client is not thread-safe. And `running` is set before the code reaches the child, so a stop could land while the child was still idle and take the polite path instead of the one under test.",
+      "fix": "A separate test client per thread, and the cell touches a file in the session directory once it is genuinely in its loop; the test waits for that file before stopping. Three consecutive random-order runs of tests/test_executor.py pass.",
+      "tags": [
+        "tests",
+        "threading",
+        "flask",
+        "flaky-test"
+      ]
+    },
+    {
+      "id": "bug-111",
+      "error_message": "Enzyme shallow(): a page that loads data in useEffect renders nothing, and tests report empty",
+      "root_cause": "enzyme-adapter-react-16's shallow renderer does not run useEffect. A page whose data load lives in an effect therefore never loads under shallow, so assertions about what it shows fail -- and assertions about what it does NOT show pass vacuously.",
+      "fix": "mount() inside `await act(async () => {...})`, then page.update(). Shallow stays fine for presentational components with no effects. client/app/pages/notebooks/Notebook.test.js is the worked example.",
+      "tags": [
+        "frontend",
+        "tests",
+        "enzyme",
+        "hooks"
+      ]
+    },
+    {
+      "id": "bug-112",
+      "error_message": "A job returning a dict handed the page a dict where it reads a result id",
+      "root_cause": "sqldesk/serializers/__init__.py:serialize_job assigns `query_result_id = job.result` for any non-error result. A task that returns a richer dict therefore puts that whole dict into the field the client reads as an id.",
+      "fix": "A cell job returns `cell.latest_result_id` on success and `{\"error\": ...}` on failure -- the only two shapes serialize_job reads. Anything else the page needs it gets by refetching the object.",
+      "tags": [
+        "backend",
+        "rq",
+        "serializers",
+        "notebooks"
+      ]
+    },
+    {
+      "id": "bug-113",
+      "error_message": "A failed `docker compose build` reported success, and the command after it ran against the previous image",
+      "root_cause": "`docker compose build ... | tail -6 && docker compose run ...` takes the exit status of `tail`, which is always 0. The build's failure (pyspark pulling a numpy with no wheel) scrolled past in the piped output and the `&&` proceeded, so the verification ran on the image from the previous build and 'proved' something about code that had never been built.",
+      "fix": "Redirect to a file and check the real status: `docker compose build ... > out.txt 2>&1; echo $?`. The same applies to any `cmd | tail && next`. PIPESTATUS is the other answer, and is easy to get wrong under zsh.",
+      "tags": [
+        "docker",
+        "shell",
+        "verification",
+        "false-green"
+      ]
+    },
+    {
+      "id": "bug-114",
+      "error_message": "psycopg2.errors.UndefinedTable: table \"uploaded_files\" does not exist, on DROP TABLE, in tests that had just passed",
+      "root_cause": "Two pytest runs against the same `tests` database at once -- a long background suite plus a second one started while it ran. Each tears the schema down between tests, so the other's tables vanish mid-run. Nothing says so; the failures look like unrelated breakage in whatever happened to be running.",
+      "fix": "One backend suite at a time. Before starting one, `pgrep -fl pytest` must be empty. The results of BOTH overlapping runs are void, not just the second -- the 42 failures from the first were re-run clean afterwards.",
+      "tags": [
+        "tests",
+        "postgres",
+        "concurrency",
+        "false-red"
+      ]
+    },
+    {
+      "id": "bug-115",
+      "error_message": "A `for args in \"--set a --set b\"` loop reported every helm render as FAILED while each worked by hand",
+      "root_cause": "zsh does not word-split unquoted parameter expansions the way bash does, so `helm template $args` passed one long argument instead of several. Separately, an unquoted `[0]` in a --set path is a zsh glob and aborts the command with 'no matches found'.",
+      "fix": "Write the commands out, or `${=args}` in zsh. Quote any --set path containing brackets. This is the third time zsh's globbing has produced a wrong answer in this project; see also the unquoted --include=*.py and rm -f open*.duckdb.",
+      "tags": [
+        "shell",
+        "zsh",
+        "helm",
+        "false-red"
+      ]
+    },
+    {
+      "error_message": "CSS fix: canEdit",
+      "file": "client/app/pages/notebooks/NotebookCell.jsx",
+      "root_cause": "canEdit: false, \u2192 false",
+      "fix": "Changed canEdit: false, \u2192 false",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-116",
+      "timestamp": "2026-10-31T11:12:52.806Z",
+      "last_seen": "2026-10-31T11:12:52.806Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Missing error handling in Notebook.jsx",
+      "file": "client/app/pages/notebooks/Notebook.jsx",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-117",
+      "timestamp": "2026-10-31T11:18:39.093Z",
+      "last_seen": "2026-10-31T11:18:39.093Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of Notebook.jsx",
+      "file": "client/app/pages/notebooks/Notebook.jsx",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 9\u219232 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-118",
+      "timestamp": "2026-10-31T11:18:55.839Z",
+      "last_seen": "2026-10-31T11:18:55.839Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "id": "bug-119",
+      "error_message": "Backend handler suite went from ~30s to 17min; every notebook page load blocked on an executor HTTP call",
+      "root_cause": "_interpreter_state() called Interpreter.reaches_a_cluster() on every notebook GET, and that made an uncached HTTP request to the executor's /ping. With no executor reachable, each load waited out CONNECT_TIMEOUT just to decide what to offer in a dropdown.",
+      "fix": "Cache the answer in Redis under notebook:executor:cluster for 300s (CLUSTER_KEY/CLUSTER_TTL in sqldesk/notebooks/interpreter.py), caching a failed ask too since the unreachable case is the slow one. Tests assert _call is made once across repeated asks.",
+      "tags": [
+        "notebooks",
+        "performance",
+        "interpreter",
+        "0.8.1"
+      ],
+      "date": "2026-10-31"
+    },
+    {
+      "id": "bug-121",
+      "error_message": "Notebook cell autocomplete offered DuckDB's own catalog -- character_sets, schemata, tables and 44 more -- as cells a notebook could read from",
+      "root_cause": "Store.schema() read duckdb_columns() unfiltered. That view covers views as well as base tables, so it answers with DuckDB's internal catalog alongside the notebook's handoffs. Store.names() was clean only because duckdb_tables() lists base tables only, so the two disagreed about what a notebook contains.",
+      "fix": "Join duckdb_columns() to duckdb_tables() on database/schema/table in sqldesk/notebooks/store.py, making schema() exactly the columns of what names() lists. tests/notebooks/test_store.py asserts the catalog is absent. The handoffs endpoint also filters by cell name, which is why the API test passed while the store API was wrong.",
+      "tags": [
+        "notebooks",
+        "duckdb",
+        "autocomplete",
+        "0.8.1"
+      ],
+      "date": "2026-10-31"
+    },
+    {
+      "id": "bug-122",
+      "error_message": "Notebook Share > Download as PDF and Download as image both produced a blank page, with no error",
+      "root_cause": "captureGrid draws tiles rather than the whole container, and its selector was hardcoded to '.react-grid-item' -- a dashboard widget. A notebook has none, so the tile list was empty, nothing was drawn, and the canvas came out as its own background fill. Nothing reported a problem because an empty tile list is exactly what an empty dashboard looks like.",
+      "fix": "captureGrid/capturePage take a `tiles` selector (DASHBOARD_TILES default, NOTEBOOK_TILES = '.notebook-cell'); ShareNotebookButton passes it for both formats. client/app/pages/dashboards/export/tiles.test.js asserts toSvg is called once per cell, and pins the old behaviour as the third case. Mutation-tested.",
+      "tags": [
+        "notebooks",
+        "export",
+        "pdf",
+        "0.8.1"
+      ],
+      "date": "2026-11-01"
+    },
+    {
+      "id": "bug-123",
+      "error_message": "manage users delete <email> -> sqlalchemy.exc.IntegrityError: ForeignKeyViolation: update or delete on table \"users\" violates foreign key constraint \"events_user_id_fkey\" on table \"events\"",
+      "root_cause": "The command does a plain session.delete on the User row. events.user_id is a non-cascading foreign key and a single login writes one event, so any account that has ever been used cannot be deleted. The command only works on an account that has done literally nothing -- which is almost never the account you want to remove. The failure surfaces as a raw psycopg2 traceback with no hint about what to do instead.",
+      "fix": "sqldesk/cli/users.py: delete() catches the IntegrityError, rolls back and names what the account still owns, pointing at disable instead. Deletion is deliberately NOT forced -- 29 tables reference users and most of those columns are NOT NULL, so making delete succeed would mean cascading away the person's queries, dashboards and alerts, which is not what anyone means by removing a user. _still_owns maps the failing constraint to a phrase, ordered longest table name first because 'events_' is a substring of 'mcp_events_'. Same commit fixes a second bug in the same function: --org filtered on `User.org == org.id`, comparing the relationship to an integer where every other call site passes the instance, so the scoping never worked.",
+      "tags": [
+        "cli",
+        "users",
+        "postgres",
+        "foreign-key",
+        "admin",
+        "fixed"
+      ],
+      "date": "2026-11-03"
+    },
+    {
+      "error_message": "Missing error handling in delete()",
+      "file": "sqldesk/cli/users.py",
+      "root_cause": "Code path had no error handling \u2014 exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "py"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-124",
+      "timestamp": "2026-11-04T00:46:20.744Z",
+      "last_seen": "2026-11-04T00:46:20.744Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "CSS fix: height",
+      "file": "client/app/pages/notebooks/NotebookCell.jsx",
+      "root_cause": "height: PropTypes.number, \u2192 320, onResize: null, min: 120",
+      "fix": "Changed height: PropTypes.number, \u2192 320, onResize: null, min: 120",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-125",
+      "timestamp": "2026-11-04T01:09:49.570Z",
+      "last_seen": "2026-11-04T01:09:49.570Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Significant refactor of NotebookCell.jsx",
+      "file": "client/app/pages/notebooks/NotebookCell.jsx",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 3\u21928 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-126",
+      "timestamp": "2026-11-04T01:11:13.764Z",
+      "last_seen": "2026-11-04T01:11:13.764Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "CSS fix: x",
+      "file": "client/app/pages/notebooks/NotebookCell.jsx",
+      "root_cause": "x: true, y: 320 \u2192 true, y: tableHeight",
+      "fix": "Changed x: true, y: 320 \u2192 true, y: tableHeight",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-127",
+      "timestamp": "2026-11-04T01:11:20.947Z",
+      "last_seen": "2026-11-04T01:11:20.947Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Incorrect value in code",
+      "file": "client/app/pages/notebooks/NotebookCell.jsx",
+      "root_cause": "Had \"@ant-design/icons/PlusOutlined\"",
+      "fix": "Changed to \"@ant-design/icons/LoadingOutlined\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-128",
+      "timestamp": "2026-11-04T01:12:39.958Z",
+      "last_seen": "2026-11-04T01:12:39.958Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "CSS fix: responsive",
+      "file": "client/app/pages/notebooks/CellFigure.jsx",
+      "root_cause": "responsive: true, \u2192 true` watches the *window*, not this element. Dragging",
+      "fix": "Changed responsive: true, \u2192 true` watches the *window*, not this element. Dragging",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "jsx"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-129",
+      "timestamp": "2026-11-04T01:13:25.506Z",
+      "last_seen": "2026-11-04T01:13:25.506Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "id": "bug-130",
+      "error_message": "Dragging a notebook cell's chart taller added blank space: the pane grew, the chart stayed the size it was drawn at. Reported as 'it resize the whole space not the visualization'.",
+      "root_cause": "viz-lib ships `.chart-visualization-container { height: 400px }` in chart/Renderer/renderer.less, so a chart is 400px tall wherever it is placed. useEChart does watch its container and call instance.resize(), and useElementSize does remeasure -- neither ever fired, because the container's own height never changed. Nothing was broken in the drag or in echarts; the chart simply was not being told it had room.",
+      "fix": "`.visualization-fills-its-box()` mixed into .notebook-cell-pane-body, which is what the dashboard grid and the query page already do for the same reason. It pins the renderer to all four edges, so the container follows the pane and the existing ResizeObserver redraws the canvas. The pane body needs `position: relative` or the absolutely positioned renderer escapes to the page. Specificity carries it: `.notebook-cell-pane-body .chart-visualization-container` is (0,2,0) against viz-lib's (0,1,0).",
+      "tags": [
+        "notebooks",
+        "viz-lib",
+        "less",
+        "resize",
+        "echarts",
+        "fixed"
+      ],
+      "date": "2026-11-03"
+    },
+    {
+      "id": "bug-131",
+      "error_message": "helm upgrade: 'conflict occurred while applying object default/sqldesk-server ... conflict with \"kubectl-set\" using apps/v1: .spec.template.spec.containers[name=\"server\"].image'",
+      "root_cause": "An earlier deploy used `kubectl set image`, which made `kubectl-set` the server-side-apply field manager for the image field. Helm 4 applies server-side and will not take a field another manager owns.",
+      "fix": "`helm upgrade --force-conflicts`. NOT --take-ownership, which is about Helm's own ownership annotations and does nothing here -- it was tried twice and failed both times. Do NOT reset managedFields to [{}] as a workaround: the apiserver then attributes every pre-existing field to a synthetic `before-first-apply` manager and the same conflict comes back wearing a different name, which is exactly what happened before --force-conflicts was found.",
+      "tags": [
+        "minikube",
+        "helm",
+        "kubernetes",
+        "server-side-apply",
+        "deploy",
+        "fixed"
+      ],
+      "date": "2026-11-03"
     }
   ],
   "applied_observations": {
@@ -1884,7 +2291,16 @@
     "6a3eae20-bbda-4600-b2dc-4f6ab764ec5c": true,
     "ab4607ea-30f8-4fc3-987d-b12372388ac5": true,
     "0017eda3-f957-4ace-ab30-29371e05a9e2": true,
-    "f8dab580-bd41-4f43-af0c-70f3d70a3d24": true
+    "f8dab580-bd41-4f43-af0c-70f3d70a3d24": true,
+    "28b38f07-75ac-48b3-9ec2-89896a120960": true,
+    "c5b09340-9bff-40a4-8b0a-c4591224a334": true,
+    "7fbab7e0-b98a-441d-9be5-03950e326cc1": true,
+    "35f84c81-6d5c-4d50-b32e-779bf980011b": true,
+    "309b02c4-d363-4b64-bfb8-9515a3bd5662": true,
+    "cd98d1fc-b10e-46ca-b1bf-e2dd9eb724e2": true,
+    "c24d1b02-8b3f-4d1d-9fcf-d11fa5a646ee": true,
+    "1a44aa9e-9599-41a1-9d65-0461c437ef41": true,
+    "907c9118-3223-4cc2-abe5-1b36a6d61dc2": true
   },
-  "next_id": 104
+  "next_id": 130
 }

@@ -19,11 +19,13 @@ from sqldesk.handlers.dashboard_folders import (
     DashboardFolderResource,
 )
 from sqldesk.handlers.dashboards import (
+    DashboardArchiveResource,
     DashboardFavoriteListResource,
     DashboardForkResource,
     DashboardListResource,
     DashboardLiveResource,
     DashboardLiveWatchResource,
+    DashboardPermanentDeleteResource,
     DashboardResource,
     DashboardShareResource,
     DashboardTagsResource,
@@ -65,6 +67,21 @@ from sqldesk.handlers.groups import (
     GroupResource,
 )
 from sqldesk.handlers.mcp import McpAuditResource, MyMcpResource
+from sqldesk.handlers.notebooks import (
+    CellDownloadResource,
+    CellListResource,
+    CellResource,
+    CellResultResource,
+    CellRunResource,
+    NotebookHandoffResource,
+    NotebookListResource,
+    NotebookResource,
+    NotebookRunResource,
+    NotebookSessionResource,
+    NotebookShareResource,
+    NotebookStopResource,
+    PublicNotebookResource,
+)
 from sqldesk.handlers.permissions import (
     CheckPermissionResource,
     ObjectPermissionsListResource,
@@ -75,6 +92,7 @@ from sqldesk.handlers.queries import (
     QueryFavoriteListResource,
     QueryForkResource,
     QueryListResource,
+    QueryPermanentDeleteResource,
     QueryRecentResource,
     QueryRefreshResource,
     QueryRegenerateApiKeyResource,
@@ -187,6 +205,8 @@ api.add_org_resource(
 api.add_org_resource(AlertListResource, "/api/alerts", endpoint="alerts")
 
 api.add_org_resource(DashboardListResource, "/api/dashboards", endpoint="dashboards")
+# Before `/api/dashboards/<dashboard_id>`, or "archive" is read as a slug.
+api.add_org_resource(DashboardArchiveResource, "/api/dashboards/archive", endpoint="dashboard_archive")
 api.add_org_resource(DashboardResource, "/api/dashboards/<dashboard_id>", endpoint="dashboard")
 api.add_org_resource(
     PublicDashboardResource,
@@ -229,6 +249,35 @@ api.add_org_resource(
     "/api/data_sources/<data_source_id>/uploads/<upload_id>/keep",
     endpoint="data_source_upload_keep",
 )
+
+api.add_org_resource(
+    QueryPermanentDeleteResource, "/api/queries/<query_id>/permanent", endpoint="query_permanent_delete"
+)
+api.add_org_resource(
+    DashboardPermanentDeleteResource,
+    "/api/dashboards/<dashboard_id>/permanent",
+    endpoint="dashboard_permanent_delete",
+)
+
+api.add_org_resource(NotebookListResource, "/api/notebooks", endpoint="notebooks")
+api.add_org_resource(NotebookResource, "/api/notebooks/<notebook_id>", endpoint="notebook")
+api.add_org_resource(CellListResource, "/api/notebooks/<notebook_id>/cells", endpoint="notebook_cells")
+api.add_org_resource(CellResource, "/api/notebooks/<notebook_id>/cells/<cell_id>", endpoint="notebook_cell")
+api.add_org_resource(CellRunResource, "/api/notebooks/<notebook_id>/cells/<cell_id>/run", endpoint="notebook_cell_run")
+api.add_org_resource(
+    CellDownloadResource,
+    "/api/notebooks/<notebook_id>/cells/<cell_id>/download",
+    endpoint="notebook_cell_download",
+)
+api.add_org_resource(
+    CellResultResource, "/api/notebooks/<notebook_id>/cells/<cell_id>/result", endpoint="notebook_cell_result"
+)
+api.add_org_resource(PublicNotebookResource, "/api/notebooks/public/<token>", endpoint="public_notebook_api")
+api.add_org_resource(NotebookHandoffResource, "/api/notebooks/<notebook_id>/handoffs", endpoint="notebook_handoffs")
+api.add_org_resource(NotebookShareResource, "/api/notebooks/<notebook_id>/share", endpoint="notebook_share")
+api.add_org_resource(NotebookRunResource, "/api/notebooks/<notebook_id>/run", endpoint="notebook_run")
+api.add_org_resource(NotebookStopResource, "/api/notebooks/<notebook_id>/stop", endpoint="notebook_stop")
+api.add_org_resource(NotebookSessionResource, "/api/notebooks/<notebook_id>/session", endpoint="notebook_session")
 
 api.add_org_resource(StreamListResource, "/api/streams", endpoint="streams")
 api.add_org_resource(

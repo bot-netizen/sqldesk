@@ -22,20 +22,25 @@ from sqldesk import settings
 
 
 class Feature:
-    def __init__(self, name, label, description, enabled=None):
+    def __init__(self, name, label, description, enabled=None, beta=False):
         self.name = name
         self.label = label
         self.description = description
         # Read when asked, not at import: an install switches MCP on and off
         # with a setting, and the tests move it about.
         self._enabled = enabled
+        #: Shipped, supported, and still settling: what it does may change
+        #: between releases in ways the rest of the app's features will not.
+        #: Said here rather than in the pages that draw it, so one edit moves
+        #: every badge and nobody has to remember the list.
+        self.beta = beta
 
     @property
     def enabled(self):
         return self._enabled() if self._enabled else True
 
     def to_dict(self):
-        return {"name": self.name, "label": self.label, "description": self.description}
+        return {"name": self.name, "label": self.label, "description": self.description, "beta": self.beta}
 
 
 def _mcp_is_on():
@@ -84,6 +89,7 @@ SEND_DASHBOARDS = "send_dashboards"
 KEEP_UPLOADS = "keep_uploads"
 MANAGE_STREAMS = "manage_streams"
 USE_STREAMS = "use_streams"
+USE_NOTEBOOKS = "use_notebooks"
 
 #: Every feature, whether or not this install offers it.
 FEATURES = (
@@ -91,6 +97,12 @@ FEATURES = (
         MANAGE_LIVE_DASHBOARDS,
         "Make dashboards live",
         "Turn a dashboard live, so it refreshes on the server for everyone watching it.",
+    ),
+    Feature(
+        USE_NOTEBOOKS,
+        "Use notebooks",
+        "Chain SQL and Python cells together, where a saved query ends in one SELECT.",
+        beta=True,
     ),
     Feature(
         USE_MCP,
@@ -145,6 +157,18 @@ def by_name(name):
         if feature.name == name:
             return feature
     return None
+
+
+def offered(name):
+    """
+    Whether this install has the feature at all, with nobody in mind.
+
+    The half of `can` that is not about a person: a public link has no group
+    to have been granted anything, but it still should not open a notebook
+    on an install where notebooks are switched off.
+    """
+    feature = by_name(name)
+    return bool(feature and feature.enabled)
 
 
 def can(user, name):

@@ -18,6 +18,7 @@ const EXPECTED = [
   ["Dashboards.List", "/dashboards"],
   ["Dashboards.Favorites", "/dashboards/favorites"],
   ["Dashboards.My", "/dashboards/my"],
+  ["Dashboards.Archive", "/dashboards/archive"],
   ["Dashboards.LegacyViewOrEdit", "/dashboard/:dashboardSlug"],
   ["Dashboards.ViewOrEdit", "/dashboards/:dashboardId([^-]+)(-.*)?"],
   ["Dashboards.ViewShared", "/public/dashboards/:token"],
@@ -36,6 +37,14 @@ const EXPECTED = [
   ["Queries.Edit", "/queries/:queryId/source"],
   ["Queries.View", "/queries/:queryId"],
   ["Visualizations.ViewShared", "/embed/query/:queryId/visualization/:visualizationId"],
+  // Notebooks: the list is a landing page, the notebook itself is a chunk.
+  ["Admin.Audit", "/admin/audit"],
+  ["Notebooks.List", "/notebooks"],
+  ["Notebooks.View", "/notebooks/:notebookId"],
+  // Signed out, by a link somebody was sent. On this list because the list is
+  // the point: a page that quietly stops registering its route 404s, and a
+  // route nobody meant to publish is the other failure.
+  ["Notebooks.ViewShared", "/public/notebooks/:token"],
   ["Alerts.List", "/alerts"],
   ["Alerts.New", "/alerts/new"],
   ["Alerts.Edit", "/alerts/:alertId/edit"],
@@ -70,6 +79,7 @@ const EXPECTED = [
   ["Mcp.Mine", "/mcp/mine"],
   ["Dashboards.Streaming", "/dashboards/streaming"],
   ["Dashboards.StreamingFavorites", "/dashboards/streaming/favorites"],
+  ["Dashboards.StreamingArchive", "/dashboards/streaming/archive"],
   ["Dashboards.StreamingMy", "/dashboards/streaming/my"],
   ["Dashboards.Folders", "/dashboards/folders"],
   ["Dashboards.Folder", "/dashboards/folder/:folderId"],

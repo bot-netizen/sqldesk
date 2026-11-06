@@ -35,8 +35,145 @@ nothing refreshes, and the only signal is Outdated Queries growing.
 
 **7. Results travel through the web tier and are rebuilt per viewer.**
 Measured on 20k×8 (3.3 MB): `JSON.parse` 14 ms, `QueryResult.update()`
-**960 ms** on the browser's main thread. One dashboard pays once since 0.5;
-100 viewers of it pay 100 times.
+**76 ms** on the browser's main thread -- it was 960 ms when this was written,
+and the `parseTimestamp` fix had already taken it; re-measured 2026-10-04. One
+dashboard pays once since 0.5; 100 viewers of it pay 100 times.
+
+## Result formats, measured 2026-10-04
+
+20,000 rows x 8 columns -- the shape in 7 above. Encode and decode are Python
+in the container; "gzipped" is what *would* cross the wire if anything
+compressed it.
+
+| representation | encode ms | decode ms | bytes | gzipped |
+|---|---|---|---|---|
+| row dicts (today) | 112 | 35 | 3,715,944 | 420,514 |
+| row arrays | 106 | 16 | 1,675,944 | 371,130 |
+| columnar JSON | 86 | 9 | 1,636,062 | 299,780 |
+| Arrow IPC | 2 | 0 | 1,319,256 | 390,371 |
+| Arrow IPC + lz4 | 3 | 2 | 806,224 | 409,154 |
+| Parquet + zstd | 9 | 2 | 457,814 | 421,832 |
+
+Held in memory, same data: row dicts **8,653,934**, row tuples 5,293,536,
+column lists 4,425,318, **Arrow table 1,318,194**.
+
+Three things follow, and the first was a surprise:
+
+**Nothing compressed the response -- fixed in 0.7.2.** There was no
+flask-compress, nothing in the chart and nothing in the ingress templates, so
+the full **3.7 MB** crossed the wire for that result and 6.7 MB of JS and CSS
+went out byte for byte on a cold load. Responses now negotiate brotli q4 or
+gzip 6. **Measure every option below against ~420 KB, not against 3.7 MB** --
+that is what changed about the rest of this table's conclusions.
+
+**Arrow does not win on bandwidth.** Gzipped it is *worse* than columnar JSON
+(390 KB against 300 KB) because a binary layout does not compress like
+repetitive text, and Parquet is already compressed so gzip adds nothing. Arrow
+wins on **CPU, 112 ms to 2 ms**, and on **memory, 6.6x** -- which is what
+matters given ceiling 1 and the worker holding each result in full.
+
+**ADBC is a per-runner opt-in, not a platform change.** Drivers exist for
+PostgreSQL, Snowflake, BigQuery, SQLite and Flight SQL -- four or five of 75
+types, and none of MySQL, MariaDB, Vertica or Trino. The cheapest real Arrow
+win here is DuckDB, which is used three ways and already returns Arrow
+natively; `query_runner/duckdb.py:287` throws it away to build row dicts.
+
+## Arrow is all or nothing
+
+DuckDB, 200,000 rows x 8, measured 2026-10-04:
+
+| path | ms |
+|---|---|
+| `fetchall()` -> row dicts (today) | 349 |
+| `fetch_arrow_table()` -> row dicts | **467** |
+| `fetch_arrow_table()` -> column lists | 258 |
+| `fetch_arrow_table()`, kept as Arrow | **12** |
+
+**Fetching Arrow and then building row dicts is 34% slower than today**, because
+it adds a conversion. Kept as Arrow it is 29x faster. The whole gain is in not
+materialising Python objects, so swapping a runner's fetch without changing the
+result representation makes things worse. Do not do these in that order.
+
+## ADBC, checked rather than assumed
+
+On PyPI: `adbc-driver-manager`, `-postgresql`, `-snowflake`, `-bigquery`,
+`-sqlite`, `-flightsql`. **There is no `adbc-driver-trino`**, no
+`-duckdb`, no `-dremio` (Dremio goes through flightsql; Trino does not speak
+Flight SQL natively, so that driver does not reach it either).
+
+Arrow is reachable **without** ADBC in more places than with it:
+
+| runner | how | note |
+|---|---|---|
+| Snowflake | `fetch_arrow_all()` | the wire format is already Arrow; we call `fetchall()` and discard it |
+| DuckDB | `fetch_arrow_table()` | 29x, above; used three ways in this codebase |
+| BigQuery | `to_arrow()` | needs the Storage Read API |
+| Athena | `ArrowCursor` | PyAthena 3.x only; we are on 2.25.2 |
+| Postgres | `adbc-driver-postgresql` | COPY binary, a new dependency |
+
+Five of 75 types either way. It is a per-runner opt-in, not a platform change.
+
+## Trino: the upgrade helps, and it is not Arrow
+
+`trino` 0.330.0 -> **0.340.0** adds the **spooling protocol**:
+`X-Trino-Query-Data-Encoding`, SPOOLED segments fetched by URI and
+acknowledged, `json+lz4` and `json+zstd`. The string "arrow" appears in no
+file of the package.
+
+This is a better fit for Trino than ADBC would have been. Today every row of
+every result is paged through the **coordinator's heap** as JSON; spooling has
+the workers write segments to object storage for the client to fetch directly,
+which is Trino's own documented ceiling on large results.
+
+Safe to adopt: `encoding` defaults to `None`, so the upgrade alone changes
+nothing and a data source opts in. Needs a Trino server with spooling
+configured.
+
+## Every driver is behind
+
+Checked against PyPI on 2026-10-04. Several are maintenance debt rather than
+performance, and three are not casual bumps.
+
+| package | installed | latest | |
+|---|---|---|---|
+| `oracledb` | 2.5.1 | 26.0.1 | an enormous jump |
+| `pyathena` | 2.25.2 | 3.37.0 | major; 3.x has `ArrowCursor`, breaking cursor API |
+| `pandas` | 2.3.3 | 3.0.6 | major; copy-on-write and the string dtype. `utils/pandas.py` and the Python runner both depend on it |
+| `pymongo` | 4.6.3 | 4.18.2 | |
+| `trino` | 0.330.0 | 0.340.0 | spooling, above |
+| `duckdb` | 1.3.2 | 1.5.6 | |
+| `snowflake-connector-python` | 4.5.0 | 4.8.0 | |
+| `mysqlclient` | 2.1.1 | 2.3.0 | 2.1.1 is from 2022; **re-check the SSL behaviour 0.7.1 relies on** |
+| `impyla` | 0.22.0 | 0.24.0 | |
+| `pyhive` | 0.6.1 | 0.7.0 | |
+| `psycopg2-binary` | 2.9.11 | 2.9.13 | |
+
+## The per-cell type sniff is 76 ms, and it is load-bearing
+
+`client/app/services/query-result.js:156-186` walks **every cell** -- 160,000
+of them at 20k x 8 -- asking `isNumber`, then `isString`, then running
+`parseTimestamp` on every string cell. Upstream left a TODO on it: *"we should
+stop manipulating incoming data, and switch to relaying on the column type set
+by the backend."*
+
+**Do not act on that TODO.** Two things came out of trying, on 2026-10-04:
+
+**It is 76 ms, not 960.** The figure in 7 above predated the `parseTimestamp`
+fix, whose own notes record 253 ms down to 20 ms for 20,000 ISO strings --
+times roughly four string-ish columns, which is where 960 came from. A
+rewrite of code upstream calls "prone to errors" to save perhaps 50 ms is a
+bad trade. Re-measure before anybody proposes it again.
+
+**And it has been quietly carrying DuckDB.** Until 0.7.2 every number and
+every timestamp from a DuckDB source was declared a string, because the type
+map was keyed by DuckDB's names and the driver reported DB-API ones. Nobody
+noticed for one reason: this loop sniffs any column declared `string` and
+recovers it. Deleting the loop would have exposed the fault rather than
+removed the cost.
+
+Declared types also do not currently make the loop cheaper -- all-types-null
+measures 75 ms against 76 -- so the Trino typing bug fixed in 0.7.1 was a
+correctness fault only, not a performance one.
 
 ## Already fine
 

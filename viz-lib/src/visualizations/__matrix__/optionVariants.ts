@@ -351,7 +351,31 @@ export const VARIANTS: Record<string, Variant[]> = {
   ],
 
   BOXPLOT: [{ name: "defaults", options: {} }],
-  SANKEY: [{ name: "defaults", options: {} }],
+  SANKEY: [
+    { name: "defaults", options: {} },
+    { name: "with each stage's value", options: { showNodeValues: true } },
+  ],
+  CANDLESTICK: [
+    { name: "defaults", options: {} },
+    { name: "with the colours swapped", options: { risingColor: "#dc2626", fallingColor: "#16a34a" } },
+  ],
+  NETWORK: [
+    { name: "defaults", options: {} },
+    { name: "directed, unsized, unlabelled", options: { directed: true, sizeByWeight: false, showLabels: false } },
+  ],
+  PARALLEL: [
+    { name: "defaults", options: {} },
+    { name: "without a legend", options: { showLegend: false } },
+  ],
+  TREE: [
+    { name: "defaults", options: {} },
+    { name: "radial, with values", options: { layout: "radial", showValues: true } },
+    { name: "top down, fully open", options: { layout: "vertical", initialDepth: 6 } },
+  ],
+  STREAMGRAPH: [
+    { name: "defaults", options: {} },
+    { name: "without a legend", options: { showLegend: false } },
+  ],
   SUNBURST_SEQUENCE: [{ name: "defaults", options: {} }],
   DETAILS: [{ name: "defaults", options: {} }],
   TABLE: [

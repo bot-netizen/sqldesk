@@ -42,7 +42,17 @@ function confirmDestructive({ title, content, okText }) {
   });
 }
 
-export default function ListItemActions({ item, editUrl, aclUrl, aclContext, onDelete, deleteLabel, deleteConfirm }) {
+export default function ListItemActions({
+  item,
+  editUrl,
+  aclUrl,
+  aclContext,
+  onDelete,
+  deleteLabel,
+  deleteConfirm,
+  onPermanentDelete,
+  permanentDeleteConfirm,
+}) {
   const showPermissions = useCallback(() => {
     PermissionsEditorDialog.showModal({ aclUrl, context: aclContext, author: item.user });
   }, [aclUrl, aclContext, item.user]);
@@ -61,6 +71,28 @@ export default function ListItemActions({ item, editUrl, aclUrl, aclContext, onD
       notification.error(`${deleteLabel} failed.`, error && error.message);
     }
   }, [onDelete, item, deleteLabel, deleteConfirm]);
+
+  /*
+    Deleting it outright, which archiving never was.
+
+    Archiving a query already throws away its alerts and its dashboard
+    widgets, so "archived" sounds reversible and is not -- and people archive
+    things to get rid of them and then find the archive full. A second entry
+    rather than a flag on the first: the two are not variations of one action,
+    and one of them cannot be undone.
+  */
+  const destroy = useCallback(async () => {
+    const confirmed = await confirmDestructive(permanentDeleteConfirm);
+    if (!confirmed) {
+      return;
+    }
+    try {
+      await onPermanentDelete(item);
+      notification.success(`Deleted "${item.name}".`);
+    } catch (error) {
+      notification.error("Delete failed.", error && error.message);
+    }
+  }, [onPermanentDelete, item, permanentDeleteConfirm]);
 
   const entries = filter([
     editUrl && (
@@ -82,6 +114,13 @@ export default function ListItemActions({ item, editUrl, aclUrl, aclContext, onD
       <Menu.Item key="delete" danger>
         <PlainButton onClick={remove} data-test="ListItemDelete">
           {deleteLabel}
+        </PlainButton>
+      </Menu.Item>
+    ),
+    isFunction(onPermanentDelete) && (
+      <Menu.Item key="permanent-delete" danger>
+        <PlainButton onClick={destroy} data-test="ListItemPermanentDelete">
+          Delete permanently
         </PlainButton>
       </Menu.Item>
     ),
@@ -117,6 +156,8 @@ ListItemActions.propTypes = {
   aclUrl: PropTypes.string,
   aclContext: PropTypes.oneOf(["query", "dashboard"]),
   onDelete: PropTypes.func,
+  onPermanentDelete: PropTypes.func,
+  permanentDeleteConfirm: PropTypes.object,
   deleteLabel: PropTypes.string,
   deleteConfirm: PropTypes.shape({
     title: PropTypes.string,
@@ -132,4 +173,10 @@ ListItemActions.defaultProps = {
   onDelete: null,
   deleteLabel: "Archive",
   deleteConfirm: { title: "Archive", content: "Are you sure?", okText: "Archive" },
+  onPermanentDelete: null,
+  permanentDeleteConfirm: {
+    title: "Delete permanently",
+    content: "This cannot be undone.",
+    okText: "Delete",
+  },
 };

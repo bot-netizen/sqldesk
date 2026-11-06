@@ -7,6 +7,8 @@ import Alert from "antd/lib/alert";
 import Button from "antd/lib/button";
 import DynamicComponent from "@/components/DynamicComponent";
 import DashboardGrid from "@/components/dashboards/DashboardGrid";
+import useRunningStreams, { StreamsContext } from "./hooks/useRunningStreams";
+import { StreamRollup } from "./components/StreamMarker";
 import Parameters from "@/components/Parameters";
 import Filters from "@/components/Filters";
 
@@ -77,6 +79,10 @@ function DashboardComponent(props) {
   // the page with some pending would throw them away silently.
   useUnsavedChangesAlert(hasUnsavedChanges);
 
+  // Asked once for the board, and only while it is live: a streaming
+  // dashboard that is not running has nothing to report.
+  const streams = useRunningStreams(dashboard, !!live && !live.paused);
+
   const [pageContainer, setPageContainer] = useState(null);
   const [bottomPanelStyles, setBottomPanelStyles] = useState({});
   const onParametersEdit = (parameters) => {
@@ -126,11 +132,19 @@ function DashboardComponent(props) {
         dashboardConfiguration={dashboardConfiguration}
         onParametersEdit={onParametersEdit}
         headerExtra={
-          <DynamicComponent
-            name="Dashboard.HeaderExtra"
-            dashboard={dashboard}
-            dashboardConfiguration={dashboardConfiguration}
-          />
+          <>
+            {/*
+              Beside the Live badge, because the badge describes the *redraw*
+              and this describes the *data* -- and when the panels disagree,
+              one of them has to say so.
+            */}
+            <StreamRollup summary={streams.rollUp} />
+            <DynamicComponent
+              name="Dashboard.HeaderExtra"
+              dashboard={dashboard}
+              dashboardConfiguration={dashboardConfiguration}
+            />
+          </>
         }
       />
       {/*
@@ -181,22 +195,29 @@ function DashboardComponent(props) {
           }
         />
       )}
+      {/*
+        One request for the whole board, shared with every panel. The refresh
+        is per dashboard and the events are per widget, so each panel says what
+        its own topic is doing -- see useRunningStreams.
+      */}
       <div id="dashboard-container">
-        <DashboardGrid
-          dashboard={dashboard}
-          widgets={dashboard.widgets}
-          filters={filters}
-          isEditing={editingLayout}
-          isLive={!!live}
-          liveInterval={live && !live.paused ? live.interval : null}
-          layoutGeneration={layoutGeneration}
-          onLayoutChange={editingLayout ? updateDashboardLayout : () => {}}
-          onBreakpointChange={setGridDisabled}
-          onLoadWidget={loadWidget}
-          onRefreshWidget={refreshWidget}
-          onRemoveWidget={removeWidget}
-          onParameterMappingsChange={loadDashboard}
-        />
+        <StreamsContext.Provider value={streams}>
+          <DashboardGrid
+            dashboard={dashboard}
+            widgets={dashboard.widgets}
+            filters={filters}
+            isEditing={editingLayout}
+            isLive={!!live}
+            liveInterval={live && !live.paused ? live.interval : null}
+            layoutGeneration={layoutGeneration}
+            onLayoutChange={editingLayout ? updateDashboardLayout : () => {}}
+            onBreakpointChange={setGridDisabled}
+            onLoadWidget={loadWidget}
+            onRefreshWidget={refreshWidget}
+            onRemoveWidget={removeWidget}
+            onParameterMappingsChange={loadDashboard}
+          />
+        </StreamsContext.Provider>
       </div>
       {editingLayout && (
         <AddWidgetContainer dashboardConfiguration={dashboardConfiguration} style={bottomPanelStyles} />

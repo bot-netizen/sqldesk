@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
-import { compact, find, isEmpty, invoke, map } from "lodash";
+import { compact, find, includes, isEmpty, invoke, map } from "lodash";
 import cx from "classnames";
 import Menu from "antd/lib/menu";
 import { currentUser } from "@/services/auth";
@@ -12,6 +12,8 @@ import TimeAgo from "@/components/TimeAgo";
 import Timer from "@/components/Timer";
 import { Moment } from "@/components/proptypes";
 import QueryLink from "@/components/QueryLink";
+import StreamMarker from "@/pages/dashboards/components/StreamMarker";
+import { useStreamFor } from "@/pages/dashboards/hooks/useRunningStreams";
 import { FiltersType } from "@/components/Filters";
 import PlainButton from "@/components/PlainButton";
 import ExpandedWidgetDialog from "@/components/dashboards/ExpandedWidgetDialog";
@@ -23,6 +25,25 @@ import VisualizationDescription from "@/components/visualizations/VisualizationD
 import Widget from "./Widget";
 import LiveCountdown from "./LiveCountdown";
 import Spinner from "@/components/Spinner";
+
+/**
+ * What may carry tabs, and what may be one.
+ *
+ * Charts and tables. A counter stays out: it is one number, and a strip of
+ * buttons over a single number is chrome around nothing. The server stores
+ * by the same rule -- `Visualization.TABBABLE`.
+ */
+export const TABBABLE = ["CHART", "TABLE"];
+
+/** Whether this widget shows a strip of buttons. */
+export function hasTabs(widget) {
+  return mayHaveTabs(widget) && widget.getTabs().length > 1;
+}
+
+/** Whether somebody may be offered the choice at all. */
+function mayHaveTabs(widget) {
+  return includes(TABBABLE, widget.visualization.type);
+}
 
 function visualizationWidgetMenuOptions({ widget, canEditDashboard, onParametersEdit, onTabsEdit }) {
   const canViewQuery = currentUser.hasPermission("view_query");
@@ -60,7 +81,7 @@ function visualizationWidgetMenuOptions({ widget, canEditDashboard, onParameters
         "Download as Excel File"
       )}
     </Menu.Item>,
-    (canViewQuery || canEditParameters || canEditDashboard) && <Menu.Divider key="divider" />,
+    (canViewQuery || canEditParameters || (canEditDashboard && mayHaveTabs(widget))) && <Menu.Divider key="divider" />,
     canViewQuery && (
       <Menu.Item key="view_query">
         <Link href={widget.getQuery().getUrl(true, widget.visualization.id)}>View Query</Link>
@@ -73,7 +94,7 @@ function visualizationWidgetMenuOptions({ widget, canEditDashboard, onParameters
     ),
     // Only for somebody who can change the dashboard: which views this widget
     // offers is a property of the widget, not of the person reading it.
-    canEditDashboard && (
+    canEditDashboard && mayHaveTabs(widget) && (
       <Menu.Item key="choose_tabs" onClick={onTabsEdit}>
         Choose Tabs
       </Menu.Item>
@@ -106,6 +127,9 @@ export function VisualizationWidgetHeader({
   onParametersEdit,
 }) {
   const canViewQuery = currentUser.hasPermission("view_query");
+  // What this panel's own topic is doing, out of the dashboard's one request.
+  // Null on every panel of every ordinary dashboard, which is most of them.
+  const stream = useStreamFor(widget.getQuery());
 
   /*
     A widget's own filter goes on the title's row. Under it, `Parameters`
@@ -133,7 +157,18 @@ export function VisualizationWidgetHeader({
       <div className={cx("t-header widget clearfix", { "t-header-filtered": filtersInline })}>
         <div className="th-title">
           <p>
-            <QueryLink query={widget.getQuery()} visualization={widget.visualization} readOnly={!canViewQuery} />
+            <QueryLink
+              query={widget.getQuery()}
+              visualization={widget.visualization}
+              readOnly={!canViewQuery}
+              preferQueryName={hasTabs(widget)}
+            />
+            {/*
+              What this panel's own topic is doing, beside its name. Nothing
+              at all on a panel that is not drawn from a running stream, which
+              is every panel on every ordinary dashboard.
+            */}
+            <StreamMarker stream={stream} />
           </p>
           {/*
             The chart's own description, written for the chart. Not the
@@ -341,10 +376,10 @@ class VisualizationWidget extends React.Component {
    */
   renderTabs() {
     const { widget } = this.props;
-    const tabs = widget.getTabs();
-    if (tabs.length < 2) {
+    if (!hasTabs(widget)) {
       return null;
     }
+    const tabs = widget.getTabs();
 
     const { activeTabId } = this.state;
     return (

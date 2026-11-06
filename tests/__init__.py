@@ -4,6 +4,8 @@ import os
 from contextlib import contextmanager
 from unittest import TestCase
 
+from sqlalchemy.orm import configure_mappers
+
 os.environ["SQLDESK_REDIS_URL"] = os.environ.get("SQLDESK_REDIS_URL", "redis://localhost:6379/0").replace("/0", "/5")
 # Use different url for RQ to avoid DB being cleaned up:
 os.environ["RQ_REDIS_URL"] = os.environ.get("SQLDESK_REDIS_URL", "redis://localhost:6379/0").replace("/5", "/6")
@@ -43,6 +45,123 @@ def authenticated_user(c, user=None):
     yield user
 
 
+#: The schema is built once per process, by the first test that asks for a
+#: database. Everything after that empties the tables instead.
+_schema_built = False
+_truncate_all = None
+
+
+#: Everything `sqlalchemy_searchable` creates beside the tables:
+#: `queries_search_vector_update`, `tsq_parse` and friends. `drop_all` drops
+#: tables, so these outlive it -- and `create_all` then refuses to make them
+#: again with `DuplicateFunction: function "queries_search_vector_update"
+#: already exists`.
+#:
+#: Invisible until the schema stopped being rebuilt per test: CI starts from
+#: an empty database every time, so the *first* run always worked, and the
+#: second run onwards failed on any machine that keeps its test database --
+#: which is every developer's.
+#:
+#: Extension-owned functions are left alone; dropping those would take the
+#: extension with them.
+_DROP_FUNCTIONS = """
+DO $$
+DECLARE one record;
+BEGIN
+    FOR one IN
+        SELECT p.oid::regprocedure AS signature
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public'
+          AND NOT EXISTS (
+              SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e'
+          )
+    LOOP
+        EXECUTE 'DROP FUNCTION IF EXISTS ' || one.signature || ' CASCADE';
+    END LOOP;
+END $$;
+"""
+
+
+def _drop_leftover_functions(app):
+    connection = db.get_engine(app).connect()
+    try:
+        with connection.begin():
+            connection.execute(_DROP_FUNCTIONS)
+    finally:
+        connection.close()
+
+
+def _reset_database(app):
+    """
+    Give the test an empty database without rebuilding the schema.
+
+    `db.drop_all(); db.create_all()` ran on **every** test. Against this
+    schema's 38 tables, 39 indexes and 143 constraints that is 0.63s of a
+    0.84s test on this host; one `TRUNCATE` of every table is 0.07s. It
+    leaves the same thing behind -- every table empty, every sequence back at
+    1, committed rather than held open in a transaction -- so no test has to
+    know this changed.
+
+    Rolling back a transaction per test would be cheaper again (0.0007s for
+    connect/begin/rollback), and was the first plan. It asks for more than it
+    is worth: the session has to be rebound to a held connection with a
+    SAVEPOINT restarted after every `commit()`, and the tests that rebuild
+    the schema inside themselves, execute DDL, or write outside the session
+    would each need adapting to it. `TRUNCATE` needs none of that and takes
+    about nine tenths of the saving, so the last tenth is left alone.
+    """
+
+    global _schema_built, _truncate_all
+
+    db.session.close()
+
+    if not _schema_built:
+        db.drop_all()
+        _drop_leftover_functions(app)
+        # `create_all` only creates the full-text search trigger if the
+        # mappers are already configured. `sqlalchemy_searchable`'s
+        # `make_searchable` attaches its per-table DDL listeners from the
+        # mapper `after_configured` event, so until something has triggered
+        # mapper configuration there is no `after_create` listener to create
+        # `queries_search_vector_trigger` -- the table is created without it,
+        # `search_vector` stays NULL for every row, and every search test
+        # finds nothing while nothing raises.
+        #
+        # This was always true, and used to be hidden: the schema was rebuilt
+        # for every test, so the first ORM use configured the mappers and
+        # every later test got its trigger. Building it once makes the first
+        # test decide for the whole run, which is how it surfaced. Measured
+        # both ways in `probe7`: no `configure_mappers()` and the trigger is
+        # absent, with it the trigger is there and the vector populated.
+        configure_mappers()
+        db.create_all()
+        _truncate_all = "TRUNCATE {} RESTART IDENTITY CASCADE".format(
+            ", ".join('"{}"'.format(name) for name in db.metadata.tables)
+        )
+        _schema_built = True
+        return
+
+    # The transaction is explicit rather than left to SQLAlchemy. 1.3 decides
+    # whether to commit a textual statement by matching it against
+    # `AUTOCOMMIT_REGEXP`, which is `UPDATE|INSERT|CREATE|DELETE|DROP|ALTER`
+    # and does not contain `TRUNCATE`. It is committed here anyway -- measured,
+    # because the first guess was that it would not be -- but the behaviour
+    # rests on a heuristic that 2.0 removes, and a reset that silently stops
+    # resetting is the worst way for this to fail. `begin()` costs nothing and
+    # does not need the heuristic to be right.
+    #
+    # The connection is explicit because connectionless execution closes it
+    # before `sqldesk/metrics/database.py`'s `after_execute` listener reads
+    # `conn.info` off it, which raises `ResourceClosedError`.
+    connection = db.get_engine(app).connect()
+    try:
+        with connection.begin():
+            connection.execute(_truncate_all)
+    finally:
+        connection.close()
+
+
 class BaseTestCase(TestCase):
     def setUp(self):
         self.app = create_app()
@@ -51,9 +170,7 @@ class BaseTestCase(TestCase):
         limiter.enabled = False
         self.app_ctx = self.app.app_context()
         self.app_ctx.push()
-        db.session.close()
-        db.drop_all()
-        db.create_all()
+        _reset_database(self.app)
         self.factory = Factory()
         self.client = self.app.test_client()
 

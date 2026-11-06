@@ -99,23 +99,82 @@ describe("Visualizations -> Chart -> ECharts -> heatmap", () => {
 
     expect(built.option.xAxis.data).toEqual(["mon", "tue"]);
     expect(built.option.yAxis.data).toEqual(["am", "pm"]);
-    expect(built.option.series[0].data).toEqual([
+    // Each cell carries its own label colour now, so the value is one field
+    // of the item rather than the item itself.
+    expect(built.option.series[0].data.map((cell: any) => cell.value)).toEqual([
       [0, 0, 1],
       [1, 1, 4],
     ]);
   });
 
-  test("the colour scale spans zero to the largest value", () => {
+  test("the colour scale spans the data, so a narrow band is still readable", () => {
+    // Anchored at zero -- which is what this did -- a grid of values between
+    // 980 and 1000 came out one flat colour and said nothing.
+    const built = buildOption(
+      heatSeries([
+        ["a", "x", 980],
+        ["b", "y", 1000],
+      ]),
+      heatOptions()
+    );
+
+    expect(built.option.visualMap.min).toBe(980);
+    expect(built.option.visualMap.max).toBe(1000);
+  });
+
+  test("and starts at zero when somebody asks for that, where zero means something", () => {
     const built = buildOption(
       heatSeries([
         ["a", "x", 3],
         ["b", "y", 9],
       ]),
+      heatOptions({ heatmapFromZero: true })
+    );
+
+    expect(built.option.visualMap.min).toBe(0);
+    expect(built.option.visualMap.max).toBe(9);
+  });
+
+  test("a grid where every cell is the same is not a degenerate scale", () => {
+    const built = buildOption(
+      heatSeries([
+        ["a", "x", 5],
+        ["b", "y", 5],
+      ]),
       heatOptions()
     );
 
-    expect(built.option.visualMap.max).toBe(9);
-    expect(built.option.visualMap.min).toBe(0);
+    expect(built.option.visualMap.min).toBe(5);
+    expect(built.option.visualMap.max).toBeGreaterThan(5);
+  });
+
+  test("a label is coloured for the cell it sits on, not for the end of the ramp", () => {
+    // One colour for every label was the bug: chosen for the darkest end, so
+    // on a light-to-dark ramp half of them could not be read.
+    const built = buildOption(
+      heatSeries([
+        ["a", "x", 0],
+        ["b", "y", 100],
+      ]),
+      heatOptions({ showDataLabels: true, colorScheme: "Greys" })
+    );
+    const [low, high] = built.option.series[0].data;
+
+    expect(low.label.color).not.toBe(high.label.color);
+  });
+
+  test("cells have a hairline between them, so neighbours do not merge", () => {
+    const built = buildOption(heatSeries([["a", "x", 1]]), heatOptions());
+
+    expect(built.option.series[0].itemStyle.borderWidth).toBe(1);
+  });
+
+  test("the tooltip reads in the chart's own number format", () => {
+    const built = buildOption(heatSeries([["a", "x", 1234.5678]]), heatOptions({ numberFormat: "0,0" }));
+    const said = built.option.tooltip.formatter({ value: [0, 0, 1234.5678] });
+
+    expect(said).toContain("1,235");
+    expect(said).not.toContain("1234.5678");
   });
 
   test("a custom scheme uses the author's two colours", () => {
@@ -159,7 +218,7 @@ describe("Visualizations -> Chart -> ECharts -> heatmap", () => {
   test("cells with no value read as zero rather than breaking the scale", () => {
     const built = buildOption(heatSeries([["a", "x", null]]), heatOptions());
 
-    expect(built.option.series[0].data).toEqual([[0, 0, 0]]);
+    expect(built.option.series[0].data.map((cell: any) => cell.value)).toEqual([[0, 0, 0]]);
   });
 
   test("the signature tracks both axes, so a new row replaces instead of tweening", () => {

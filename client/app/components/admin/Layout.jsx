@@ -29,7 +29,14 @@ export default function Layout({ activeTab, children }) {
             working out which of seven pages holds the figure they are after.
           */}
           {current && <p className="admin-tab-description">{current.description}</p>}
-          {children}
+          {/*
+            Padded here rather than by each tab. They were doing it
+            separately and disagreeing -- System Status padded 15px all
+            round, Storage and Streams only vertically, Audit and Catalog
+            not at all -- so Audit's controls started at the panel's edge
+            while the caption above them did not.
+          */}
+          <div className="admin-tab-content">{children}</div>
         </div>
       </div>
     </div>

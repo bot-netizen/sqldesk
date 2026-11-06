@@ -24,6 +24,7 @@ const Catalog = lazyPage(() => import(/* webpackChunkName: "admin" */ "./Catalog
 const McpHome = lazyPage(() => import(/* webpackChunkName: "admin" */ "../mcp/McpHome"));
 const Storage = lazyPage(() => import(/* webpackChunkName: "admin" */ "./Storage"));
 const Streams = lazyPage(() => import(/* webpackChunkName: "admin" */ "./Streams"));
+const Audit = lazyPage(() => import(/* webpackChunkName: "admin" */ "./Audit"));
 
 routes.register(
   "Admin.Streams",
@@ -31,6 +32,15 @@ routes.register(
     path: "/admin/streams",
     title: "Streams",
     render: (pageProps) => <Streams {...pageProps} />,
+  })
+);
+
+routes.register(
+  "Admin.Audit",
+  routeWithUserSession({
+    path: "/admin/audit",
+    title: "Audit",
+    render: (pageProps) => <Audit {...pageProps} />,
   })
 );
 

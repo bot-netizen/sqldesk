@@ -1,0 +1,143 @@
+{{- if .Values.notebooks.enabled }}
+# The interpreter: where a notebook's Python cells run.
+#
+# Its own Deployment and its own image, so the SQLDesk image carries no
+# pandas-and-Spark client and, far more to the point, so that somebody else's
+# code never runs in the worker -- which is the process holding every data
+# source's decrypted credentials. No sandbox applied afterwards is worth the
+# sentence describing that.
+#
+# It holds no credentials of its own and reaches nothing. A code cell takes
+# its data from an earlier cell in the same notebook, so the interpreter has
+# no API to call and no data source to open; the NetworkPolicy below makes
+# that a property of the cluster rather than a promise in a comment.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sqldesk.fullname" . }}-executor
+  labels:
+    {{- include "sqldesk.labels" . | nindent 4 }}
+spec:
+  ports:
+    - name: http
+      port: 5000
+      targetPort: http
+  selector:
+    {{- include "sqldesk.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: executor
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sqldesk.fullname" . }}-executor
+  labels:
+    {{- include "sqldesk.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.notebooks.replicas }}
+  # A session is a child process of one pod, so a notebook's variables live in
+  # whichever pod answered first. Rolling one pod out from under a session
+  # loses that session's variables -- the saved outputs and the handoffs
+  # survive, so re-running rebuilds it, but there is no point pretending the
+  # restart is free. Recreate rather than surge, so there is one of them.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "sqldesk.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: executor
+  template:
+    metadata:
+      labels:
+        {{- include "sqldesk.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: executor
+    spec:
+      securityContext:
+        # The image's own user. A process that runs somebody else's code is
+        # the last thing that should be root.
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: executor
+          image: {{ printf "%s:%s" .Values.notebooks.image.repository (.Values.notebooks.image.tag | default .Chart.AppVersion) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "sqldesk.containerSecurity" . | nindent 10 }}
+          env:
+            - name: EXECUTOR_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sqldesk.secretName" . }}
+                  key: executor-token
+                  optional: true
+            {{- with .Values.notebooks.spark.remote }}
+            # A Spark Connect server, if cells are to reach a cluster. Setting
+            # this needs the egress rule below widened to match.
+            - name: EXECUTOR_SPARK_REMOTE
+              value: {{ . | quote }}
+            {{- end }}
+            - name: EXECUTOR_MAX_SESSIONS
+              value: {{ .Values.notebooks.maxSessions | quote }}
+            - name: EXECUTOR_IDLE_SECONDS
+              value: {{ .Values.notebooks.idleSeconds | quote }}
+            - name: EXECUTOR_RUN_SECONDS
+              value: {{ .Values.notebooks.runSeconds | quote }}
+          ports:
+            - name: http
+              containerPort: 5000
+          readinessProbe:
+            httpGet: { path: /ping, port: http }
+            periodSeconds: 10
+          # The real ceiling on what one cell can spend. An address-space
+          # rlimit small enough to be useful stops pandas and DuckDB loading
+          # at all -- measured; see executor/runner.py -- so the cgroup is the
+          # mechanism that works, and a cell that exceeds it has its child
+          # killed and is told the interpreter ran out of memory.
+          resources:
+            {{- toYaml .Values.notebooks.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- if .Values.networkPolicy.enabled }}
+---
+# What makes "the interpreter reaches nothing" true.
+#
+# Ingress from this release's own pods, because the server and the worker call
+# it. Egress: **nothing at all** by default -- not the API, not the internet,
+# not a cloud metadata address -- which costs the feature nothing, because a
+# code cell's data arrives from an earlier cell rather than from anywhere it
+# could fetch.
+#
+# With Spark that becomes one rule rather than none, and the guarantee changes
+# with it: "cannot reach anything" becomes "cannot reach anything but the
+# cluster", which is only as true as this policy. DNS is allowed alongside it,
+# since a Connect endpoint is a name.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "sqldesk.fullname" . }}-executor
+  labels:
+    {{- include "sqldesk.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "sqldesk.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: executor
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "sqldesk.selectorLabels" . | nindent 14 }}
+  egress:
+    {{- with .Values.notebooks.spark.egress }}
+    {{- toYaml . | nindent 4 }}
+    {{- else }}
+    []
+    {{- end }}
+{{- end }}
+{{- end }}

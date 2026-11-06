@@ -18,7 +18,13 @@ export default class Tokenizer {
      */
     constructor(cfg) {
         this.WHITESPACE_REGEX = /^(\s+)/;
-        this.NUMBER_REGEX = /^((-\s*)?[0-9]+(\.[0-9]+)?|0x[0-9a-fA-F]+|0b[01]+)\b/;
+        // The exponent is the second modification to this file. Without it
+        // `1e-12` lexes as the word `1e`, a minus and `12` -- and the
+        // formatter, seeing a binary operator, writes `1e -12`, which is not
+        // valid SQL. Any query with scientific notation in it came back
+        // broken. `3e10` was unaffected, because only a *signed* exponent
+        // produces the stray operator, which is why it went unnoticed.
+        this.NUMBER_REGEX = /^((-\s*)?[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?|0x[0-9a-fA-F]+|0b[01]+)\b/;
         this.OPERATOR_REGEX = /^(!=|<>|<=>|==|<=|>=|!<|!>|\|\||::|->>|->|=>|~~\*|~~|!~~\*|!~~|~\*|!~\*|!~|.)/;
 
         this.BLOCK_COMMENT_REGEX = /^(\/\*[^]*?(?:\*\/|$))/;

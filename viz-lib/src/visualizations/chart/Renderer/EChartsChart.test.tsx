@@ -21,6 +21,12 @@ jest.mock("@/visualizations/echarts", () => {
     dispose: jest.fn(),
     on: jest.fn(),
     off: jest.fn(),
+    // The chart watches its own zrender for the cursor, so that nearest line
+    // can be dimmed in; see echarts/followCursor.
+    getZr: jest.fn(() => ({ on: jest.fn(), off: jest.fn() })),
+    getOption: jest.fn(() => ({ series: [] })),
+    convertToPixel: jest.fn(() => null),
+    dispatchAction: jest.fn(),
   };
   return {
     __esModule: true,

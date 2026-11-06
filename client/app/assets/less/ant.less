@@ -61,6 +61,33 @@
   font-size: 11px;
 }
 
+/*
+  The loading spinner swung instead of turning.
+
+  antd puts the gap between the spinner and the label as `padding-right` on
+  the icon -- and the icon is also the element it rotates (`.anticon-spin`
+  carries the `loadingCircle` animation). The box is then 8px wider than it
+  is tall, so `transform-origin: 50% 50%` lands 4px to the right of the arc's
+  own centre and it orbits that point: a 40% arc hinged on one side, which is
+  what it looked like.
+
+  The gap belongs on the wrapper, which does not rotate. One rule rather than
+  changing 78 call sites, and it fixes every antd spinner at once -- the ones
+  in Select, Table and the dynamic forms have the same geometry.
+*/
+.ant-btn > .ant-btn-loading-icon {
+  padding-right: 8px;
+
+  .anticon {
+    padding-right: 0;
+  }
+
+  // antd's own rule for a button that is nothing but a spinner.
+  &:only-child {
+    padding-right: 0;
+  }
+}
+
 // Fix for disabled button styles inside Tooltip component.
 // Tooltip wraps disabled buttons with `<span>` and moves all styles
 // and classes to that `<span>`. This resets all button styles and

@@ -1,13 +1,11 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-import Link from "@/components/Link";
 import PageHeader from "@/components/PageHeader";
 import DashboardGrid from "@/components/dashboards/DashboardGrid";
 
 import { Dashboard } from "@/services/dashboard";
 
-import logoUrl from "@/assets/images/sqldesk_icon.svg";
 
 import useDashboard from "./hooks/useDashboard";
 import LiveBadge from "./components/LiveBadge";
@@ -99,14 +97,6 @@ class PublicDashboardPage extends React.Component {
         ) : (
           <PublicDashboard dashboard={dashboard} token={this.props.token} />
         )}
-        <div id="footer">
-          <div className="text-center">
-            <Link href="https://sqldesk.org">
-              <img alt="SQLDesk" src={logoUrl} width="38" />
-            </Link>
-          </div>
-          Powered by <Link href="https://sqldesk.org">SQLDesk</Link>
-        </div>
       </div>
     );
   }

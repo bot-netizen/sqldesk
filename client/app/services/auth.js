@@ -50,6 +50,18 @@ export const currentUser = {
 export const clientConfig = {};
 export const messages = [];
 
+/*
+  Whether a feature is still settling, as `sqldesk/features.py` says.
+
+  Asked rather than listed here: a page that carried its own idea of which
+  features are beta is a page that keeps badging one after it has left beta,
+  and the badge is only worth drawing while it is true.
+*/
+export function featureIsBeta(name) {
+  const entry = (clientConfig.grantableFeatures || []).find((one) => one.name === name);
+  return !!(entry && entry.beta);
+}
+
 const logger = debug("sqldesk:auth");
 const session = { loaded: false };
 

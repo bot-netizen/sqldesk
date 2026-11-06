@@ -65,3 +65,31 @@ def public_dashboard(token, org_slug=None):
         },
     )
     return render_index()
+
+
+# A shared notebook. Same shape as the dashboard above and a smaller promise:
+# a public dashboard re-runs its queries for whoever opens it, where a
+# notebook has nothing to re-run -- a reader gets the stored slices as the
+# last run left them, and no warehouse is touched.
+@routes.route(org_scoped_rule("/public/notebooks/<token>"), methods=["GET"])
+@login_required
+@csp_allows_embeding
+def public_notebook(token, org_slug=None):
+    if current_user.is_api_user():
+        notebook = current_user.object
+    else:
+        api_key = get_object_or_404(models.ApiKey.get_by_api_key, token, current_org._get_current_object())
+        notebook = api_key.object
+
+    record_event(
+        current_org,
+        current_user,
+        {
+            "action": "view",
+            "object_id": notebook.id,
+            "object_type": "notebook",
+            "public": True,
+            "referer": request.headers.get("Referer"),
+        },
+    )
+    return render_index()

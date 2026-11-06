@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 
 import boxPlotVisualization from "./box-plot";
 import calendarVisualization from "./calendar";
+import candlestickVisualization from "./candlestick";
 import chartVisualization from "./chart";
 import choroplethVisualization from "./choropleth";
 import cohortVisualization from "./cohort";
@@ -12,14 +13,18 @@ import funnelVisualization from "./funnel";
 import gaugeVisualization from "./gauge";
 import histogramVisualization from "./histogram";
 import mapVisualization from "./map";
+import networkVisualization from "./network";
+import parallelVisualization from "./parallel";
 import pivotVisualization from "./pivot";
 import progressVisualization from "./progress";
 import radarVisualization from "./radar";
 import sankeyVisualization from "./sankey";
 import statusGridVisualization from "./status-grid";
+import streamgraphVisualization from "./streamgraph";
 import sunburstVisualization from "./sunburst";
 import tableVisualization from "./table";
 import timelineVisualization from "./timeline";
+import treeVisualization from "./tree";
 import treemapVisualization from "./treemap";
 import waterfallVisualization from "./waterfall";
 import wordCloudVisualization from "./word-cloud";
@@ -100,6 +105,7 @@ each(
   flatten([
     boxPlotVisualization,
     calendarVisualization,
+    candlestickVisualization,
     chartVisualization,
     choroplethVisualization,
     cohortVisualization,
@@ -109,14 +115,18 @@ each(
     gaugeVisualization,
     histogramVisualization,
     mapVisualization,
+    networkVisualization,
+    parallelVisualization,
     pivotVisualization,
     progressVisualization,
     radarVisualization,
     sankeyVisualization,
     statusGridVisualization,
+    streamgraphVisualization,
     sunburstVisualization,
     tableVisualization,
     timelineVisualization,
+    treeVisualization,
     treemapVisualization,
     waterfallVisualization,
     wordCloudVisualization,

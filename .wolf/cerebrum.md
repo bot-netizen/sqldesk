@@ -18,6 +18,14 @@ budget_tokens: 2000
 - Asks for **two options and a recommendation** on design questions, and
   expects the recommendation to be argued rather than hedged.
 
+- **Selected state is a colour flip, not an underline.** Asked for on
+  2026-10-29 for the widget view buttons: small pills, the selected one filled
+  with `--color-action` and its text flipped to `--color-action-on`, back to
+  plain when another is picked. Not antd Tabs.
+- **Controls use the panel's own font.** No uppercase micro-labels with
+  letter-spacing inside a widget -- they read as a second heading competing
+  with the widget's title.
+
 ## Key Learnings
 
 - **Project:** sqldesk-client
@@ -28,6 +36,56 @@ budget_tokens: 2000
 <!-- Mistakes made and corrected. Each entry prevents the same mistake recurring. -->
 <!-- Format: [YYYY-MM-DD] Description of what went wrong and what to do instead. -->
 
+- **[2026-10-30] A command's exit status, not the tail of its output, is what
+  says whether it worked.** `docker compose build ... | tail -6 && next` takes
+  `tail`'s status, which is always 0 -- so a build that failed reported
+  success and the verification after it ran against the *previous* image,
+  proving something about code that had never been built. Redirect to a file
+  and check `$?`. The same shape: a `grep`-filtered lint whose "exit 0" came
+  from grep rather than eslint.
+- **[2026-10-30] One backend suite at a time, and check before starting
+  one.** Two pytest runs share the `tests` database and tear its schema down
+  between tests, so each makes the other fail with `UndefinedTable` on
+  unrelated tables. Both runs' results are void, not just the second. `pgrep
+  -fl pytest` must be empty first. (This is the standing rule in memory; it
+  is here because I broke it anyway, by starting a quick check while a long
+  suite was still running in the background.)
+- **[2026-10-30] Run the linters CI pins, at the version CI pins, not the
+  ones installed locally.** Two red builds in a row came from this. `black`
+  24.x (local) splits a long generator expression that `black` 23.1.0 (CI's
+  pin, `.github/workflows/ci.yml`) collapses onto one line, so a file I
+  "verified clean" failed `backend-lint` and skipped the whole backend suite
+  behind it. The host has no Python 3.13, and 23.1.0 crashes on 3.14 with
+  `module 'ast' has no attribute 'Str'` -- so run it in a container:
+  `docker run --rm -v "$PWD:/src" -w /src python:3.13-slim sh -c 'pip -q
+  install black==23.1.0 ruff==0.0.287 && black --check . && ruff check .'`.
+  The same applies to eslint: `lint:ci` adds `--max-warnings 0` and
+  `--output-file`, so a warning is fatal *and* invisible in the job log.
+  Running the suites I changed is not the same as running the ones CI runs.
+- **[2026-10-29] A unit test cannot see CSS, so verify a UI change by
+  rendering it.** Three times now the same shape of bug shipped or nearly
+  shipped: the table header stayed cream because a third rule painted it with
+  `!important`; stacked-panel titles clipped off the canvas because
+  `containLabel` reserves room for tick labels and not for an axis name; and a
+  widget's button strip was painted *underneath* the chart because a
+  visualization inside a widget is absolutely positioned over the whole
+  scrollbox. All three were present in the DOM and correct in every assertion.
+  Compile the application's own `.less` against a specimen, or render the real
+  page -- and remember a specimen has nothing to scroll, so it never exercises
+  a sticky rule.
+- **[2026-10-29] Offer the cut-down version of a UI feature before building
+  the full one.** Stacked panels were built with per-panel titles and heights;
+  Iqbal's reaction was "It looks complex" and the two settings that went were
+  also the ones carrying a rendering bug. Same again with the widget views:
+  the tab strip became small buttons. Both cut versions were better. Default
+  to the smallest thing that does the job nothing else can.
+- **[2026-10-29] Do not label a status report with a clock time.** During the
+  0.7.10 release the reports carried times like "12:46pm" that were estimates,
+  not a clock; the only real timestamps were UTC in CI logs. Report by event.
+- **[2026-10-29] Verify the newest CI run for a commit, not a run id you
+  happen to hold.** A commit can have two `Tests` runs. The publish guard
+  checks `per_page=1` -- the newest -- so tagging after confirming the other
+  one got the image build refused with "its Tests run is 'none'".
 - **[2026-10-20] A Helm hook Job's name must not carry `.Release.Revision`.**
   `before-hook-creation` deletes only a Job of the same name; with the
   revision in it every upgrade leaves one behind for ever.

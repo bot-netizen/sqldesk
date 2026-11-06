@@ -217,6 +217,26 @@ class DataSource(BelongsToOrgMixin, db.Model):
         QueryResult.query.filter(QueryResult.data_source == self).delete()
         for upload in UploadedFile.query.filter(UploadedFile.data_source == self):
             upload.delete()
+        # What the catalog knows about this source goes with it. These three
+        # tables carry a NOT NULL reference and do not cascade, so without
+        # this the delete fails outright -- which means deleting a data
+        # source worked until somebody described one of its tables, and then
+        # stopped. The catalog arrived after this method was written and
+        # nothing brought the two together.
+        #
+        # Columns before tables: `catalog_columns` hangs off `catalog_tables`
+        # and does not cascade either, so taking the tables first fails one
+        # constraint further down.
+        tables = [row.id for row in CatalogTable.query.filter(CatalogTable.data_source_id == self.id)]
+        if tables:
+            CatalogColumn.query.filter(CatalogColumn.catalog_table_id.in_(tables)).delete(synchronize_session=False)
+        for described in (CatalogMeasure, CatalogRelationship, CatalogTable):
+            described.query.filter(described.data_source_id == self.id).delete(synchronize_session=False)
+        # A cell pointing at a deleted source keeps its text and loses its
+        # source, the same bargain a query gets two lines up.
+        NotebookCell.query.filter(NotebookCell.data_source_id == self.id).update(
+            dict(data_source_id=None), synchronize_session=False
+        )
         res = db.session.delete(self)
         db.session.commit()
 
@@ -789,6 +809,30 @@ def should_schedule_next(previous_iteration, now, interval, time=None, day_of_we
     return now > next_iteration
 
 
+def _forget_about(obj):
+    """
+    Drop the rows that point at this object without a foreign key.
+
+    Favourites and version history use a generic reference -- a type name and
+    an id -- so the database cannot cascade them and nothing complains when
+    they are left behind. An orphaned favourite is a star on somebody's list
+    that opens nothing.
+
+    **The two name the type differently**, which is the trap here: a favourite
+    stores the class name (`Query`), and a change stores the table name
+    (`queries`). Both conventions are long-standing and each is read in
+    several places, so this reads each one the way its own code does rather
+    than picking a winner. Checked by a test, because the wrong string here
+    deletes nothing and says nothing.
+    """
+    Favorite.query.filter(Favorite.object_type == obj.__class__.__name__, Favorite.object_id == obj.id).delete(
+        synchronize_session=False
+    )
+    Change.query.filter(Change.object_type == obj.__tablename__, Change.object_id == obj.id).delete(
+        synchronize_session=False
+    )
+
+
 @gfk_type
 @generic_repr(
     "id",
@@ -883,6 +927,50 @@ class Query(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model):
 
         if user:
             self.record_changes(user)
+
+    def delete_permanently(self):
+        """
+        Remove this query and everything that only existed because of it.
+
+        Archiving hides a query and already throws away its widgets and its
+        alerts, so "archived" was never the reversible thing it sounds like.
+        This is the honest version of what people were asking for when they
+        archived something to get rid of it.
+
+        What goes: its visualizations, the dashboard widgets drawn from them,
+        its alerts and their subscriptions, its verification, and anybody's
+        favourite or version history of it.
+
+        What stays, deliberately:
+
+        - **its results.** `query_results` is keyed by the SQL and the data
+          source and shared by every query that asks the same thing; deleting
+          them would take rows another query is still showing.
+        - **its events.** The audit is a record of what people did, and it
+          reads a deleted thing as "deleted" rather than losing the month.
+
+        Returns what it removed, so the page can say so.
+        """
+        removed = {
+            "visualizations": len(self.visualizations),
+            "widgets": sum(len(vis.widgets) for vis in self.visualizations),
+            "alerts": len(self.alerts),
+        }
+
+        # The schedule first: a query being deleted must not be picked up by
+        # the refresh pass between here and the commit.
+        self.schedule = None
+
+        for vis in self.visualizations:
+            for widget in vis.widgets:
+                db.session.delete(widget)
+            db.session.delete(vis)
+        for alert in self.alerts:
+            db.session.delete(alert)
+
+        _forget_about(self)
+        db.session.delete(self)
+        return removed
 
     def regenerate_api_key(self):
         self.api_key = generate_token(40)
@@ -1824,7 +1912,17 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
         )
 
     @classmethod
-    def all(cls, org, group_ids, user_id):
+    def all(cls, org, group_ids, user_id, archived=False):
+        """
+        Dashboards this person can see.
+
+        `archived` selects which side of the flag, rather than widening the
+        result: `False` is the index, `True` is the archive. There has never
+        been a way to ask for the second -- the flag and the Archive action
+        both existed, and an archived dashboard was reachable only by
+        remembering its address. Queries have had their archive since the
+        fork; this is the matching half.
+        """
         query = (
             Dashboard.query.options(joinedload(Dashboard.user).load_only("id", "name", "details", "email"))
             .distinct(cls.lowercase_name, Dashboard.created_at, Dashboard.slug)
@@ -1833,7 +1931,7 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
             .outerjoin(Query)
             .outerjoin(DataSourceGroup, Query.data_source_id == DataSourceGroup.data_source_id)
             .filter(
-                Dashboard.is_archived.is_(False),
+                Dashboard.is_archived.is_(archived),
                 (DataSourceGroup.group_id.in_(group_ids) | (Dashboard.user_id == user_id)),
                 Dashboard.org == org,
             )
@@ -1844,9 +1942,9 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
         return query
 
     @classmethod
-    def search(cls, org, groups_ids, user_id, search_term):
+    def search(cls, org, groups_ids, user_id, search_term, archived=False):
         # TODO: switch to FTS
-        return cls.all(org, groups_ids, user_id).filter(cls.name.ilike("%{}%".format(search_term)))
+        return cls.all(org, groups_ids, user_id, archived=archived).filter(cls.name.ilike("%{}%".format(search_term)))
 
     @classmethod
     def search_by_user(cls, term, user, limit=None):
@@ -1866,6 +1964,31 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
             .order_by(tag_column)
         )
         return query
+
+    def delete_permanently(self):
+        """
+        Remove this dashboard and everything that only existed because of it.
+
+        Its widgets go; the queries and visualizations behind them do not --
+        a widget is a *placement*, and the chart it shows belongs to a query
+        that may well be on three other dashboards. Its subscriptions go,
+        because a schedule to send a dashboard that is not there is a job that
+        fails every morning. Favourites and version history go, since nothing
+        in the database would have cleared them.
+
+        Returns what it removed, so the page can say so.
+        """
+        widgets = self.widgets.all()
+        removed = {"widgets": len(widgets), "subscriptions": len(self.subscriptions)}
+
+        for widget in widgets:
+            db.session.delete(widget)
+        for subscription in self.subscriptions:
+            db.session.delete(subscription)
+
+        _forget_about(self)
+        db.session.delete(self)
+        return removed
 
     @classmethod
     def favorites(cls, user, base_query=None):
@@ -1955,6 +2078,16 @@ class Dashboard(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model
 
 @generic_repr("id", "name", "type", "query_id")
 class Visualization(TimestampMixin, BelongsToOrgMixin, db.Model):
+    #: What may carry a widget's tabs, and what may be one.
+    #:
+    #: Charts and tables. A counter stays out: it is one number, and a strip
+    #: of buttons over a single number is chrome around nothing.
+    #:
+    #: Here rather than beside the handler that enforces it, because the
+    #: serializer enforces it too and importing the handler from there is a
+    #: cycle. The rule belongs to the visualization either way.
+    TABBABLE = ("CHART", "TABLE")
+
     id = primary_key("Visualization")
     type = Column(db.String(100))
     query_id = Column(key_type("Query"), db.ForeignKey("queries.id"))
@@ -1980,6 +2113,219 @@ class Visualization(TimestampMixin, BelongsToOrgMixin, db.Model):
             "description": self.description,
             "options": self.options,
         }
+
+
+# Registered for the generic foreign key, which is how an ApiKey finds what
+# it belongs to -- a public link to a notebook needs the same lookup a public
+# link to a dashboard uses.
+@gfk_type
+class Notebook(TimestampMixin, BelongsToOrgMixin, db.Model):
+    """
+    A chain of cells, where everything else here ends in one SELECT.
+
+    The work a notebook is for is the work a saved query cannot hold: pull
+    this, join it to that, reshape it, look. People do that in Jupyter today
+    and the warehouse never hears about it, so the lineage, the permissions
+    and the scheduling all stop at the edge of somebody's laptop.
+
+    A draft until somebody publishes it, the same promise queries and
+    dashboards make, and for the same reason: what you are still building is
+    not in anybody else's list.
+    """
+
+    id = primary_key("Notebook")
+    org_id = Column(key_type("Organization"), db.ForeignKey("organizations.id"))
+    org = db.relationship(Organization, backref="notebooks")
+    name = Column(db.String(255))
+    description = Column(db.String(4096), nullable=True)
+    user_id = Column(key_type("User"), db.ForeignKey("users.id"))
+    user = db.relationship(User, foreign_keys=[user_id])
+    is_archived = Column(db.Boolean, default=False, index=True)
+    is_draft = Column(db.Boolean, default=True, index=True)
+    #: A cron expression, or nothing. Only cron: a notebook is run by someone
+    #: who wants it done at a time -- "every morning before the standup" --
+    #: and the query scheduler's interval/time/day_of_week trio exists for a
+    #: different question ("keep this no more than an hour stale").
+    schedule = Column(db.String(255), nullable=True)
+    #: How many scheduled runs have failed in a row, so a notebook against a
+    #: warehouse that is down backs off instead of hammering it every minute.
+    schedule_failures = Column(db.Integer, default=0)
+    #: When the *scheduler* last started it. Separate from any cell's
+    #: `last_run_at`, so running one cell by hand does not look to the
+    #: scheduler like the notebook has just run.
+    last_scheduled_at = Column(db.DateTime(True), nullable=True)
+    options = Column(MutableDict.as_mutable(JSONB), default={})
+    cells = db.relationship(
+        "NotebookCell",
+        cascade="all, delete-orphan",
+        order_by="NotebookCell.position",
+        back_populates="notebook",
+    )
+
+    __tablename__ = "notebooks"
+
+    def __str__(self):
+        return "%s %s" % (self.id, self.name)
+
+    @classmethod
+    def due(cls, now=None):
+        """
+        The notebooks whose next slot has come round.
+
+        Drafts are left alone: what somebody is still building should not
+        start running itself overnight.
+
+        An archived notebook is skipped too -- its handoff store has been
+        thrown away, so a scheduled run would rebuild a store nobody asked
+        for.
+        """
+        now = now or utcnow()
+        candidates = cls.query.filter(
+            cls.schedule.isnot(None),
+            cls.is_archived.is_(False),
+            cls.is_draft.is_(False),
+        )
+        return [
+            one
+            for one in candidates
+            if is_valid_cron(one.schedule)
+            and should_schedule_next(
+                one.last_scheduled_at,
+                now,
+                interval=None,
+                cron=one.schedule,
+                failures=one.schedule_failures or 0,
+            )
+        ]
+
+    @property
+    def store_name(self):
+        """
+        The per-notebook handoff store.
+
+        A file rather than a table: a cell hands the next one arbitrarily many
+        rows, and `query_results.data` is JSON in one Postgres column. The
+        displayed slice goes there; this is where the real thing lives, and it
+        is disposable -- re-running re-materializes it.
+        """
+        return "notebook-{}".format(self.id)
+
+    def directory(self):
+        """
+        A directory of its own, under the uploads sandbox.
+
+        Its own rather than one shared by the org's notebooks, and that is a
+        boundary rather than tidiness. DuckDB's `allowed_directories` is not a
+        fence -- it is the *carve-out* from `enable_external_access = false`,
+        so whatever sits in the directory a cell is sealed into stays readable
+        by that cell's SQL. One directory for every notebook would mean a cell
+        here could ATTACH the handoff of a notebook built on a data source its
+        author cannot see.
+        """
+        return os.path.join(settings.UPLOAD_ROOT, str(self.org_id), "notebooks", self.store_name)
+
+    def store_path(self):
+        return os.path.join(self.directory(), "handoff.duckdb")
+
+
+class NotebookCell(TimestampMixin, db.Model):
+    """
+    One step, named rather than numbered.
+
+    Numbering breaks the instant somebody inserts a cell above, and it is the
+    single most common complaint about every notebook tool that does it. A
+    later cell refers to this one by name -- as a relation in SQL, as a
+    dataframe in Python -- so inserting, deleting and reordering leave every
+    reference still pointing at what it meant.
+    """
+
+    SQL = "sql"
+    PYTHON = "python"
+
+    id = primary_key("NotebookCell")
+    notebook_id = Column(key_type("Notebook"), db.ForeignKey("notebooks.id"), index=True)
+    notebook = db.relationship(Notebook, back_populates="cells")
+    #: Unique within its notebook, and how every other cell refers to it.
+    name = Column(db.String(255))
+    #: What a person calls this step, shown in the contents and on the cell.
+    #: Separate from `name` on purpose: `name` is an identifier other cells
+    #: are written against and renaming it breaks them, where a title is
+    #: prose and changing it breaks nothing. A contents list reading
+    #: `cell_1 ... cell_30` is a contents list nobody reads.
+    title = Column(db.String(255), nullable=True)
+    kind = Column(db.String(32), default=SQL)
+    source = Column(db.Text, default="")
+    #: Where it sits on the page. Order, not identity -- see the class note.
+    position = Column(db.Integer, default=0)
+    #: SQL cells only. A code cell reaches no data source: data arrives from
+    #: an earlier cell or not at all.
+    data_source_id = Column(key_type("DataSource"), db.ForeignKey("data_sources.id"), nullable=True)
+    data_source = db.relationship(DataSource)
+    #: The truncated slice shown on the page. The full handoff is in the
+    #: notebook's own store, which Postgres is the wrong shape for.
+    latest_result_id = Column(key_type("QueryResult"), db.ForeignKey("query_results.id"), nullable=True)
+    latest_result = db.relationship(QueryResult)
+    #: When this cell last produced what is on the page. Compared against the
+    #: cells it read, to decide whether what you are looking at is stale.
+    last_run_at = Column(db.DateTime(True), nullable=True)
+    options = Column(MutableDict.as_mutable(JSONB), default={})
+
+    __tablename__ = "notebook_cells"
+    __table_args__ = (db.UniqueConstraint("notebook_id", "name", name="unique_cell_name_in_notebook"),)
+
+    def __str__(self):
+        return "%s %s" % (self.id, self.name)
+
+    @property
+    def reaches_a_data_source(self):
+        """Only a SQL cell does. Decided 2026-10-04 and enforced, not assumed."""
+        return self.kind == self.SQL
+
+
+class NotebookRun(TimestampMixin, db.Model):
+    """
+    What happened when a cell ran: the provenance half of the split store.
+
+    Tiny, and kept for ever, where the handoff is arbitrary and disposable.
+    This is what makes staleness answerable -- it records which cells this one
+    read, so a cell whose inputs have re-run since can say so before anybody
+    trusts its number.
+
+    Zeppelin has the session and no staleness tracking, which is why Zeppelin
+    notebooks rot. That one addition is the difference between a notebook you
+    can believe and a notebook you have to re-run to believe.
+    """
+
+    OK = "ok"
+    FAILED = "failed"
+    RUNNING = "running"
+
+    id = primary_key("NotebookRun")
+    notebook_id = Column(key_type("Notebook"), db.ForeignKey("notebooks.id"), index=True)
+    notebook = db.relationship(Notebook)
+    cell_id = Column(key_type("NotebookCell"), db.ForeignKey("notebook_cells.id"), index=True)
+    cell = db.relationship(NotebookCell)
+    user_id = Column(key_type("User"), db.ForeignKey("users.id"), nullable=True)
+    user = db.relationship(User)
+    state = Column(db.String(32), default=RUNNING)
+    #: The names of the cells this run read, as they were at the time. Names
+    #: rather than ids so the record still reads to a person after a cell is
+    #: deleted.
+    inputs = Column(MutableList.as_mutable(JSONB), default=[])
+    started_at = Column(db.DateTime(True), nullable=True)
+    finished_at = Column(db.DateTime(True), nullable=True)
+    runtime = Column(db.Float, nullable=True)
+    rows = Column(db.Integer, nullable=True)
+    error = Column(db.Text, nullable=True)
+    #: What the cell printed, kept whether or not it also produced a table.
+    #: A cell that prints its diagnostics and then shows a dataframe used to
+    #: lose the printing, which is most of what `print` is for in a notebook.
+    printed = Column(db.Text, nullable=True)
+
+    __tablename__ = "notebook_runs"
+
+    def __str__(self):
+        return "%s cell=%s %s" % (self.id, self.cell_id, self.state)
 
 
 #: What an MCP client is allowed to ask for. One scope, because the tools are
@@ -3079,15 +3425,43 @@ class AlertSubscription(TimestampMixin, db.Model):
         return AlertSubscription.query.join(User).filter(AlertSubscription.alert_id == alert_id)
 
     def notify(self, alert, query, user, new_state, app, host, metadata):
+        """
+        Send this subscription's notification.
+
+        A subscription with no destination used to mean "email me": an email
+        destination was invented on the spot, pointed at the subscriber's own
+        address. Removed on 2026-10-29 -- "remove the default email .. add if
+        user want to add".
+
+        The reason is that it was never chosen. Subscribing meant being
+        emailed whether or not anybody wanted mail, on an install that may
+        have no mail server configured at all, and the only way to stop it was
+        to stop being subscribed. Email is still a destination like any other;
+        it is now one somebody picks.
+
+        `SQLDESK_ALERT_EMAIL_FALLBACK` restores the old behaviour for an
+        install that was relying on it. Off by default, because a default
+        nobody chose is what this is removing -- but it exists, because an
+        alert quietly ceasing to notify on upgrade is a bad way to find out.
+        """
         if self.destination:
             return self.destination.notify(alert, query, user, new_state, app, host, metadata)
-        else:
-            # User email subscription, so create an email destination object
-            config = {"addresses": self.user.email}
-            schema = get_configuration_schema_for_destination_type("email")
-            options = ConfigurationContainer(config, schema)
-            destination = get_destination("email", options)
-            return destination.notify(alert, query, user, new_state, app, host, metadata, options)
+
+        if not settings.ALERT_EMAIL_FALLBACK:
+            logger.info(
+                "alert %s has a subscription for %s with no destination; nothing was sent. "
+                "Add a destination to the alert, or set SQLDESK_ALERT_EMAIL_FALLBACK=true "
+                "to keep emailing subscribers as before.",
+                alert.id,
+                self.user_id,
+            )
+            return None
+
+        config = {"addresses": self.user.email}
+        schema = get_configuration_schema_for_destination_type("email")
+        options = ConfigurationContainer(config, schema)
+        destination = get_destination("email", options)
+        return destination.notify(alert, query, user, new_state, app, host, metadata, options)
 
 
 @generic_repr("id", "trigger", "user_id", "org_id")

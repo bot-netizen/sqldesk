@@ -1,0 +1,1011 @@
+@import (reference) "~@/assets/less/inc/visualizations/fills-its-box";
+
+/*
+  A notebook page: a column of cells, each a card.
+
+  Everything here uses the application's own tokens rather than fixed colours,
+  so the page follows the theme like every other page -- including dark, where
+  a hard-coded white card is the thing that gives it away.
+*/
+
+/*
+  No max-width, and the same padding tokens the lists use.
+
+  It was capped at 1200px and centred, which left a band of dead space on a
+  wide display while the cells inside were still squeezing their tables and
+  charts -- the same thing `.list-page-shell` already refuses to do, and for
+  the same reason: here the content is the width.
+*/
+.notebook-page {
+  padding: var(--sp-6) var(--sp-7) var(--sp-7);
+  /*
+    Every dropdown on this page hangs here rather than on the body (see
+    popup.js): the window is not the scroller, so a body-anchored overlay does
+    not travel with the control that opened it.
+  */
+  position: relative;
+}
+
+/*
+  The same header the lists have.
+
+  Deliberately matched to `.list-page-header` rather than merely similar: a
+  notebook opened from the notebooks list should not look like a page from a
+  different product, and the h3 this used to be sat two sizes below every
+  other page's title.
+*/
+.notebook-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+  flex-wrap: wrap;
+}
+
+.notebook-header-spacer {
+  flex: 1 1 auto;
+}
+
+.notebook-title {
+  flex: 1 1 auto;
+  min-width: 0;
+
+  h3 {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: var(--color-text);
+  }
+}
+
+.notebook-description {
+  margin: 3px 0 0;
+  font-size: var(--fs-small);
+  color: var(--color-text-muted);
+}
+
+.notebook-draft {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: var(--radius-chip);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  vertical-align: middle;
+}
+
+.notebook-back {
+  align-self: center;
+  white-space: nowrap;
+}
+
+.notebook-interpreter {
+  align-self: center;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+
+  &.notebook-interpreter-on {
+    color: var(--color-good);
+  }
+
+  &.notebook-interpreter-off {
+    opacity: 0.75;
+  }
+}
+
+.notebook-empty,
+.notebook-load-error {
+  margin: 24px 0;
+}
+
+.notebook-cells {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.notebook-cell {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  overflow: hidden;
+
+  /*
+    A code cell is marked on its edge rather than by a different background.
+    Two cell colours down a long page is noise; one stripe says "this one runs
+    somewhere else" and stays out of the way.
+  */
+  &.notebook-cell-python {
+    border-left: 3px solid var(--color-action);
+  }
+}
+
+/*
+  One row, one baseline.
+
+  White rather than the sunken grey it was: the grey made every cell look
+  like a disabled control, and against a white page it read as a band rather
+  than a header. `align-items: center` with a fixed row height is what keeps
+  the fold arrow, the title, the chip and four icons on the same line --
+  they are different elements at different natural heights, and without it
+  they sit a pixel or two apart each.
+
+  No wrapping: a header that reflows onto two lines on a narrow window is
+  worse than one that lets its title ellipsise.
+*/
+.notebook-cell-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-raised, #fff);
+  flex-wrap: nowrap;
+
+  > * {
+    flex-shrink: 0;
+  }
+
+  .ant-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/*
+  The title a person gave this step, and the name later cells are written
+  against. Both shown: somebody who titles a cell "Orders, cleaned" still
+  needs to know they type `orders` to read it, so the name stays -- quieter,
+  because it is a reference and not a heading.
+*/
+.notebook-cell-title {
+  font-weight: 600;
+  font-size: 13px;
+  cursor: text;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  border-radius: 3px;
+
+  &:hover {
+    background: var(--color-surface, rgba(0, 0, 0, 0.04));
+  }
+}
+
+.notebook-cell-title-unset {
+  font-weight: 400;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.notebook-cell-title-input {
+  font-weight: 600;
+  font-size: 13px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  border: 1px solid var(--color-primary, #2b7ddb);
+  border-radius: 3px;
+  background: var(--color-surface-raised, #fff);
+  min-width: 160px;
+}
+
+/*
+  Icons, not words.
+
+  Five labelled controls per cell was most of a cell header, and on a
+  notebook of thirty cells most of the page. Sized to the row so they read as
+  one strip rather than five buttons.
+*/
+.notebook-cell-icon {
+  width: 28px;
+  min-width: 28px;
+  padding: 0;
+  color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    color: var(--color-text);
+  }
+}
+
+/* A fold control, sized to the row rather than to a button. */
+.notebook-cell-fold {
+  width: 18px;
+  min-width: 18px;
+  padding: 0;
+  line-height: 1;
+  color: var(--color-text-muted);
+}
+
+/*
+  What a folded cell says for itself, so folding hides the work and not the
+  fact that there is some.
+*/
+.notebook-cell-folded {
+  padding: 6px 10px 6px 34px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.notebook-cell-kind {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+/*
+  The handle, looking like the identifier it is.
+
+  Monospace and bracketed so it reads as code rather than as a second title --
+  it is the thing somebody types into the cell below, and a word in the page's
+  own font beside a title is indistinguishable from part of the title.
+*/
+.notebook-cell-handle {
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  background: var(--color-surface, rgba(0, 0, 0, 0.04));
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 0 5px;
+  line-height: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--color-text);
+    border-color: var(--color-border, rgba(0, 0, 0, 0.12));
+  }
+}
+
+.notebook-cell-handle-input {
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  line-height: 18px;
+  height: 20px;
+  padding: 0 5px;
+  border: 1px solid var(--color-primary, #2b7ddb);
+  border-radius: 3px;
+  background: var(--color-surface-raised, #fff);
+  width: 130px;
+  flex: 0 0 auto;
+}
+
+/*
+  Under the editor rather than over it: it is the answer to a question
+  somebody has while typing, and above the box it would be one more line
+  between the header and the code on every cell in the notebook.
+*/
+.notebook-cell-available {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  padding: 3px 10px 0;
+
+  code {
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+    background: var(--color-surface, rgba(0, 0, 0, 0.04));
+    border-radius: 3px;
+    padding: 0 4px;
+    color: var(--color-text);
+  }
+}
+
+.notebook-cell-source-select {
+  min-width: 160px;
+}
+
+.notebook-cell-spacer {
+  flex: 1 1 auto;
+}
+
+.notebook-cell-notice {
+  margin: 8px 10px 0;
+}
+
+/*
+  The code, flush against the cell.
+
+  It was a bordered, rounded box inside a bordered, rounded card -- two
+  frames around one thing. The cell is the frame; the editor is just the
+  part of it you type in.
+*/
+.notebook-cell-editor {
+  height: 160px;
+  min-height: 120px;
+  background: var(--color-surface-raised, #fff);
+
+  .ace_editor,
+  .ace-sqldesk {
+    border: none !important;
+    border-radius: 0 !important;
+    background: var(--color-surface-raised, #fff) !important;
+  }
+
+  .ace_gutter {
+    background: var(--color-surface-raised, #fff) !important;
+  }
+}
+
+/*
+  The output, set apart from the code above it.
+
+  They ran together before and the eye could not find the seam: a margin and
+  a sunken strip above the border do more for that than the border did on its
+  own.
+*/
+.notebook-cell-output {
+  margin-top: 10px;
+  border-top: 1px solid var(--color-border);
+  padding: 12px 10px;
+  overflow: auto;
+  background: var(--color-surface-raised, transparent);
+}
+
+.notebook-cell-output-text {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  max-height: 320px;
+}
+
+/*
+  What the cell printed, above whatever it produced. Set apart from the table
+  so it reads as the cell talking rather than as data, and scrollable on its
+  own: a cell that prints per row should not push its table off the screen.
+*/
+.notebook-cell-printed {
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  max-height: 180px;
+  overflow: auto;
+  color: var(--text-secondary, #5b6372);
+  background: var(--surface-sunken, #f6f7f9);
+  border-left: 2px solid var(--border-subtle, #d9dde3);
+  border-radius: 2px;
+}
+
+.notebook-cell-output-chart {
+  /* Tall enough for a chart to be a chart rather than a strip. */
+  min-height: 280px;
+}
+
+.notebook-cell-chart-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.notebook-cell-chart-name {
+  font-weight: 600;
+}
+
+.notebook-cell-output-count {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.notebook-cell-output-empty {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.notebook-cell-null {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* A phone reads a notebook rather than edits one, but it must still read. */
+@media (max-width: 767px) {
+  .notebook-page {
+    padding: 12px 16px 48px;
+  }
+
+  .notebook-cell-editor {
+    height: 120px;
+  }
+}
+
+/*
+  The notebook as a document: contents down the left, cells to the right.
+
+  Sticky rather than scrolling with the page, because its whole job is to be
+  reachable from cell thirty.
+*/
+.notebook-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.notebook-cells {
+  flex: 1;
+  min-width: 0;
+}
+
+.notebook-contents {
+  position: sticky;
+  top: 12px;
+  width: 190px;
+  min-width: 190px;
+  max-height: calc(100vh - 140px);
+  overflow: auto;
+  padding: 10px 0;
+  border-right: 1px solid var(--color-border);
+
+  ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    counter-reset: cell;
+  }
+
+  li {
+    counter-increment: cell;
+  }
+}
+
+.notebook-contents-heading {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  padding: 0 10px 6px;
+}
+
+.notebook-contents-entry {
+  display: block;
+  padding: 4px 10px;
+  font-size: 13px;
+  color: var(--color-text);
+  border-left: 2px solid transparent;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &::before {
+    content: counter(cell) ".";
+    color: var(--color-text-muted);
+    margin-right: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &:hover {
+    background: var(--color-surface-sunken);
+    border-left-color: var(--color-primary, #2b7ddb);
+    text-decoration: none;
+  }
+}
+
+/* A folded cell is still in the contents -- quieter, so it reads as put away. */
+.notebook-contents-folded {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* How big it is, under the title. */
+.notebook-size {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* Below a tablet the contents would take a third of the width, so it goes. */
+@media (max-width: 900px) {
+  .notebook-contents {
+    display: none;
+  }
+}
+
+/*
+  Taking a result out of here. Styled as a header action rather than a link,
+  because it sits among buttons -- but it stays an anchor so the browser's own
+  download handles Content-Disposition.
+*/
+.notebook-cell-download {
+  height: 24px;
+
+  &:hover {
+    text-decoration: none;
+  }
+}
+
+.notebook-list-size {
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+/*
+  What a cell runs on: one control, and the same thing said in words beside
+  it.
+
+  The words are not decoration. A grouped dropdown is only obvious while it
+  is open, and the thing somebody needs to know at a glance -- that a Python
+  cell wants no data source -- has to be readable when it is shut.
+*/
+.notebook-cell-runs-on {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.notebook-cell-runs-on-select {
+  min-width: 150px;
+}
+
+.notebook-cell-runs-on-static {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The schedule dialog: choices stacked, because they are read down. */
+.notebook-schedule-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notebook-schedule-cron {
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  max-width: 240px;
+}
+
+.notebook-schedule-notice {
+  margin-bottom: 12px;
+}
+
+.notebook-schedule-said {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/*
+  A picture a Python cell ended on. Given room to be a chart rather than a
+  strip, and held to the column width so a wide figure scrolls rather than
+  pushing the page sideways.
+*/
+.notebook-cell-figure {
+  min-height: 240px;
+  max-width: 100%;
+  overflow-x: auto;
+
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+}
+
+/*
+  The notebook as a printed document.
+
+  "Export as a PDF" is the browser's own print, and this is what makes that
+  worth having rather than a screenshot of a web page: the chrome goes, the
+  cells stop breaking across pages, and a table that scrolls on screen is
+  shown whole on paper because paper does not scroll.
+
+  What stays folded stays folded. Somebody who tidied a notebook into a
+  readable report has already decided what the report is.
+*/
+@media print {
+  .notebook-header-spacer,
+  .notebook-contents,
+  .notebook-back,
+  .notebook-cell-fold,
+  .notebook-cell-runs-on-select,
+  .notebook-cell-download,
+  .notebook-header .ant-btn,
+  .notebook-cell-header .ant-btn,
+  .notebook-cell-title-input {
+    display: none !important;
+  }
+
+  .notebook-body {
+    display: block;
+  }
+
+  .notebook-page {
+    /* Ink on paper: the sunken greys print as muddy bands. */
+    background: none;
+  }
+
+  .notebook-cell {
+    /* A cell split across a page break is the thing that makes a printed
+       notebook unreadable -- its code on one page and its answer on the
+       next. */
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #ddd;
+    margin-bottom: 12px;
+  }
+
+  .notebook-cell-header {
+    background: none;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .notebook-cell-output,
+  .notebook-cell-printed {
+    background: none;
+    /* No scrollbars on paper: show it all, or it is simply missing. */
+    max-height: none;
+    overflow: visible;
+  }
+
+  .notebook-cell-output .ant-table-body,
+  .notebook-cell-output .ant-table-content {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .notebook-cell-editor {
+    /* The editor is a virtualised scroller on screen; on paper it has to be
+       as tall as the code it holds. */
+    height: auto;
+    min-height: 0;
+  }
+
+  .notebook-cell-figure {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    min-height: 0;
+  }
+}
+
+/*
+  The result, as tabs.
+
+  A chart used to replace the table with a link to get back, which made it
+  feel like a mode. One result, looked at two ways.
+*/
+.notebook-cell-tabs {
+  .ant-tabs-nav {
+    margin: 0;
+    padding: 0 8px;
+  }
+
+  .ant-tabs-tab {
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+
+  .ant-tabs-content-holder {
+    padding-top: 8px;
+  }
+}
+
+.notebook-cell-tab-remove {
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+
+  &:hover {
+    color: var(--color-danger, #c1392b);
+  }
+}
+
+/* The notebook's own name, clicked to change. */
+.notebook-name {
+  cursor: text;
+  padding: 1px 6px;
+  margin: -1px -6px;
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--color-surface-sunken);
+  }
+}
+
+.notebook-name-input {
+  font: inherit;
+  padding: 1px 6px;
+  margin: -1px -6px;
+  border: 1px solid var(--color-primary, #2b7ddb);
+  border-radius: 4px;
+  background: var(--color-surface-raised, #fff);
+  min-width: 320px;
+  max-width: 100%;
+}
+
+.notebook-title-unset {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* How much came back, and how long it took. */
+.notebook-cell-output-count {
+  padding: 6px 2px 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/*
+  A chart big enough to read.
+
+  Three sizes rather than a drag handle: a handle is fiddly inside a
+  scrolling page, and what people want is not 14 heights, it is "bigger".
+  Kept on the cell, so sizing a chart sizes it for the next reader too.
+*/
+/*
+  A chart dragged to the height you want, the way a dashboard widget is.
+
+  The handle is a strip across the bottom: grabbing an edge is the gesture
+  people already know here, and it needs somewhere to live that does not
+  overlap the chart's own axis.
+*/
+.notebook-cell-pane {
+  width: 100%;
+  position: relative;
+  padding-bottom: 10px;
+}
+
+/*
+  The body is the box the content is told to fill.
+
+  `position: relative` is load-bearing: `.visualization-fills-its-box()`
+  pins the renderer to all four edges of its nearest positioned ancestor,
+  and without it the chart escapes to the page.
+
+  That mixin is the whole reason dragging a chart does anything. viz-lib
+  ships `.chart-visualization-container { height: 400px }`, so a chart is
+  400px tall wherever it is put -- the pane grew, the chart did not, and the
+  drag looked broken because all it added was blank space. A dashboard
+  widget and the query page already mix this in for exactly the same
+  reason.
+*/
+.notebook-cell-pane-body {
+  height: 100%;
+  position: relative;
+
+  .visualization-fills-its-box();
+}
+
+/*
+  A picture fills the pane the same way, which for a PNG means fitting
+  inside it rather than overflowing: a matplotlib figure is a raster of
+  whatever size it was saved at.
+*/
+.notebook-cell-pane-body .notebook-cell-figure {
+  height: 100%;
+  min-height: 0;
+
+  img {
+    max-height: 100%;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+  }
+}
+
+/*
+  The table's strip sits under the table rather than over it: antd scrolls
+  the body, so there is no edge of its own to grab.
+*/
+.notebook-cell-table-handle {
+  position: relative;
+  height: 10px;
+  margin-top: 2px;
+}
+
+.notebook-cell-pane-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 10px;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* The grip: visible enough to find, quiet enough to ignore. */
+  &::after {
+    content: "";
+    width: 36px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--color-border);
+  }
+
+  &:hover::after,
+  &.is-dragging::after {
+    background: var(--color-text-muted);
+  }
+}
+
+/*
+  How notebooks work, in the page rather than on the docs site.
+
+  The thing people need is one sentence -- a later cell reads an earlier one
+  by its name -- and sending them to a website to learn it means most never
+  do.
+*/
+.notebook-help {
+  max-height: 60vh;
+  overflow: auto;
+
+  > p:first-child {
+    font-size: 14px;
+    color: var(--color-text);
+  }
+
+  pre {
+    margin: 8px 0;
+    padding: 10px 12px;
+    background: var(--color-surface-sunken);
+    border-radius: var(--radius-card, 6px);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    white-space: pre-wrap;
+    border: none;
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 1px 4px;
+    background: var(--color-surface-sunken);
+    border-radius: 3px;
+  }
+}
+
+.notebook-help-rule {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+
+  h4 {
+    margin: 0 0 6px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0 0 6px;
+    font-size: 13px;
+    color: var(--color-text-muted);
+  }
+}
+
+/*
+  The two ways out of this page, beside the thing they are about.
+
+  They were at the far end of a row of buttons, which put a link for
+  somebody who is stuck as far as possible from the stuck person's eye.
+*/
+.notebook-beta {
+  margin-left: 0;
+  margin-right: 2px;
+}
+
+.notebook-subhead {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 3px;
+}
+
+.notebook-link {
+  font-size: 12px;
+  color: var(--color-primary, #2b7ddb);
+  background: none;
+  border: none;
+  padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+/*
+  One baseline across the header.
+
+  Buttons, links and an antd Select have different natural heights, and left
+  alone they sit a pixel or two apart each -- which is what reads as "not
+  aligned" even when nothing is obviously wrong.
+*/
+.notebook-header {
+  .ant-btn,
+  .ant-select,
+  .ant-select-selector {
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .ant-btn-sm {
+    line-height: 1;
+  }
+}
+
+/*
+  Run, Stop and Run all: square, so the play mark sits in the middle of it.
+
+  An icon-only antd button keeps a text button's side padding, which makes it
+  a wide rectangle with the glyph adrift in it -- and beside three
+  word-labelled buttons that reads as the one thing in the row that is not
+  lined up. Square and the same height as its neighbours instead.
+
+  The caret is nudged a pixel right because a triangle's weight sits to its
+  left: centred by measurement, it looks left of centre.
+*/
+.notebook-cell-run,
+.notebook-header-run {
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  .anticon {
+    margin-left: 1px;
+  }
+}
+
+.notebook-cell-run {
+  width: 30px;
+  min-width: 30px;
+}
+
+/*
+  "Still going", next to the button that stops it.
+
+  The number is tabular so the row does not jiggle as the digits change --
+  proportional figures move the Stop button left and right once a second,
+  which is exactly the kind of movement that pulls the eye to the one place
+  nothing is happening. A min-width holds the space 1m 00s needs, so the
+  button stops shifting when the clock crosses a minute.
+*/
+.notebook-cell-running {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+
+  .anticon {
+    font-size: 12px;
+  }
+}
+
+.notebook-cell-running-for {
+  font-variant-numeric: tabular-nums;
+  min-width: 42px;
+}
+
+.notebook-header-run {
+  width: 28px;
+  min-width: 28px;
+}
+
+.notebook-cell-header {
+  .ant-select-selector {
+    height: 26px !important;
+    display: flex;
+    align-items: center;
+  }
+}

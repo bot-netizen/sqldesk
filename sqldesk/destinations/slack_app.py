@@ -20,7 +20,7 @@ page anybody with alert permissions can reach.
 
 import logging
 
-from sqldesk import models, slack
+from sqldesk import alerting, models, slack
 from sqldesk.destinations import BaseDestination, register
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,7 @@ class SlackApp(BaseDestination):
             logger.warning("alert %s has a Slack (app) destination with no channel", alert.id)
             return
 
-        text = self._text(alert, query, new_state, host)
+        text = self._text(alert, query, new_state, host, metadata)
         file_ids, problems = self._upload(workspace, metadata)
 
         _posted, error = slack.post(
@@ -100,17 +100,26 @@ class SlackApp(BaseDestination):
         for file_id in file_ids[1:]:
             slack.post(workspace.bot_token, channel, "", file_id=file_id)
 
-    def _text(self, alert, query, new_state, host):
-        if new_state == "triggered":
-            headline = alert.subject_for(escape=False) or "{} just triggered".format(alert.name)
-        else:
-            headline = "{} went back to normal".format(alert.name)
+    def _text(self, alert, query, new_state, host, metadata=None):
+        # The headline carries the number now -- "Orders: 87, below 100"
+        # rather than "Orders just triggered", which says only what the
+        # arrival of the message already said. Shared with the webhook
+        # destination so the two do not drift.
+        lines = ["*{}*".format(alerting.headline(alert, new_state))]
 
-        lines = ["*{}*".format(headline)]
-        if alert.body_for(escape=False):
+        body = alert.body_for(escape=False)
+        if body:
             # Exactly as written. A custom body is not ours to append to.
-            lines.append(alert.body_for(escape=False)[:MAX_TEXT])
-        lines.append("<{}/alerts/{}|the alert> · <{}/queries/{}|the query>".format(host, alert.id, host, query.id))
+            lines.append(body[:MAX_TEXT])
+
+        notes = []
+        often = alerting.how_often(alert, (metadata or {}).get("fires_24h"))
+        if often:
+            notes.append("Fired {}".format(often))
+        if alert.muted:
+            notes.append("muted, so nobody else was told")
+        notes.append(alerting.links(alert, query, host) or "")
+        lines.append(" \u00b7 ".join(one for one in notes if one))
         return "\n".join(lines)
 
     def _upload(self, workspace, metadata):

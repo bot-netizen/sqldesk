@@ -1,0 +1,102 @@
+# The optional interpreter.
+#
+# Built and run only by people who want Python cells in their notebooks. The
+# SQLDesk image does not change by a byte -- and more to the point, the RQ
+# worker does not become a process that runs arbitrary code while holding every
+# data source's decrypted credentials. No sandbox applied afterwards is worth
+# the sentence describing that.
+#
+# Small on purpose: pandas and DuckDB are what a Python cell is for, and
+# nothing else is installed. Both are already SQLDesk's own dependencies at
+# these versions, so this adds no library the project did not already carry.
+#
+# No pyarrow. DuckDB's Parquet reader and writer are native, and data crosses
+# this boundary as Parquet in both directions -- so the 40 MB pyarrow would add
+# buys nothing here.
+# The Python this runs on, because Spark pins it.
+#
+# 3.13 for the plain interpreter. **Spark 3.5 supports Python 3.8 to 3.11**,
+# and on 3.13 its dependency resolution lands on a numpy with no wheel for the
+# platform and tries to compile one, which fails -- measured, not guessed. So
+# a Spark build passes `--build-arg PYTHON_VERSION=3.11` with Spark 3.5, and
+# whatever its own release notes say for a later Spark.
+ARG PYTHON_VERSION=3.13
+FROM python:${PYTHON_VERSION}-slim-bookworm
+
+WORKDIR /app
+
+# Spark is off by default and costs nothing when it is off.
+#
+# `SPARK_VERSION` has to match the cluster: Spark Connect's client and server
+# are versioned together, and a mismatched client fails at the first call with
+# a protocol error rather than at build time. Build with
+# `--build-arg WITH_SPARK=true --build-arg SPARK_VERSION=<your cluster's>`.
+#
+# The connect extra, not all of pyspark: this container is a *client*. It needs
+# the protocol and the DataFrame API, not a JVM, not Hadoop, and not the
+# several hundred megabytes those bring.
+ARG WITH_SPARK=false
+ARG SPARK_VERSION=3.5.3
+# Repeated after FROM: an ARG before the first FROM belongs to no stage, so
+# this is the one the RUN below can see.
+ARG PYTHON_VERSION
+
+# matplotlib and plotly are what "end a cell on a chart" means in practice:
+# matplotlib carries seaborn and `df.plot()` with it, and plotly is handed to
+# the browser as a spec rather than rendered here -- so no kaleido and no
+# second headless browser in this image.
+RUN pip install --no-cache-dir \
+      pandas==2.3.3 \
+      duckdb==2.0.0 \
+      flask==3.0.3 \
+      gunicorn==23.0.0 \
+      matplotlib==3.10.7 \
+      plotly==6.3.1 \
+ && if [ "$WITH_SPARK" = "true" ]; then \
+      pip install --no-cache-dir "pyspark[connect]==${SPARK_VERSION}"; \
+    fi \
+ && rm -rf /root/.cache/pip
+
+COPY executor/service.py executor/runner.py executor/spark.py /app/
+
+# A process that runs somebody else's code is the last thing that should be
+# root. The child it spawns inherits this user, and `RLIMIT_NPROC` of 0 in the
+# child means that child cannot spawn anything further.
+RUN useradd --create-home --uid 1000 interpreter
+USER interpreter
+
+# Headless, or importing pyplot tries to find a display that is not there.
+# MPLCONFIGDIR keeps the font cache somewhere writable: without it matplotlib
+# warns on every import and rebuilds the cache each time.
+ENV MPLBACKEND=Agg
+ENV MPLCONFIGDIR=/tmp/matplotlib
+ENV PORT=5000
+EXPOSE 5000
+
+# **Deny this container egress.** Everything above limits what a cell can
+# spend; this is what limits where it can reach. The design makes it free:
+# a code cell takes its data from an earlier cell (§4.1), so the interpreter
+# has no API to call, no data source to open and no legitimate reason to make
+# a single outbound connection. In Kubernetes that is a NetworkPolicy with no
+# egress rule; in Docker Compose, an internal network.
+#
+# With Spark it becomes one rule rather than none: a Connect client has to
+# reach the cluster. Allow egress to the Connect server and nothing else --
+# and note that "nothing else" is then only as true as the policy enforcing
+# it, where before it was a property of having no route at all.
+#
+# **Give this container a memory limit.** It is the per-session ceiling: an
+# `RLIMIT_AS` small enough to be useful stops pandas and DuckDB loading at all
+# (the numbers are in `runner.limits`), so the cgroup is the mechanism that
+# works. A cell that exceeds it has its child killed, and the service reports
+# that the interpreter ran out of memory.
+#
+# One worker, four threads. A session is a child process of this worker, so
+# more workers would mean sessions split across processes that cannot see each
+# other's -- a notebook would reach a different interpreter per request and its
+# variables would be gone. Scale with a bigger container, not more workers.
+#
+# The timeout is longer than EXECUTOR_RUN_SECONDS, so that a slow cell is ended
+# by the deadline that can explain itself rather than by gunicorn killing the
+# worker and every other notebook's session with it.
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "4", "--timeout", "360", "service:app"]

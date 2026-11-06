@@ -17,6 +17,8 @@ export interface CardsListItem {
   imgLabel?: string;
   href?: string;
   onClick?: React.MouseEventHandler<HTMLElement>;
+  /** A word in the corner: "Paused", and whatever else a list needs to flag. */
+  badge?: React.ReactNode;
 }
 
 export interface CardsListProps {
@@ -38,6 +40,7 @@ function ListItem({ item, keySuffix }: ListItemProps) {
       <>
         <TypeLogo alt={item.title} src={item.imgSrc} label={item.imgLabel || item.title} />
         <h3>{item.title}</h3>
+        {item.badge && <span className="visual-card-badge">{item.badge}</span>}
       </>
     ),
   };

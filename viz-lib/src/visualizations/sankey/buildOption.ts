@@ -1,11 +1,26 @@
 import escapeHtml from "@/lib/escapeHtml";
-import { every, filter, find, isFinite, isNaN, isNil, isNumber, isString, keys, map, mapValues, sortBy } from "lodash";
+import {
+  each,
+  every,
+  filter,
+  find,
+  isFinite,
+  isNaN,
+  isNil,
+  isNumber,
+  isString,
+  keys,
+  map,
+  mapValues,
+  sortBy,
+} from "lodash";
 import { ECHARTS_MOTION } from "@/visualizations/shared/motion";
 import { NO_ROWS } from "@/visualizations/shared/components/Problem";
 
-// The data shape is the inherited one: up to five stage columns plus a `value`
-// column, one row per path through the stages. That contract is unchanged --
-// only the drawing moved off d3 v3.
+// The data shape is the inherited one: stage columns plus a `value` column,
+// one row per path through the stages. Inherited except for the count --
+// five was hard-coded in the loop, and is now however many the query
+// returns.
 
 // d3 v3's `scale.category20`, so existing sankeys keep their colours.
 const CATEGORY_20 = [
@@ -76,15 +91,39 @@ function normalizeName(name: any) {
  * links by node name, so that pair has to be folded into the name itself and
  * the label shown separately.
  */
+/**
+ * The stage columns, left to right.
+ *
+ * Sorted by the number in the name where there is one, so `stage10` follows
+ * `stage9` instead of `stage1`. A plain alphabetical sort was fine while
+ * five was the limit and becomes a scrambled funnel the moment somebody
+ * needs ten -- the flows still draw, in the wrong order, which is the kind
+ * of wrong that gets believed.
+ *
+ * Columns with no number keep their alphabetical place among themselves and
+ * sort before the numbered ones, so a query using plain names is unchanged.
+ */
+export function stageOrder(columns: string[]): string[] {
+  const stages = filter(columns, (key) => key !== "value");
+  return sortBy(stages, [
+    (key: string) => {
+      const digits = /(\d+)\s*$/.exec(key);
+      return digits ? 1 : 0;
+    },
+    (key: string) => {
+      const digits = /(\d+)\s*$/.exec(key);
+      return digits ? parseInt(digits[1], 10) : 0;
+    },
+    (key: string) => key,
+  ]);
+}
+
 export function buildGraph(rows: any[]): { nodes: SankeyNode[]; links: SankeyLink[] } {
   const nodesByKey = new Map<string, SankeyNode>();
   const linksByKey = new Map<string, SankeyLink>();
   const color = categoryColors();
 
-  const dataKeys = sortBy(
-    filter(keys(rows[0] || {}), (key) => key !== "value"),
-    (key) => key
-  );
+  const dataKeys = stageOrder(keys(rows[0] || {}));
 
   function nodeFor(label: any, depth: number) {
     const displayName = normalizeName(label);
@@ -122,12 +161,19 @@ export function buildGraph(rows: any[]): { nodes: SankeyNode[]; links: SankeyLin
     }
   }
 
+  // However many stage columns the query returned. This used to count to
+  // five and stop, whatever it was given: a funnel with eight stages drew
+  // its first five and silently dropped the rest, which looks like the
+  // query is wrong rather than the chart. Ad funnels in particular run
+  // long -- impression, bid, win, render, view, click, visit, convert is
+  // eight before anybody mentions attribution.
+  const stages = dataKeys.length;
   rows.forEach((row: any) => {
-    for (let depth = 1; depth <= 4; depth += 1) {
+    for (let depth = 1; depth < stages; depth += 1) {
       addLink(row[dataKeys[depth - 1]], row[dataKeys[depth]], row.value || 0, depth);
     }
     // Ensures the last stage has a corresponding exit node.
-    addLink(row[dataKeys[4]], null, row.value || 0, 5);
+    addLink(row[dataKeys[stages - 1]], null, row.value || 0, stages);
   });
 
   return {
@@ -182,7 +228,37 @@ export interface BuiltSankey {
   problem: string | null;
 }
 
-export default function buildOption(data: any): BuiltSankey {
+/**
+ * What each node is worth: everything flowing into it, or for the first
+ * column, everything flowing out.
+ *
+ * Read off the links rather than the rows because that is what the chart
+ * actually draws -- a row whose path stops early contributes to the stages
+ * it reached and not to the ones it did not, and the links already encode
+ * that. Summing the rows per column would count a dropped path as if it had
+ * gone the distance.
+ */
+export function nodeValues(nodes: SankeyNode[], links: SankeyLink[]): Map<string, number> {
+  const incoming = new Map<string, number>();
+  const outgoing = new Map<string, number>();
+  each(links, (link) => {
+    incoming.set(link.target, (incoming.get(link.target) || 0) + link.value);
+    outgoing.set(link.source, (outgoing.get(link.source) || 0) + link.value);
+  });
+  const values = new Map<string, number>();
+  each(nodes, (node) => {
+    const into = incoming.get(node.name);
+    values.set(node.name, into === undefined ? outgoing.get(node.name) || 0 : into);
+  });
+  return values;
+}
+
+/** Thousands separated, which is the whole point of putting it on the chart. */
+export function formatNodeValue(value: number): string {
+  return value.toLocaleString("en-US");
+}
+
+export default function buildOption(data: any, options: any = {}): BuiltSankey {
   const rows = prepareDataRows(data.rows);
   const problem = problemWith({ ...data, rows });
   if (problem) {
@@ -197,6 +273,12 @@ export default function buildOption(data: any): BuiltSankey {
   const lastDepth = nodes.reduce((deepest, node) => Math.max(deepest, node.depth), 0);
   const positioned = map(nodes, (node) => (node.depth === lastDepth ? { ...node, label: { position: "left" } } : node));
 
+  // What each stage is worth, on the stage. Off by default: on a wide funnel
+  // the numbers are what makes it unreadable, and on a narrow one they are
+  // the first thing anybody asks for.
+  const values = nodeValues(nodes, links);
+  const showValues = options.showNodeValues === true;
+
   const option = {
     ...ECHARTS_MOTION,
     tooltip: {
@@ -207,7 +289,14 @@ export default function buildOption(data: any): BuiltSankey {
           ? `${escapeHtml(params.data.source.split(STAGE)[0])} → ${escapeHtml(params.data.target.split(STAGE)[0])}: ${escapeHtml(
               params.data.value
             )}`
-          : escapeHtml(params.data.displayName),
+          : (() => {
+              // The value is in the tooltip whether or not the labels show
+              // it: hovering a node to find out what it is worth should not
+              // depend on a display setting.
+              const value = values.get(params.data.name);
+              const name = escapeHtml(params.data.displayName);
+              return value === undefined ? name : `${name}: ${escapeHtml(formatNodeValue(value))}`;
+            })(),
     },
     series: [
       {
@@ -216,7 +305,16 @@ export default function buildOption(data: any): BuiltSankey {
         data: positioned,
         links,
         emphasis: { focus: "adjacency" },
-        label: { formatter: (params: any) => params.data.displayName },
+        label: {
+          formatter: (params: any) => {
+            const name = params.data.displayName;
+            if (!showValues) {
+              return name;
+            }
+            const value = values.get(params.data.name);
+            return value === undefined ? name : `${name}  ${formatNodeValue(value)}`;
+          },
+        },
         lineStyle: { color: "gradient", opacity: 0.4 },
         left: 10,
         right: 10,
@@ -227,5 +325,7 @@ export default function buildOption(data: any): BuiltSankey {
   };
 
   // The set of nodes is the shape; the same nodes with new weights can tween.
-  return { option, signature: JSON.stringify(map(nodes, "name")), problem: null };
+  // The toggle is part of the shape: without it in the signature ECharts
+  // merges the new option over the old one and the labels never change.
+  return { option, signature: JSON.stringify([showValues, map(nodes, "name")]), problem: null };
 }
