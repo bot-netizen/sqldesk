@@ -368,3 +368,51 @@ class TestTheDataIsRelativeToToday(TestCase):
 
         self.assertIn("current_date", built)
         self.assertNotIn("2026-", built)
+
+
+class TestRemovingADemoThatWasActuallyUsed(BaseTestCase):
+    """
+    `demo remove` worked right up until somebody ran the demo notebook.
+
+    `notebook_runs.cell_id` points at a cell and does not cascade, so
+    deleting the notebook tried to take its cells with it and Postgres
+    refused. Every test seeded and removed without running anything, so the
+    one state everybody reaches was the one nothing covered.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.root = tempfile.mkdtemp()
+        patch = mock.patch("sqldesk.settings.UPLOAD_ROOT", self.root)
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def test_a_notebook_that_has_run_can_still_be_removed(self):
+        org = self.factory.org
+        demo.seed(org, self.factory.user)
+        notebook = models.Notebook.query.filter(
+            models.Notebook.org == org, models.Notebook.name == content.NOTEBOOK
+        ).first()
+        self.assertIsNotNone(notebook, "the demo should have seeded a notebook")
+
+        cell = models.NotebookCell.query.filter(models.NotebookCell.notebook_id == notebook.id).first()
+        self.assertIsNotNone(cell, "the demo notebook should have cells")
+
+        # What running it leaves behind, which is what used to block removal.
+        models.db.session.add(
+            models.NotebookRun(
+                notebook_id=notebook.id,
+                cell_id=cell.id,
+                user=self.factory.user,
+                state=models.NotebookRun.OK,
+            )
+        )
+        models.db.session.commit()
+
+        gone = demo.remove(org)
+
+        self.assertEqual(1, gone["notebooks"])
+        self.assertIsNone(
+            models.Notebook.query.filter(models.Notebook.org == org, models.Notebook.name == content.NOTEBOOK).first()
+        )

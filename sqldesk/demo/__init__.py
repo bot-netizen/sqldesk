@@ -277,6 +277,14 @@ def remove(org):
     for notebook in models.Notebook.query.filter(
         models.Notebook.org == org, models.Notebook.name == content.NOTEBOOK
     ).all():
+        # The runs go first. `notebook_runs.cell_id` points at a cell and does
+        # not cascade, so deleting the notebook tries to take its cells with
+        # it and Postgres refuses -- which means `demo remove` worked right
+        # up until somebody actually ran the demo notebook, and then stopped.
+        # The one state nobody tests is the one everybody reaches.
+        models.NotebookRun.query.filter(models.NotebookRun.notebook_id == notebook.id).delete(
+            synchronize_session=False
+        )
         db.session.delete(notebook)
         removed["notebooks"] += 1
 
