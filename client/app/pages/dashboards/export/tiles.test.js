@@ -15,9 +15,7 @@ jest.mock("./compose", () => ({
   __esModule: true,
   // Async in the real module, and the capture races it against a timeout --
   // a plain object here fails on `.finally` rather than on anything real.
-  default: jest.fn(() =>
-    Promise.resolve({ width: 100, height: 100, toBlob: (done) => done(new Blob(["png"])) })
-  ),
+  default: jest.fn(() => Promise.resolve({ width: 100, height: 100, toBlob: (done) => done(new Blob(["png"])) })),
   PAGE_FURNITURE: { width: 80, height: 144, top: 104 },
 }));
 

@@ -30,9 +30,7 @@ function aNotebook(extras = {}) {
 }
 
 function mountButton(notebook = aNotebook(), target = document.createElement("div")) {
-  return mount(
-    <ShareNotebookButton notebook={notebook} getExportTarget={() => target} onChanged={jest.fn()} />
-  );
+  return mount(<ShareNotebookButton notebook={notebook} getExportTarget={() => target} onChanged={jest.fn()} />);
 }
 
 async function choose(page, test) {

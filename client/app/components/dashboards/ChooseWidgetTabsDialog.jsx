@@ -45,10 +45,7 @@ function ChooseWidgetTabsDialog({ dialog, widget }) {
           // would write a tab the server then drops, which reads as the
           // dialog having silently failed.
           setAvailable(
-            filter(
-              query.visualizations,
-              (one) => one.id !== widget.visualization.id && includes(TABBABLE, one.type)
-            )
+            filter(query.visualizations, (one) => one.id !== widget.visualization.id && includes(TABBABLE, one.type))
           );
         }
       })

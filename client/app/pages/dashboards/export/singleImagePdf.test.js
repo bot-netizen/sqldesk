@@ -88,7 +88,6 @@ describe("buildSingleImagePdf", () => {
   });
 });
 
-
 /*
   Many pages, which is what a notebook is.
 

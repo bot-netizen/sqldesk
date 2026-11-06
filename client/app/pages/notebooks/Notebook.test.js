@@ -27,9 +27,13 @@ jest.mock("@/services/notebook", () => ({
 jest.mock("@/services/query-result", () => ({ fetchDataFromJob: jest.fn(() => Promise.resolve(1)) }));
 jest.mock("@/services/data-source", () => ({ query: jest.fn(() => Promise.resolve([])) }));
 jest.mock("@/services/notification", () => ({ success: jest.fn(), warning: jest.fn(), error: jest.fn() }));
-jest.mock("./NotebookCell", () => function NotebookCell() {
-  return null;
-});
+jest.mock(
+  "./NotebookCell",
+  () =>
+    function NotebookCell() {
+      return null;
+    }
+);
 
 const Notebook = require("@/services/notebook");
 
@@ -205,7 +209,10 @@ describe("how big a notebook is", () => {
   });
 
   it("does not count a cell that reads earlier cells as a data source", () => {
-    const counted = countOf([{ id: 1, data_source_id: 4 }, { id: 2, data_source_id: null }]);
+    const counted = countOf([
+      { id: 1, data_source_id: 4 },
+      { id: 2, data_source_id: null },
+    ]);
 
     expect(counted.dataSources).toBe(1);
   });

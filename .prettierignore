@@ -1,0 +1,8 @@
+# Vendored third-party code. The copy is kept close to upstream so that the
+# local modifications stay visible in a diff against the released version --
+# reformatting it would bury them in noise.
+#
+# client/app/lib/sql-formatter: sql-formatter 2.3.3 (MIT, ZeroTurnaround).
+# Carries exactly two changes, both in core/Tokenizer.js and both documented
+# in the README beside it, with tests in client/app/lib/queryFormat.test.js.
+client/app/lib/sql-formatter/
