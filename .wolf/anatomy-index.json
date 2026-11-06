@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-04T01:13:29.436Z",
+    "lastScanned": "2026-11-04T01:36:44.940Z",
     "fileCount": 724,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "a47dddc94e0cc6a6e7ed25f8e48465e45415e65f052d6408a6417d915fb0e44a",
-    "storeUpdatedAt": "2026-11-04T01:13:29.449Z",
-    "rootHash": "97ac2d06c767f10a"
+    "renderedHash": "07b513ddc4f747992396b1708b0ac49d7cb8762bd3d69f9e9828b4b21ffce48f",
+    "storeUpdatedAt": "2026-11-04T01:36:44.964Z",
+    "rootHash": "b71a0d1d6e889943"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -132,13 +132,12 @@
     },
     ".github/workflows/docker-image.yml": {
       "description": "CI: Docker image",
-      "tokens": 2602,
-      "hash": "823fc7388a0703fd",
-      "size": 9107,
-      "mtimeMs": 1790422080345.4172,
-      "updatedAt": "2026-10-05T22:00:00.102Z",
-      "source": "scan",
-      "importance": 0.1572
+      "tokens": 4165,
+      "hash": "c7602f55378a398d",
+      "size": 14577,
+      "mtimeMs": 1793756204770.1611,
+      "updatedAt": "2026-11-04T01:36:44.939Z",
+      "source": "hook"
     },
     ".github/workflows/pages.yml": {
       "description": "CI: Docs site",

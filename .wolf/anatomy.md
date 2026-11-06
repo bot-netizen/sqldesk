@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-04T01:13:29.436Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-04T01:36:44.940Z
 > Files: 724 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
@@ -58,7 +58,7 @@
 ## .github/workflows/
 
 - `ci.yml` — CI: Tests (~1773 tok)
-- `docker-image.yml` — CI: Docker image (~2602 tok)
+- `docker-image.yml` — CI: Docker image (~4165 tok)
 - `pages.yml` — CI: Docs site (~509 tok)
 
 ## bin/
