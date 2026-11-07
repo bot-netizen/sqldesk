@@ -28,6 +28,9 @@ function toSeriesData(nodes: TreeNode[]): any[] {
   }));
 }
 
+/** Clear space between the tiles and every edge of the box. */
+export const INSET = 8;
+
 export default function buildOption(data: TreemapData, options: TreemapOptions): BuiltTreemap {
   const empty = { option: {}, signature: "empty", note: null };
   const rows = (data && data.rows) || [];
@@ -52,6 +55,11 @@ export default function buildOption(data: TreemapData, options: TreemapOptions):
   const muted = uiColor("muted");
   const surface = uiColor("surface");
   const depth = treeDepth(nodes);
+  // A breadcrumb says where a zoom has taken you, so it only exists where a
+  // rectangle can be clicked into. On a one-level treemap it was an empty
+  // strip along the bottom of every widget.
+  const zoomable = depth > options.visibleDepth;
+  const breadcrumb = options.showBreadcrumb && zoomable;
   const format = (v: number) => formatValue(v, options.valueFormat);
 
   const option = {
@@ -84,8 +92,8 @@ export default function buildOption(data: TreemapData, options: TreemapOptions):
         // Only this many levels at once; clicking a rectangle opens the next.
         leafDepth: Math.min(options.visibleDepth, Math.max(1, depth)),
         roam: false,
-        nodeClick: depth > options.visibleDepth ? "zoomToNode" : false,
-        breadcrumb: options.showBreadcrumb
+        nodeClick: zoomable ? "zoomToNode" : false,
+        breadcrumb: breadcrumb
           ? { show: true, bottom: 0, height: 22, itemStyle: { color: surface, textStyle: { color: muted } } }
           : { show: false },
         color: palette,
@@ -112,9 +120,17 @@ export default function buildOption(data: TreemapData, options: TreemapOptions):
           { itemStyle: { gapWidth: 1 }, colorSaturation: [0.25, 0.45] },
         ].slice(0, Math.max(1, depth)),
         squareRatio: 0.5 * (1 + Math.sqrt(5)),
-        width: "100%",
-        height: options.showBreadcrumb ? "92%" : "100%",
-        top: 0,
+        // Pinned to all four sides rather than sized. Given a width of 100%
+        // and no left, ECharts put the box 20px in and kept it 100% wide, so
+        // it ran 20px off the right-hand edge and into the rounded corner of
+        // the widget -- reported from the demo's query page. The same inset
+        // on every side keeps the tiles off the corners, as the other charts'
+        // margins do; the breadcrumb's strip is set aside only when there is
+        // a breadcrumb to show.
+        left: INSET,
+        right: INSET,
+        top: INSET,
+        bottom: breadcrumb ? INSET + 30 : INSET,
       },
     ],
   };

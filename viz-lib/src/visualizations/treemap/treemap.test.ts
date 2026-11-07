@@ -1,6 +1,6 @@
 import buildTree, { treeDepth, UNNAMED } from "./tree";
 import getOptions, { clampVisibleDepth } from "./getOptions";
-import buildOption from "./buildOption";
+import buildOption, { INSET } from "./buildOption";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const echarts = require("echarts");
@@ -232,5 +232,58 @@ describe("how deep a treemap opens", () => {
     expect(clampVisibleDepth("deep")).toBe(2);
     expect(clampVisibleDepth(undefined)).toBe(2);
     expect(clampVisibleDepth(null)).toBe(2);
+  });
+});
+
+describe("the treemap's box", () => {
+  /*
+    Reported from the demo's query page: a gap down the left, the right-hand
+    edge running into the widget's rounded corner, and an empty strip along
+    the bottom. ECharts was given a width of 100% and no left, put the box
+    20px in and kept it 100% wide; and the breadcrumb's strip was set aside
+    on a treemap with nothing to zoom into.
+  */
+  const flat = {
+    columns: [{ name: "category" }, { name: "revenue" }],
+    rows: ["Valves", "Fittings", "Filters", "Sensors", "Pumps", "Gaskets"].map((category, i) => ({
+      category,
+      revenue: 300 - i * 30,
+    })),
+  };
+  const nested = {
+    columns: [{ name: "region" }, { name: "product" }, { name: "revenue" }],
+    rows: [
+      { region: "North", product: "A", revenue: 10 },
+      { region: "North", product: "B", revenue: 4 },
+      { region: "South", product: "A", revenue: 7 },
+    ],
+  };
+
+  function laidOut(data: any, overrides: any) {
+    const built = buildOption(data, getOptions(overrides, data));
+    const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width: 1000, height: 400 });
+    try {
+      chart.setOption({ ...built.option, animation: false });
+      return chart.getModel().getSeriesByIndex(0).layoutInfo;
+    } finally {
+      chart.dispose();
+    }
+  }
+
+  test("sits the same distance in from every edge, and no further", () => {
+    const box = laidOut(flat, { pathColumns: ["category"], valueColumn: "revenue" });
+    expect(box.x).toBe(INSET);
+    expect(1000 - (box.x + box.width)).toBe(INSET);
+    expect(box.y).toBe(INSET);
+    expect(400 - (box.y + box.height)).toBe(INSET);
+  });
+
+  test("keeps a strip for the breadcrumb only when there is somewhere to zoom", () => {
+    const shallow = laidOut(nested, { pathColumns: ["region", "product"], valueColumn: "revenue", visibleDepth: 2 });
+    expect(shallow.height).toBe(400 - 2 * INSET);
+    const deep = laidOut(nested, { pathColumns: ["region", "product"], valueColumn: "revenue", visibleDepth: 1 });
+    expect(deep.height).toBe(400 - 2 * INSET - 30);
+    expect(deep.x).toBe(INSET);
+    expect(deep.width).toBe(1000 - 2 * INSET);
   });
 });
