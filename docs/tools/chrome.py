@@ -40,7 +40,9 @@ BRAND = """<svg viewBox="0 0 120 120" aria-hidden="true">
 #
 # (file, label, hide on narrow screens)
 SITE_NAV = [
-    ("index.html", "Overview", False),
+    # Hidden on a phone: the brand beside it already goes to the front page,
+    # and the bar needs the room for search and the theme switch.
+    ("index.html", "Overview", True),
     ("guide/overview.html", "Docs", False),
     ("blog/index.html", "Blog", False),
     ("releases.html", "Releases", False),

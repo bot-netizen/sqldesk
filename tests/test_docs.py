@@ -118,6 +118,94 @@ def _tool(name):
     return module
 
 
+class TestTheFrontPageSaysWhatIsTrue(unittest.TestCase):
+    """
+    Every number and every name on the front page, held to the code it describes.
+
+    The page this replaced said "Fifteen tools" when there were eighteen, called
+    0.8 "Next" after it shipped, listed Databricks as if every image had it, and
+    drew a "live" chart from Math.random(). Each was true once, or nearly, and
+    nothing noticed when it stopped being.
+    """
+
+    def front(self):
+        return page("index.html")
+
+    def stated(self, pattern):
+        found = re.search(pattern, self.front())
+        self.assertIsNotNone(found, "the front page no longer says " + pattern)
+        return int(found.group(1))
+
+    def test_the_count_of_mcp_tools(self):
+        from sqldesk.mcp import HANDLERS
+
+        self.assertEqual(len(HANDLERS), self.stated(r"<li>(\d+) tools:"))
+
+    def test_the_count_of_visualizations(self):
+        path = os.path.join(os.path.dirname(DOCS), "viz-lib", "src", "visualizations", "registeredVisualizations.ts")
+        with open(path, encoding="utf-8") as f:
+            source = f.read()
+        block = source.split("flatten([", 1)[1].split("])", 1)[0]
+        registered = re.findall(r"\b\w+Visualization\b", block)
+
+        self.assertEqual(len(registered), self.stated(r"(\d+) kinds of visualization"))
+        self.assertEqual(len(registered), self.stated(r"<p>(\d+) kinds &mdash;"))
+
+    def test_the_count_of_alert_destinations(self):
+        from sqldesk.destinations import destinations
+
+        self.assertEqual(len(destinations), self.stated(r"Alerts to (\d+) destinations"))
+        self.assertEqual(len(destinations), self.stated(r"any of (\d+) destinations"))
+
+    def connector_types(self):
+        """Every connector the configured modules define, installed driver or not."""
+        import importlib
+        import inspect
+
+        from sqldesk import settings
+        from sqldesk.query_runner import BaseQueryRunner
+
+        types = set()
+        # The default list, not QUERY_RUNNERS: that one is a generator the
+        # application has already used up by the time a test can read it.
+        for name in settings.default_query_runners:
+            module = importlib.import_module(name)
+            for _, cls in inspect.getmembers(module, inspect.isclass):
+                if issubclass(cls, BaseQueryRunner) and cls.__module__ == module.__name__:
+                    types.add(cls.type())
+        return types
+
+    def test_every_connector_it_names_is_one_sqldesk_has(self):
+        types = self.connector_types()
+        named = re.findall(r'<li data-type="([^"]+)"', self.front())
+        self.assertGreater(len(named), 60)
+        self.assertEqual([], sorted(set(named) - types), "the front page names connectors that do not exist")
+        self.assertEqual(len(named), len(set(named)), "a connector is listed twice")
+
+    def test_and_more_than_seventy_of_them_ship(self):
+        self.assertIn("More than 70 connectors", self.front())
+        self.assertGreater(len(self.connector_types()), 70)
+
+    def test_the_release_it_calls_latest_is_the_one_out(self):
+        import sqldesk
+
+        major_minor = ".".join(sqldesk.__version__.split(".")[:2])
+        self.assertRegex(
+            self.front(),
+            r'<h3>{} &mdash; [^<]+</h3><span class="badge">Latest</span>'.format(re.escape(major_minor)),
+        )
+
+    def test_every_picture_it_shows_is_there(self):
+        front = self.front()
+        pictures = set(re.findall(r'src="(assets/[^"]+)"', front))
+        for srcset in re.findall(r'srcset="([^"]+)"', front):
+            pictures.update(part.strip().split(" ")[0] for part in srcset.split(","))
+
+        self.assertTrue(pictures)
+        for picture in pictures:
+            self.assertTrue(os.path.exists(os.path.join(DOCS, picture)), picture + " is missing")
+
+
 class TestTheGuideCanBeJumpedInto(unittest.TestCase):
     """
     Search sends somebody to a section, and the list on the right of a guide

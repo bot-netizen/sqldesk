@@ -16,11 +16,11 @@
 </div>
 
 <div align="center">
-  <a href="https://sqldesk.org/#demo">
-    <img src="docs/assets/live-dashboard.jpg" alt="A SQLDesk dashboard refreshing itself: a stat with a sparkline, a gauge, progress against target, and charts with goal lines" width="900">
+  <a href="https://sqldesk.org/#tour">
+    <img src="docs/assets/shots/dashboard-1440.webp" alt="A SQLDesk dashboard: counters for revenue, orders and average order, a stacked area chart of weekly revenue by channel, a gauge of orders against plan, revenue by region and a table of recent orders" width="900">
   </a>
-  <p><em>A live dashboard, refreshed on the server every 30 seconds — nobody is pressing refresh.<br>
-  <a href="https://sqldesk.org/#demo">Watch the 15-second demo</a></em></p>
+  <p><em>A dashboard from the demo <code>manage demo seed</code> builds.<br>
+  <a href="https://sqldesk.org/#tour">Take the tour</a></em></p>
 </div>
 
 ---
