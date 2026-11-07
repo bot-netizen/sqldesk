@@ -22,7 +22,7 @@ stranded all of it.
 
 ## What this is
 
-SQLDesk is a web app for querying data sources (35+ SQL/NoSQL backends) and building visualizations/dashboards on top of the results. It's a Flask/Python backend + React/TypeScript frontend, with RQ (Redis Queue) workers handling query execution, scheduling, and alerts asynchronously.
+SQLDesk is a web app for querying data sources (60+ SQL/NoSQL backends) and building visualizations/dashboards on top of the results. It's a Flask/Python backend + React/TypeScript frontend, with RQ (Redis Queue) workers handling query execution, scheduling, and alerts asynchronously.
 
 - Backend: `sqldesk/` (Python 3.13, Flask, SQLAlchemy 1.3, RQ)
 - Frontend app: `client/` (React 16, TypeScript/JS, Webpack, Ant Design)

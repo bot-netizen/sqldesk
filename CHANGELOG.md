@@ -105,6 +105,14 @@ Databricks as if every image had it, and drew its "live" chart from random
 numbers. The numbers and names on the page are now held to the code by
 tests.
 
+**60+ data sources, counted honestly.** The image enables 76 connectors, but
+some are a second way into the same product -- MySQL on RDS, Redshift with
+IAM, four flavours of Elasticsearch -- and five read files, URLs or other
+queries rather than a data source. Counted as products it is 63, so the
+site, the README, the chart and the repository say 60+. Rockset is no longer
+listed: its service shut down on 30 September 2024, and its connector
+reaches nothing.
+
 **Search, on every page.** A button in the bar, `/` or Cmd-K: every section
 of the guide, every release and every post, matched as you type.
 

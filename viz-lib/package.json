@@ -23,6 +23,7 @@
     "watch:babel:cjs": "pnpm run build:babel:base --watch",
     "watch:babel": "npm-run-all --parallel watch:babel:cjs watch:babel:esm"
   },
+  "homepage": "https://sqldesk.org/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bot-netizen/sqldesk.git"

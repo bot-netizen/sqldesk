@@ -48,8 +48,8 @@ def catalog_metadata_for(data_source):
     """
     What the source knows about itself.
 
-    `get_schema()` -- names, columns, types -- is what every one of the 35+
-    runners already implements, so this works everywhere today. A runner that
+    `get_schema()` -- names, columns, types -- is what every query runner
+    already implements, so this works everywhere today. A runner that
     can say more implements `get_catalog_metadata()` and is used instead; one
     that cannot is not broken, just less useful.
     """

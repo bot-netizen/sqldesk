@@ -1,6 +1,6 @@
 apiVersion: v2
 name: sqldesk
-description: SQLDesk — query 35+ data sources, build dashboards, share what you find.
+description: SQLDesk — SQL, dashboards, notebooks and alerts over 60+ data sources, with an MCP server that keeps your permissions.
 type: application
 # The chart's own version, bumped when the chart changes.
 version: 0.8.1

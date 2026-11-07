@@ -182,9 +182,24 @@ class TestTheFrontPageSaysWhatIsTrue(unittest.TestCase):
         self.assertEqual([], sorted(set(named) - types), "the front page names connectors that do not exist")
         self.assertEqual(len(named), len(set(named)), "a connector is listed twice")
 
-    def test_and_more_than_seventy_of_them_ship(self):
-        self.assertIn("More than 70 connectors", self.front())
-        self.assertGreater(len(self.connector_types()), 70)
+    #: Connectors that are a second way into a product already named, and ones
+    #: that read files, URLs or other queries rather than a data source. The
+    #: page counts products, so these do not count towards its number.
+    SECOND_WAYS_IN = {"rds_mysql", "redshift_iam", "hive_http", "influxdbv2", "mssql_odbc", "aws_es"}
+    NOT_A_SOURCE = {"csv", "excel", "json", "url", "results"}
+    #: Services that no longer exist. Rockset shut down on 30 September 2024
+    #: after OpenAI bought it; its connector still loads and reaches nothing.
+    GONE = {"rockset"}
+
+    def test_and_more_than_sixty_products_are_named(self):
+        self.assertIn("More than 60 data sources", self.front())
+        named = set(re.findall(r'<li data-type="([^"]+)"', self.front()))
+        products = named - self.SECOND_WAYS_IN - self.NOT_A_SOURCE
+        self.assertGreater(len(products), 60)
+
+    def test_it_names_no_service_that_has_shut_down(self):
+        named = set(re.findall(r'<li data-type="([^"]+)"', self.front()))
+        self.assertEqual(set(), named & self.GONE)
 
     def test_the_release_it_calls_latest_is_the_one_out(self):
         import sqldesk
