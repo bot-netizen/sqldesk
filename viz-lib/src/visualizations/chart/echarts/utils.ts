@@ -193,25 +193,39 @@ const DAY = 86400000;
  * here, so each run of times is anchored to the day it belongs to.
  */
 export function timeAxisFormatter(span: number): (value: any) => string {
-  if (span >= 3 * 365 * DAY) {
+  /*
+    A label has to be at least as fine as the ticks it sits under.
+
+    These used to be chosen from the span alone, while the ticks are spaced
+    by `timeAxisInterval` -- and the two disagreed wherever a span's ticks
+    fall closer together than its labels can say. Found in the streams
+    picture taken for the website: three minutes of a topic, ticks every
+    fifteen seconds, and "23:24 23:24 23:24 23:24". The same happened to six-
+    hour ticks on a four-day chart ("6 Nov" four times), fortnightly ticks
+    under "MMM YYYY", and half-yearly ones under "YYYY".
+  */
+  const step = timeAxisInterval(span) ?? Infinity;
+  if (span >= 3 * 365 * DAY && step >= 365 * DAY) {
     return (value) => moment.utc(value).format("YYYY");
   }
-  if (span >= 120 * DAY) {
+  // Quarters at the finest: a 28-day step lands twice in a 31-day month.
+  if (span >= 120 * DAY && step >= 91 * DAY) {
     return (value) => moment.utc(value).format("MMM YYYY");
   }
-  if (span >= 3 * DAY) {
+  if (span >= 3 * DAY && step >= DAY) {
     return (value) => moment.utc(value).format("D MMM");
   }
+  // Down to here from a multi-day span whose ticks are hours apart, too.
   if (span >= 2 * HOUR) {
     return (value) => {
       const at = moment.utc(value);
       return at.hour() === 0 && at.minute() === 0 ? at.format("D MMM") : at.format("HH:mm");
     };
   }
-  // Seconds only once they are what distinguishes one point from the next.
-  // Carried on every label of a five-minute chart they are three characters
-  // of ":00" on each.
-  if (span >= 2 * MINUTE) {
+  // Seconds only once they are what distinguishes one tick from the next.
+  // On a chart whose ticks are minutes apart they are three characters of
+  // ":00" on every label.
+  if (step >= MINUTE) {
     return (value) => moment.utc(value).format("HH:mm");
   }
   return (value) => moment.utc(value).format("HH:mm:ss");

@@ -22,6 +22,8 @@ export interface BuiltCalendar {
 /** Room above the squares for the month names, and below for the scale. */
 const HEADER = 22;
 const SCALE_HEIGHT = 34;
+/** Above the first row, for its month names. */
+const MONTH_ROOM = 20;
 /** A square smaller than this is a speck; bigger than this is a wall of tiles. */
 const MIN_CELL = 8;
 const MAX_CELL = 22;
@@ -51,7 +53,7 @@ export function layout(size: { width: number; height: number }, years: number, w
   const byWidth = (size.width - GUTTER - 12) / Math.max(1, weeks);
   const cell = Math.round(Math.max(MIN_CELL, Math.min(MAX_CELL, byWidth)));
   const rowHeight = cell * 7 + HEADER;
-  return { cell, rowHeight, height: Math.max(size.height, rows * rowHeight + SCALE_HEIGHT) };
+  return { cell, rowHeight, height: Math.max(size.height, MONTH_ROOM + rows * rowHeight + SCALE_HEIGHT) };
 }
 
 export default function buildOption(
@@ -77,6 +79,15 @@ export default function buildOption(
   const years = yearsIn(built.from, built.to);
   const weeks = Math.ceil((moment(built.to, DAY).diff(moment(built.from, DAY), "days") + 1) / 7) + 1;
   const { cell, rowHeight, height } = layout(size, years.length, Math.min(weeks, 53));
+  // Centred when the squares reach their largest and still do not fill the
+  // width. Left-aligned, a wide widget had the calendar in its left two
+  // thirds and a third of nothing beside it.
+  const calendarLeft = GUTTER + Math.max(0, Math.floor((size.width - GUTTER - 12 - Math.min(weeks, 53) * cell) / 2));
+  // And in the middle of a box taller than it needs, with the month names
+  // clear of the top edge: pinned to the top, a calendar on a query page had
+  // its month names against the edge and two thirds of the box empty below.
+  const needed = MONTH_ROOM + years.length * rowHeight + SCALE_HEIGHT;
+  const calendarTop = MONTH_ROOM + Math.max(0, Math.floor((size.height - needed) / 2));
 
   const values = built.days.map((d) => d.value);
   const low = Math.min(...values);
@@ -93,8 +104,8 @@ export default function buildOption(
     const from = index === 0 ? built.from : `${year}-01-01`;
     const to = index === years.length - 1 ? built.to : `${year}-12-31`;
     return {
-      top: 14 + index * rowHeight,
-      left: GUTTER,
+      top: calendarTop + index * rowHeight,
+      left: calendarLeft,
       // No `right`: given both edges ECharts fits the range between them and
       // stretches the squares to suit, which turns a calendar into a set of
       // long horizontal bars. The cell size decides the width instead.
@@ -132,8 +143,10 @@ export default function buildOption(
       max: high === low ? low + 1 : high,
       calculable: false,
       orient: "horizontal",
-      left: GUTTER,
-      bottom: 0,
+      left: calendarLeft,
+      // Under the last row rather than at the foot of the widget: in a tall
+      // box the key sat a hand's width below the calendar it explains.
+      top: calendarTop + years.length * rowHeight + 4,
       itemWidth: 10,
       itemHeight: 90,
       text: [format(high), format(low)],

@@ -21,6 +21,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/search.css">
 <script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
@@ -39,11 +40,16 @@
       SQLDesk
     </a>
     <nav>
-      <a href="../index.html">Overview</a>
+      <a href="../index.html" class="hide-sm">Overview</a>
       <a href="../guide/overview.html" aria-current="page">Docs</a>
       <a href="../blog/index.html">Blog</a>
       <a href="../releases.html">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+      <button class="search-open" type="button" data-search-open aria-label="Search the docs">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="m10.4 10.4 3.4 3.4"/></svg>
+        <span class="search-open-label">Search</span><kbd class="search-key" data-search-key>/</kbd>
+      </button>
       <button class="theme-toggle" type="button" data-theme-toggle
               aria-label="Switch to dark mode" title="Switch to dark mode">
         <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -60,7 +66,7 @@
   </div>
 </header>
 
-<div class="wrap doc-layout">
+<div class="wrap doc-layout has-toc">
   <nav class="doc-nav" aria-label="Documentation">
       <h4>Start here</h4>
       <a href="overview.html">Overview</a>
@@ -86,7 +92,7 @@
 <h1>Administration</h1>
 <p>Everything an administrator does, and where to look when something is wrong.</p>
 
-<h2>Users and groups</h2>
+<h2 id="users-and-groups">Users and groups</h2>
 <p>Groups carry permission. A user in the <strong>admin</strong> group can do everything; the
 <strong>default</strong> group is what everyone else starts in. Data sources are attached to groups, so
 adding somebody to a group is how they get access to data.</p>
@@ -196,7 +202,7 @@ removing those is almost always the answer.</p>
 default is not "keep everything" is that keeping everything is what SQLDesk did until 0.7, and on a
 development machine it filled the disk and took Postgres with it.</p>
 
-<h2>Keeping it healthy</h2>
+<h2 id="keeping-it-healthy">Keeping it healthy</h2>
 <ul>
   <li><strong>Query results are the biggest thing in the database.</strong> A cleanup job removes results
     nothing points at; if the database is growing, check that it is running.</li>
@@ -211,7 +217,7 @@ development machine it filled the disk and took Postgres with it.</p>
     why.</li>
 </ul>
 
-<h2>Settings worth knowing</h2>
+<h2 id="settings-worth-knowing">Settings worth knowing</h2>
 <table>
   <tr><th>Setting</th><th>Why</th></tr>
   <tr><td><code>SQLDESK_SECRET_KEY</code></td><td>Encrypts data source credentials. Rotating it makes them unreadable.</td></tr>
@@ -345,6 +351,19 @@ uploads volume is what fills if a budget is set too high. The per-minute rollups
 they are small by construction and are the part that has to survive a restart.</p>
 <div class="doc-next"><a class="btn btn-ghost" href="mcp.html">&larr; MCP</a><a class="btn btn-primary" href="deploying.html">Deploying &rarr;</a></div>
   </main>
+  <nav class="doc-toc" aria-label="On this page">
+    <h4>On this page</h4>
+    <a href="#users-and-groups">Users and groups</a>
+    <a href="#admin-pages">The Admin pages</a>
+    <a href="#features">Permissions an administrator hands out</a>
+    <a href="#uploads">What happens to uploaded files</a>
+    <a href="#keeping-it-healthy">Keeping it healthy</a>
+    <a href="#settings-worth-knowing">Settings worth knowing</a>
+    <a href="#metrics">Scraping SQLDesk</a>
+    <a href="#duckdb-format">Upgrading to 0.8: the DuckDB file format</a>
+    <a href="#pools">Query pools: capping what a warehouse is given</a>
+    <a href="#streams">Streams, operationally</a>
+  </nav>
 </div>
 
 <footer>
@@ -357,5 +376,6 @@ they are small by construction and are the part that has to survive a restart.</
 </footer>
 
 <script src="../assets/theme.js" defer></script>
+<script src="../assets/search.js" defer></script>
 </body>
 </html>

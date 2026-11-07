@@ -13,7 +13,7 @@ import shutil
 import tempfile
 from unittest import mock
 
-from sqldesk import models
+from sqldesk import models, redis_connection
 from sqldesk.models import db
 from sqldesk.streams import consumer
 from sqldesk.streams.store import Store
@@ -134,6 +134,30 @@ class TestOneFlush(ConsumerTestCase):
         names = [column["name"] for column in stream.columns]
         self.assertIn("user", names)
         self.assertIn("amount", names)
+
+    def test_learning_the_columns_clears_the_cached_schema(self):
+        """
+        Turned on, a topic has no columns, and the schema browser caches that
+        empty list. Found taking the streams picture for the website: the
+        cluster showed nothing under it while its chart was filling up.
+        """
+        stream = self.stream()
+        store = self.store_for(stream)
+        redis_connection.set(stream.data_source._schema_key, "[]")
+
+        consumer.flush_once(stream, store, [message({"user": "a", "amount": 1})])
+
+        self.assertIsNone(redis_connection.get(stream.data_source._schema_key))
+
+    def test_a_later_flush_leaves_the_cached_schema_alone(self):
+        stream = self.stream()
+        store = self.store_for(stream)
+        consumer.flush_once(stream, store, [message({"x": 1})])
+        redis_connection.set(stream.data_source._schema_key, '[{"name": "events"}]')
+
+        consumer.flush_once(stream, store, [message({"x": 2})])
+
+        self.assertIsNotNone(redis_connection.get(stream.data_source._schema_key))
 
     def test_a_schema_somebody_settled_is_not_overwritten(self):
         """

@@ -12,7 +12,9 @@ this never touches what a page says -- only the frame around it. Run it
 twice and the second run changes nothing; that is the test at the bottom.
 """
 
+import html
 import os
+import re
 
 ICON = (
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' "
@@ -38,7 +40,9 @@ BRAND = """<svg viewBox="0 0 120 120" aria-hidden="true">
 #
 # (file, label, hide on narrow screens)
 SITE_NAV = [
-    ("index.html", "Overview", False),
+    # Hidden on a phone: the brand beside it already goes to the front page,
+    # and the bar needs the room for search and the theme switch.
+    ("index.html", "Overview", True),
     ("guide/overview.html", "Docs", False),
     ("blog/index.html", "Blog", False),
     ("releases.html", "Releases", False),
@@ -47,6 +51,16 @@ SITE_NAV = [
 #: Pages that live at the root and keep their own stylesheet, so only their
 #: header nav is rewritten.
 TOP_LEVEL = ["index.html", "releases.html"]
+
+
+#: The way into search, on every page. Shown only where search.js runs --
+#: like the theme switch, a button that does nothing without its script is
+#: worse than no button.
+SEARCH_BUTTON = """      <button class="search-open" type="button" data-search-open aria-label="Search the docs">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="m10.4 10.4 3.4 3.4"/></svg>
+        <span class="search-open-label">Search</span><kbd class="search-key" data-search-key>/</kbd>
+      </button>"""
 
 
 def site_nav(prefix, current):
@@ -60,6 +74,7 @@ def site_nav(prefix, current):
         mark = ' aria-current="page"' if href == current else ""
         out.append('      <a href="{}{}"{}{}>{}</a>'.format(prefix, href, cls, mark, label))
     out.append('      <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>')
+    out.append(SEARCH_BUTTON)
     out.append(
         """      <button class="theme-toggle" type="button" data-theme-toggle
               aria-label="Switch to dark mode" title="Switch to dark mode">
@@ -172,6 +187,50 @@ def _description(path):
     return html.split('<meta name="description" content="', 1)[1].split('">', 1)[0]
 
 
+HEADING = re.compile(r"<h2(\s[^>]*)?>(.*?)</h2>", re.S)
+ID = re.compile(r'\sid="([^"]+)"')
+TAG = re.compile(r"<[^>]+>")
+
+
+def _text(fragment):
+    return html.unescape(TAG.sub("", fragment)).strip()
+
+
+def anchor_headings(body):
+    """
+    Give every <h2> in a guide page an id, keeping the ones it has.
+
+    Search sends somebody to a section rather than to the top of a twenty
+    screen page, and the list down the right-hand side links to them -- both
+    need somewhere to land. Half the guide's sections had none. Written into
+    the page, so a link to one is a link that stays.
+    """
+    taken = set(ID.findall(body))
+
+    def add(match):
+        attrs, inner = match.group(1) or "", match.group(2)
+        if ID.search(attrs):
+            return match.group(0)
+        base = _slug(_text(inner)) or "section"
+        ident, n = base, 2
+        while ident in taken:
+            ident, n = "{}-{}".format(base, n), n + 1
+        taken.add(ident)
+        return '<h2 id="{}"{}>{}</h2>'.format(ident, attrs, inner)
+
+    return HEADING.sub(add, body)
+
+
+def on_this_page(body):
+    """The page's own sections, for the column on the right. Nothing for a short page."""
+    sections = [(ID.search(m.group(1) or ""), _text(m.group(2))) for m in HEADING.finditer(body)]
+    sections = [(found.group(1), text) for found, text in sections if found]
+    if len(sections) < 3:
+        return ""
+    links = "\n".join('    <a href="#{}">{}</a>'.format(ident, html.escape(text)) for ident, text in sections)
+    return '<nav class="doc-toc" aria-label="On this page">\n    <h4>On this page</h4>\n{}\n  </nav>'.format(links)
+
+
 def render(filename, description, body):
     title = dict((p[0], p[1]) for p in PAGES)[filename]
     return """<!DOCTYPE html>
@@ -197,6 +256,7 @@ def render(filename, description, body):
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/search.css">
 <script>document.documentElement.classList.add("js");try{{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}}catch(e){{}}</script>
 </head>
 <body>
@@ -213,7 +273,7 @@ def render(filename, description, body):
   </div>
 </header>
 
-<div class="wrap doc-layout">
+<div class="wrap doc-layout{layout}">
   <nav class="doc-nav" aria-label="Documentation">
 {nav}
   </nav>
@@ -221,6 +281,7 @@ def render(filename, description, body):
 {body}
 {next}
   </main>
+  {toc}
 </div>
 
 <footer>
@@ -233,6 +294,7 @@ def render(filename, description, body):
 </footer>
 
 <script src="../assets/theme.js" defer></script>
+<script src="../assets/search.js" defer></script>
 </body>
 </html>
 """.format(
@@ -245,6 +307,8 @@ def render(filename, description, body):
         nav_site=site_nav("../", "guide/overview.html"),
         body=body,
         next=neighbours(filename),
+        toc=on_this_page(body),
+        layout=" has-toc" if on_this_page(body) else "",
     )
 
 
@@ -261,7 +325,7 @@ def main():
             continue
         path = os.path.join(docs, "guide", filename)
         before = open(path).read()
-        after = render(filename, _description(path), _read(path))
+        after = render(filename, _description(path), anchor_headings(_read(path)))
         if after != before:
             open(path, "w").write(after)
             changed.append("guide/" + filename)

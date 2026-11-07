@@ -1,8 +1,8 @@
 <div align="center">
   <img src="client/app/assets/images/sqldesk_icon_small.png" alt="" width="88" height="88">
   <h1>SQLDesk</h1>
-  <p><strong>One place for everything you do with data.</strong></p>
-  <p>Query 35+ data sources, build dashboards, and share what you find — self-hosted, no per-seat pricing.</p>
+  <p><strong>Query it, chart it, share it. Then hand it to your agent.</strong></p>
+  <p>SQL, dashboards, notebooks and alerts over 60+ data sources, with an MCP server that keeps your permissions — self-hosted, no per-seat pricing.</p>
   <p>
     <a href="https://sqldesk.org/">Website</a> &middot;
     <a href="CHANGELOG.md">Changelog</a> &middot;
@@ -11,16 +11,16 @@
   <p>
     <a href="https://github.com/bot-netizen/sqldesk/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/bot-netizen/sqldesk/actions/workflows/ci.yml/badge.svg"></a>
     <a href="LICENSE"><img alt="Licence" src="https://img.shields.io/badge/licence-Apache%202.0-blue"></a>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.8.0-teal">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.8.1-teal">
   </p>
 </div>
 
 <div align="center">
-  <a href="https://sqldesk.org/#demo">
-    <img src="docs/assets/live-dashboard.jpg" alt="A SQLDesk dashboard refreshing itself: a stat with a sparkline, a gauge, progress against target, and charts with goal lines" width="900">
+  <a href="https://sqldesk.org/#tour">
+    <img src="docs/assets/shots/dashboard-1440.webp" alt="A SQLDesk dashboard: counters for revenue, orders and average order, a stacked area chart of weekly revenue by channel, a gauge of orders against plan, revenue by region and a table of recent orders" width="900">
   </a>
-  <p><em>A live dashboard, refreshed on the server every 30 seconds — nobody is pressing refresh.<br>
-  <a href="https://sqldesk.org/#demo">Watch the 15-second demo</a></em></p>
+  <p><em>A dashboard from the demo <code>manage demo seed</code> builds.<br>
+  <a href="https://sqldesk.org/#tour">Take the tour</a></em></p>
 </div>
 
 ---
@@ -36,14 +36,20 @@ charge you for them.
 ## Features
 
 - **Query editor** — schema browser, autocomplete, query formatting, parameters, scheduled refresh
-- **35+ data sources** — PostgreSQL, MySQL, BigQuery, Snowflake, Databricks, Athena, ClickHouse, MongoDB, DuckDB and many more
+- **60+ data sources** — PostgreSQL, MySQL, BigQuery, Snowflake, Athena, ClickHouse, Trino, MongoDB, Elasticsearch,
+  Prometheus, DuckDB and many more; Databricks and SQL Server over ODBC in the amd64 image. `manage ds list_types`
+  lists every connector an install has
 - **File upload** — drop a CSV or Parquet file and query it with SQL, backed by DuckDB
-- **Visualizations** — charts, tables, cohorts, funnels, maps, pivot tables
+- **Visualizations** — 27 kinds: charts, tables, pivots, cohorts, funnels, maps, sankeys, gauges, candlesticks, trees
 - **Dashboards** — arrange visualizations, filter across them, export a one-page report as PDF or image
 - **Alerts** — trigger on a query result and notify Slack, email, PagerDuty, webhooks and more
 - **Permissions** — groups, per-data-source access, view-only roles, shareable public links
-- **MCP** — an endpoint at `/mcp` with fifteen tools over your catalog, saved queries and dashboards:
-  nine read-only, and six that write back as drafts and proposals a person approves. Everything runs as
+- **Notebooks** (beta) — chains of SQL and Python cells, named rather than numbered, over the same data sources,
+  permissions and scheduler; a Python cell computes on the cells above it and never holds a credential
+- **Kafka streams** — a cluster is a data source and its topics are tables: SQL over a live window, charted and
+  put on a dashboard, in JSON, Avro or Protobuf
+- **MCP** — an endpoint at `/mcp` with eighteen tools over your catalog, saved queries, dashboards and alerts:
+  eleven read-only, and seven that write back as drafts, proposals and muted alerts a person approves. Everything runs as
   the user whose key it is, capped per day and audited with what it changed; off until
   `SQLDESK_FEATURE_AI=true`. See the [MCP guide](https://sqldesk.org/guide/mcp.html)
 

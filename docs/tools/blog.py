@@ -175,6 +175,7 @@ def _head(title, description, og_title, og_type, url):
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/search.css">
 <script>document.documentElement.classList.add("js");try{{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}}catch(e){{}}</script>
 </head>
 <body>
@@ -213,6 +214,7 @@ FOOT = """
 </footer>
 
 <script src="../assets/theme.js" defer></script>
+<script src="../assets/search.js" defer></script>
 </body>
 </html>
 """

@@ -193,3 +193,57 @@ describe("the calendar's options", () => {
     expect(getOptions({ range: "fortnight" }, { columns, rows: [] }).range).toBe("12-months");
   });
 });
+
+describe("the calendar's place in a wide widget", () => {
+  /*
+    Found auditing every visualization's margins on the demo dashboard: a
+    full-width calendar drew in its left two thirds -- 24px of margin on one
+    side and 375 on the other -- because its squares stop growing at 22px
+    and it was pinned to the left.
+  */
+  // One calendar year, so one row of 53 weeks.
+  const year = daysBetween("2026-01-01", "2026-11-06");
+
+  test("sits in the middle of the space its squares cannot fill", () => {
+    const width = 1410;
+    const built = build(year, { range: "year" }, { width, height: 300 });
+    expect(built.option.calendar).toHaveLength(1);
+    const calendar = built.option.calendar[0];
+    const [cell] = calendar.cellSize;
+    expect(cell).toBe(22);
+    const drawn = 53 * cell;
+    const spareRight = width - calendar.left - drawn;
+    // The gutter for the weekday names stays on the left; past it, the two
+    // margins are within a square of each other.
+    expect(Math.abs(calendar.left - 44 - spareRight)).toBeLessThanOrEqual(cell);
+    expect(built.option.visualMap.left).toBe(calendar.left);
+  });
+
+  test("a calendar that fills its widget stays against its gutter", () => {
+    const built = build(year, { range: "year" }, { width: 700, height: 300 });
+    const calendar = built.option.calendar[0];
+    // Only the rounding of the squares is left over to share out.
+    expect(calendar.left - 44).toBeLessThan(calendar.cellSize[0]);
+  });
+
+  test("the colour key sits under the calendar, not at the foot of a tall box", () => {
+    const built = build(year, { range: "year" }, { width: 1042, height: 600 });
+    const calendar = built.option.calendar[0];
+    const rowBottom = calendar.top + 7 * calendar.cellSize[1];
+    expect(built.option.visualMap.bottom).toBeUndefined();
+    expect(built.option.visualMap.top).toBeGreaterThan(rowBottom);
+    expect(built.option.visualMap.top - rowBottom).toBeLessThan(40);
+  });
+
+  test("a box taller than it needs has the calendar in its middle, month names clear of the top", () => {
+    const tall = build(year, { range: "year" }, { width: 1042, height: 600 });
+    const calendar = tall.option.calendar[0];
+    const rowHeight = 7 * calendar.cellSize[1] + 22;
+    const above = calendar.top;
+    const below = 600 - (calendar.top + rowHeight + 34);
+    expect(Math.abs(above - 20 - below)).toBeLessThanOrEqual(1);
+
+    const tight = build(year, { range: "year" }, { width: 1042, height: 150 });
+    expect(tight.option.calendar[0].top).toBe(20);
+  });
+});

@@ -1,12 +1,14 @@
 # Where the project is
 
-Last true on **2026-10-29**. Update this in the same commit as whatever
+Last true on **2026-11-06**. Update this in the same commit as whatever
 changed it.
 
 ## Released
 
 | Version | Name | When | Notes |
 |---|---|---|---|
+| 0.8.1 | What the pictures found | 7 Nov 2026 | A front page built from screenshots of the running demo, site search and per-page contents; faults the screenshots exposed: stacked bars on a time axis on the wrong bar, an empty Kafka schema browser, "Query in queue" while streaming, notebook floats printed raw, time labels coarser than their ticks; every visualization measured for its margins (treemap off the edge, blank cohort, 7px details card, cornered calendar, five more against an edge); the tooltip marks the hovered series; the demo draws all 27 types |
+| 0.8.0 | **Notebooks** | 6 Nov 2026 | SQL and Python cells, named not numbered, Python with no credentials; six new visualizations; query pools and a pause button per data source; time axes labelled on the right day; `manage demo seed` |
 | 0.7.10 | **Prism** | 29 Oct 2026 | A chart splits into stacked panels sharing one cursor; a dashboard widget holds several of its query's visualizations behind buttons and still runs the query once; repeated x values roll up by sum, average, lowest, highest or count instead of silently adding; an agent can read, explain and build an alert; box, bubble and heatmap reachable from MCP; the table header is finally white |
 | 0.7.9 | **Alerts and Legibility** | 28 Oct 2026 | An alert remembers every fire and the value behind it; Slack templates escaped for Slack; table headers and data bars marked by something the eye can actually see; six dash patterns per series; avatars drawn locally instead of fetched from gravatar |
 | 0.7.8 | **Second Look** | 27 Oct 2026 | Twelve things reported from using 0.7.7: searching a list works at all, bars and table cells coloured by their own value, an agent that can draw and build a dashboard, and three reports that turned out to be nothing |

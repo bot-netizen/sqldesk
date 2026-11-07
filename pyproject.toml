@@ -1,7 +1,7 @@
 [project]
 name = "sqldesk"
-version = "0.8.0"
-description = "Make Your Company Data Driven. Connect to any data source, easily visualize, dashboard and share your data."
+version = "0.8.1"
+description = "SQL, dashboards, notebooks and alerts over 60+ data sources, with an MCP server that keeps your permissions. Self-hosted."
 authors = [
     { name = "SQLDesk contributors" }
 ]
@@ -88,6 +88,12 @@ dependencies = [
     "oracledb==2.5.1",
     "ibm-db>=3.2.7,<4.0.0; platform_machine == 'x86_64' or platform_machine == 'AMD64'",
 ]
+
+[project.urls]
+Homepage = "https://sqldesk.org"
+Documentation = "https://sqldesk.org/guide/overview.html"
+Source = "https://github.com/bot-netizen/sqldesk"
+Changelog = "https://github.com/bot-netizen/sqldesk/blob/main/CHANGELOG.md"
 
 [tool.black]
 target-version = ['py38']

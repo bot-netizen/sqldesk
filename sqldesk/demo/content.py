@@ -246,7 +246,14 @@ VISUALIZATIONS = [
         "Share by category",
         {"globalSeriesType": "pie", "columnMapping": {"category": "x", "revenue": "y"}},
     ),
-    ("Revenue by day", "CALENDAR_HEATMAP", "Orders per day", {"dateColumn": "day", "valueColumn": "orders"}),
+    # Three months, because that is what the demo's data covers: the default
+    # twelve drew nine empty months and split them across two years.
+    (
+        "Revenue by day",
+        "CALENDAR_HEATMAP",
+        "Orders per day",
+        {"dateColumn": "day", "valueColumn": "orders", "range": "3-months"},
+    ),
     ("Revenue by region and channel", "PIVOT", "Region against channel", {}),
     ("Revenue by category", "TREEMAP", "Where the money is", {}),
     (
@@ -280,7 +287,21 @@ VISUALIZATIONS = [
     ("Order totals", "BOXPLOT", "Order totals by region", {}),
     ("Order totals", "HISTOGRAM", "How big is an order?", {"valueColumn": "total", "binCount": 30}),
     ("Signup funnel", "FUNNEL", "Signup funnel", {"stepCol": {"colName": "step"}, "valueCol": {"colName": "people"}}),
-    ("Cohort retention", "COHORT", "Retention by signup week", {"timeInterval": "weekly"}),
+    (
+        "Cohort retention",
+        "COHORT",
+        "Retention by signup week",
+        # Named, because the cohort's defaults are `date` and `day_number` and
+        # this query calls them something else: without these the cohort was
+        # a blank box on the dashboard built to show every type working.
+        {
+            "timeInterval": "weekly",
+            "dateColumn": "cohort_date",
+            "stageColumn": "week_number",
+            "totalColumn": "total",
+            "valueColumn": "value",
+        },
+    ),
     ("Channel to category to region", "SANKEY", "Channel to category to region", {}),
     (
         "Every region, measured four ways",
@@ -373,8 +394,8 @@ HEIGHTS = {
     "CHART": 16,
     "CHOROPLETH": 16,
     "COHORT": 16,
-    "COUNTER": 6,
-    "DETAILS": 4,
+    "COUNTER": 8,
+    "DETAILS": 16,
     "FUNNEL": 20,
     "GAUGE": 12,
     "HISTOGRAM": 16,

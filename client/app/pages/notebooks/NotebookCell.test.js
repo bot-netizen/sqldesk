@@ -286,6 +286,46 @@ describe("the output", () => {
     expect(table.prop("dataSource")).toEqual([{ id: 1, city: "Toronto", key: 0 }]);
   });
 
+  it("writes numbers the way a query table does", () => {
+    const output = shallow(
+      <CellOutput
+        cell={aCell({ last_run_at: "x" })}
+        produced="table"
+        result={{
+          data: {
+            columns: [
+              { name: "region", type: "string" },
+              { name: "revenue", type: "float" },
+              { name: "units", type: "integer" },
+            ],
+            rows: [{ region: "India", revenue: 91965.68000000001, units: 2540 }],
+          },
+        }}
+      />
+    );
+
+    const [region, revenue, units] = output.find("Table").prop("columns");
+    // Found in the notebook picture taken for the website: a sum added up in
+    // floating point printed every digit of its error.
+    expect(revenue.render(91965.68000000001)).toBe("91,965.68");
+    expect(units.render(2540)).toBe("2,540");
+    expect(revenue.align).toBe("right");
+    expect(region.render("India")).toBe("India");
+    expect(region.align).toBeUndefined();
+  });
+
+  it("leaves a value that is not a number alone, whatever the column says", () => {
+    const output = shallow(
+      <CellOutput
+        cell={aCell({ last_run_at: "x" })}
+        produced="table"
+        result={{ data: { columns: [{ name: "n", type: "float" }], rows: [{ n: "NaN" }] } }}
+      />
+    );
+
+    expect(output.find("Table").prop("columns")[0].render("NaN")).toBe("NaN");
+  });
+
   it("says what the slice is a slice of, when there is more", () => {
     const output = shallow(
       <CellOutput

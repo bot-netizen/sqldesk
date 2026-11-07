@@ -32,6 +32,8 @@ import EditableTitle from "./EditableTitle";
 import popupInPage from "./popup";
 import { Renderer } from "@/components/visualizations/visualizationComponents";
 import { fetchDataFromJob } from "@/services/query-result";
+import { clientConfig } from "@/services/auth";
+import { createNumberFormatter } from "@sqldesk/viz/lib/lib/value-format";
 import notification from "@/services/notification";
 
 /*
@@ -796,6 +798,26 @@ export function summarise(cell, produced) {
   shown are the truncated slice the server stored for display; the whole result
   is in the notebook's own store, which is what the next cell reads.
 */
+/*
+  Numbers in a cell's table, written the way a query's table writes them.
+
+  The table printed every value with String(), so a sum pandas or DuckDB had
+  added up in floating point came out as 91965.68000000001 -- found in the
+  notebook picture taken for the website -- and a revenue of 132212.86 had no
+  thousands separator, beside a query table on the next page that says
+  132,212.86. The organization's integer and float formats are the ones every
+  query table uses, so a number reads the same wherever it is shown.
+*/
+export function numberFormatterFor(type) {
+  if (type === "integer") {
+    return createNumberFormatter(clientConfig.integerFormat || "0,0");
+  }
+  if (type === "float") {
+    return createNumberFormatter(clientConfig.floatFormat || "0,0.00");
+  }
+  return null;
+}
+
 export function CellOutput({
   cell,
   produced,
@@ -870,13 +892,23 @@ export function CellOutput({
       </pre>
     );
   }
-  const columns = map(data.columns, (column) => ({
-    title: column.name,
-    dataIndex: column.name,
-    key: column.name,
-    render: (value) =>
-      value === null || value === undefined ? <span className="notebook-cell-null">null</span> : String(value),
-  }));
+  const columns = map(data.columns, (column) => {
+    const formatNumber = numberFormatterFor(column.type);
+    return {
+      title: column.name,
+      dataIndex: column.name,
+      key: column.name,
+      align: formatNumber ? "right" : undefined,
+      render: (value) =>
+        value === null || value === undefined ? (
+          <span className="notebook-cell-null">null</span>
+        ) : formatNumber && typeof value === "number" ? (
+          formatNumber(value)
+        ) : (
+          String(value)
+        ),
+    };
+  });
   const printout = printed ? (
     <pre className="notebook-cell-printed" data-test="CellPrinted">
       {printed}

@@ -7,7 +7,8 @@
      python3 -m http.server 4173 --directory docs
      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
        --window-size=1200,630 --force-device-scale-factor=1 --virtual-time-budget=4000 \
-       --screenshot=docs/assets/social-card.png http://localhost:4173/tools/social-card.html -->
+       --screenshot=docs/assets/social-card.png http://localhost:4173/tools/social-card.html
+     The picture is the front page's dashboard screenshot, cropped by .shot below. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap">
@@ -24,14 +25,14 @@
   .brand{display:flex;align-items:center;gap:13px;margin-bottom:30px}
   .brand svg{width:44px;height:44px;color:var(--accent)}
   .brand span{font-size:30px;font-weight:700;letter-spacing:-.02em}
-  h1{font-size:52px;line-height:1.08;letter-spacing:-.025em;max-width:16ch}
+  h1{font-size:50px;line-height:1.08;letter-spacing:-.025em;max-width:16ch;text-wrap:balance}
   p{margin-top:20px;font-size:21px;line-height:1.45;color:var(--muted);max-width:30ch}
   .chips{display:flex;gap:9px;margin-top:30px;flex-wrap:wrap}
   .chip{font:500 15px/1 var(--mono);color:var(--accent-ink);background:var(--accent-wash);
         border:1px solid #c6e8ee;border-radius:7px;padding:9px 12px}
   .shot{width:468px;height:522px;overflow:hidden;border-left:1px solid var(--rule);
-        display:flex;align-items:center;justify-content:center;background:var(--surface)}
-  .shot img{width:980px;max-width:none;border-radius:10px;box-shadow:0 18px 50px rgba(28,27,26,.18)}
+        display:flex;align-items:center;justify-content:flex-start;background:var(--surface)}
+  .shot img{width:1040px;max-width:none}
 </style>
 </head>
 <body>
@@ -47,15 +48,15 @@
       </svg>
       <span>SQLDesk</span>
     </div>
-    <h1>One place for everything you do with data.</h1>
-    <p>Query 35+ databases, chart it, and let your agent ask the same questions you can.</p>
+    <h1>Query it, chart it, share it.</h1>
+    <p>Then hand it to your agent &mdash; with your permissions, over more than 60 data sources.</p>
     <div class="chips">
       <span class="chip">Self-hosted</span>
       <span class="chip">Apache 2.0</span>
       <span class="chip">MCP</span>
-      <span class="chip">Kafka streams</span>
+      <span class="chip">Notebooks</span>
     </div>
   </div>
-  <div class="shot"><img src="../assets/live-dashboard.jpg" alt=""></div>
+  <div class="shot"><img src="../assets/shots/dashboard-1440.webp" alt=""></div>
 </body>
 </html>

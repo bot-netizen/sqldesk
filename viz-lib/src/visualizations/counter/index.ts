@@ -43,5 +43,7 @@ export default {
   // mostly air, and a row of them pushed everything else below the fold.
   // Asked for directly after a dashboard built over MCP came out all strips
   // and empty tiles.
-  defaultRows: 6,
+  // Six rows left the number about 14px tall once the widget's header and
+  // footer had their share; at eight it reads from across a room.
+  defaultRows: 8,
 };

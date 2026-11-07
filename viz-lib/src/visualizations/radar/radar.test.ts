@@ -173,3 +173,31 @@ describe("the radar's options", () => {
     expect(getOptions(saved, { columns, rows })).toMatchObject(saved);
   });
 });
+
+describe("the radar's spoke names", () => {
+  // Found auditing every visualization's margins on the demo dashboard: the
+  // top spoke's name was drawn against the top edge of the widget.
+  const echarts = require("echarts"); // eslint-disable-line global-require
+
+  test.each([
+    [698, 307],
+    [400, 300],
+    [1048, 441],
+  ])("the top name clears the edge of a %dx%d box", (width, height) => {
+    const data = { columns, rows };
+    const built = buildOption(data, getOptions({ labelColumn: "team" }, data), { width, height });
+    const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width, height });
+    let svg = "";
+    try {
+      chart.setOption({ ...built.option, animation: false });
+      svg = chart.renderToSVGString();
+    } finally {
+      chart.dispose();
+    }
+    const spoke = built.option.radar.indicator[0].name;
+    const placed = new RegExp(`translate\\(([\\d.]+) ([\\d.]+)\\)[^>]*>${spoke}<`).exec(svg);
+    expect(placed).not.toBeNull();
+    // The label is centred on its y; 11px text needs at least 6px above that.
+    expect(Number((placed as RegExpExecArray)[2])).toBeGreaterThanOrEqual(12);
+  });
+});

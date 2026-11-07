@@ -1,6 +1,6 @@
 {
   "name": "@sqldesk/viz",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "SQLDesk visualizations",
   "main": "lib/index.js",
   "module": "esm/index.js",
@@ -23,6 +23,7 @@
     "watch:babel:cjs": "pnpm run build:babel:base --watch",
     "watch:babel": "npm-run-all --parallel watch:babel:cjs watch:babel:esm"
   },
+  "homepage": "https://sqldesk.org/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bot-netizen/sqldesk.git"

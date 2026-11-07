@@ -35,3 +35,5 @@ client/cypress/videos
 
 # Built from blog/*.md by docs/tools/blog.py
 /docs/blog/
+# Built from the site's pages by docs/tools/search.py
+/docs/assets/search.json

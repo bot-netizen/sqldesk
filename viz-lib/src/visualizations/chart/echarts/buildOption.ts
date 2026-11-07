@@ -1,5 +1,5 @@
 import escapeHtml from "@/lib/escapeHtml";
-import { each, extend, filter, isNil, map, max, min, range, reduce, some, sortBy, uniq } from "lodash";
+import { each, extend, filter, flatMap, isNil, map, max, min, range, reduce, some, sortBy, uniq } from "lodash";
 import { AllColorPaletteArrays, resolveColorScheme } from "@/visualizations/ColorPalette";
 import { createNumberFormatter, formatSimpleTemplate } from "@/lib/value-format";
 import chooseTextColorForBackground from "@/lib/chooseTextColorForBackground";
@@ -413,6 +413,31 @@ function buildCartesianSeries(
 
   applyPercentValues(map(prepared, "points"), options);
 
+  /*
+    Stacked on a time or value axis, every series is written against the same
+    x values, in the same order.
+
+    ECharts stacks these series by array position, not by x. A category axis
+    never noticed, because every series there is already aligned to the one
+    category list below. On a time axis each series carried only the points it
+    had, so the moment one series skipped an x -- a region with no orders in a
+    ten-second bucket, the ordinary case for a stream -- every series above it
+    was stacked on the wrong bar: floating over a gap, or overlapping the bar it
+    should have sat on. A missing point is null here, exactly as it is on a
+    category axis, and ECharts stacks the next series on whatever is below it.
+  */
+  const sharedX =
+    stacking && xAxisType !== "category"
+      ? sortBy(
+          uniq(
+            flatMap(prepared, ({ overrides, points }) =>
+              ["bubble", "scatter"].includes(overrides.type) ? [] : map(points, "x")
+            ).filter((x: any) => !isNil(x))
+          ),
+          (x: any) => x
+        )
+      : null;
+
   // Bars share the category band, so an error bar sitting at the category
   // centre would miss its bar whenever more than one series is drawn. Count the
   // bars first so each one knows its slot.
@@ -451,7 +476,9 @@ function buildCartesianSeries(
       ? map(points, (p: any) => pair(p.x, p.y, p.size))
       : xAxisType === "category"
         ? map(categories, (category) => (byX.has(category) ? byX.get(category) : null))
-        : map(points, (p: any) => pair(p.x, p.y));
+        : sharedX
+          ? map(sharedX, (x: any) => pair(x, byX.has(x) ? byX.get(x) : null))
+          : map(points, (p: any) => pair(p.x, p.y));
 
     // Bars only. A threshold on a line would colour the markers and leave the
     // line itself one colour, which says less than the goal line that is

@@ -244,6 +244,17 @@ class DataSource(BelongsToOrgMixin, db.Model):
 
         return res
 
+    def forget_cached_schema(self):
+        """
+        Drop the schema browser's copy, so the next look asks the runner again.
+
+        For a source whose tables change without anybody pressing refresh: a
+        Kafka cluster's topic has no columns until its consumer has read
+        something, and the empty list cached on the first look was otherwise
+        what the browser showed until the cache expired.
+        """
+        redis_connection.delete(self._schema_key)
+
     def get_cached_schema(self):
         cache = redis_connection.get(self._schema_key)
         return json_loads(cache) if cache else None

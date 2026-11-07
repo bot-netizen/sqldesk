@@ -100,3 +100,200 @@ class TestTheDeploymentDefaults(unittest.TestCase):
                 at = at[key]
             self.assertFalse(at, "{} is no longer off by default".format(value))
             self.assertIn("<code>{}</code>".format(value), text)
+
+
+TOOLS = os.path.join(DOCS, "tools")
+
+
+def _tool(name):
+    """A module from docs/tools, which is not a package and is run as a script."""
+    import importlib.util
+    import sys
+
+    if TOOLS not in sys.path:
+        sys.path.insert(0, TOOLS)
+    spec = importlib.util.spec_from_file_location("site_" + name, os.path.join(TOOLS, name + ".py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class TestTheFrontPageSaysWhatIsTrue(unittest.TestCase):
+    """
+    Every number and every name on the front page, held to the code it describes.
+
+    The page this replaced said "Fifteen tools" when there were eighteen, called
+    0.8 "Next" after it shipped, listed Databricks as if every image had it, and
+    drew a "live" chart from Math.random(). Each was true once, or nearly, and
+    nothing noticed when it stopped being.
+    """
+
+    def front(self):
+        return page("index.html")
+
+    def stated(self, pattern):
+        found = re.search(pattern, self.front())
+        self.assertIsNotNone(found, "the front page no longer says " + pattern)
+        return int(found.group(1))
+
+    def test_the_count_of_mcp_tools(self):
+        from sqldesk.mcp import HANDLERS
+
+        self.assertEqual(len(HANDLERS), self.stated(r"<li>(\d+) tools:"))
+
+    def test_the_count_of_visualizations(self):
+        path = os.path.join(os.path.dirname(DOCS), "viz-lib", "src", "visualizations", "registeredVisualizations.ts")
+        with open(path, encoding="utf-8") as f:
+            source = f.read()
+        block = source.split("flatten([", 1)[1].split("])", 1)[0]
+        registered = re.findall(r"\b\w+Visualization\b", block)
+
+        self.assertEqual(len(registered), self.stated(r"(\d+) kinds of visualization"))
+        self.assertEqual(len(registered), self.stated(r"<p>(\d+) kinds &mdash;"))
+
+    def test_the_count_of_alert_destinations(self):
+        from sqldesk.destinations import destinations
+
+        self.assertEqual(len(destinations), self.stated(r"Alerts to (\d+) destinations"))
+        self.assertEqual(len(destinations), self.stated(r"any of (\d+) destinations"))
+
+    def connector_types(self):
+        """Every connector the configured modules define, installed driver or not."""
+        import importlib
+        import inspect
+
+        from sqldesk import settings
+        from sqldesk.query_runner import BaseQueryRunner
+
+        types = set()
+        # The default list, not QUERY_RUNNERS: that one is a generator the
+        # application has already used up by the time a test can read it.
+        for name in settings.default_query_runners:
+            module = importlib.import_module(name)
+            for _, cls in inspect.getmembers(module, inspect.isclass):
+                if issubclass(cls, BaseQueryRunner) and cls.__module__ == module.__name__:
+                    types.add(cls.type())
+        return types
+
+    def test_every_connector_it_names_is_one_sqldesk_has(self):
+        types = self.connector_types()
+        named = re.findall(r'<li data-type="([^"]+)"', self.front())
+        self.assertGreater(len(named), 60)
+        self.assertEqual([], sorted(set(named) - types), "the front page names connectors that do not exist")
+        self.assertEqual(len(named), len(set(named)), "a connector is listed twice")
+
+    #: Connectors that are a second way into a product already named, and ones
+    #: that read files, URLs or other queries rather than a data source. The
+    #: page counts products, so these do not count towards its number.
+    SECOND_WAYS_IN = {"rds_mysql", "redshift_iam", "hive_http", "influxdbv2", "mssql_odbc", "aws_es"}
+    NOT_A_SOURCE = {"csv", "excel", "json", "url", "results"}
+    #: Services that no longer exist. Rockset shut down on 30 September 2024
+    #: after OpenAI bought it; its connector still loads and reaches nothing.
+    GONE = {"rockset"}
+
+    def test_and_more_than_sixty_products_are_named(self):
+        self.assertIn("More than 60 data sources", self.front())
+        named = set(re.findall(r'<li data-type="([^"]+)"', self.front()))
+        products = named - self.SECOND_WAYS_IN - self.NOT_A_SOURCE
+        self.assertGreater(len(products), 60)
+
+    def test_it_names_no_service_that_has_shut_down(self):
+        named = set(re.findall(r'<li data-type="([^"]+)"', self.front()))
+        self.assertEqual(set(), named & self.GONE)
+
+    def test_the_release_it_calls_latest_is_the_one_out(self):
+        import sqldesk
+
+        major_minor = ".".join(sqldesk.__version__.split(".")[:2])
+        self.assertRegex(
+            self.front(),
+            r'<h3>{} &mdash; [^<]+</h3><span class="badge">Latest</span>'.format(re.escape(major_minor)),
+        )
+
+    def test_every_picture_it_shows_is_there(self):
+        front = self.front()
+        pictures = set(re.findall(r'src="(assets/[^"]+)"', front))
+        for srcset in re.findall(r'srcset="([^"]+)"', front):
+            pictures.update(part.strip().split(" ")[0] for part in srcset.split(","))
+
+        self.assertTrue(pictures)
+        for picture in pictures:
+            self.assertTrue(os.path.exists(os.path.join(DOCS, picture)), picture + " is missing")
+
+
+class TestTheGuideCanBeJumpedInto(unittest.TestCase):
+    """
+    Search sends somebody to a section, and the list on the right of a guide
+    page links to its sections: both need every section to have an id, and the
+    pages to be the ones chrome.py writes.
+    """
+
+    def test_every_section_has_an_id(self):
+        chrome = _tool("chrome")
+        for filename, _title, _section in chrome.PAGES:
+            if filename.startswith("../"):
+                continue
+            body = page("guide/" + filename)
+            for heading in re.findall(r"<h2(?:\s[^>]*)?>", body):
+                self.assertIn(
+                    ' id="', heading, "a section of guide/{} has no id: run docs/tools/chrome.py".format(filename)
+                )
+
+    def test_the_pages_are_what_chrome_writes(self):
+        chrome = _tool("chrome")
+        for filename, _title, _section in chrome.PAGES:
+            if filename.startswith("../"):
+                continue
+            path = os.path.join(DOCS, "guide", filename)
+            expected = chrome.render(filename, chrome._description(path), chrome.anchor_headings(chrome._read(path)))
+            self.assertEqual(
+                expected, page("guide/" + filename), "guide/{} is stale: run docs/tools/chrome.py".format(filename)
+            )
+
+    def test_no_page_uses_an_id_twice(self):
+        for name in ["index.html", "releases.html"] + ["guide/" + f for f in os.listdir(os.path.join(DOCS, "guide"))]:
+            if not name.endswith(".html"):
+                continue
+            ids = re.findall(r'\sid="([^"]+)"', page(name))
+            repeated = sorted({i for i in ids if ids.count(i) > 1})
+            self.assertEqual([], repeated, "{} uses these ids more than once".format(name))
+
+    def test_every_link_the_application_makes_into_the_guide_lands(self):
+        """The help links in the app name sections by id; renaming one breaks them silently."""
+        root = os.path.dirname(DOCS)
+        found = set()
+        for folder in ("client/app", "sqldesk", "viz-lib/src"):
+            for directory, _dirs, files in os.walk(os.path.join(root, folder)):
+                for name in files:
+                    if name.endswith((".js", ".jsx", ".ts", ".tsx", ".py")):
+                        with open(os.path.join(directory, name), encoding="utf-8", errors="ignore") as f:
+                            found.update(re.findall(r"guide/([a-z-]+\.html)#([\w-]+)", f.read()))
+
+        self.assertTrue(found)
+        for filename, anchor in found:
+            self.assertIn(' id="{}"'.format(anchor), page("guide/" + filename), "guide/{}#{}".format(filename, anchor))
+
+
+class TestTheSearchIndex(unittest.TestCase):
+    def test_it_covers_every_guide_page_and_the_releases(self):
+        records = _tool("search").build()
+        chrome = _tool("chrome")
+        urls = {record["u"].split("#")[0] for record in records}
+        for filename, _title, _section in chrome.PAGES:
+            if not filename.startswith("../"):
+                self.assertIn("guide/" + filename, urls)
+        self.assertIn("releases.html", urls)
+
+    def test_every_result_lands_somewhere(self):
+        for record in _tool("search").build():
+            path, _, anchor = record["u"].partition("#")
+            self.assertTrue(os.path.exists(os.path.join(DOCS, path)), record["u"])
+            if anchor:
+                self.assertIn(' id="{}"'.format(anchor), page(path), record["u"])
+
+    def test_a_section_carries_its_own_words_and_not_the_next_ones(self):
+        records = _tool("search").build()
+        by_url = {record["u"]: record for record in records}
+        streams = by_url["guide/streams.html#received-at"]
+        self.assertIn("_received_at", streams["t"])
+        self.assertNotIn("Running, paused, cold", streams["t"])

@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SQLDesk</title>
-<meta name="description" content="One place for everything you do with data. Query 35+ data sources, build dashboards, and share what you find — self-hosted, open source, no per-seat pricing.">
+<meta name="description" content="Query it, chart it, share it, then hand it to your agent. SQL, dashboards, notebooks and alerts over more than 60 data sources, with an MCP server that keeps your permissions. Self-hosted and open source.">
 <meta property="og:title" content="SQLDesk">
-<meta property="og:description" content="One place for everything you do with data. Self-hosted, open source, no per-seat pricing.">
+<meta property="og:description" content="SQL, dashboards, notebooks and alerts over more than 60 data sources, with an MCP server that keeps your permissions. Self-hosted and open source.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://sqldesk.org/">
 <meta property="og:image" content="https://sqldesk.org/assets/social-card.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="SQLDesk: one place for everything you do with data">
+<meta property="og:image:alt" content="SQLDesk: query it, chart it, share it, then hand it to your agent">
 <meta property="og:site_name" content="SQLDesk">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://sqldesk.org/assets/social-card.png">
@@ -20,6 +20,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="preload" as="image" href="assets/shots/query-1440.webp" imagesrcset="assets/shots/query-1440.webp 1440w, assets/shots/query-2880.webp 2880w" imagesizes="(min-width: 1560px) 1416px, 94vw">
+<link rel="stylesheet" href="assets/search.css">
 <style>
 /* Palette is the product's own tokens.less — the site and the app are the
    same design system, deliberately. */
@@ -52,18 +54,18 @@
 }
 
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:76px}
 body{
   margin:0; background:var(--canvas); color:var(--ink);
   font-family:var(--sans); font-size:16px; line-height:1.65;
   -webkit-font-smoothing:antialiased;
 }
-img{max-width:100%}
+img{max-width:100%;height:auto;display:block}
 a{color:var(--accent-ink);text-underline-offset:2px}
-a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+code{font-family:var(--mono);font-size:0.86em;background:var(--sunken);border:1px solid var(--rule-soft);border-radius:4px;padding:1px 5px;color:var(--ink-2);overflow-wrap:anywhere}
 
 .wrap{width:100%;max-width:1560px;margin:0 auto;padding:0 clamp(20px,4vw,72px)}
-.narrow{max-width:66ch}
 
 /* ---------- top bar ---------- */
 .topbar{
@@ -88,13 +90,28 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius
 /* padding-block, not the shorthand: this element also carries .wrap, whose
    horizontal padding a `padding: 76px 0 64px` would silently reset to 0 and
    pull the hero 24px left of every other section. */
-.hero{padding-block:76px 64px;border-bottom:1px solid var(--rule)}
-.hero-mark{width:64px;height:64px;color:var(--accent);margin-bottom:26px;display:block}
-h1{
-  font-size:clamp(40px,7vw,68px); line-height:1.02; letter-spacing:-0.035em;
-  font-weight:600; margin:0 0 18px; text-wrap:balance;
+.hero{padding-block:64px 40px}
+.news{
+  display:inline-flex;align-items:center;gap:10px;max-width:100%;
+  font-size:14px;color:var(--ink-2);text-decoration:none;
+  border:1px solid var(--rule);background:var(--surface);
+  border-radius:999px;padding:4px 14px 4px 4px;margin-bottom:26px;
 }
-.lede{font-size:clamp(18px,2.2vw,21px);line-height:1.55;color:var(--muted);max-width:56ch;margin:0 0 30px}
+.news:hover{border-color:var(--accent-edge);color:var(--ink)}
+.news-text{min-width:0}
+.news-tag{flex:0 0 auto}
+@media (max-width:620px){.news{border-radius:14px;padding:6px 12px 6px 6px;font-size:13.5px;line-height:1.4}}
+.news-tag{
+  font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--accent-wash);color:var(--accent-ink);border-radius:999px;padding:4px 10px;
+}
+h1{
+  font-size:clamp(40px,6.6vw,72px); line-height:1.02; letter-spacing:-0.035em;
+  font-weight:600; margin:0 0 20px; text-wrap:balance;
+}
+/* Two sentences, two lines: the second is the turn, and reads as one. */
+h1 .soft{color:var(--muted);display:block}
+.lede{font-size:clamp(18px,2.1vw,21px);line-height:1.55;color:var(--muted);max-width:58ch;margin:0 0 30px}
 .lede strong{color:var(--ink);font-weight:600}
 .cta{display:flex;flex-wrap:wrap;gap:11px;align-items:center}
 .btn{
@@ -107,7 +124,20 @@ h1{
 .btn-primary:hover{background:var(--ac-700)}
 .btn-ghost{background:var(--surface);color:var(--ink);border-color:var(--rule)}
 .btn-ghost:hover{border-color:var(--accent);color:var(--accent-ink)}
-.hero-note{margin-top:22px;font-family:var(--mono);font-size:12.5px;color:var(--faint)}
+.hero-note{margin:22px 0 0;font-family:var(--mono);font-size:12.5px;color:var(--faint)}
+
+/* ---------- the application, framed ---------- */
+/* A window rather than a bare picture, so it reads as a screen somebody is
+   using. The frame is drawn here; what is inside it is a screenshot. */
+.frame{margin:0;border:1px solid var(--rule);border-radius:var(--r-card);background:var(--surface);overflow:hidden;
+  box-shadow:0 1px 0 var(--rule-soft),0 24px 48px -28px rgba(28,27,26,.28)}
+.frame-bar{display:flex;align-items:center;gap:7px;padding:10px 14px;border-bottom:1px solid var(--rule-soft);background:var(--sunken)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--n-400);display:block;flex:0 0 auto}
+.frame-title{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-left:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.frame img{width:100%}
+.shot{padding-bottom:72px;border-bottom:1px solid var(--rule)}
+.caption{font-family:var(--mono);font-size:12px;color:var(--faint);margin:12px 0 0}
+.caption code{font-size:inherit}
 
 /* ---------- sections ---------- */
 section{padding:72px 0;border-bottom:1px solid var(--rule)}
@@ -117,71 +147,90 @@ section:last-of-type{border-bottom:none}
   letter-spacing:0.1em;text-transform:uppercase;color:var(--accent-ink);
   margin:0 0 10px;
 }
-h2{font-size:clamp(26px,3.4vw,36px);line-height:1.15;letter-spacing:-0.024em;font-weight:600;margin:0 0 14px;text-wrap:balance;max-width:20ch}
+h2{font-size:clamp(26px,3.4vw,36px);line-height:1.15;letter-spacing:-0.024em;font-weight:600;margin:0 0 14px;text-wrap:balance;max-width:22ch}
 h3{font-size:17px;font-weight:600;letter-spacing:-0.01em;margin:0 0 6px}
 p{margin:0 0 16px}
-.sub{color:var(--muted);max-width:60ch;font-size:16.5px}
+.sub{color:var(--muted);max-width:62ch;font-size:16.5px}
 
-/* ---------- demo ---------- */
-.demo-video{display:block;width:100%;height:auto;margin-top:28px;border:1px solid var(--rule);
-  border-radius:10px;background:var(--sunken)}
+/* ---------- the tour ---------- */
+/* Tabs where the script runs. Without it every panel is on the page, one
+   after another, each under its own heading -- nothing is hidden behind a
+   control that does not work. */
+.tabs{display:none;gap:6px;flex-wrap:wrap;margin:30px 0 26px;padding:5px;border:1px solid var(--rule);
+  border-radius:12px;background:var(--surface);width:max-content;max-width:100%}
+.js .tabs{display:flex}
+.tab{display:inline-flex;align-items:center;gap:8px;border:1px solid transparent;background:none;cursor:pointer;
+  font:500 14.5px/1 var(--sans);color:var(--muted);padding:10px 14px;border-radius:8px}
+.tab svg{width:16px;height:16px;flex:0 0 auto}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--accent-wash);color:var(--accent-ink);border-color:var(--accent-edge)}
+.panel{display:grid;gap:clamp(22px,3.5vw,54px);align-items:center;margin-top:44px}
+.js .panel{margin-top:0}
+.js .panel[hidden]{display:none}
+@media(min-width:1000px){.panel{grid-template-columns:minmax(0,.78fr) minmax(0,1.22fr)}}
+.panel-text h3{font-size:clamp(1.35rem,2.3vw,1.9rem);letter-spacing:-.02em;margin:4px 0 12px;line-height:1.2}
+.panel-text p{color:var(--muted);max-width:52ch}
+.points{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:9px}
+.points li{position:relative;padding-left:21px;color:var(--ink-2);font-size:15.5px}
+.points li::before{content:"";position:absolute;left:0;top:.55em;width:9px;height:9px;border-radius:2px;background:var(--accent)}
+.more{margin-top:18px}
+
+/* ---------- terminal ---------- */
+.term{background:var(--code-bg);border:1px solid var(--rule);border-radius:var(--r-card);overflow:hidden;position:relative}
+.term pre{margin:0;padding:18px 20px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.8;color:var(--ink-2)}
+.term pre code{color:inherit;background:none;border:none;padding:0;font-size:inherit}
+.term .p{color:var(--accent);user-select:none}
+.term .c{color:var(--faint)}
+#exchange .ask-q{color:var(--accent-ink);font-weight:600}
+#exchange .ask-out{color:var(--ink);font-weight:600}
+#exchange .call{color:var(--accent-ink)}
+#exchange .warn{color:#8a5300}
+
+/* ---------- copy, on the commands ---------- */
+.copy{position:absolute;top:8px;right:8px;z-index:2;border:1px solid var(--rule);background:var(--surface);
+  color:var(--muted);border-radius:var(--r-chip);padding:5px 10px;font:500 .76rem var(--sans);cursor:pointer}
+.copy:hover{color:var(--ink);border-color:var(--accent-edge)}
+.copy[data-done]{color:var(--accent-ink);border-color:var(--accent-edge)}
+
+/* ---------- quick start ---------- */
+.start{display:grid;gap:clamp(22px,3.5vw,54px);align-items:start;margin-top:30px}
+@media(min-width:1000px){.start{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr)}}
+.notes{list-style:none;padding:0;margin:0;display:grid;gap:16px}
+.notes li{padding-left:16px;border-left:2px solid var(--accent-edge);color:var(--muted);font-size:15px}
+.notes strong{display:block;color:var(--ink);font-weight:600;margin-bottom:2px}
 
 /* ---------- feature grid ---------- */
-.features{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:var(--r-card);overflow:hidden;margin-top:36px;grid-template-columns:repeat(auto-fit,minmax(252px,1fr))}
+/* A fixed count of columns, so six features are two even rows. auto-fit made
+   five columns and left the sixth alone on a row of empty grey cells -- the
+   1px gaps are the grid's background, and an empty cell is all background. */
+.features{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:var(--r-card);overflow:hidden;margin-top:36px;grid-template-columns:1fr}
+@media(min-width:640px){.features{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:1040px){.features{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .feature{background:var(--surface);padding:24px 22px}
 .feature h3{display:flex;align-items:center;gap:9px}
 .feature h3 svg{width:17px;height:17px;color:var(--accent);flex:0 0 auto}
 .feature p{font-size:14.5px;color:var(--muted);margin:0;line-height:1.55}
 
-/* ---------- terminal ---------- */
-.term{
-  background:var(--code-bg);border:1px solid var(--rule);border-radius:var(--r-card);
-  overflow:hidden;margin-top:28px;
-}
-.term-bar{
-  display:flex;align-items:center;gap:7px;padding:10px 15px;
-  border-bottom:1px solid var(--rule-soft);background:var(--sunken);
-}
-.dot{width:10px;height:10px;border-radius:50%;background:var(--n-400);display:block}
-.term-title{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-left:7px}
-.term pre{margin:0;padding:18px 20px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.85;color:var(--ink-2)}
-.term .p{color:var(--accent);user-select:none}
-.term .c{color:var(--faint)}
+/* ---------- data sources ---------- */
+.sources{display:grid;gap:26px 34px;margin-top:34px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.source-group h3{font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin:0 0 10px}
+.source-group ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.source-group li{font-size:13.5px;padding:4px 10px;border-radius:var(--r-chip);border:1px solid var(--rule);background:var(--surface);color:var(--ink-2)}
+.source-group li[data-amd64]::after{content:"*";color:var(--faint);margin-left:2px}
 
-/* ---------- source chips ---------- */
-.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:26px}
-.chip{
-  font-family:var(--mono);font-size:12.5px;
-  padding:5px 11px;border-radius:var(--r-chip);
-  border:1px solid var(--rule);background:var(--surface);color:var(--muted);
-}
-.chip.more{border-style:dashed;color:var(--faint)}
-/* The sample exchange: the question in the accent, the answer in full ink,
-   and the tool calls between them left quiet so the eye goes to the ends. */
-#ask .ask-q{color:var(--accent-ink);font-weight:600}
-#ask .ask-out{color:var(--ink);font-weight:600}
-#ask pre code{color:var(--muted)}
-
-/* ---------- roadmap ---------- */
-.road{margin-top:34px;display:flex;flex-direction:column}
-.road-item{display:grid;grid-template-columns:118px minmax(0,1fr);gap:26px;padding:22px 0;border-top:1px solid var(--rule)}
-.road-item:last-child{border-bottom:1px solid var(--rule)}
-.road-k{font-family:var(--mono);font-size:12px;color:var(--faint);line-height:1.5}
-.road-status{
-  display:inline-block;font-family:var(--mono);font-size:10px;font-weight:700;
-  letter-spacing:0.08em;text-transform:uppercase;padding:2px 7px;border-radius:3px;margin-bottom:6px;
-}
-.s-now{background:var(--accent-wash);color:var(--accent-ink)}
-.s-next{background:var(--sunken);color:var(--muted)}
-.road-b{font-size:14.5px;color:var(--muted);margin:0}
-@media (max-width:620px){.road-item{grid-template-columns:1fr;gap:6px}}
-
-/* ---------- two-up ---------- */
-.two{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:32px}
+/* ---------- cards ---------- */
+.two{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));margin-top:32px}
 .card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-card);padding:22px 24px}
 .card p:last-child{margin-bottom:0}
 .card p{font-size:14.5px;color:var(--muted)}
-.card code{font-family:var(--mono);font-size:0.86em;background:var(--sunken);border:1px solid var(--rule-soft);border-radius:4px;padding:1px 5px;color:var(--ink-2)}
+.card-h{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.badge{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:3px;background:var(--accent-wash);color:var(--accent-ink)}
+
+/* ---- what it is not, on one line ---- */
+.oneline{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:14px;
+  grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.oneline li{padding-left:16px;border-left:2px solid var(--accent-edge);color:var(--muted);font-size:.95rem}
+.oneline strong{display:block;color:var(--ink);font-weight:600;margin-bottom:3px}
 
 /* ---------- footer ---------- */
 footer{padding:48px 0 64px;font-size:14px;color:var(--muted)}
@@ -194,71 +243,16 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 .legal{margin-top:36px;padding-top:22px;border-top:1px solid var(--rule);font-size:13px;color:var(--faint);max-width:72ch}
 .legal p{margin:0 0 8px}
 
-@media (prefers-reduced-motion: reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
-
-/* ---- the mark breathes: the bars settle and re-settle, as a result
-        arriving keeps redrawing them. Slow enough to notice only once. ---- */
-.hero-mark .bar{transform-box:fill-box;transform-origin:50% 100%;animation:breathe 3.4s ease-in-out infinite}
-.hero-mark .bar:nth-of-type(1){animation-delay:0s}
-.hero-mark .bar:nth-of-type(2){animation-delay:.28s}
-.hero-mark .bar:nth-of-type(3){animation-delay:.56s}
-.hero-mark .bar:nth-of-type(4){animation-delay:.84s}
-@keyframes breathe{0%,100%{transform:scaleY(1)}38%{transform:scaleY(.42)}68%{transform:scaleY(1.12)}}
-
-/* ---- a row: the visual on one side, the words on the other ---- */
-.split{display:grid;gap:clamp(22px,3.5vw,54px);align-items:center;margin-top:40px}
-.split-text h3{font-size:clamp(1.3rem,2.3vw,1.85rem);letter-spacing:-.02em;margin:4px 0 12px}
-.split-text p{color:var(--muted);max-width:54ch}
-.split-list{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:9px}
-.split-list li{position:relative;padding-left:21px;color:var(--ink-2)}
-.split-list li::before{content:"";position:absolute;left:0;top:.52em;width:9px;height:9px;border-radius:2px;background:var(--accent)}
-.split-cta{margin-top:18px}
-.split + .split{margin-top:clamp(44px,6vw,86px);padding-top:clamp(44px,6vw,86px);border-top:1px solid var(--rule-soft)}
-@media(min-width:960px){
-  .split{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr)}
-  .split.reverse .split-vis{order:2}
-  .split.reverse .split-text{order:1}
-}
-.split-vis .term,.split-vis .demo-video{margin:0;width:100%}
-.split-vis pre{margin:0}
-
-/* ---- the live window: a real tick, not a gif ---- */
-.live{margin:0;border:1px solid var(--rule);border-radius:var(--r-card);background:var(--surface);overflow:hidden}
-.live figcaption{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--rule-soft);
-  font:500 .82rem/1 var(--mono);color:var(--muted);letter-spacing:.02em}
-.live-n{margin-left:auto;color:var(--ink);font-weight:700}
-.live-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 var(--accent-edge);animation:pulse 2s ease-out infinite}
-@keyframes pulse{0%{box-shadow:0 0 0 0 var(--accent-edge)}70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}
-.live svg{display:block;width:100%;height:168px;background:var(--surface)}
-.live rect{fill:var(--ac-400);transition:height .45s cubic-bezier(.3,.8,.3,1),y .45s cubic-bezier(.3,.8,.3,1)}
-.live rect.now{fill:var(--accent)}
-.live-foot{display:flex;gap:16px;padding:10px 14px;border-top:1px solid var(--rule-soft);
-  font:.76rem/1 var(--mono);color:var(--faint);letter-spacing:.03em}
-
-/* ---- what it is not, on one line ---- */
-.oneline{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:14px;
-  grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
-.oneline li{padding-left:16px;border-left:2px solid var(--accent-edge);color:var(--muted);font-size:.95rem}
-.oneline strong{display:block;color:var(--ink);font-weight:600;margin-bottom:3px}
-
 /* ---- a section arrives rather than appears ---- */
-/* Only where scripting can undo it: with JavaScript off the three rows below
-   the hero would never be revealed, and the page would be missing its middle. */
-.js .reveal{opacity:0;transform:translateY(16px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1)}
+/* Only where scripting can undo it, and triggered before the section reaches
+   the screen: revealed on arrival, a fast scroll used to pass whole screens of
+   empty page while each one faded in. */
+.js .reveal{opacity:0;transform:translateY(10px);transition:opacity .45s ease,transform .45s cubic-bezier(.2,.8,.2,1)}
 .reveal.in{opacity:1;transform:none}
 
-/* ---- copy, on the commands ---- */
-.copy{position:absolute;top:8px;right:8px;z-index:2;border:1px solid var(--rule);background:var(--surface);
-  color:var(--muted);border-radius:var(--r-chip);padding:5px 10px;font:500 .76rem var(--sans);cursor:pointer}
-.copy:hover{color:var(--ink);border-color:var(--accent-edge)}
-.copy[data-done]{color:var(--accent-ink);border-color:var(--accent-edge)}
-.term{position:relative}
-
-/* Nothing above moves for somebody who asked for no movement. */
 @media(prefers-reduced-motion:reduce){
-  .live-dot,.hero-mark .bar{animation:none!important}
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
   .reveal{opacity:1;transform:none;transition:none}
-  .live rect{transition:none}
 }
 
 /* ---------------------------------------------------------------------------
@@ -302,14 +296,11 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
   --accent-wash: #28333b;
   --accent-edge: #2f4049;
   --code-bg: #1b1a21;
-
-  --good: #3fb87a;
-  --good-wash: #21332f;
-  --warning: #d79a2b;
-  --warning-wash: #392e23;
-  --serious: #e8763a;
-  --critical: #e2685e;
 }
+:root[data-theme="dark"] #exchange .warn { color: #d79a2b; }
+/* A screenshot of the application is a light picture whatever the page is
+   doing; without the shadow it sits in the page rather than glowing on it. */
+:root[data-theme="dark"] .frame { box-shadow: none; }
 
 /* The switch itself. */
 .theme-toggle {
@@ -325,8 +316,6 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 :root[data-theme="dark"] .theme-toggle .sun { display: block; }
 /* The switch appears only where the script that works it is running. */
 .js .theme-toggle { display: inline-grid; }
-/* A product screenshot is a light image whatever the page is doing. */
-:root[data-theme="dark"] .demo-video { border: 1px solid var(--rule); }
 /* White on the accent measures 3.59:1 in dark, and 2.35:1 on the hover colour,
    both under AA. The accent is a light teal there, so the ink flips with it. */
 :root[data-theme="dark"] .btn-primary { color: #0c0b10; }
@@ -350,11 +339,16 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
       SQLDesk
     </a>
     <nav>
-      <a href="index.html" aria-current="page">Overview</a>
+      <a href="index.html" class="hide-sm" aria-current="page">Overview</a>
       <a href="guide/overview.html">Docs</a>
       <a href="blog/index.html">Blog</a>
       <a href="releases.html">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+      <button class="search-open" type="button" data-search-open aria-label="Search the docs">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="m10.4 10.4 3.4 3.4"/></svg>
+        <span class="search-open-label">Search</span><kbd class="search-key" data-search-key>/</kbd>
+      </button>
       <button class="theme-toggle" type="button" data-theme-toggle
               aria-label="Switch to dark mode" title="Switch to dark mode">
         <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -372,137 +366,168 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 </header>
 
 <div class="wrap hero" id="top">
-  <svg class="hero-mark" viewBox="0 0 120 120" role="img" aria-label="SQLDesk">
-    <g fill="none" stroke="currentColor">
-      <circle class="ring ring-1" cx="60" cy="60" r="55.5" stroke-width="4"/>
-      <circle class="ring ring-2" cx="60" cy="60" r="47.5" stroke-width="3.5"/>
-    </g>
-    <g fill="currentColor">
-      <rect class="bar" x="34" y="70" width="12" height="15" rx="1.5"/>
-      <rect class="bar" x="48" y="56" width="12" height="29" rx="1.5"/>
-      <rect class="bar" x="62" y="63" width="12" height="22" rx="1.5"/>
-      <rect class="bar" x="76" y="50" width="12" height="35" rx="1.5"/>
-      <rect class="base" x="30" y="84" width="62" height="5.5" rx="2.75"/>
-    </g>
-    <polyline class="trend" points="40,62 54,50 68,58 82,39" fill="none" stroke="currentColor"
-              stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <g fill="currentColor">
-      <circle class="pip" cx="40" cy="62" r="5.5"/><circle class="pip" cx="54" cy="50" r="5.5"/>
-      <circle class="pip" cx="68" cy="58" r="5.5"/><circle class="pip" cx="82" cy="39" r="6.5"/>
-    </g>
-  </svg>
+  <a class="news" href="blog/the-work-a-query-cannot-hold.html">
+    <span class="news-tag">New in 0.8</span>
+    <span class="news-text">Notebooks: SQL and Python, one named cell at a time&nbsp;<span aria-hidden="true">&rarr;</span></span>
+  </a>
 
-  <h1>One place for everything you do with data.</h1>
+  <h1>Query it, chart it, share it. <span class="soft">Then hand it to your agent.</span></h1>
   <p class="lede">
-    Query 35+ databases, chart the result, and put it on a dashboard people actually use.
-    Then point <strong>your agent</strong> at the same data &mdash; it gets your permissions and
-    your team&rsquo;s meaning, not a second set of credentials &mdash; and
-    <strong>watch a Kafka topic</strong> as if it were a table.
-    <strong>Self-hosted, open source, and viewers are free</strong>, because there is nobody
-    to charge you for them.
+    SQL, dashboards, notebooks and alerts over more than 60 data sources &mdash; and an MCP server
+    that gives <strong>your agent your permissions</strong>, not a second set of credentials.
+    <strong>Self-hosted and open source.</strong> Viewers are free, because there is nobody to
+    charge you for them.
   </p>
   <div class="cta">
     <a class="btn btn-primary" href="#start">Get started</a>
     <a class="btn btn-ghost" href="https://github.com/bot-netizen/sqldesk">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
-      View source
+      View on GitHub
     </a>
   </div>
-  <p class="hero-note">Apache 2.0 &middot; Python + React &middot; runs in Docker</p>
+  <p class="hero-note">Apache 2.0 &middot; images for amd64 and arm64 &middot; nothing phones home</p>
 </div>
 
-<section id="different">
+<div class="wrap shot">
+  <figure class="frame">
+    <div class="frame-bar" aria-hidden="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="frame-title">Weekly revenue by channel &mdash; SQLDesk</span></div>
+    <img src="assets/shots/query-1440.webp"
+         srcset="assets/shots/query-1440.webp 1440w, assets/shots/query-2880.webp 2880w"
+         sizes="(min-width: 1560px) 1416px, 94vw" width="1440" height="900" fetchpriority="high"
+         alt="The SQLDesk query editor: a schema browser on the left, a SQL query grouping orders by week and channel, and below it a stacked area chart of weekly revenue for five channels from August to October.">
+  </figure>
+  <p class="caption">Every picture on this page is SQLDesk itself, running the demo that <code>manage demo seed</code> builds.</p>
+</div>
+
+<section id="tour">
   <div class="wrap">
-    <p class="eyebrow">What it does that a query tool usually does not</p>
-    <h2>Three things, and the ordinary BI tool underneath them.</h2>
+    <p class="eyebrow">Take the tour</p>
+    <h2>One install, four ways in.</h2>
+    <p class="sub">The same data sources, the same permissions and the same result store, whether
+       somebody opens a dashboard, works through a notebook, asks an agent, or watches a topic.</p>
 
-    <div class="split reveal">
-      <div class="split-vis">
-        <div class="term" id="exchange">
-          <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
-            <span class="term-title">claude &mdash; sqldesk</span></div>
-<pre><code><span class="ask-q" data-type>&gt; which regions are below their revenue target this quarter?</span>
+    <div class="tabs" role="tablist" aria-label="What SQLDesk does">
+      <button class="tab" type="button" role="tab" id="tab-dashboards" aria-controls="panel-dashboards" aria-selected="true">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="9" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/></svg>Dashboards</button>
+      <button class="tab" type="button" role="tab" id="tab-notebooks" aria-controls="panel-notebooks" aria-selected="false" tabindex="-1">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="1.8" width="10" height="12.4" rx="1.4"/><path d="M5.6 5h4.8M5.6 8h4.8M5.6 11h3"/></svg>Notebooks</button>
+      <button class="tab" type="button" role="tab" id="tab-agent" aria-controls="panel-agent" aria-selected="false" tabindex="-1">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 4.5 6.5 8 3 11.5M8.5 12h4.5"/></svg>Your agent</button>
+      <button class="tab" type="button" role="tab" id="tab-streams" aria-controls="panel-streams" aria-selected="false" tabindex="-1">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M1.5 9h2.5l2-5 3 9 2-6 1.2 2h2.3"/></svg>Kafka streams</button>
+    </div>
 
-<span class="step">  find_context("revenue by region")
-    -- The quarterly revenue target per region, set by finance.
-    -- One row per region, replaced each quarter.
-    orders(amount numeric, ts timestamptz, region text, product text)
-    region_targets(region text, quarter text, target numeric)
-    revenue = SUM(amount) on orders   -- Gross, before refunds.</span>
-
-<span class="step">  check_sql(...)    WARNING: no WHERE clause and no LIMIT
-  run_query(...)    3 rows, 240 ms</span>
-
-<span class="step ask-out">  north   892,400   target 1,000,000   -11%
-  west    631,900   target   750,000   -16%
-  south   410,200   target   500,000   -18%</span>
-</code></pre>
-        </div>
+    <div class="panel" role="tabpanel" id="panel-dashboards" aria-labelledby="tab-dashboards">
+      <div class="panel-text">
+        <p class="eyebrow">Dashboards</p>
+        <h3>A dashboard people actually open.</h3>
+        <p>Lay out charts from any number of queries, filter them all at once, and refresh them on the
+           server on a schedule &mdash; or every 30 seconds for the one on the wall.</p>
+        <ul class="points">
+          <li>27 kinds of visualization, from counters and gauges to sankeys, candlesticks and trees.</li>
+          <li>Alerts to 13 destinations, among them email, Slack, Microsoft Teams, PagerDuty and webhooks.</li>
+          <li>Public links, embeds, and a dashboard sent by email on a schedule.</li>
+        </ul>
+        <p class="more"><a href="guide/dashboards.html">Dashboards, in the guide &rarr;</a></p>
       </div>
-      <div class="split-text">
+      <figure class="frame">
+        <div class="frame-bar" aria-hidden="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="frame-title">Sales overview &mdash; SQLDesk</span></div>
+        <img src="assets/shots/dashboard-1440.webp" loading="lazy"
+             srcset="assets/shots/dashboard-1440.webp 1440w, assets/shots/dashboard-2880.webp 2880w"
+             sizes="(min-width: 1000px) 60vw, 94vw" width="1440" height="900"
+             alt="A SQLDesk dashboard called Sales overview: counters for revenue, orders and average order, a stacked area chart of weekly revenue by channel, a gauge of orders against plan, a bar chart of revenue by region and a table of recent orders.">
+      </figure>
+    </div>
+
+    <div class="panel" role="tabpanel" id="panel-notebooks" aria-labelledby="tab-notebooks">
+      <div class="panel-text">
+        <p class="eyebrow">Notebooks &middot; beta</p>
+        <h3>The work a saved query cannot hold.</h3>
+        <p>A chain of cells in SQL and Python. Pull from one data source, join it to another, reshape it
+           in pandas and chart it &mdash; with the permissions, result store and scheduler you already have.</p>
+        <ul class="points">
+          <li>Cells are named, never numbered: a later cell reads an earlier one by name.</li>
+          <li>A Python cell computes and cannot query, so no credential ever reaches the interpreter.</li>
+          <li>A cell whose inputs have changed says it is stale, and is left exactly as it was.</li>
+        </ul>
+        <p class="more"><a href="guide/notebooks.html">Notebooks, in the guide &rarr;</a></p>
+      </div>
+      <figure class="frame">
+        <div class="frame-bar" aria-hidden="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="frame-title">Demo: a notebook, end to end &mdash; SQLDesk</span></div>
+        <img src="assets/shots/notebook-1440.webp" loading="lazy"
+             srcset="assets/shots/notebook-1440.webp 1440w, assets/shots/notebook-2880.webp 2880w"
+             sizes="(min-width: 1000px) 60vw, 94vw" width="1440" height="900"
+             alt="A SQLDesk notebook: a SQL cell reading back an earlier Python cell's result as a table of revenue by region, and below it a Python cell drawing that result as a Plotly bar chart.">
+      </figure>
+    </div>
+
+    <div class="panel" role="tabpanel" id="panel-agent" aria-labelledby="tab-agent">
+      <div class="panel-text">
         <p class="eyebrow">MCP</p>
         <h3>Your agent, your permissions.</h3>
-        <p>Point Claude &mdash; or anything else that speaks MCP &mdash; at SQLDesk and it sees
-           exactly what you see: the same data sources, the same row limits, the same groups.
-           It is not guessing at table names. It reads the catalog your team wrote, and it is told
-           when that catalog has gone stale.</p>
-        <ul class="split-list">
-          <li>Fifteen tools: find work that exists, read the catalog, check SQL, then run it.</li>
-          <li>It can build as well as read: a query, a chart on it, a dashboard to put it on.</li>
+        <p>Point Claude &mdash; or anything else that speaks MCP &mdash; at SQLDesk and it sees what you see:
+           the same data sources, row limits and groups. It looks for work your team has already done before
+           it writes anything new.</p>
+        <ul class="points">
+          <li>18 tools: find existing queries and dashboards, read the catalog, check SQL, then run it.</li>
+          <li>It can build as well as read &mdash; a query, a chart, a dashboard, a muted alert.</li>
           <li>Writes are off until you turn them on, arrive as drafts, and are capped per day.</li>
           <li>Every call is audited, refusals included, with what it changed.</li>
         </ul>
-        <p class="split-cta"><a href="guide/mcp.html">How it works &rarr;</a></p>
+        <p class="more"><a href="guide/mcp.html">MCP, in the guide &rarr;</a></p>
+      </div>
+      <div>
+        <div class="term" id="exchange">
+          <div class="frame-bar" aria-hidden="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span class="frame-title">an MCP client &mdash; sqldesk</span></div>
+<pre><code><span class="ask-q" data-type>&gt; which region brings in the most revenue?</span>
+
+<span class="step"><span class="call">  find_queries</span>("revenue by region")
+    #2 Every region, measured four ways
+      Four measures per region, for finding the one that behaves unlike the rest.
+      data source: Demo data &middot; updated 2026-11-06
+      - Revenue by region (column chart; x: region; y: revenue)
+    &hellip;</span>
+
+<span class="step"><span class="call">  check_sql</span>(&hellip;)
+    <span class="warn">WARNING: No WHERE clause and no LIMIT</span>
+    <span class="warn">WARNING: ORDER BY with no LIMIT</span></span>
+
+<span class="step"><span class="call">  run_query</span>(&hellip; limit 3)</span>
+<span class="step ask-out">    region           revenue     orders
+    Japan            132212.86   508
+    United Kingdom   111590.14   443
+    South Africa     105544.56   423</span>
+</code></pre>
+        </div>
+        <p class="caption">The server&rsquo;s own replies against the demo data, cut where marked &hellip;</p>
       </div>
     </div>
 
-    <div class="split reverse reveal">
-      <div class="split-vis">
-        <figure class="live" id="live">
-          <figcaption><span class="live-dot"></span> orders &middot; events per minute
-            <span class="live-n" data-live-n>&mdash;</span></figcaption>
-          <svg viewBox="0 0 320 120" preserveAspectRatio="none" aria-label="A live window of a Kafka topic" role="img">
-            <g data-live-bars></g>
-          </svg>
-          <div class="live-foot"><span>window 60s</span><span>DuckDB</span><span>1 slot</span></div>
-        </figure>
-      </div>
-      <div class="split-text">
+    <div class="panel" role="tabpanel" id="panel-streams" aria-labelledby="tab-streams">
+      <div class="panel-text">
         <p class="eyebrow">Streams</p>
         <h3>A Kafka topic you can chart.</h3>
-        <p>A cluster is a data source and its topics are its tables. Write SQL against a live
-           window of one, join it to another, give it parameters, and put the chart on a dashboard
-           &mdash; in the same editor, with Execute replaced by Start streaming.</p>
-        <ul class="split-list">
+        <p>A cluster is a data source and its topics are its tables. Write SQL against a live window of one,
+           in the same editor, with Execute replaced by Start streaming.</p>
+        <ul class="points">
           <li>JSON, Avro and Protobuf, with or without a schema registry.</li>
           <li>Per-minute rollups keep the part worth keeping, for 24 hours.</li>
           <li>A slot is a topic, not a viewer: five people watching one share one consumer.</li>
         </ul>
-        <p class="split-cta"><a href="guide/streams.html">How it works &rarr;</a></p>
+        <p class="more"><a href="guide/streams.html">Streams, in the guide &rarr;</a></p>
       </div>
-    </div>
-
-    <div class="split reveal">
-      <div class="split-vis">
-        <video class="demo-video" controls muted loop playsinline preload="metadata"
-               poster="assets/live-dashboard.jpg" width="1920" height="892">
-          <source src="assets/live-dashboard.mp4" type="video/mp4">
-          <a href="assets/live-dashboard.mp4">Watch the demo</a>
-        </video>
-      </div>
-      <div class="split-text">
-        <p class="eyebrow">See it</p>
-        <h3>A dashboard that keeps itself up to date.</h3>
-        <p>A live dashboard refreshing on the server every 30 seconds: a stat with its sparkline, a
-           gauge, progress against target, a status grid, a formatted table and charts with goal
-           lines. Nobody is pressing refresh.</p>
-        <ul class="split-list">
-          <li>35+ data sources, parameters, schedules and 25+ visualizations underneath it.</li>
-          <li>Alerts to email and Slack, public links, embeds, and scheduled subscriptions.</li>
-          <li>The part that has worked for ten years, kept and sharpened rather than rebuilt.</li>
-        </ul>
-        <p class="split-cta"><a href="guide/overview.html">Read the guide &rarr;</a></p>
-      </div>
+      <figure class="frame">
+        <div class="frame-bar" aria-hidden="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="frame-title">Orders arriving, by region &mdash; SQLDesk</span></div>
+        <img src="assets/shots/stream-1440.webp" loading="lazy"
+             srcset="assets/shots/stream-1440.webp 1440w, assets/shots/stream-2880.webp 2880w"
+             sizes="(min-width: 1000px) 60vw, 94vw" width="1440" height="900"
+             alt="A streaming query in SQLDesk counting orders by region in ten-second buckets, drawn as a stacked bar chart that grows as events arrive from a Kafka topic, with the consumer's rate shown at the top.">
+      </figure>
     </div>
   </div>
 </section>
@@ -510,57 +535,31 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 <section id="start">
   <div class="wrap">
     <p class="eyebrow">Quick start</p>
-    <h2>Running in three commands</h2>
+    <h2>Running in three commands.</h2>
     <p class="sub">A published image, plus the Postgres and Redis it needs. Nothing to build.</p>
 
-    <div class="term">
-      <div class="term-bar">
-        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-        <span class="term-title">bash</span>
-      </div>
+    <div class="start">
+      <div class="term">
+        <div class="frame-bar" aria-hidden="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="frame-title">bash</span></div>
 <pre><code><span class="c"># fill in the three secrets it asks for</span>
 <span class="p">$</span> cp .env.example .env
 
 <span class="p">$</span> docker compose -f compose.prod.yaml run --rm server create_db
 <span class="p">$</span> docker compose -f compose.prod.yaml up -d
 
-<span class="c">→ http://localhost:5000</span></code></pre>
-    </div>
-
-    <p class="sub" style="margin-top:14px">
-      On macOS, port 5000 belongs to AirPlay Receiver and <code>up</code> fails
-      with &ldquo;address already in use&rdquo;. Set <code>SQLDESK_PORT</code>
-      and <code>SQLDESK_HOST</code> in <code>.env</code> to another port, or
-      turn AirPlay Receiver off under System Settings &rsaquo; General &rsaquo;
-      AirDrop &amp; Handoff.
-    </p>
-
-    <p class="sub" style="margin-top:14px">
-      Images are published to
-      <code>ghcr.io/bot-netizen/sqldesk</code> for amd64 and arm64. To build from
-      source instead, <code>compose.yaml</code> is the development setup —
-      <code>make env &amp;&amp; make compose_build &amp;&amp; make create_database &amp;&amp; make up</code>.
-    </p>
-
-    <div class="two">
-      <div class="card">
-        <h3>Configuration</h3>
-        <p>SQLDesk reads <code>SQLDESK_*</code> environment variables. On an install that predates
-        the rename, <code>TEALDASH_*</code> still works as a fallback, and an explicitly set
-        <code>SQLDESK_*</code> always wins.</p>
+<span class="c">&rarr; http://localhost:5000</span></code></pre>
       </div>
-      <div class="card">
-        <h3>Keep your secret key</h3>
-        <p>Data-source passwords are encrypted with <code>SQLDESK_SECRET_KEY</code>.
-        Back it up and do not rotate it casually — changing it without
-        <code>manage database reencrypt</code> makes every stored credential unreadable.</p>
-      </div>
-      <div class="card">
-        <h3>No phone home</h3>
-        <p>SQLDesk sends nothing anywhere. Version checking is off unless you set
-        <code>SQLDESK_VERSION_CHECK_URL</code> to an endpoint you control, and no usage data
-        or account details leave your box.</p>
-      </div>
+      <ul class="notes">
+        <li><strong>On a Mac, port 5000 is AirPlay&rsquo;s.</strong> Set <code>SQLDESK_PORT</code> and
+            <code>SQLDESK_HOST</code> in <code>.env</code> to another one.</li>
+        <li><strong>Keep your secret key.</strong> <code>SQLDESK_SECRET_KEY</code> encrypts every data source
+            password; lose it and they are unreadable.</li>
+        <li><strong>Nothing phones home.</strong> No usage data, and no version check unless you point one
+            at a server of your own.</li>
+        <li><strong>On Kubernetes</strong>, the Helm chart is in <code>charts/sqldesk</code>.
+            <a href="guide/deploying.html">Deploying, in full &rarr;</a></li>
+      </ul>
     </div>
   </div>
 </section>
@@ -568,13 +567,13 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 <section id="features">
   <div class="wrap">
     <p class="eyebrow">What you get</p>
-    <h2>A query editor, and everything downstream of it</h2>
+    <h2>A query editor, and everything downstream of it.</h2>
     <p class="sub">Analysts write SQL. Everyone else gets dashboards, alerts and links that keep working.</p>
 
-    <div class="features">
+    <div class="features reveal">
       <div class="feature">
         <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h7"/></svg>Query editor</h3>
-        <p>Schema browser, autocomplete, query formatting, parameters and scheduled refresh. Fork a query, schedule it, publish it.</p>
+        <p>Schema browser, autocomplete, formatting, parameters and scheduled refresh. Fork a query, schedule it, publish it.</p>
       </div>
       <div class="feature">
         <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="9" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/></svg>Dashboards</h3>
@@ -582,7 +581,7 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
       </div>
       <div class="feature">
         <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 1.8a4 4 0 0 0-4 4c0 3.2-1.4 4.2-1.4 4.2h10.8S12 9 12 5.8a4 4 0 0 0-4-4Z"/><path d="M6.6 12.6a1.6 1.6 0 0 0 2.8 0"/></svg>Alerts</h3>
-        <p>Trigger on a query result and notify email, Slack, Microsoft Teams, PagerDuty, webhooks and seven more destinations.</p>
+        <p>Trigger on a query result and notify any of 13 destinations, with a picture of the chart if you want one.</p>
       </div>
       <div class="feature">
         <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><ellipse cx="8" cy="3.6" rx="5.4" ry="2.2"/><path d="M2.6 3.6v8.8c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2V3.6"/><path d="M2.6 8c0 1.2 2.4 2.2 5.4 2.2s5.4-1 5.4-2.2"/></svg>Upload a file</h3>
@@ -590,11 +589,11 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
       </div>
       <div class="feature">
         <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 13V7M6 13V3M10 13V9M14 13V5"/></svg>Visualizations</h3>
-        <p>Charts, tables, pivot tables, cohorts, funnels, maps, counters — all configured without code.</p>
+        <p>27 kinds &mdash; tables, pivots, cohorts, funnels, maps, sankeys and more &mdash; all configured without code.</p>
       </div>
       <div class="feature">
         <h3><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="2.6" y="7" width="10.8" height="7" rx="1.6"/><path d="M5.2 7V4.8a2.8 2.8 0 0 1 5.6 0V7"/></svg>Permissions</h3>
-        <p>Groups, per-data-source access, view-only roles and shareable public links with their own tokens.</p>
+        <p>Groups, per-data-source access, view-only roles, features an administrator grants, and public links with their own tokens.</p>
       </div>
     </div>
   </div>
@@ -603,18 +602,75 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 <section id="sources">
   <div class="wrap">
     <p class="eyebrow">Data sources</p>
-    <h2>35+ databases, out of the box</h2>
-    <p class="sub">Each one is a small plugin over the vendor's own driver, so connections behave the way the vendor intended.</p>
-    <div class="chips">
-      <span class="chip">PostgreSQL</span><span class="chip">MySQL</span><span class="chip">BigQuery</span>
-      <span class="chip">Snowflake</span><span class="chip">Databricks</span><span class="chip">Redshift</span>
-      <span class="chip">Athena</span><span class="chip">ClickHouse</span><span class="chip">DuckDB</span>
-      <span class="chip">MongoDB</span><span class="chip">Elasticsearch</span><span class="chip">SQL Server</span>
-      <span class="chip">Oracle</span><span class="chip">Trino</span><span class="chip">Presto</span>
-      <span class="chip">Cassandra</span><span class="chip">Druid</span><span class="chip">SQLite</span>
-      <span class="chip">Google Sheets</span><span class="chip">Prometheus</span><span class="chip">InfluxDB</span>
-      <span class="chip more">and more</span>
+    <h2>More than 60 data sources.</h2>
+    <p class="sub">Each is a small plugin over the vendor&rsquo;s own driver, so a connection behaves the way
+       the vendor intended. The count is of products, not ways in: MySQL on RDS or four flavours of
+       Elasticsearch count once, and files and URLs not at all. <code>manage ds list_types</code> lists every
+       connector your install has.</p>
+
+    <div class="sources reveal">
+      <div class="source-group">
+        <h3>Warehouses and lakes</h3>
+        <ul>
+          <li data-type="bigquery">BigQuery</li><li data-type="snowflake">Snowflake</li><li data-type="redshift">Redshift</li>
+          <li data-type="athena">Amazon Athena</li><li data-type="databricks" data-amd64>Databricks</li>
+          <li data-type="clickhouse">ClickHouse</li><li data-type="trino">Trino</li><li data-type="presto">Presto</li>
+          <li data-type="hive">Hive</li><li data-type="impala">Impala</li><li data-type="druid">Druid</li>
+          <li data-type="pinot">Pinot</li><li data-type="vertica">Vertica</li><li data-type="exasol">Exasol</li>
+          <li data-type="nz">Netezza</li><li data-type="azure_kusto">Azure Data Explorer</li>
+          <li data-type="treasuredata">Treasure Data</li><li data-type="databend">Databend</li>
+          <li data-type="drill">Apache Drill</li><li data-type="kylin">Kylin</li><li data-type="e6data">e6data</li>
+          <li data-type="risingwave">RisingWave</li><li data-type="tinybird">Tinybird</li>
+        </ul>
+      </div>
+      <div class="source-group">
+        <h3>Relational</h3>
+        <ul>
+          <li data-type="pg">PostgreSQL</li><li data-type="mysql">MySQL</li><li data-type="mariadb">MariaDB</li>
+          <li data-type="rds_mysql">MySQL on Amazon RDS</li><li data-type="mssql">SQL Server</li>
+          <li data-type="mssql_odbc" data-amd64>SQL Server over ODBC</li><li data-type="oracle">Oracle</li>
+          <li data-type="cockroach">CockroachDB</li><li data-type="memsql">MemSQL</li><li data-type="sqlite">SQLite</li>
+          <li data-type="d1">Cloudflare D1</li><li data-type="ignite">Apache Ignite</li><li data-type="phoenix">Phoenix</li>
+        </ul>
+      </div>
+      <div class="source-group">
+        <h3>Files and sheets</h3>
+        <ul>
+          <li data-type="duckdb">File upload, on DuckDB</li><li data-type="csv">CSV</li><li data-type="excel">Excel</li>
+          <li data-type="json">JSON</li><li data-type="url">A URL</li><li data-type="google_spreadsheets">Google Sheets</li>
+          <li data-type="yandex_disk">Yandex Disk</li><li data-type="results">Other queries&rsquo; results</li>
+        </ul>
+      </div>
+      <div class="source-group">
+        <h3>Search and documents</h3>
+        <ul>
+          <li data-type="elasticsearch">Elasticsearch</li><li data-type="aws_es">Amazon Elasticsearch Service</li>
+          <li data-type="kibana">Kibana</li><li data-type="mongodb">MongoDB</li><li data-type="couchbase">Couchbase</li>
+          <li data-type="Cassandra">Cassandra</li><li data-type="scylla">ScyllaDB</li><li data-type="arangodb">ArangoDB</li>
+          <li data-type="dgraph">Dgraph</li><li data-type="sparql_endpoint">SPARQL endpoints</li>
+          <li data-type="corporate_memory">eccenca Corporate Memory</li>
+        </ul>
+      </div>
+      <div class="source-group">
+        <h3>Metrics and logs</h3>
+        <ul>
+          <li data-type="prometheus">Prometheus</li><li data-type="mimir">Grafana Mimir</li><li data-type="influxdb">InfluxDB</li>
+          <li data-type="influxdbv2">InfluxDB 2</li><li data-type="graphite">Graphite</li>
+          <li data-type="cloudwatch">Amazon CloudWatch</li><li data-type="cloudwatch_insights">CloudWatch Logs Insights</li>
+          <li data-type="axibasetsd">Axibase</li><li data-type="uptycs">Uptycs</li>
+        </ul>
+      </div>
+      <div class="source-group">
+        <h3>Streams, apps and APIs</h3>
+        <ul>
+          <li data-type="kafka_stream">Kafka</li><li data-type="google_analytics4">Google Analytics 4</li>
+          <li data-type="google_analytics">Google Analytics</li><li data-type="google_search_console">Google Search Console</li>
+          <li data-type="salesforce">Salesforce</li><li data-type="jirajql">Jira</li>
+          <li data-type="yandex_metrika">Yandex Metrica</li><li data-type="yandex_appmetrika">Yandex AppMetrica</li>
+        </ul>
+      </div>
     </div>
+    <p class="caption">* In the amd64 image only: their ODBC drivers are published for x86-64 alone.</p>
   </div>
 </section>
 
@@ -626,6 +682,11 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
        everything is one nobody can describe.</p>
 
     <div class="two">
+      <div class="card">
+        <div class="card-h"><h3>0.8 &mdash; Notebooks</h3><span class="badge">Latest</span></div>
+        <p>Chains of SQL and Python cells over the data sources you already have, six new chart types,
+           and query pools that keep fifty widgets from opening fifty connections.</p>
+      </div>
       <div class="card">
         <h3>0.7 &mdash; Kafka Streams</h3>
         <p>Topics you can query and chart, dashboard folders with a stated meaning, OAuth 2.1 for
@@ -640,11 +701,6 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
         <h3>0.5 &mdash; Interface</h3>
         <p>The application got out of the way of the charts, and stopped fetching the same result
            once per widget.</p>
-      </div>
-      <div class="card">
-        <h3>Next &mdash; 0.8 Notebooks</h3>
-        <p>Steps that build on each other, in SQL and Python. A cost model before the query runs,
-           and an MCP that asks before it spends.</p>
       </div>
     </div>
     <p style="margin-top:20px"><a href="releases.html">Every release, in order &rarr;</a></p>
@@ -663,7 +719,8 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
       <li><strong>Not infrastructure monitoring.</strong> It queries Prometheus and Mimir, but not
           at second resolution.</li>
       <li><strong>Not a streaming engine.</strong> A bounded window, kept in DuckDB and rolled up.</li>
-      <li><strong>Not a notebook.</strong> That is 0.8.</li>
+      <li><strong>Not a place to run arbitrary Python.</strong> A notebook&rsquo;s Python cells compute on
+          the cells above them, in an interpreter with no credentials.</li>
     </ul>
   </div>
 </section>
@@ -671,7 +728,7 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 <section id="architecture">
   <div class="wrap">
     <p class="eyebrow">Under the hood</p>
-    <h2>Boring where it counts</h2>
+    <h2>Boring where it counts.</h2>
     <div class="two">
       <div class="card">
         <h3>Backend</h3>
@@ -686,12 +743,12 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
       <div class="card">
         <h3>Storage</h3>
         <p>Postgres holds queries, dashboards, users and cached results. Redis handles job queues, locks and
-        schema caching. DuckDB backs file upload and local analytics.</p>
+        schema caching. DuckDB backs file upload, stream windows and the handoff between notebook cells.</p>
       </div>
       <div class="card">
         <h3>Deployment</h3>
-        <p>Docker Compose for a single box, or the Helm chart in <code>charts/sqldesk</code> for Kubernetes. No
-        managed service required and no license server to call.</p>
+        <p>Docker Compose for a single box, or the Helm chart in <code>charts/sqldesk</code> for Kubernetes.
+        Notebook Python runs in a container of its own, off by default. No license server to call.</p>
       </div>
     </div>
   </div>
@@ -705,14 +762,14 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
         <ul>
           <li><a href="https://github.com/bot-netizen/sqldesk">Source on GitHub</a></li>
           <li><a href="https://github.com/bot-netizen/sqldesk/issues">Issues</a></li>
-          <li><a href="https://github.com/bot-netizen/sqldesk/releases">Releases</a></li>
+          <li><a href="releases.html">Releases</a></li>
         </ul>
       </div>
       <div>
         <h4>Getting started</h4>
         <ul>
           <li><a href="#start">Quick start</a></li>
-          <li><a href="https://github.com/bot-netizen/sqldesk/blob/main/README.md">README</a></li>
+          <li><a href="guide/overview.html">The guide</a></li>
           <li><a href="https://github.com/bot-netizen/sqldesk/blob/main/.github/CONTRIBUTING.md">Contributing</a></li>
         </ul>
       </div>
@@ -741,19 +798,42 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
   </div>
 </footer>
 
-
 <script>
 /*
- * Three small things, all optional: the page is complete without any of them.
+ * Small things, all optional: the page is complete without any of them.
+ *   - the tour becomes tabs;
  *   - sections arrive as they are scrolled to;
- *   - the exchange types itself once, when it is first seen;
- *   - the live window ticks while it is on screen and the tab is in front.
+ *   - the agent's exchange types itself once, when it is first seen;
+ *   - the commands get a Copy button.
  * Anybody who asked for reduced motion gets the finished state immediately.
  */
 (function () {
   var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  /* Sections arrive. */
+  /* The tour, as tabs. Arrow keys move between them, as a tab list's should. */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll("#tour [role=tab]"));
+  function select(tab, focus) {
+    tabs.forEach(function (t) {
+      var on = t === tab;
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+    });
+    if (focus) tab.focus();
+  }
+  tabs.forEach(function (tab, i) {
+    tab.addEventListener("click", function () { select(tab, false); });
+    tab.addEventListener("keydown", function (e) {
+      var to = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : null;
+      if (to === null) return;
+      e.preventDefault();
+      select(tabs[(to + tabs.length) % tabs.length], true);
+    });
+  });
+  if (tabs.length) select(tabs[0], false);
+
+  /* Sections arrive -- a little before they reach the screen, so a fast scroll
+     never passes a screen of empty page. */
   var reveals = document.querySelectorAll(".reveal");
   if (still || !("IntersectionObserver" in window)) {
     reveals.forEach(function (el) { el.classList.add("in"); });
@@ -762,45 +842,22 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
       entries.forEach(function (e) {
         if (e.isIntersecting) { e.target.classList.add("in"); seen.unobserve(e.target); }
       });
-    }, { rootMargin: "0px 0px -8% 0px" });
+    }, { rootMargin: "0px 0px 15% 0px" });
     reveals.forEach(function (el) { seen.observe(el); });
   }
 
-  /* The exchange types itself, once. */
+  /* The exchange types itself, once, the first time it is on screen. */
   var exchange = document.getElementById("exchange");
   if (exchange && !still && "IntersectionObserver" in window) {
     var typed = exchange.querySelector("[data-type]");
     var steps = exchange.querySelectorAll(".step");
     var question = typed.textContent;
+    var played = false;
     typed.textContent = "> ";
     steps.forEach(function (s) { s.style.opacity = "0"; });
-
-    /* Whatever happens, the transcript ends up readable. The guard used to be
-       a flat three-second timer, which fired whether or not anybody had
-       reached the transcript -- so a reader who took longer than that to
-       scroll down, which is most of them, arrived to a finished transcript
-       and never saw it type. This watches instead: if the thing is on screen
-       and the observer has still not fired, the observer is the broken part
-       and the text goes back. Off screen, it waits as long as it takes. */
-    var played = false;
-    var finish = function () {
-      typed.textContent = question;
-      steps.forEach(function (s) { s.style.opacity = "1"; });
-    };
-    var safety = setInterval(function () {
-      if (played) { clearInterval(safety); return; }
-      var box = exchange.getBoundingClientRect();
-      if (box.top < window.innerHeight && box.bottom > 0) {
-        played = true;
-        clearInterval(safety);
-        finish();
-      }
-    }, 2500);
-
     var once = new IntersectionObserver(function (entries) {
       if (!entries[0].isIntersecting || played) return;
       played = true;
-      clearInterval(safety);
       once.disconnect();
       var i = 2;
       (function letter() {
@@ -811,70 +868,16 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
         }
         steps.forEach(function (s, n) {
           setTimeout(function () {
-            s.style.transition = "opacity .45s ease";
+            s.style.transition = "opacity .4s ease";
             s.style.opacity = "1";
-          }, 260 + n * 420);
+          }, 220 + n * 380);
         });
       })();
     }, { threshold: 0.35 });
     once.observe(exchange);
   }
 
-  /* The live window. Numbers are a demonstration, and say so in the markup. */
-  var live = document.getElementById("live");
-  if (live) {
-    var group = live.querySelector("[data-live-bars]");
-    var count = live.querySelector("[data-live-n]");
-    var W = 320, H = 120, N = 28, gap = 2, w = (W - gap * (N - 1)) / N;
-    var data = [], bars = [];
-    for (var i = 0; i < N; i++) data.push(28 + Math.random() * 46);
-
-    for (var j = 0; j < N; j++) {
-      var r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      r.setAttribute("x", (j * (w + gap)).toFixed(2));
-      r.setAttribute("width", w.toFixed(2));
-      r.setAttribute("rx", "1.5");
-      group.appendChild(r);
-      bars.push(r);
-    }
-
-    var draw = function () {
-      for (var k = 0; k < N; k++) {
-        var h = Math.max(3, data[k]);
-        bars[k].setAttribute("y", (H - h).toFixed(2));
-        bars[k].setAttribute("height", h.toFixed(2));
-        bars[k].classList.toggle("now", k === N - 1);
-      }
-      count.textContent = Math.round(data[N - 1] * 1.7) + "/min";
-    };
-    draw();
-
-    var timer = null;
-    var tick = function () {
-      var last = data[data.length - 1];
-      var next = last + (Math.random() - 0.48) * 22;
-      if (next < 14) next = 14 + Math.random() * 8;
-      if (next > 96) next = 96 - Math.random() * 10;
-      data.push(next);
-      data.shift();
-      draw();
-    };
-    var start = function () { if (!timer && !still) timer = setInterval(tick, 1100); };
-    var stop = function () { clearInterval(timer); timer = null; };
-
-    if ("IntersectionObserver" in window) {
-      new IntersectionObserver(function (entries) {
-        entries[0].isIntersecting && !document.hidden ? start() : stop();
-      }, { threshold: 0.2 }).observe(live);
-    } else {
-      start();
-    }
-    document.addEventListener("visibilitychange", function () {
-      document.hidden ? stop() : start();
-    });
-  }
-
-  /* Copy, on anything that is a command. */
+  /* Copy, on the commands -- just the commands, not the comments or the prompt. */
   document.querySelectorAll("#start .term").forEach(function (block) {
     var pre = block.querySelector("pre");
     if (!pre || !navigator.clipboard) return;
@@ -883,7 +886,11 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
     button.type = "button";
     button.textContent = "Copy";
     button.addEventListener("click", function () {
-      navigator.clipboard.writeText(pre.innerText.trim()).then(function () {
+      var commands = pre.innerText.split("\n")
+        .filter(function (line) { return /^\$ /.test(line); })
+        .map(function (line) { return line.slice(2); })
+        .join("\n");
+      navigator.clipboard.writeText(commands).then(function () {
         button.textContent = "Copied";
         button.setAttribute("data-done", "");
         setTimeout(function () {
@@ -897,5 +904,6 @@ footer a:hover{color:var(--accent-ink);text-decoration:underline}
 })();
 </script>
 <script src="assets/theme.js" defer></script>
+<script src="assets/search.js" defer></script>
 </body>
 </html>

@@ -108,6 +108,36 @@ function prepareSimpleData(sortedData: any, options: any) {
   return data;
 }
 
+/**
+ * Why there is no cohort to draw, in words, or null when there is one.
+ *
+ * The renderer used to return nothing at all for a result without the
+ * columns it was told to read -- and its defaults are `date` and
+ * `day_number`, which most cohort queries do not happen to call them. So a
+ * cohort over a perfectly good query was a blank white box, with no sign of
+ * which setting to change. Found on the demo's own cohort, which named its
+ * columns `cohort_date` and `week_number` and was blank on the dashboard
+ * built to show every visualization working.
+ */
+export function whatIsMissing(rawData: any, options: any): string | null {
+  const columnNames = _.map(rawData.columns, (c) => c.name);
+  const wanted: [string, string][] = [
+    ["date", options.dateColumn],
+    ["stage", options.stageColumn],
+    ["cohort size", options.totalColumn],
+    ["value", options.valueColumn],
+  ];
+  const missing = wanted.filter(([, column]) => !_.includes(columnNames, column));
+  if (missing.length) {
+    const named = missing.map(([role, column]) => `the ${role} column “${column}”`).join(", ");
+    return `This result has no ${named}. Choose the columns in the editor, under Columns.`;
+  }
+  if (!rawData.rows.length) {
+    return "There are no rows to draw a cohort from.";
+  }
+  return null;
+}
+
 function isDataValid(rawData: any, options: any) {
   const columnNames = _.map(rawData.columns, (c) => c.name);
   return (

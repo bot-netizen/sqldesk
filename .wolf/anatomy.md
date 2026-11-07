@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-06T17:33:20.662Z
-> Files: 732 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-06T22:41:30.607Z
+> Files: 735 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -858,8 +858,13 @@
 
 - `_card.html` — card (~748 tok)
 - `_mark-options.html` — Mark options — SQLDesk (~2902 tok)
-- `index.html` — SQLDesk (~11672 tok)
+- `index.html` — SQLDesk (~12911 tok)
 - `releases.html` — Releases — SQLDesk (~7526 tok)
+
+## docs/assets/
+
+- `search.css` — Styles: 26 rules (~1054 tok)
+- `search.js` — load: escape, mark, snippet + 5 more (~2728 tok)
 
 ## docs/guide/
 
@@ -874,6 +879,7 @@
 ## docs/tools/
 
 - `chrome.py` — site_nav, rewrite_topbar_nav, nav, neighbours (~2628 tok)
+- `search.py` — text, sections, build, main (~1147 tok)
 
 ## examples/
 

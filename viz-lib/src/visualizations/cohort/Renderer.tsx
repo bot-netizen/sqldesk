@@ -1,7 +1,8 @@
 import React, { useMemo } from "react";
 import { RendererPropTypes } from "@/visualizations/prop-types";
 
-import prepareData from "./prepareData";
+import Problem from "../shared/components/Problem";
+import prepareData, { whatIsMissing } from "./prepareData";
 import "./renderer.less";
 
 import Cornelius from "./Cornelius";
@@ -30,6 +31,10 @@ export default function Renderer({ data, options }: any) {
     [options, initialDate]
   );
 
+  const problem = useMemo(() => whatIsMissing(data, options), [data, options]);
+  if (problem) {
+    return <Problem>{problem}</Problem>;
+  }
   if (cohortData.length === 0) {
     return null;
   }

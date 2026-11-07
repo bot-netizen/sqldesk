@@ -1,7 +1,9 @@
 .status-grid {
   list-style: none;
   margin: 0;
-  padding: 4px;
+  // The same clear space as the other visualizations' margins; at 4px the
+  // tiles sat against the widget's edge.
+  padding: 8px;
   display: grid;
   gap: 8px;
   grid-template-columns: repeat(auto-fill, minmax(var(--tile-min, 170px), 1fr));

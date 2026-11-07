@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-06T17:33:20.662Z",
-    "fileCount": 732,
+    "lastScanned": "2026-11-06T22:41:30.607Z",
+    "fileCount": 735,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "a2d46d207ce1dc583c2d577735b68f8896abdf8c9df1a44ab04d76b992d90fdd",
-    "storeUpdatedAt": "2026-11-06T17:33:20.682Z",
-    "rootHash": "a458d597780c1635"
+    "renderedHash": "b3c43828ee3817b4e69949df9a2e1e479066fa42b87fedaed2905511bcc2a572",
+    "storeUpdatedAt": "2026-11-06T22:41:30.639Z",
+    "rootHash": "cb8edb2e7e65ee14"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -14450,11 +14450,11 @@
     },
     "docs/index.html": {
       "description": "SQLDesk",
-      "tokens": 11672,
-      "hash": "7467039e2e8839a2",
-      "size": 43781,
-      "mtimeMs": 1793059625628.5034,
-      "updatedAt": "2026-10-27T00:07:05.792Z",
+      "tokens": 12911,
+      "hash": "82f5ac598104982e",
+      "size": 48417,
+      "mtimeMs": 1794004890332.685,
+      "updatedAt": "2026-11-06T22:41:30.606Z",
       "source": "hook"
     },
     "blog/an-agent-that-knows-who-wrote-it.md": {
@@ -19180,6 +19180,70 @@
           "tokens": 1950
         }
       ]
+    },
+    "docs/tools/search.py": {
+      "description": "text, sections, build, main",
+      "tokens": 1147,
+      "hash": "eaf688b158cf0280",
+      "size": 4012,
+      "mtimeMs": 1794004402265.3347,
+      "updatedAt": "2026-11-06T22:33:22.539Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "text",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 43,
+          "tokens": 54
+        },
+        {
+          "name": "_between",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 51,
+          "tokens": 69
+        },
+        {
+          "name": "sections",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 74,
+          "tokens": 240
+        },
+        {
+          "name": "build",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 102,
+          "tokens": 359
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 103,
+          "endLine": 112,
+          "tokens": 81
+        }
+      ]
+    },
+    "docs/assets/search.js": {
+      "description": "load: escape, mark, snippet + 5 more",
+      "tokens": 2728,
+      "hash": "80050e72a3c747d0",
+      "size": 9567,
+      "mtimeMs": 1794004450365.0117,
+      "updatedAt": "2026-11-06T22:34:10.606Z",
+      "source": "hook"
+    },
+    "docs/assets/search.css": {
+      "description": "Styles: 26 rules",
+      "tokens": 1054,
+      "hash": "56ae95d9818672de",
+      "size": 3689,
+      "mtimeMs": 1794004466238.8142,
+      "updatedAt": "2026-11-06T22:34:26.442Z",
+      "source": "hook"
     }
   },
   "preamble": [

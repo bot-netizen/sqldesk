@@ -474,11 +474,18 @@ def flush_once(stream, store, messages, now=None, decoder=None):
     stream.rows = store.rows()
     stream.malformed = (stream.malformed or 0) + malformed
     stream.last_flush_at = now
-    if not stream.columns:
+    learned = not stream.columns
+    if learned:
         stream.columns = [{"name": name, "type": kind} for name, kind in store.columns()]
 
     models.db.session.add(stream)
     models.db.session.commit()
+
+    # The topic has a shape now. The schema browser cached the empty one it
+    # saw when the topic was turned on, and showed nothing under the cluster
+    # until somebody thought to press refresh.
+    if learned and stream.columns:
+        stream.data_source.forget_cached_schema()
 
     return Flush(received=len(messages), kept=len(kept), stored=stored, malformed=malformed, sampled_at=rate)
 

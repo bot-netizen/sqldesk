@@ -21,6 +21,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/search.css">
 <script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
@@ -39,11 +40,16 @@
       SQLDesk
     </a>
     <nav>
-      <a href="../index.html">Overview</a>
+      <a href="../index.html" class="hide-sm">Overview</a>
       <a href="../guide/overview.html" aria-current="page">Docs</a>
       <a href="../blog/index.html">Blog</a>
       <a href="../releases.html">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+      <button class="search-open" type="button" data-search-open aria-label="Search the docs">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="m10.4 10.4 3.4 3.4"/></svg>
+        <span class="search-open-label">Search</span><kbd class="search-key" data-search-key>/</kbd>
+      </button>
       <button class="theme-toggle" type="button" data-theme-toggle
               aria-label="Switch to dark mode" title="Switch to dark mode">
         <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -60,7 +66,7 @@
   </div>
 </header>
 
-<div class="wrap doc-layout">
+<div class="wrap doc-layout has-toc">
   <nav class="doc-nav" aria-label="Documentation">
       <h4>Start here</h4>
       <a href="overview.html">Overview</a>
@@ -87,7 +93,7 @@
 <p>A visualization belongs to a query and draws its rows. One query can have many, and they all show the
 same data — so fixing the SQL fixes every one of them.</p>
 
-<h2>Choosing one</h2>
+<h2 id="choosing-one">Choosing one</h2>
 <table>
   <tr><th>You want to show</th><th>Use</th></tr>
   <tr><td>Rows, as rows</td><td>Table — with per-column formatting, colouring and data bars</td></tr>
@@ -277,12 +283,22 @@ the exception: an order with no total is still an order.</p>
 <p>Offered on column, line and area charts. A scatter or bubble chart is a point cloud and keeps every
 row, so collapsing it would be the bug rather than the feature.</p>
 
-<h2>Dates and times</h2>
+<h2 id="dates-and-times">Dates and times</h2>
 <p>Times are stored as the warehouse returned them and displayed in the organization's configured format.
 If a chart's x axis looks wrong by exactly some number of hours, the column is almost certainly a
 timestamp without a time zone — the fix belongs in the SQL, where the intent is known.</p>
 <div class="doc-next"><a class="btn btn-ghost" href="queries.html">&larr; Queries and parameters</a><a class="btn btn-primary" href="dashboards.html">Dashboards and textboxes &rarr;</a></div>
   </main>
+  <nav class="doc-toc" aria-label="On this page">
+    <h4>On this page</h4>
+    <a href="#choosing-one">Choosing one</a>
+    <a href="#links">Turning a point or a cell into a link</a>
+    <a href="#numbers">Formatting numbers</a>
+    <a href="#by-value">Colouring by the value itself</a>
+    <a href="#panels">Stacked panels: several plots, one clock</a>
+    <a href="#rollup">When several rows share an x</a>
+    <a href="#dates-and-times">Dates and times</a>
+  </nav>
 </div>
 
 <footer>
@@ -295,5 +311,6 @@ timestamp without a time zone — the fix belongs in the SQL, where the intent i
 </footer>
 
 <script src="../assets/theme.js" defer></script>
+<script src="../assets/search.js" defer></script>
 </body>
 </html>

@@ -21,6 +21,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/search.css">
 <script>document.documentElement.classList.add("js");try{var t=localStorage.getItem("sqldesk-theme");if(t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
@@ -39,11 +40,16 @@
       SQLDesk
     </a>
     <nav>
-      <a href="../index.html">Overview</a>
+      <a href="../index.html" class="hide-sm">Overview</a>
       <a href="../guide/overview.html" aria-current="page">Docs</a>
       <a href="../blog/index.html">Blog</a>
       <a href="../releases.html">Releases</a>
       <a href="https://github.com/bot-netizen/sqldesk">GitHub</a>
+      <button class="search-open" type="button" data-search-open aria-label="Search the docs">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="m10.4 10.4 3.4 3.4"/></svg>
+        <span class="search-open-label">Search</span><kbd class="search-key" data-search-key>/</kbd>
+      </button>
       <button class="theme-toggle" type="button" data-theme-toggle
               aria-label="Switch to dark mode" title="Switch to dark mode">
         <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -60,7 +66,7 @@
   </div>
 </header>
 
-<div class="wrap doc-layout">
+<div class="wrap doc-layout has-toc">
   <nav class="doc-nav" aria-label="Documentation">
       <h4>Start here</h4>
       <a href="overview.html">Overview</a>
@@ -236,7 +242,7 @@ when it runs SQL. Running SQL, <code>EXPLAIN</code> included, needs <em>full</em
 the same as the query editor: a user in a view-only group can look things up but not ask new questions. There is no service account and no way to configure one, which is deliberate:
 a tool server with more access than its user is a way to launder permissions.</p>
 
-<h3 id="cost">A ceiling on what a query may cost</h3>
+<h3 id="cost-ceiling">A ceiling on what a query may cost</h3>
 <p>A model exploring a warehouse writes queries nobody reviewed. Most are cheap; the expensive ones are
 expensive in a way that shows up on a bill or on somebody else&rsquo;s dashboard, and by the time either
 happens the model has moved on. So <code>run_query</code> can be given a limit, and the estimate it is
@@ -501,6 +507,20 @@ profile (see <a href="deploying.html#mcp-catalog">Deploying</a>). Either way the
 </ul>
 <div class="doc-next"><a class="btn btn-ghost" href="alerts.html">&larr; Alerts</a><a class="btn btn-primary" href="administration.html">Administration &rarr;</a></div>
   </main>
+  <nav class="doc-toc" aria-label="On this page">
+    <h4>On this page</h4>
+    <a href="#enabling">Turning it on</a>
+    <a href="#catalog">Filling the catalog</a>
+    <a href="#semantic">Keeping meaning in git</a>
+    <a href="#measures">Where measures come from</a>
+    <a href="#connecting">Connecting a client</a>
+    <a href="#tools">The tools</a>
+    <a href="#example">A question, end to end</a>
+    <a href="#page">Finding the page</a>
+    <a href="#audit">The audit</a>
+    <a href="#cost">What it costs your warehouse</a>
+    <a href="#troubleshooting">If a client cannot connect</a>
+  </nav>
 </div>
 
 <footer>
@@ -513,5 +533,6 @@ profile (see <a href="deploying.html#mcp-catalog">Deploying</a>). Either way the
 </footer>
 
 <script src="../assets/theme.js" defer></script>
+<script src="../assets/search.js" defer></script>
 </body>
 </html>
