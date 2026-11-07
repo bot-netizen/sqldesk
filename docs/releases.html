@@ -251,7 +251,7 @@ footer a{color:var(--muted)}
   </div>
 </header>
 <div class="wrap head">
-  <span class="eyebrow">Releases &middot; updated 6 November 2026</span>
+  <span class="eyebrow">Releases &middot; updated 7 November 2026</span>
   <h1>One release, one idea.</h1>
   <p class="lede">
     SQLDesk is rebuilt a layer at a time. Each release has a single theme, and the theme is the
@@ -313,10 +313,12 @@ footer a{color:var(--muted)}
     <div class="items">
       <div class="item">
         <div class="item-h"><h3 id="v0-8-1">0.8.1 &mdash; What the pictures found</h3><span class="st st-shipped">Shipped</span></div>
-        <p class="sub">6 November 2026</p>
+        <p class="sub">7 November 2026</p>
         <ul class="points">
           <li>A new front page, built around screenshots of SQLDesk itself running its demo, and search across the guide, the releases and the blog &mdash; press <kbd>/</kbd> on any page.</li>
           <li>Taking those screenshots found four faults, all fixed: stacked bars on a time axis sat on the wrong bar wherever a series skipped a point; a Kafka cluster&rsquo;s schema browser stayed empty after its topic had columns; a streaming query said &ldquo;Query in queue&rdquo; while it streamed; and a notebook&rsquo;s table printed <code>91965.68000000001</code>.</li>
+          <li>A time axis labels every tick at least as finely as the ticks are spaced. Three minutes of a stream had read &ldquo;23:24&rdquo; under four of them.</li>
+          <li>Every visualization was measured for where it draws in its box. The treemap ran off the right of its widget, the cohort was a blank box when its columns had other names, a details card was clipped to 7px, the calendar sat in a corner, and five more drew against an edge &mdash; all fixed.</li>
           <li>The tooltip on a chart with many lines marks the row for the line under the cursor, in that line&rsquo;s colour.</li>
           <li>The demo dashboard draws all 27 kinds of visualization; five were built and never laid out.</li>
         </ul>

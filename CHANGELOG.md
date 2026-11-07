@@ -1,5 +1,120 @@
 # Changelog
 
+## 0.8.1
+
+What the pictures found. The website was rebuilt around screenshots of
+SQLDesk itself running its own demo, and taking them turned up faults a
+green suite had not. Then every visualization was measured the same way,
+which turned up more. Each is fixed, with a test that fails without the
+fix.
+
+### Charts and notebooks
+
+**Stacked bars on a time axis sat on the wrong bar.** ECharts stacks series
+by array position, not by x. On a category axis every series is written
+against the one category list, so it never showed; on a time or value axis
+each series carried only the points it had, and the first series to skip an
+x shifted every later point of every series above it onto the neighbouring
+bar -- floating over a gap, or overlapping the bar below. A stream is the
+ordinary case: orders by region in ten-second buckets, and a quiet region in
+one of them. Stacked series on those axes are now written against the same
+sorted x values, null where a series has nothing, exactly as a category axis
+does.
+
+**A notebook's table printed `91965.68000000001`.** It wrote every value with
+`String()`, so a sum added up in floating point printed every digit of its
+error, and a revenue of 132212.86 had no thousands separator beside a query
+table that says 132,212.86. Integer and float columns now use the
+organization's number formats, the ones every query table uses, and sit
+right-aligned.
+
+**A time axis labelled four ticks "23:24".** Labels took their precision
+from the chart's span and ticks their spacing from the span divided by
+thirteen, and nothing held the two together: three minutes ticked every
+fifteen seconds under minute labels, a four-day chart read "6 Nov" four
+times, half-yearly ticks read every year twice. A label is now at least as
+fine as the step between ticks; a test walks two dozen spans from seconds
+to years and reads neighbouring labels.
+
+**The tooltip on a chart with many lines marks the line under the cursor.**
+The cursor already lifted the line out of the plot; the tooltip beside it
+listed every series in the same weight. The row for the hovered series is
+now bold, on a band ruled in that series' colour -- for stacked charts too,
+where a band is not drawn at its own value.
+
+### Every visualization, measured
+
+Asked for after a treemap was reported running into its widget's corner:
+every widget on the demo dashboard and every visualization on its query
+page was screenshotted and the distance from each edge to the first drawn
+pixel measured.
+
+- **Treemap.** Laid out at x=20 and kept 100% wide, so it ran 20px off the
+  right and into the corner, over an empty strip kept for a breadcrumb on
+  a treemap with nothing to zoom into. Now inset evenly on every side; the
+  strip appears only when there is a breadcrumb.
+- **Cohort.** A blank box when its columns were named anything but its
+  defaults -- `date` and `day_number` -- with nothing to say which setting
+  to change. It now names the columns it cannot find and where to choose
+  them.
+- **Details.** Four rows by default is a hundred pixels, which a widget's
+  header and footer use up: the card was a 7px strip. It now sizes itself
+  to its fields, like a table.
+- **Counter.** Eight rows by default instead of six, which left the number
+  about 14px tall.
+- **Calendar.** Pinned to the top left, so a wide or tall widget had it in
+  a corner. Centred in the space its squares cannot fill, with its colour
+  key under it.
+- **Radar, word cloud, tree, streamgraph, status grid.** The top spoke's
+  name touched the edge; the cloud touched whichever edges limited it; the
+  tree kept 12% margins whatever its labels needed, leaving 164px of
+  nothing beside the root; the first time label hung half off the left;
+  the tiles sat 4px from the edge. Each now keeps clear of all four.
+
+### Streams
+
+**A Kafka cluster's schema browser stayed empty.** A topic has no columns
+until its consumer has read something, and the browser cached the empty
+list it saw on its first look -- so the cluster showed nothing under it
+while a chart of that topic filled up beside it. The flush that learns a
+stream's columns now drops the cached schema.
+
+**A streaming query said "Query in queue" while it streamed.** It re-runs
+every couple of seconds, so it is nearly always executing, and the corner
+under the results reported that like a warehouse query: a queue, a Cancel
+button and a timer counting up from Start streaming. For a stream it now
+reads like a result that keeps being replaced -- the rows, and when.
+
+### The demo
+
+**All 27 visualizations reach the demo dashboard.** Five were built by
+`manage demo seed` and never laid out, so the dashboard that exists to show
+every type showed 22.
+
+**And all 27 draw.** The demo's cohort now names its columns, so it is no
+longer a blank box, and its calendar covers the three months its data
+does rather than twelve, nine of them empty.
+
+### The website
+
+**A new front page, made of the application.** Every picture on it is a
+screenshot of SQLDesk running the demo; the transcript of an agent is the
+MCP server's own replies. The page it replaced said there were fifteen MCP
+tools when there are eighteen, called 0.8 "Next" after it shipped, listed
+Databricks as if every image had it, and drew its "live" chart from random
+numbers. The numbers and names on the page are now held to the code by
+tests.
+
+**Search, on every page.** A button in the bar, `/` or Cmd-K: every section
+of the guide, every release and every post, matched as you type.
+
+**A contents list on every guide page**, and an id on every section so a
+search result -- or anybody's link -- lands on it. Two guide pages used an id
+twice, so one link of each pair went to the wrong section.
+
+**The releases page caught up**: it stopped at 0.7.9 and still called 0.8
+"Next".
+
 ## 0.8.0
 
 Notebooks — the work a saved query cannot hold, where everything else here
