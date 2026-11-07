@@ -121,7 +121,8 @@
     "query": "Revenue by day",
     "options": {
       "dateColumn": "day",
-      "valueColumn": "orders"
+      "valueColumn": "orders",
+      "range": "3-months"
     },
     "columns": [
       {
@@ -521,7 +522,11 @@
     "name": "Retention by signup week",
     "query": "Cohort retention",
     "options": {
-      "timeInterval": "weekly"
+      "timeInterval": "weekly",
+      "dateColumn": "cohort_date",
+      "stageColumn": "week_number",
+      "totalColumn": "total",
+      "valueColumn": "value"
     },
     "columns": [
       {
