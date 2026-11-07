@@ -23,8 +23,13 @@ const MIN_SPOKES = 3;
 
 /** Room under the web for the legend, when there is one. */
 const LEGEND_HEIGHT = 26;
-/** Room outside the web for the spoke names. */
-const NAME_ROOM = 24;
+/**
+ * Room outside the web for the spoke names. A name sits 15px past its spoke
+ * (ECharts' nameGap) and is 11px tall; at 24 the top one touched the edge of
+ * the widget -- found auditing every visualization's margins on the demo
+ * dashboard.
+ */
+const NAME_ROOM = 34;
 
 /**
  * Where the web sits and how big it is, in pixels.

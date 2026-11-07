@@ -145,3 +145,54 @@ describe("the tree", () => {
     });
   });
 });
+
+describe("Visualizations -> Tree -> the space around it", () => {
+  /*
+    ECharts' default is 12% on every side whatever the labels need. Drawn left
+    to right that left a wide empty strip beside the root, whose name is empty,
+    and pressed the leaf names against the far edge -- 164px of nothing on one
+    side of the demo's tree, found auditing every visualization's margins.
+  */
+  const echarts = require("echarts"); // eslint-disable-line global-require
+  const WIDE = {
+    columns,
+    rows: [row("United Kingdom", "Paid search", 10), row("United Kingdom", "Referral", 5), row("Japan", "Email", 7)],
+  };
+
+  function drawn(overrides: any = {}) {
+    const built = buildOption(WIDE, options(overrides)) as any;
+    const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width: 1000, height: 300 });
+    try {
+      chart.setOption({ ...built.option, animation: false });
+      const data = chart.getModel().getSeriesByIndex(0).getData();
+      const xs: number[] = [];
+      for (let i = 0; i < data.count(); i += 1) {
+        const layout = data.tree.getNodeByDataIndex(i).getLayout();
+        if (layout) xs.push(layout.x);
+      }
+      return { series: built.option.series[0], xs };
+    } finally {
+      chart.dispose();
+    }
+  }
+
+  test("left to right, the root sits near its edge and the leaves leave room for their names", () => {
+    const { series, xs } = drawn();
+    expect(series.left).toBe(24);
+    // "Paid search" is the longest leaf: eleven characters.
+    expect(series.right).toBeGreaterThanOrEqual(11 * 6);
+    expect(Math.min(...xs)).toBeLessThanOrEqual(30);
+    expect(Math.max(...xs)).toBeLessThanOrEqual(1000 - series.right + 1);
+  });
+
+  test("top to bottom, the sides are even and the leaves keep room below", () => {
+    const { series } = drawn({ layout: "vertical" });
+    expect(series.left).toBe(series.right);
+    expect(series.bottom).toBeGreaterThan(series.top);
+  });
+
+  test("radial keeps even margins all round", () => {
+    const { series } = drawn({ layout: "radial" });
+    expect([series.left, series.right, series.top, series.bottom]).toEqual(["12%", "12%", "12%", "12%"]);
+  });
+});

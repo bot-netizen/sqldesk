@@ -146,7 +146,16 @@ export default function buildOption(data: any, rawOptions: StreamgraphOptions): 
       bottom: rawOptions.showLegend ? 46 : 20,
       left: 10,
       right: 10,
-      axisLabel: { hideOverlap: true, formatter: formatTime, ...(ticks.length ? { customValues: ticks } : {}) },
+      // The first and last labels sit inside the axis rather than centred on
+      // its ends: centred, half of the first date hung off the left of the
+      // widget -- found auditing every visualization's margins.
+      axisLabel: {
+        hideOverlap: true,
+        formatter: formatTime,
+        alignMinLabel: "left",
+        alignMaxLabel: "right",
+        ...(ticks.length ? { customValues: ticks } : {}),
+      },
       ...(ticks.length ? { axisTick: { show: true, customValues: ticks } } : {}),
       splitLine: { show: false },
     },

@@ -125,15 +125,39 @@ function prepareWords(rows: any, options: any) {
   });
 }
 
+/** Clear space kept between the cloud and every edge of its box. */
+export const FIT_MARGIN = 12;
+
+/**
+ * How much to scale a cloud of `cloud` size to sit inside `box`.
+ *
+ * Scaled to fit exactly, the cloud touched whichever edges limited it, and
+ * a rotated word's descenders ran past the box they were measured in --
+ * found auditing every visualization's margins on the demo dashboard, with
+ * "Filters" standing on the bottom edge of its widget. Fitting inside a
+ * margin keeps the cloud off all four.
+ */
+export function fitScale(
+  cloud: { width: number; height: number },
+  box: { width: number; height: number },
+  margin: number = FIT_MARGIN
+): number {
+  if (!(cloud.width > 0) || !(cloud.height > 0)) {
+    return 1;
+  }
+  const width = Math.max(1, box.width - 2 * margin);
+  const height = Math.max(1, box.height - 2 * margin);
+  return Math.min(width / cloud.width, height / cloud.height);
+}
+
 function scaleElement(node: any, container: any) {
   node.style.transform = null;
   const { width: nodeWidth, height: nodeHeight } = node.getBoundingClientRect();
   const { width: containerWidth, height: containerHeight } = container.getBoundingClientRect();
-
-  const scaleX = containerWidth / nodeWidth;
-  const scaleY = containerHeight / nodeHeight;
-
-  node.style.transform = `scale(${Math.min(scaleX, scaleY)})`;
+  node.style.transform = `scale(${fitScale(
+    { width: nodeWidth, height: nodeHeight },
+    { width: containerWidth, height: containerHeight }
+  )})`;
 }
 
 function createLayout() {

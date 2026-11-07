@@ -78,6 +78,49 @@ export function toEChartsTree(nodes: TreeNode[], initialDepth: number, label: (n
   }));
 }
 
+/** About how wide an 11px label is, per character, in the app's sans. */
+const LABEL_CHAR_WIDTH = 6.2;
+
+/** The longest label on a leaf showing at the initial depth, in characters. */
+export function longestShownLeaf(nodes: TreeNode[], initialDepth: number, label: (node: TreeNode) => string): number {
+  let longest = 0;
+  const walk = (list: TreeNode[]) =>
+    list.forEach((node) => {
+      if (!node.children || !node.children.length) {
+        longest = Math.max(longest, label(node).length);
+      } else if (node.depth < initialDepth) {
+        walk(node.children);
+      }
+      // A branch folded at the initial depth is drawn with its label on the
+      // root's side, like any branch, so it needs no room past the leaves.
+    });
+  walk(nodes);
+  return longest;
+}
+
+/**
+ * The space around the drawing, from what its labels need.
+ *
+ * ECharts' default is 12% on every side whatever the labels are. Drawn left to
+ * right that left a wide empty strip beside the root -- whose name is empty --
+ * and squeezed the leaf names against the far edge: 164px of nothing on one
+ * side of the demo's tree and its labels crowding the other, found auditing
+ * every visualization's margins on the demo dashboard. The leaves' side now
+ * gets the width of the longest leaf name, and the root's side a little.
+ */
+export function treeMargins(layout: string, leafChars: number) {
+  const leafRoom = Math.min(260, Math.round(leafChars * LABEL_CHAR_WIDTH) + 24);
+  if (layout === "vertical") {
+    const side = Math.min(130, Math.round(leafRoom / 2));
+    return { top: 28, bottom: 36, left: side, right: side };
+  }
+  if (layout === "radial") {
+    // Labels point outward in every direction; ECharts' even margins suit it.
+    return { top: "12%", bottom: "12%", left: "12%", right: "12%" };
+  }
+  return { top: 16, bottom: 16, left: 24, right: leafRoom };
+}
+
 export default function buildOption(data: any, rawOptions: TreeOptions): BuiltTreeChart {
   const problem = problemWith(data, rawOptions);
   if (problem) {
@@ -113,6 +156,7 @@ export default function buildOption(data: any, rawOptions: TreeOptions): BuiltTr
         data: [{ name: ROOT_NAME, children: toEChartsTree(built.nodes, rawOptions.initialDepth, label) }],
         layout: radial ? "radial" : "orthogonal",
         orient: vertical ? "TB" : "LR",
+        ...treeMargins(rawOptions.layout, longestShownLeaf(built.nodes, rawOptions.initialDepth, label)),
         roam: true,
         symbolSize: 8,
         initialTreeDepth: rawOptions.initialDepth,
@@ -140,7 +184,13 @@ export default function buildOption(data: any, rawOptions: TreeOptions): BuiltTr
 
   return {
     option,
-    signature: JSON.stringify([rawOptions.layout, rawOptions.initialDepth, rawOptions.showValues, built.nodes.length]),
+    signature: JSON.stringify([
+      rawOptions.layout,
+      rawOptions.initialDepth,
+      rawOptions.showValues,
+      built.nodes.length,
+      longestShownLeaf(built.nodes, rawOptions.initialDepth, label),
+    ]),
     problem: null,
   };
 }
