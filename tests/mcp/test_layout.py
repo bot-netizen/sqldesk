@@ -96,7 +96,11 @@ class TestWhereTheyGo(unittest.TestCase):
         places = layout.positions(["COUNTER"] * 4)
 
         self.assertEqual(0, places[3]["col"])
-        self.assertEqual(6, places[3]["row"], "it did not drop below the row it could not fit in")
+        # The height of a stat, read from the table rather than written here:
+        # it moved from six rows to eight in 0.8.1 and this went with it.
+        self.assertEqual(
+            layout.SIZES["COUNTER"][0], places[3]["row"], "it did not drop below the row it could not fit in"
+        )
 
     def test_a_row_drops_by_its_tallest_rather_than_by_the_last_one(self):
         """
