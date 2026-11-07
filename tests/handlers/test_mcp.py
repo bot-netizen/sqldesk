@@ -2328,9 +2328,15 @@ class TestDrawingAResultOverMcp(McpTestCase):
         placed = {widget.visualization_id: widget.options["position"] for widget in dashboard.widgets}  # noqa: B020
 
         # A stat is small and a table is tall; the old layout made them equal.
-        self.assertEqual(6, placed[first.id]["sizeY"])
-        self.assertEqual(28, placed[second.id]["sizeY"])
-        self.assertEqual(16, placed[third.id]["sizeY"])
+        # The heights are the table's, read from it rather than copied here --
+        # a stat moved from six rows to eight in 0.8.1.
+        from sqldesk.mcp.layout import SIZES
+
+        self.assertEqual(SIZES["COUNTER"][0], placed[first.id]["sizeY"])
+        self.assertEqual(SIZES["TABLE"][0], placed[second.id]["sizeY"])
+        self.assertEqual(SIZES["CHART"][0], placed[third.id]["sizeY"])
+        self.assertLess(placed[first.id]["sizeY"], placed[third.id]["sizeY"])
+        self.assertLess(placed[third.id]["sizeY"], placed[second.id]["sizeY"])
 
         # The stat and the table share the top row -- 8 columns and 12 fit in
         # 24 -- and the chart drops below the taller of them.
