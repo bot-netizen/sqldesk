@@ -285,3 +285,138 @@ class TestChangingAndStopping(SubscriptionTestCase):
 
         self.assertEqual(200, rv.status_code)
         self.assertEqual(1, len(rv.json))
+
+
+class SlackSubscriptionTestCase(SubscriptionTestCase):
+    def setUp(self):
+        super().setUp()
+        from tests.test_slack import FakeSlack
+
+        self.slack = FakeSlack()
+        patch = mock.patch("sqldesk.slack.requests.post", self.slack)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def installed(self):
+        db.session.add(
+            models.SlackWorkspace(org=self.factory.org, bot_token="xoxb-real", team_name="Acme", app_name="sqldesk")
+        )
+        db.session.commit()
+
+    def _channel(self, channel="C1", **overrides):
+        body = {"schedule": {"interval": 3600}, "slack_channel": channel}
+        body.update(overrides)
+        with _rendering_on():
+            return self._post(body)
+
+
+class TestSubscribingAChannel(SlackSubscriptionTestCase):
+    def test_a_channel_the_app_is_in_is_subscribed_every_hour(self):
+        self.installed()
+
+        rv = self._channel()
+
+        self.assertEqual(200, rv.status_code)
+        self.assertEqual("C1", rv.json["slack_channel"])
+        self.assertEqual("general", rv.json["slack_channel_name"])
+        self.assertEqual(3600, rv.json["schedule"]["interval"])
+        # Nobody to mail: the channel is who it goes to.
+        self.assertEqual([], rv.json["recipients"])
+
+    def test_a_channel_the_app_is_not_in_is_refused_and_says_how_to_fix_it(self):
+        self.installed()
+
+        rv = self._channel("C9")
+
+        self.assertEqual(400, rv.status_code)
+        self.assertIn("/invite", rv.json["message"])
+        self.assertEqual(0, models.DashboardSubscription.query.count())
+
+    def test_without_slack_set_up_it_says_what_to_do(self):
+        rv = self._channel()
+
+        self.assertEqual(400, rv.status_code)
+        self.assertIn("administrator", rv.json["message"])
+
+    def test_a_channel_is_always_sent_a_picture(self):
+        self.installed()
+
+        rv = self._channel(format="pdf")
+
+        self.assertEqual("png", rv.json["format"])
+
+    def test_and_cannot_be_changed_to_a_pdf_afterwards(self):
+        self.installed()
+        subscription_id = self._channel().json["id"]
+
+        with _rendering_on():
+            rv = self.make_request(
+                "post", "/api/subscriptions/{}".format(subscription_id), data={"format": "pdf"}, user=self.owner
+            )
+
+        self.assertEqual(400, rv.status_code)
+
+    def test_a_dashboard_too_big_is_refused_for_a_channel_too(self):
+        self.installed()
+        for _ in range(13):
+            visualization = self.factory.create_visualization()
+            self.factory.create_widget(dashboard=self.dashboard, visualization=visualization)
+        db.session.commit()
+
+        rv = self._channel()
+
+        self.assertEqual(400, rv.status_code)
+        self.assertIn("one-page report", rv.json["message"])
+
+    def test_the_dashboard_lists_it_by_the_channels_name(self):
+        self.installed()
+        self._channel()
+
+        with _rendering_on():
+            rv = self.make_request(
+                "get", "/api/dashboards/{}/subscriptions".format(self.dashboard.id), user=self.owner
+            )
+
+        self.assertEqual(["general"], [s["slack_channel_name"] for s in rv.json])
+
+
+class TestWhetherItCanBeSent(SubscriptionTestCase):
+    """Asked by the Send to Slack and subscription dialogs as they open."""
+
+    def _check(self, dashboard=None, user=None):
+        return self.make_request(
+            "get", "/api/dashboards/{}/sendable".format((dashboard or self.dashboard).id), user=user or self.owner
+        )
+
+    def test_a_small_dashboard_fits(self):
+        rv = self._check()
+
+        self.assertEqual(200, rv.status_code)
+        self.assertTrue(rv.json["fits"])
+        self.assertIsNone(rv.json["problem"])
+        self.assertEqual(12, rv.json["max_widgets"])
+
+    def test_a_big_one_says_how_many_widgets_to_remove(self):
+        for i in range(15):
+            visualization = self.factory.create_visualization()
+            self.factory.create_widget(
+                dashboard=self.dashboard,
+                visualization=visualization,
+                options={"position": {"row": 0, "col": i, "sizeX": 1, "sizeY": 4}},
+            )
+        db.session.commit()
+
+        rv = self._check()
+
+        self.assertFalse(rv.json["fits"])
+        self.assertEqual(15, rv.json["widgets"])
+        self.assertEqual(3, rv.json["remove"])
+        self.assertIn("has 15 widgets", rv.json["problem"])
+        self.assertIn("remove 3 widgets", rv.json["advice"])
+
+    def test_a_dashboard_somebody_cannot_see_is_not_found(self):
+        elsewhere = self.factory.create_org()
+        theirs = self.factory.create_dashboard(org=elsewhere)
+        db.session.commit()
+
+        self.assertEqual(404, self._check(dashboard=theirs).status_code)

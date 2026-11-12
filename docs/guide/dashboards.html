@@ -225,9 +225,15 @@ be disabled for the whole instance in settings.</p>
 
 <h2 id="subscriptions">Sending it on a schedule</h2>
 <p><strong>Share &rarr; Send on a schedule</strong> mails a dashboard to colleagues every hour, day or
-week, as a picture in the email or a PDF to print. It needs the renderer add-on and the
+week, as a picture in the email or a PDF to print &mdash; or, where Slack is connected, posts it to a
+<strong>Slack channel</strong> on the same schedule. It needs the renderer add-on and the
 <em>Send dashboards</em> permission; without a renderer the option is not offered, because there would be
 nothing to send.</p>
+<p>A channel is for a dashboard a team watches: pick <strong>A Slack channel</strong>, choose it from the
+channels the app is in, and a picture of the dashboard arrives there every hour, day or week, with an
+<strong>Open dashboard</strong> button and a line saying who set it up. A channel is always sent a
+picture. A channel the app has been removed from since is noted beside the subscription, and Settings
+&rarr; Slack shows the same error.</p>
 <p>Recipients are people in your organization, chosen by name — never typed addresses, which would be a
 way to mail a dashboard&rsquo;s contents anywhere. Each is checked against their own access to the
 dashboard, not yours: anyone who cannot see it is left off and named when you subscribe them, and checked
@@ -236,26 +242,33 @@ again before every send, so a subscription never outlives somebody&rsquo;s right
 queries a refresh schedule if you want the numbers current — refreshing everything before each send would
 be a warehouse bill nobody asked for.</p>
 <p>A dashboard has to fit on one page: up to twelve widgets, one page tall. Past that it arrives as
-something nobody opens, so it is refused when you subscribe and again if the dashboard grows afterwards —
-with the reason shown beside the subscription.</p>
+something nobody opens. The dialog says so <strong>as it opens</strong>, before you pick anybody, and says
+what to change: how many widgets to remove, or that it is too tall. <strong>Make a copy to trim</strong>
+opens a copy of the dashboard in a new tab, to cut down to the charts that matter and send instead. It is
+checked again before every send, because a dashboard grows after somebody subscribes to it, and the reason
+is shown beside the subscription.</p>
 <p>Every email carries an unsubscribe link of its own, and your mail client&rsquo;s own Unsubscribe button
 works too. Taking yourself off leaves everybody else on it.</p>
 
 <h2 id="slack">Sending it to Slack</h2>
-<p><strong>Share &rarr; Send to Slack</strong> posts a picture of the dashboard to a channel, with a line
+<p><strong>Share &rarr; Send to Slack now</strong> posts a picture of the dashboard to a channel, with a line
 of your own text and an <strong>Open dashboard</strong> button. It needs the same renderer and the same
 <em>Send dashboards</em> permission as a schedule, plus a Slack app connected by an administrator.</p>
 <p><strong>SQLDesk draws the picture and uploads it</strong> rather than letting Slack fetch a link, which
 is what makes this work on an install behind a VPN: Slack never has to reach in. A pasted link would
 unfurl into a bare URL and nothing else.</p>
-<p>The channel list comes from Slack, so you pick rather than type. A private channel appears once the app
-has been invited to it; one it has not been invited to cannot be posted to, so it is not offered.</p>
+<p>The channel list comes from Slack, so you pick rather than type &mdash; and it lists <strong>only the
+channels the app has been added to</strong>, public or private, because those are the only ones it can post
+in. A workspace of hundreds of channels used to list all of them, most of which refused the post. To add a
+channel, open it in Slack and type <code>/invite @</code> and the app&rsquo;s name; the list says the exact
+command.</p>
 <p>The button opens the <strong>public link</strong> where the dashboard has one, so anybody in the channel
 can open it without an account here. Where it has not been shared &mdash; or where public links are off for
 the whole instance &mdash; the button opens the dashboard&rsquo;s own address, and people sign in. Turning
 the public link off later is how a button that has already been sent stops working.</p>
-<p>The same one-page rule applies as for a schedule: up to twelve widgets, one page. A bigger dashboard is
-refused before anything is drawn.</p>
+<p>The same one-page rule applies as for a schedule: up to twelve widgets, one page. The dialog says so as
+it opens, with what to change and a copy to trim, and <strong>Send</strong> stays off until the dashboard
+fits.</p>
 <p><em>Setting it up, once:</em> create a Slack app in your workspace, give it <code>chat:write</code>,
 <code>files:write</code>, <code>channels:read</code> and <code>groups:read</code>, install it, and paste
 its bot token under <strong>Settings &rarr; Slack</strong>. The token is checked with Slack before it is

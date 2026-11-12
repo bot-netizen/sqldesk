@@ -103,3 +103,54 @@ class TestWhatIsTooBigToSend(BaseTestCase):
 
         self.assertEqual(0, one_page.grid_height(odd))
         self.assertIsNone(one_page.too_big_to_send(odd))
+
+
+class TestWhatToDoAboutIt(BaseTestCase):
+    """The advice that comes with a refusal, which is the half somebody acts on."""
+
+    def _widgets(self, count, rows_each=4):
+        return [
+            type("W", (), {"options": {"position": {"row": i * rows_each, "sizeY": rows_each, "col": 0, "sizeX": 12}}})
+            for i in range(count)
+        ]
+
+    def test_a_dashboard_that_fits_has_no_advice(self):
+        check = one_page.size_check(self._widgets(4))
+
+        self.assertTrue(check["fits"])
+        self.assertIsNone(check["advice"])
+
+    def test_too_many_says_how_many_to_remove(self):
+        check = one_page.size_check(self._widgets(15, rows_each=0))
+
+        self.assertEqual(3, check["remove"])
+        self.assertFalse(check["too_tall"])
+        self.assertIn("remove 3 widgets", check["advice"])
+
+    def test_one_too_many_is_said_in_the_singular(self):
+        check = one_page.size_check(self._widgets(13, rows_each=0))
+
+        self.assertIn("remove 1 widget,", check["advice"])
+
+    def test_too_tall_says_to_make_it_shorter_rather_than_to_count(self):
+        check = one_page.size_check(self._widgets(3, rows_each=40))
+
+        self.assertEqual(0, check["remove"])
+        self.assertTrue(check["too_tall"])
+        self.assertIn("make it shorter", check["advice"])
+
+    def test_both_says_both(self):
+        check = one_page.size_check(self._widgets(15, rows_each=10))
+
+        self.assertIn("at least 3 widgets", check["advice"])
+        self.assertIn("make it shorter", check["advice"])
+
+    def test_and_always_offers_a_copy_with_just_what_matters(self):
+        for widgets in (self._widgets(15, rows_each=0), self._widgets(3, rows_each=40)):
+            self.assertIn("a copy of it", one_page.size_check(widgets)["advice"])
+
+    def test_the_refusal_is_the_problem_and_the_advice_together(self):
+        widgets = self._widgets(15, rows_each=0)
+        check = one_page.size_check(widgets)
+
+        self.assertEqual("{} {}".format(check["problem"], check["advice"]), one_page.too_big_to_send(widgets))

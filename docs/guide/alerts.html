@@ -130,6 +130,11 @@ Settings &rarr; Alert Destinations.</p>
 <p>The subscriptions are listed on the alert itself, which is where one is removed. A destination
 belongs to the organization rather than to the alert, so taking it off one alert leaves every other
 alert using it alone.</p>
+<p><strong>Post to a Slack channel</strong>, under the list, is the quicker way where Slack is connected:
+pick a channel from the ones the app is in and the alert posts there. It uses that channel&rsquo;s
+<em>Slack (app)</em> destination if there is one &mdash; twenty alerts to #ops share one &mdash; and makes it
+if there is not, so nobody has to ask an administrator first. An administrator making a Slack (app)
+destination by hand picks the channel from the same list.</p>
 <p class="note"><strong>Changed in 0.8.</strong> Subscribing used to mean being emailed: a subscription
 with no destination quietly sent mail to the subscriber's own address, whether or not anybody wanted
 mail and whether or not the install had a mail server. Email is now a destination like any other

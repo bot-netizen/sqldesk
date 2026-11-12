@@ -344,3 +344,113 @@ class TestAFailedSendBacksOff(SendingTestCase):
         self.assertIsNone(subscription.last_sent_at)
         self.assertEqual(1, subscription.failures)
         self.assertIsNotNone(subscription.last_attempt_at)
+
+
+class TestPostingToAChannel(SendingTestCase):
+    """A subscription to a Slack channel: drawn as its owner, posted, not mailed."""
+
+    def setUp(self):
+        super().setUp()
+        from tests.test_slack import FakeSlack
+
+        self.slack = FakeSlack()
+        patch = mock.patch("sqldesk.slack.requests.post", self.slack)
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.workspace = models.SlackWorkspace(
+            org=self.factory.org, bot_token="xoxb-real", team_name="Acme", app_name="sqldesk"
+        )
+        db.session.add(self.workspace)
+        db.session.commit()
+
+    def _channel_subscription(self, **overrides):
+        fields = {"slack_channel": "C1", "slack_channel_name": "general", "recipient_ids": []}
+        fields.update(overrides)
+        return self._subscription(**fields)
+
+    def _send(self, subscription, picture=b"PNG"):
+        with _rendering_on(), mock.patch.object(task.screenshots, "capture", return_value=picture) as capture:
+            with mock.patch.object(task.mail, "send") as send:
+                task.send_subscription(subscription.id)
+        return capture, send
+
+    def test_it_posts_the_picture_to_the_channel_and_mails_nobody(self):
+        subscription = self._channel_subscription()
+
+        capture, send = self._send(subscription)
+
+        send.assert_not_called()
+        self.assertEqual([b"PNG"], self.slack.asked("upload-bytes"))
+        posted = self.slack.asked("chat.postMessage")
+        self.assertEqual(1, len(posted))
+        self.assertEqual("C1", posted[0]["channel"])
+        self.assertIsNotNone(subscription.last_sent_at)
+        self.assertIsNone(subscription.last_error)
+
+    def test_it_is_drawn_as_the_owner_and_as_a_picture(self):
+        subscription = self._channel_subscription()
+
+        capture, _ = self._send(subscription)
+
+        self.assertEqual(self.owner, capture.call_args[0][2])
+        self.assertEqual(models.DashboardSubscription.PNG, capture.call_args[1]["fmt"])
+
+    def test_the_message_says_how_often_and_who_set_it_up(self):
+        subscription = self._channel_subscription(schedule={"interval": 3600})
+
+        self._send(subscription)
+
+        text = self.slack.asked("chat.postMessage")[0]["text"]
+        self.assertIn(self.dashboard.name, text)
+        self.assertIn("every hour", text)
+        self.assertIn(self.owner.name, text)
+
+    def test_and_carries_a_button_to_the_dashboard(self):
+        subscription = self._channel_subscription()
+
+        self._send(subscription)
+
+        blocks = self.slack.posted()
+        buttons = [b for b in blocks if b["type"] == "actions"]
+        self.assertIn("/dashboards/", buttons[0]["elements"][0]["url"])
+
+    def test_a_refusal_from_slack_is_recorded_on_the_subscription_and_the_workspace(self):
+        self.slack.answers["chat.postMessage"] = {"ok": False, "error": "not_in_channel"}
+        subscription = self._channel_subscription()
+
+        self._send(subscription)
+
+        self.assertIn("Invite it", subscription.last_error)
+        self.assertEqual(1, subscription.failures)
+        self.assertIsNone(subscription.last_sent_at)
+        db.session.refresh(self.workspace)
+        self.assertIn("Invite it", self.workspace.last_error)
+
+    def test_slack_disconnected_since_is_recorded_rather_than_raised(self):
+        subscription = self._channel_subscription()
+        db.session.delete(self.workspace)
+        db.session.commit()
+
+        self._send(subscription)
+
+        self.assertIn("no longer set up", subscription.last_error)
+
+    def test_a_dashboard_that_has_grown_too_big_is_not_posted(self):
+        subscription = self._channel_subscription()
+        for _ in range(13):
+            visualization = self.factory.create_visualization()
+            self.factory.create_widget(dashboard=self.dashboard, visualization=visualization)
+        db.session.commit()
+
+        self._send(subscription)
+
+        self.assertEqual([], self.slack.asked("chat.postMessage"))
+        self.assertIn("one-page report", subscription.last_error)
+
+    def test_a_renderer_that_cannot_draw_it_posts_nothing(self):
+        subscription = self._channel_subscription()
+
+        self._send(subscription, picture=None)
+
+        self.assertEqual([], self.slack.asked("chat.postMessage"))
+        self.assertIn("renderer", subscription.last_error)

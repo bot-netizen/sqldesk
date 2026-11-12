@@ -14,9 +14,11 @@ from flask import request
 from flask_restful import abort
 
 from sqldesk import features, models, one_page, screenshots, slack
+from sqldesk.destinations import get_configuration_schema_for_destination_type
 from sqldesk.handlers.base import BaseResource, get_object_or_404
 from sqldesk.permissions import can_see_dashboard, require_admin
-from sqldesk.utils import base_url, utcnow
+from sqldesk.utils import utcnow
+from sqldesk.utils.configuration import ConfigurationContainer
 
 logger = logging.getLogger(__name__)
 
@@ -97,25 +99,97 @@ class SlackSettingsResource(BaseResource):
         return {"configured": False}
 
 
+def _may_pick_channels(user):
+    """
+    Whether somebody may see which channels the app is in.
+
+    Whoever may send a dashboard, and whoever works with alerts -- an alert's
+    Slack channel is picked from the same list. Not everybody: a private
+    channel's name can say more than its owners meant to.
+    """
+    return features.can(user, features.SEND_DASHBOARDS) or user.has_permission("list_alerts")
+
+
 class SlackChannelsResource(BaseResource):
     """
-    The channels the app can post to.
+    The channels the app is in.
 
-    Asked by the Send dialog rather than typed by hand, so a typo cannot
-    produce a message that goes nowhere. Behind `send_dashboards` and not
-    admin: whoever may send needs the list.
+    Asked by the Send dialog, the subscription dialog and an alert's
+    destinations rather than typed by hand, so a typo cannot produce a
+    message that goes nowhere -- and only the channels the app has been added
+    to, because those are the only ones it can post to.
+
+    The app's name travels with them, so an empty list can say what to type
+    in Slack to fix it.
     """
 
     def get(self):
-        if not features.can(self.current_user, features.SEND_DASHBOARDS):
-            abort(403, message="You may not send dashboards.")
+        if not _may_pick_channels(self.current_user):
+            abort(403, message="You may not send to Slack.")
         found = _workspace(self.current_org)
         channels, error = slack.channels(found.bot_token)
         if error:
             _remember(found, error)
             abort(400, message=error)
         _remember(found, None)
-        return {"channels": channels}
+        return {"channels": channels, "app_name": found.app_name}
+
+
+class SlackAlertDestinationResource(BaseResource):
+    """
+    An alert destination for a Slack channel, made by picking the channel.
+
+    An alert is sent to destinations, and until now a Slack (app) destination
+    was something an administrator made under Alert Destinations by typing a
+    channel's name. Somebody setting up an alert who wanted it in #ops had to
+    ask for one, or find the one somebody had made, by name, among the rest.
+
+    Picking a channel from the alert asks here for its destination: the one
+    that already posts there if there is one, so twenty alerts to #ops share a
+    destination rather than make twenty, and a new one otherwise. Open to
+    whoever works with alerts and not only administrators, because what it
+    makes can do nothing an administrator has not already allowed -- it posts
+    as the app the administrator installed, to a channel somebody invited the
+    app into.
+    """
+
+    def post(self):
+        if not _may_pick_channels(self.current_user):
+            abort(403, message="You may not send to Slack.")
+        body = request.get_json(silent=True) or {}
+        channel_id = (body.get("channel") or "").strip()
+        if not channel_id:
+            abort(400, message="Pick a channel.")
+
+        workspace = _workspace(self.current_org)
+        channel, error = slack.find_channel(workspace.bot_token, channel_id)
+        if error:
+            abort(400, message=error)
+
+        for destination in models.NotificationDestination.all(self.current_org):
+            if destination.type == "slack_app" and (destination.options or {}).get("channel") == channel_id:
+                return destination.to_dict()
+
+        name = "Slack #{}".format(channel["name"])
+        taken = {d.name for d in models.NotificationDestination.all(self.current_org)}
+        if name in taken:
+            # Somebody already named a destination this -- a webhook to the
+            # same channel, say. The id keeps the two apart without renaming
+            # theirs.
+            name = "{} ({})".format(name, channel_id)
+
+        schema = get_configuration_schema_for_destination_type("slack_app")
+        destination = models.NotificationDestination(
+            org=self.current_org,
+            name=name,
+            type="slack_app",
+            options=ConfigurationContainer({"channel": channel_id}, schema),
+            user=self.current_user,
+        )
+        models.db.session.add(destination)
+        models.db.session.commit()
+        self.record_event({"action": "create", "object_id": destination.id, "object_type": "destination"})
+        return destination.to_dict()
 
 
 def _remember(workspace, error):
@@ -168,24 +242,20 @@ class DashboardSlackShareResource(BaseResource):
         if error:
             abort(400, message=error)
 
-        file_id, error = slack.upload(workspace.bot_token, "{}.png".format(dashboard.slug), picture)
-        if error:
-            _remember(workspace, error)
-            abort(400, message=error)
-
         sender = self.current_user.name
         text = (
             "{}\n\n_{} shared *{}*_".format(message, sender, dashboard.name)
             if message
             else ("*{}*, shared by {}".format(dashboard.name, sender))
         )
-        posted, error = slack.post(
+        posted, error = slack.post_dashboard(
             workspace.bot_token,
             channel,
+            "{}.png".format(dashboard.slug),
+            picture,
             text,
-            file_id=file_id,
-            footer=self._freshness(dashboard),
-            button={"text": "Open dashboard", "url": self._link(dashboard)},
+            link=slack.dashboard_link(self.current_org, dashboard),
+            footer=slack.as_of(dashboard),
         )
         if error:
             _remember(workspace, error)
@@ -214,30 +284,3 @@ class DashboardSlackShareResource(BaseResource):
             # send", so the message says what to look at.
             return None, "Could not draw the dashboard. The renderer's log will say why."
         return picture, None
-
-    def _link(self, dashboard):
-        """
-        Where the button goes.
-
-        The public link when there is one, so anybody in the channel can open
-        it without an account here. Otherwise the dashboard's own address,
-        where they sign in -- which is the honest fallback rather than a link
-        that half the channel cannot use and nobody told them about.
-        """
-        if not self.current_org.get_setting("disable_public_urls"):
-            # A dashboard's public link is an `ApiKey` row against it, not a
-            # column: there is one only if somebody turned sharing on.
-            key = models.ApiKey.get_by_object(dashboard)
-            if key is not None:
-                return "{}/public/dashboards/{}".format(base_url(self.current_org), key.api_key)
-        return "{}/dashboards/{}".format(base_url(self.current_org), dashboard.slug or dashboard.id)
-
-    def _freshness(self, dashboard):
-        """ "As of" the oldest result on it, which is the honest figure."""
-        oldest = None
-        for widget in dashboard.widgets:
-            query = widget.visualization.query_rel if widget.visualization else None
-            retrieved = query.latest_query_data.retrieved_at if query and query.latest_query_data else None
-            if retrieved and (oldest is None or retrieved < oldest):
-                oldest = retrieved
-        return "as of {}".format(oldest.strftime("%H:%M on %-d %B")) if oldest else None

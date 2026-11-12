@@ -43,11 +43,11 @@ class FakeSlack:
     def __init__(self, **answers):
         self.answers = {
             "auth.test": {"ok": True, "team": "Acme", "user": "sqldesk", "team_id": "T1"},
-            "conversations.list": {
+            "users.conversations": {
                 "ok": True,
                 "channels": [
-                    {"id": "C1", "name": "general", "is_private": False, "is_member": True},
-                    {"id": "C2", "name": "secrets", "is_private": True, "is_member": True},
+                    {"id": "C1", "name": "general", "is_private": False},
+                    {"id": "C2", "name": "secrets", "is_private": True},
                 ],
             },
             "files.getUploadURLExternal": {"ok": True, "upload_url": "https://files.slack/upload", "file_id": "F1"},
@@ -100,6 +100,13 @@ class SlackTestCase(BaseTestCase):
         db.session.add(workspace)
         db.session.commit()
         return workspace
+
+    def onlooker(self):
+        """Somebody who may look at queries and do nothing with Slack."""
+        group = self.factory.create_group(name="Onlookers", permissions=["view_query"])
+        db.session.add(group)
+        db.session.commit()
+        return self.factory.create_user(group_ids=[group.id])
 
     def sender(self):
         group = self.factory.create_group(
@@ -173,14 +180,14 @@ class TestTheClient(SlackTestCase):
         pages = [
             {
                 "ok": True,
-                "channels": [{"id": "C1", "name": "one", "is_private": False, "is_member": True}],
+                "channels": [{"id": "C1", "name": "one", "is_private": False}],
                 "response_metadata": {"next_cursor": "more"},
             },
-            {"ok": True, "channels": [{"id": "C2", "name": "two", "is_private": False, "is_member": True}]},
+            {"ok": True, "channels": [{"id": "C2", "name": "two", "is_private": False}]},
         ]
 
         def answer(url, **kwargs):
-            if url.endswith("conversations.list"):
+            if url.endswith("users.conversations"):
                 return FakeResponse(pages.pop(0))
             return FakeResponse({"ok": True})
 
@@ -190,10 +197,30 @@ class TestTheClient(SlackTestCase):
         self.assertIsNone(error)
         self.assertEqual(["one", "two"], [c["name"] for c in found])
 
+    def test_only_the_channels_the_app_is_in_are_asked_for(self):
+        # Not every public channel in the workspace: the app has `chat:write`
+        # and not `chat:write.public`, so one it has not joined refuses a post.
+        slack.channels("xoxb-real")
+
+        self.assertEqual(1, len(self.slack.asked("users.conversations")))
+        self.assertEqual([], self.slack.asked("conversations.list"))
+
+    def test_finding_a_channel_the_app_is_not_in_says_to_invite_it(self):
+        channel, error = slack.find_channel("xoxb-real", "C9")
+
+        self.assertIsNone(channel)
+        self.assertIn("/invite", error)
+
+    def test_and_finds_one_it_is_in(self):
+        channel, error = slack.find_channel("xoxb-real", "C2")
+
+        self.assertIsNone(error)
+        self.assertEqual("secrets", channel["name"])
+
     def test_archived_channels_are_not_asked_for(self):
         slack.channels("xoxb-real")
 
-        self.assertEqual("true", self.slack.asked("conversations.list")[0]["exclude_archived"])
+        self.assertEqual("true", self.slack.asked("users.conversations")[0]["exclude_archived"])
 
     def test_uploading_is_three_calls_in_order(self):
         # `files.upload` was one call and is being switched off; this is what
@@ -348,12 +375,28 @@ class TestListingChannels(SlackTestCase):
         self.assertEqual(200, response.status_code)
         self.assertEqual(["general", "secrets"], [c["name"] for c in response.json["channels"]])
 
-    def test_somebody_who_may_not_send_does_not(self):
+    def test_somebody_who_works_with_alerts_gets_it_too(self):
+        # An alert's Slack channel is picked from the same list, and alerts
+        # are for everybody in the default group, renderer or not.
         self.installed()
 
         response = self.make_request("get", "/api/slack/channels", user=self.factory.user)
 
+        self.assertEqual(200, response.status_code)
+
+    def test_somebody_who_may_neither_send_nor_use_alerts_does_not(self):
+        self.installed()
+
+        response = self.make_request("get", "/api/slack/channels", user=self.onlooker())
+
         self.assertEqual(403, response.status_code)
+
+    def test_the_apps_name_comes_with_them_so_an_empty_list_can_say_what_to_type(self):
+        self.installed()
+
+        response = self.make_request("get", "/api/slack/channels", user=self.sender())
+
+        self.assertEqual("sqldesk", response.json["app_name"])
 
     def test_with_slack_not_set_up_it_says_what_to_do(self):
         response = self.make_request("get", "/api/slack/channels", user=self.sender())
@@ -366,7 +409,7 @@ class TestListingChannels(SlackTestCase):
         # something is sent, so the failure needs somewhere to live other than
         # a worker's log.
         workspace = self.installed()
-        self.slack.answers["conversations.list"] = {"ok": False, "error": "token_revoked"}
+        self.slack.answers["users.conversations"] = {"ok": False, "error": "token_revoked"}
 
         self.make_request("get", "/api/slack/channels", user=self.sender())
 
@@ -758,3 +801,129 @@ class TestAnAlertThroughTheSlackApp(SlackTestCase):
 
         self.assertIn("slack", destinations)
         self.assertIn("slack_app", destinations)
+
+
+class TestPickingAChannelForAnAlert(SlackTestCase):
+    """
+    An alert is sent to destinations. Picking a Slack channel from the alert
+    asks for that channel's destination -- made if there is none yet, the
+    existing one if there is.
+    """
+
+    def pick(self, channel="C1", user=None):
+        return self.make_request(
+            "post", "/api/slack/destinations", data={"channel": channel}, user=user or self.factory.user
+        )
+
+    def test_it_makes_a_slack_app_destination_for_the_channel(self):
+        self.installed()
+
+        response = self.pick()
+
+        self.assertEqual(200, response.status_code)
+        destination = models.NotificationDestination.query.get(response.json["id"])
+        self.assertEqual("slack_app", destination.type)
+        self.assertEqual("C1", destination.options["channel"])
+        self.assertEqual("Slack #general", destination.name)
+
+    def test_picking_the_same_channel_again_reuses_it(self):
+        # Twenty alerts to #ops share one destination rather than make twenty.
+        self.installed()
+
+        first = self.pick().json["id"]
+        second = self.pick().json["id"]
+
+        self.assertEqual(first, second)
+        self.assertEqual(1, models.NotificationDestination.query.filter_by(type="slack_app").count())
+
+    def test_a_channel_the_app_is_not_in_is_refused_and_says_how_to_fix_it(self):
+        self.installed()
+
+        response = self.pick("C9")
+
+        self.assertEqual(400, response.status_code)
+        self.assertIn("/invite", response.json["message"])
+        self.assertEqual(0, models.NotificationDestination.query.filter_by(type="slack_app").count())
+
+    def test_a_name_somebody_already_used_is_kept_apart_by_the_channels_id(self):
+        self.installed()
+        self.factory.create_destination(name="Slack #general")
+        db.session.commit()
+
+        response = self.pick()
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("Slack #general (C1)", response.json["name"])
+
+    def test_the_alert_can_then_be_sent_there(self):
+        self.installed()
+        alert = self.factory.create_alert()
+        db.session.commit()
+
+        destination_id = self.pick(user=alert.user).json["id"]
+        response = self.make_request(
+            "post",
+            "/api/alerts/{}/subscriptions".format(alert.id),
+            data={"destination_id": destination_id},
+            user=alert.user,
+        )
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(destination_id, response.json["destination"]["id"])
+
+    def test_with_slack_not_set_up_it_says_what_to_do(self):
+        response = self.pick()
+
+        self.assertEqual(400, response.status_code)
+        self.assertIn("administrator", response.json["message"])
+
+    def test_somebody_who_may_neither_send_nor_use_alerts_may_not(self):
+        self.installed()
+
+        response = self.pick(user=self.onlooker())
+
+        self.assertEqual(403, response.status_code)
+
+
+class TestTheDestinationFormOffersChannels(SlackTestCase):
+    """An administrator making a Slack (app) destination picks the channel."""
+
+    def channel_field(self):
+        response = self.make_request("get", "/api/destinations/types", user=self.factory.create_admin())
+        slack_app = next(t for t in response.json if t["type"] == "slack_app")
+        return slack_app["configuration_schema"]["properties"]["channel"]
+
+    def test_the_channel_is_one_of_the_apps_channels(self):
+        self.installed()
+
+        field = self.channel_field()
+
+        self.assertEqual(
+            [{"value": "C1", "name": "#general"}, {"value": "C2", "name": "#secrets"}], field["extendedEnum"]
+        )
+
+    def test_without_slack_set_up_it_stays_a_text_field(self):
+        self.assertNotIn("extendedEnum", self.channel_field())
+
+    def test_nor_when_slack_cannot_be_reached(self):
+        # A list with nothing in it would be a form nobody can fill in.
+        self.installed()
+        self.slack.answers["users.conversations"] = {"ok": False, "error": "token_revoked"}
+
+        self.assertNotIn("extendedEnum", self.channel_field())
+
+    def test_nor_when_the_app_is_in_no_channel_yet(self):
+        self.installed()
+        self.slack.answers["users.conversations"] = {"ok": True, "channels": []}
+
+        self.assertNotIn("extendedEnum", self.channel_field())
+
+    def test_the_other_destination_types_are_left_alone(self):
+        self.installed()
+
+        response = self.make_request("get", "/api/destinations/types", user=self.factory.create_admin())
+
+        for destination_type in response.json:
+            if destination_type["type"] != "slack_app":
+                for field in destination_type["configuration_schema"].get("properties", {}).values():
+                    self.assertNotIn("extendedEnum", field)

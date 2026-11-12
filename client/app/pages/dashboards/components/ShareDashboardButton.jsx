@@ -9,7 +9,7 @@ import ShareAltOutlinedIcon from "@ant-design/icons/ShareAltOutlined";
 import LinkOutlinedIcon from "@ant-design/icons/LinkOutlined";
 import FilePdfOutlinedIcon from "@ant-design/icons/FilePdfOutlined";
 import FileImageOutlinedIcon from "@ant-design/icons/FileImageOutlined";
-import MailOutlinedIcon from "@ant-design/icons/MailOutlined";
+import FieldTimeOutlinedIcon from "@ant-design/icons/FieldTimeOutlined";
 import SlackOutlinedIcon from "@ant-design/icons/SlackOutlined";
 import PlainButton from "@/components/PlainButton";
 import notification from "@/services/notification";
@@ -146,7 +146,9 @@ export default function ShareDashboardButton({ dashboard, getExportTarget, onSho
           {canSubscribe && (
             <Menu.Item key="subscribe">
               <PlainButton onClick={subscribe} data-test="SubscribeDashboardButton">
-                <MailOutlinedIcon className="m-r-5" aria-hidden="true" />
+                {/* A clock, not an envelope: a schedule now sends to a Slack
+                    channel as well as to people's inboxes. */}
+                <FieldTimeOutlinedIcon className="m-r-5" aria-hidden="true" />
                 Send on a schedule&hellip;
               </PlainButton>
             </Menu.Item>
@@ -155,7 +157,7 @@ export default function ShareDashboardButton({ dashboard, getExportTarget, onSho
             <Menu.Item key="slack">
               <PlainButton onClick={sendToSlack} data-test="SendToSlackButton">
                 <SlackOutlinedIcon className="m-r-5" aria-hidden="true" />
-                Send to Slack&hellip;
+                Send to Slack now&hellip;
               </PlainButton>
             </Menu.Item>
           )}

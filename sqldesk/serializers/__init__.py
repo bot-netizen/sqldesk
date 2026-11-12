@@ -105,6 +105,8 @@ def serialize_dashboard_subscription(subscription):
         "schedule": subscription.schedule,
         "format": subscription.format,
         "recipients": [{"id": u.id, "name": u.name, "email": u.email} for u in subscription.recipients()],
+        "slack_channel": subscription.slack_channel,
+        "slack_channel_name": subscription.slack_channel_name,
         "active": subscription.active,
         "last_sent_at": subscription.last_sent_at,
         "last_error": subscription.last_error,
