@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-12T18:33:19.723Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-12T23:23:36.355Z
 > Files: 746 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
@@ -931,7 +931,7 @@
 - `notebooks.py` — name_problem, staleness, walk, missing_inputs (~1490 tok)
 - `one_page.py` — grid_height, size_check, too_big_to_send (~1700 tok)
 - `pools.py` — _Lock: pool_for, budget, held, in_use + 3 more (~2550 tok)
-- `slack.py` — check, channels, find_channel, upload (~3428 tok)
+- `slack.py` — public_link, check, channels, find_channel (~4562 tok)
 
 ## sqldesk/cli/
 

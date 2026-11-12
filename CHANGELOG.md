@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.8.4
+
+Plain Sight. A dashboard's picture was not reaching Slack from an install
+being tried out, and nothing said why. Now every step says what it did, a
+button never points at localhost, and a message Slack refuses still
+delivers the picture.
 
 ### Slack
 
@@ -25,6 +30,15 @@ draw and how big it was, each call to Slack with its timing and Slack's own
 reason when it refused, whether the button was left off and why, and whether
 the picture went as a message or a file. INFO when it works, WARNING when it
 does not; never the token, and never the words of a message.
+
+### Upgrading
+
+- No migrations. Pull the image and restart.
+- To read what Slack did: `docker compose -f compose.prod.yaml logs server
+  worker | grep slack` -- Send to Slack is in the server's log, a schedule's
+  sends in the worker's.
+- A message without its button means SQLDESK_HOST is an address nobody in
+  the channel could open; set it to the one people use.
 
 ## 0.8.3
 
