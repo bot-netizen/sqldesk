@@ -64,6 +64,7 @@ class BrokerTestCase(BaseTestCase):
         admin = AdminClient({"bootstrap.servers": BROKERS})
         for future in admin.create_topics([NewTopic(self.topic, num_partitions=1, replication_factor=1)]).values():
             future.result(timeout=20)
+
         def drop():
             # Waited on, as the create above is. `delete_topics` only queues
             # the request and returns futures; dropped unawaited, the admin
