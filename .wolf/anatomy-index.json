@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-12T14:00:25.114Z",
+    "lastScanned": "2026-11-12T18:33:19.723Z",
     "fileCount": 746,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "4f93de08367d201f382cd5b528d62b09c18981976b40183b60d74e08b106faef",
-    "storeUpdatedAt": "2026-11-12T14:00:25.133Z",
-    "rootHash": "cc56421a2e811382"
+    "renderedHash": "d043381c3ce2785362a66c7f0d957ceac17f3fa7488e3c737480944a81276374",
+    "storeUpdatedAt": "2026-11-12T18:33:19.736Z",
+    "rootHash": "fc74466800e1350b"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -19601,11 +19601,11 @@
     },
     "tests/streams/test_broker.py": {
       "description": "BrokerTestCase: broker_is_running, setUp, drop, produce + 19 more",
-      "tokens": 4782,
-      "hash": "46b532bb88917e5c",
-      "size": 16737,
-      "mtimeMs": 1794492024942.7075,
-      "updatedAt": "2026-11-12T14:00:25.113Z",
+      "tokens": 4783,
+      "hash": "1b6ba0b6efffa3db",
+      "size": 16738,
+      "mtimeMs": 1794508399557.219,
+      "updatedAt": "2026-11-12T18:33:19.722Z",
       "source": "hook",
       "symbols": [
         {
@@ -19619,49 +19619,49 @@
           "name": "BrokerTestCase",
           "kind": "class",
           "startLine": 57,
-          "endLine": 119,
-          "tokens": 766
+          "endLine": 120,
+          "tokens": 767
         },
         {
           "name": "TestTalkingToARealBroker",
           "kind": "class",
-          "startLine": 120,
-          "endLine": 159,
+          "startLine": 121,
+          "endLine": 160,
           "tokens": 429
         },
         {
           "name": "TestTheSeekThatMattersMost",
           "kind": "class",
-          "startLine": 160,
-          "endLine": 227,
+          "startLine": 161,
+          "endLine": 228,
           "tokens": 802
         },
         {
           "name": "TestHowTheBrokerSeesUs",
           "kind": "class",
-          "startLine": 228,
-          "endLine": 360,
+          "startLine": 229,
+          "endLine": 361,
           "tokens": 1712
         },
         {
           "name": "TestATopicThatIsNotThere",
           "kind": "class",
-          "startLine": 361,
-          "endLine": 379,
+          "startLine": 362,
+          "endLine": 380,
           "tokens": 250
         },
         {
           "name": "TestEndToEndThroughTheStore",
           "kind": "class",
-          "startLine": 380,
-          "endLine": 403,
+          "startLine": 381,
+          "endLine": 404,
           "tokens": 248
         },
         {
           "name": "TestTheSkipIsLoud",
           "kind": "class",
-          "startLine": 404,
-          "endLine": 410,
+          "startLine": 405,
+          "endLine": 411,
           "tokens": 88
         }
       ]

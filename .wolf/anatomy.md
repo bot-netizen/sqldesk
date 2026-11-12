@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-12T14:00:25.114Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-12T18:33:19.723Z
 > Files: 746 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
@@ -1050,7 +1050,7 @@
 
 ## tests/streams/
 
-- `test_broker.py` — BrokerTestCase: broker_is_running, setUp, drop, produce + 19 more (~4782 tok)
+- `test_broker.py` — BrokerTestCase: broker_is_running, setUp, drop, produce + 19 more (~4783 tok)
 - `test_decode_streams.py` — TestTheWindow: order, setUp, read_as_avro, test_avro_lands_with_columns_duckdb_typed_properly + 21 m (~3504 tok)
 - `test_decode.py` — TestAvroSchemaFiles: avsc, proto, avro_bytes, parsed + 14 more (~8659 tok)
 
