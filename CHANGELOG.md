@@ -1,5 +1,37 @@
 # Changelog
 
+## Unreleased
+
+### Slack
+
+**Saving a bot token under Settings -> Slack returned 500, and so did the
+page from then on.** The migration that made the table, `f9b3d61c48a7`,
+created `slack_workspaces.encrypted_bot_token` as Text, where the model's
+`EncryptedType` reads and writes bytes. The write went in -- Postgres kept the
+ciphertext as its `\x...` hex text -- and every read after it failed with
+"string argument without an encoding", so once a token was saved, nothing on
+the table could be queried. Only installs made before 0.7.0 and upgraded
+since have the Text column: a fresh install builds its tables from the
+models, and so did every test, which is how it shipped -- the same trap a
+comment in `d2b81f4a7c65` had already warned about. Reported, with the
+cause, from an upgraded install.
+
+`f9b3d61c48a7` now creates the column as bytea, and a test now reads the
+migrations, not the models, and fails on any column the models store as
+bytes that a migration creates as anything else.
+
+### Upgrading
+
+- One migration, `d7e3ae10b9a9`, which converts the token in place: the
+  `\x...` text decodes to the exact ciphertext, so **nobody has to paste the
+  token again**. On a column that is already bytea -- a fresh install, or one
+  fixed by hand -- it does nothing.
+- With Compose: `docker compose -f compose.prod.yaml run --rm server manage
+  db upgrade`. The Helm chart runs it in its migration Job.
+- Until then, the same fix by hand:
+  `ALTER TABLE slack_workspaces ALTER COLUMN encrypted_bot_token TYPE bytea
+  USING decode(substr(encrypted_bot_token, 3), 'hex');`
+
 ## 0.8.2
 
 The Right Channel. Four things reported from sharing to a real Slack
