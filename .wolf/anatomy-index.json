@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-12T10:14:37.308Z",
-    "fileCount": 743,
+    "lastScanned": "2026-11-12T18:33:19.723Z",
+    "fileCount": 746,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "8b7399a0a96ca1e197c97c203b4c151c935ccacd7c88bef675cc7f7bd01bd219",
-    "storeUpdatedAt": "2026-11-12T10:14:37.327Z",
-    "rootHash": "1e8af909bc652a57"
+    "renderedHash": "d043381c3ce2785362a66c7f0d957ceac17f3fa7488e3c737480944a81276374",
+    "storeUpdatedAt": "2026-11-12T18:33:19.736Z",
+    "rootHash": "fc74466800e1350b"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -19546,6 +19546,123 @@
           "startLine": 45,
           "endLine": 86,
           "tokens": 304
+        }
+      ]
+    },
+    "migrations/versions/f9b3d61c48a7_slack_workspace.py": {
+      "description": "The Slack app's bot token.",
+      "tokens": 577,
+      "hash": "815014f41c9ea65c",
+      "size": 2018,
+      "mtimeMs": 1794490237931.591,
+      "updatedAt": "2026-11-12T13:30:38.113Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 20,
+          "endLine": 45,
+          "tokens": 415
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 46,
+          "endLine": 49,
+          "tokens": 38
+        }
+      ]
+    },
+    "migrations/versions/d7e3ae10b9a9_slack_token_bytea.py": {
+      "description": "The Slack bot token is stored as bytes, where an install has it as text",
+      "tokens": 741,
+      "hash": "3c4f1338709dadd5",
+      "size": 2593,
+      "mtimeMs": 1794490238347.4924,
+      "updatedAt": "2026-11-12T13:30:38.505Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 66,
+          "tokens": 14
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 73,
+          "tokens": 86
+        }
+      ]
+    },
+    "tests/streams/test_broker.py": {
+      "description": "BrokerTestCase: broker_is_running, setUp, drop, produce + 19 more",
+      "tokens": 4783,
+      "hash": "1b6ba0b6efffa3db",
+      "size": 16738,
+      "mtimeMs": 1794508399557.219,
+      "updatedAt": "2026-11-12T18:33:19.722Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "broker_is_running",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 56,
+          "tokens": 150
+        },
+        {
+          "name": "BrokerTestCase",
+          "kind": "class",
+          "startLine": 57,
+          "endLine": 120,
+          "tokens": 767
+        },
+        {
+          "name": "TestTalkingToARealBroker",
+          "kind": "class",
+          "startLine": 121,
+          "endLine": 160,
+          "tokens": 429
+        },
+        {
+          "name": "TestTheSeekThatMattersMost",
+          "kind": "class",
+          "startLine": 161,
+          "endLine": 228,
+          "tokens": 802
+        },
+        {
+          "name": "TestHowTheBrokerSeesUs",
+          "kind": "class",
+          "startLine": 229,
+          "endLine": 361,
+          "tokens": 1712
+        },
+        {
+          "name": "TestATopicThatIsNotThere",
+          "kind": "class",
+          "startLine": 362,
+          "endLine": 380,
+          "tokens": 250
+        },
+        {
+          "name": "TestEndToEndThroughTheStore",
+          "kind": "class",
+          "startLine": 381,
+          "endLine": 404,
+          "tokens": 248
+        },
+        {
+          "name": "TestTheSkipIsLoud",
+          "kind": "class",
+          "startLine": 405,
+          "endLine": 411,
+          "tokens": 88
         }
       ]
     }

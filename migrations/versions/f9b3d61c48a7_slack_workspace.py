@@ -24,7 +24,11 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("org_id", sa.Integer(), nullable=False),
-        sa.Column("encrypted_bot_token", sa.Text(), nullable=False),
+        # LargeBinary, as `EncryptedType` stores it. This was Text until
+        # d7e3ae10b9a9, which converts an install that ran the Text version:
+        # it wrote the token fine and then failed every read with "string
+        # argument without an encoding" -- the trap d2b81f4a7c65 warns about.
+        sa.Column("encrypted_bot_token", sa.LargeBinary(), nullable=False),
         sa.Column("team_name", sa.String(length=255), nullable=True),
         sa.Column("app_name", sa.String(length=255), nullable=True),
         sa.Column("installed_by_id", sa.Integer(), nullable=True),

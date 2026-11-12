@@ -64,7 +64,22 @@ class BrokerTestCase(BaseTestCase):
         admin = AdminClient({"bootstrap.servers": BROKERS})
         for future in admin.create_topics([NewTopic(self.topic, num_partitions=1, replication_factor=1)]).values():
             future.result(timeout=20)
-        self.addCleanup(lambda: admin.delete_topics([self.topic]))
+
+        def drop():
+            # Waited on, as the create above is. `delete_topics` only queues
+            # the request and returns futures; dropped unawaited, the admin
+            # client went with them and the delete often never reached the
+            # broker. A topic leaked per test until, a week of runs later, the
+            # development broker hit its 128-partition limit and refused to
+            # create any more -- and every test here failed at setUp.
+            for future in admin.delete_topics([self.topic], operation_timeout=20).values():
+                try:
+                    future.result(timeout=20)
+                except Exception:
+                    # Gone already is gone.
+                    pass
+
+        self.addCleanup(drop)
 
         self.producer = Producer({"bootstrap.servers": BROKERS})
         self.folder = tempfile.mkdtemp()

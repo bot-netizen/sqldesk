@@ -2562,6 +2562,26 @@
       ],
       "status": "open",
       "related_bugs": []
+    },
+    {
+      "id": "bug-151",
+      "error_message": "Settings -> Slack: saving a bot token returns 500, then GET /api/settings/slack 500 forever; sqlalchemy sqltypes.py process: value = bytes(value) TypeError: string argument without an encoding",
+      "file": "migrations/versions/f9b3d61c48a7_slack_workspace.py",
+      "root_cause": "f9b3d61c48a7 created slack_workspaces.encrypted_bot_token as Text; the model's EncryptedType is LargeBinary. Writes stored the ciphertext as '\\x...' hex text; every read raised. Only installs made before 0.7.0 and upgraded through the migration have Text -- create_all (fresh installs, the tests, the release smoke test) builds bytea, so nothing caught it. Same trap as the warning comment in d2b81f4a7c65.",
+      "fix": "f9b3d61c48a7 -> LargeBinary; new d7e3ae10b9a9 (after a8d3f6c1e924) converts in place with a DO block: decode(substr(col,3),'hex'), no-op if already bytea, downgrade no-op. tests/test_migrations.py: drift guard reading migrations' offline SQL (bytes in model => BYTEA in migration) and a replay test. Reported by the user from an upgraded install. Branch fix/slack-token-bytea, PR bot-netizen/sqldesk#4.",
+      "tags": [
+        "slack",
+        "migrations",
+        "encryption",
+        "bytea",
+        "create_all-vs-migrations"
+      ],
+      "status": "fixed",
+      "observed_worktree": "fix/slack-token-bytea",
+      "timestamp": "2026-11-12T13:36:26Z",
+      "last_seen": "2026-11-12T13:36:26Z",
+      "occurrences": 1,
+      "related_bugs": []
     }
   ],
   "applied_observations": {
@@ -2651,7 +2671,8 @@
     "8d8b4f46-ade1-4737-bf6a-d24e08741b54": true,
     "d5d79254-716a-44b7-bf43-042739338033": true,
     "5480b947-9a77-4cee-ac0d-ea4840c3662c": true,
-    "ed2413e8-408e-47d6-bc0f-4a30e9a533c0": true
+    "ed2413e8-408e-47d6-bc0f-4a30e9a533c0": true,
+    "669b0be5-1d1f-4276-be9f-6b9cc2dca4b3": true
   },
-  "next_id": 148
+  "next_id": 153
 }

@@ -248,3 +248,167 @@ class MigrationsTest(BaseTestCase):
                     model.__tablename__, column.type.compile(dialect), established
                 ),
             )
+
+
+def _defined_types(config):
+    """
+    The type each migration gives each column it creates or changes, in
+    order, from the SQL it would run: `{(table, column): type}` with the
+    last word winning.
+    """
+    script = ScriptDirectory.from_config(config)
+    defined = {}
+    for revision in reversed(list(script.walk_revisions())):
+        if revision.down_revision is None or revision.revision in NEEDS_A_LIVE_DATABASE:
+            continue
+        down = revision.down_revision
+        down = down[0] if isinstance(down, tuple) else down
+        for statement in _offline_sql(config, "upgrade", "{}:{}".format(down, revision.revision)):
+            created = re.match(r"CREATE TABLE (\w+) \((.*)\)\s*$", statement, re.DOTALL)
+            if created:
+                for line in created.group(2).splitlines():
+                    column = re.match(r"\s*(\w+) ([A-Z]+)", line)
+                    if column and column.group(1) not in ("PRIMARY", "FOREIGN", "UNIQUE", "CONSTRAINT", "CHECK"):
+                        defined[(created.group(1), column.group(1))] = column.group(2)
+                continue
+            added = re.match(r"ALTER TABLE (\w+) ADD COLUMN (\w+) ([A-Z]+)", statement)
+            if added:
+                defined[(added.group(1), added.group(2))] = added.group(3)
+                continue
+            changed = re.match(r"ALTER TABLE (\w+) ALTER COLUMN (\w+) TYPE ([A-Z]+)", statement)
+            if changed:
+                defined[(changed.group(1), changed.group(2))] = changed.group(3)
+    return defined
+
+
+class TestWhatTheMigrationsCreate(BaseTestCase):
+    """
+    The schema under test comes from `create_all` on the models, so a
+    migration that disagrees with its model is wrong only on a real install
+    -- one that went through `db upgrade`. These read the migrations instead.
+    """
+
+    def _config(self):
+        return self.app.extensions["migrate"].migrate.get_config(None)
+
+    def test_every_column_the_models_store_as_bytes_is_created_as_bytes(self):
+        """
+        `EncryptedType` writes bytes. A migration that makes its column Text
+        takes every write and fails every read with "string argument without
+        an encoding": `f9b3d61c48a7` did this to the Slack bot token, and
+        Settings -> Slack answered 500 on every install old enough to have
+        run it. `d2b81f4a7c65` had a comment warning of exactly this; a
+        comment is not a test.
+        """
+        from sqlalchemy.dialects import postgresql
+
+        dialect = postgresql.dialect()
+        defined = _defined_types(self._config())
+
+        checked = []
+        for table in db.metadata.sorted_tables:
+            for column in table.columns:
+                if column.type.compile(dialect) != "BYTEA" or (table.name, column.name) not in defined:
+                    continue
+                checked.append("{}.{}".format(table.name, column.name))
+                self.assertEqual(
+                    "BYTEA",
+                    defined[(table.name, column.name)],
+                    "{}.{} is bytes in the model and {} in its migration".format(
+                        table.name, column.name, defined[(table.name, column.name)]
+                    ),
+                )
+
+        # A guard on the guard: if the SQL stopped parsing, this would pass
+        # having looked at nothing.
+        self.assertIn("slack_workspaces.encrypted_bot_token", checked)
+
+
+class TestTheSlackTokenIsReadableAgain(BaseTestCase):
+    """
+    `d7e3ae10b9a9` on the database an install old enough to have run the
+    Text version of `f9b3d61c48a7` actually has.
+    """
+
+    REVISION = "d7e3ae10b9a9"
+
+    def _column_type(self):
+        return db.session.execute(
+            "SELECT data_type FROM information_schema.columns"
+            " WHERE table_schema = current_schema() AND table_name = 'slack_workspaces'"
+            " AND column_name = 'encrypted_bot_token'"
+        ).scalar()
+
+    def _migrate(self):
+        from alembic.migration import MigrationContext
+        from alembic.operations import Operations
+
+        config = self.app.extensions["migrate"].migrate.get_config(None)
+        module = ScriptDirectory.from_config(config).get_revision(self.REVISION).module
+        # On the session's own connection, so the ALTER does not wait on a
+        # lock this test is holding.
+        context = MigrationContext.configure(db.session.connection())
+        with Operations.context(context):
+            module.upgrade()
+        db.session.commit()
+
+    def _save(self, token):
+        from sqldesk import models
+
+        db.session.add(models.SlackWorkspace(org=self.factory.org, bot_token=token, team_name="Acme"))
+        db.session.commit()
+        db.session.expunge_all()
+
+    def _read(self):
+        from sqldesk import models
+
+        found = models.SlackWorkspace.query.filter(models.SlackWorkspace.org_id == self.factory.org.id).first()
+        return found.bot_token
+
+    def tearDown(self):
+        # The schema is built once per run, so a column left as text would
+        # break every later test that touches Slack.
+        db.session.rollback()
+        if self._column_type() != "bytea":
+            db.session.execute("TRUNCATE slack_workspaces")
+            db.session.execute(
+                "ALTER TABLE slack_workspaces ALTER COLUMN encrypted_bot_token TYPE bytea"
+                " USING encrypted_bot_token::bytea"
+            )
+            db.session.commit()
+        super().tearDown()
+
+    def test_an_upgraded_install_reads_its_token_again_without_pasting_it(self):
+        token = "xoxb-1234-5678-abcdefghijklmnop"
+        db.session.execute("ALTER TABLE slack_workspaces ALTER COLUMN encrypted_bot_token TYPE text")
+        db.session.commit()
+        self._save(token)
+
+        # What the install was doing: the write went in, and every read
+        # since raises.
+        with self.assertRaises(TypeError):
+            self._read()
+        db.session.rollback()
+
+        self._migrate()
+
+        self.assertEqual("bytea", self._column_type())
+        self.assertEqual(token, self._read())
+
+    def test_on_a_column_that_is_already_bytes_it_changes_nothing(self):
+        # A fresh install, or one fixed by hand with the ALTER from the
+        # release notes.
+        token = "xoxb-already-fine"
+        self._save(token)
+
+        self._migrate()
+
+        self.assertEqual("bytea", self._column_type())
+        self.assertEqual(token, self._read())
+
+    def test_it_follows_the_last_release_so_there_is_one_head(self):
+        config = self.app.extensions["migrate"].migrate.get_config(None)
+        script = ScriptDirectory.from_config(config)
+
+        self.assertEqual("a8d3f6c1e924", script.get_revision(self.REVISION).down_revision)
+        self.assertEqual(self.REVISION, script.get_current_head())
