@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.8.2
+
+The Right Channel. Four things reported from sharing to a real Slack
+workspace, and a fault in the Helm chart that took a laptop's cluster down.
+
+### Slack
+
+**The channel list offered every public channel in the workspace.** The
+app has `chat:write` and not `chat:write.public`, so it can post only where
+it has been added -- and the dialog listed hundreds of channels it could not
+post in, saying it would join them when it posted. The list is now the
+channels the app is in (`users.conversations`) and nothing else, with the
+exact `/invite @app` command under it, and that command is the whole message
+when the app is in no channel yet. A channel is checked against the list
+again before a subscription or an alert destination is saved.
+
+**A dashboard can be sent to a Slack channel on a schedule.** Send on a
+schedule offers *People, by email* or *A Slack channel*, every hour, day or
+week. A channel always gets a picture, with an **Open dashboard** button and
+a line saying who set it up. A post Slack refuses is recorded beside the
+subscription and on Settings -> Slack.
+
+**Too big to send is said as the dialog opens.** A dashboard is sent as a
+one-page picture: up to twelve widgets, one page tall. That used to be the
+reply to pressing Send. Send to Slack and Send on a schedule now ask first,
+say what to change -- remove *N* widgets, or make it shorter -- keep Send
+off, and offer **Make a copy to trim**, which opens a copy in a new tab.
+
+**An alert picks its Slack channel.** *Post to a Slack channel*, under an
+alert's destinations, lists the app's channels; picking one uses that
+channel's Slack (app) destination, or makes it, so nobody has to ask an
+administrator first. An administrator making one by hand picks from the
+same list instead of typing a name.
+
+### Helm chart
+
+**Postgres and Redis no longer drop out of the Service when slow.** Neither
+readiness probe set a timeout, so both had Kubernetes' one-second default.
+On a loaded laptop `pg_isready` took just over a second, Postgres was marked
+unready and taken out of the Service, and every page returned 500 while the
+database was up. Five seconds now, as the server's own probes already had.
+
+### Upgrading
+
+- One migration, `a8d3f6c1e924`: two nullable columns on
+  `dashboard_subscriptions`. Existing subscriptions are untouched.
+- Nothing to change in the Slack app: `users.conversations` needs the
+  `channels:read` and `groups:read` scopes it already has.
+
 ## 0.8.1
 
 What the pictures found. The website was rebuilt around screenshots of

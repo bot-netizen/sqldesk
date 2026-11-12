@@ -251,7 +251,7 @@ footer a{color:var(--muted)}
   </div>
 </header>
 <div class="wrap head">
-  <span class="eyebrow">Releases &middot; updated 7 November 2026</span>
+  <span class="eyebrow">Releases &middot; updated 12 November 2026</span>
   <h1>One release, one idea.</h1>
   <p class="lede">
     SQLDesk is rebuilt a layer at a time. Each release has a single theme, and the theme is the
@@ -311,6 +311,17 @@ footer a{color:var(--muted)}
        <a href="https://github.com/bot-netizen/sqldesk/blob/main/CHANGELOG.md">CHANGELOG.md</a>,
        including what to do when you upgrade.</p>
     <div class="items">
+      <div class="item">
+        <div class="item-h"><h3 id="v0-8-2">0.8.2 &mdash; The Right Channel</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">12 November 2026</p>
+        <ul class="points">
+          <li>Slack&rsquo;s channel list is the channels the app has been added to, and says the <code>/invite</code> command to add another. It used to list every public channel in the workspace, most of which the app could not post in.</li>
+          <li>A dashboard can be sent to a Slack channel on a schedule &mdash; every hour, day or week.</li>
+          <li>Too big to send is said as the dialog opens, with what to change and a copy of the dashboard to trim.</li>
+          <li>An alert picks a Slack channel from a list, without an administrator making a destination first.</li>
+          <li>The Helm chart gives Postgres and Redis five seconds to answer their health checks, so a slow laptop no longer takes the database out of the Service.</li>
+        </ul>
+      </div>
       <div class="item">
         <div class="item-h"><h3 id="v0-8-1">0.8.1 &mdash; What the pictures found</h3><span class="st st-shipped">Shipped</span></div>
         <p class="sub">7 November 2026</p>
