@@ -7,6 +7,7 @@ changed it.
 
 | Version | Name | When | Notes |
 |---|---|---|---|
+| 0.8.3 | Read Back | 12 Nov 2026 | The Slack bot token's column was Text on installs made before 0.7.0, so Settings -> Slack failed on every read; migration d7e3ae10b9a9 converts it in place, and a test now checks migrations rather than models for bytes columns |
 | 0.8.2 | The Right Channel | 12 Nov 2026 | Slack: only the app's own channels, dashboards to a channel on a schedule, too-big said as the dialog opens with a copy to trim, an alert picks its channel; Helm probes given 5 s so a slow node keeps Postgres in the Service |
 | 0.8.1 | What the pictures found | 7 Nov 2026 | A front page built from screenshots of the running demo, site search and per-page contents; faults the screenshots exposed: stacked bars on a time axis on the wrong bar, an empty Kafka schema browser, "Query in queue" while streaming, notebook floats printed raw, time labels coarser than their ticks; every visualization measured for its margins (treemap off the edge, blank cohort, 7px details card, cornered calendar, five more against an edge); the tooltip marks the hovered series; the demo draws all 27 types |
 | 0.8.0 | **Notebooks** | 6 Nov 2026 | SQL and Python cells, named not numbered, Python with no credentials; six new visualizations; query pools and a pause button per data source; time axes labelled on the right day; `manage demo seed` |

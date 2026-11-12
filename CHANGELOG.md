@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.8.3
+
+Read Back. Settings -> Slack failed on every install made before 0.7.0: the
+bot token went in and could never be read back out. Reported, with the
+cause and the conversion, from one of those installs.
 
 ### Slack
 
@@ -19,6 +23,13 @@ cause, from an upgraded install.
 `f9b3d61c48a7` now creates the column as bytea, and a test now reads the
 migrations, not the models, and fails on any column the models store as
 bytes that a migration creates as anything else.
+
+### Tests
+
+**The Kafka broker tests leaked a topic each.** Their cleanup did not wait
+for the delete, so after a week of runs the development broker held 125
+leftover topics, hit its 128-partition limit, and every broker test failed
+at setup. The cleanup now waits, as the setup does.
 
 ### Upgrading
 

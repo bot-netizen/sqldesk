@@ -312,6 +312,13 @@ footer a{color:var(--muted)}
        including what to do when you upgrade.</p>
     <div class="items">
       <div class="item">
+        <div class="item-h"><h3 id="v0-8-3">0.8.3 &mdash; Read Back</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">12 November 2026</p>
+        <ul class="points">
+          <li>Settings &rarr; Slack works on installs made before 0.7.0. The bot token&rsquo;s column was created as text where the token is stored as bytes, so it could be saved and never read back, and the page answered with an error from then on. The upgrade converts it in place: nobody has to paste the token again.</li>
+        </ul>
+      </div>
+      <div class="item">
         <div class="item-h"><h3 id="v0-8-2">0.8.2 &mdash; The Right Channel</h3><span class="st st-shipped">Shipped</span></div>
         <p class="sub">12 November 2026</p>
         <ul class="points">
