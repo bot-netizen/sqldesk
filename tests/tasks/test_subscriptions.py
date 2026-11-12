@@ -357,6 +357,9 @@ class TestPostingToAChannel(SendingTestCase):
         patch = mock.patch("sqldesk.slack.requests.post", self.slack)
         patch.start()
         self.addCleanup(patch.stop)
+        host = mock.patch.object(settings, "HOST", "https://sqldesk.example.com")
+        host.start()
+        self.addCleanup(host.stop)
         self.workspace = models.SlackWorkspace(
             org=self.factory.org, bot_token="xoxb-real", team_name="Acme", app_name="sqldesk"
         )

@@ -16,9 +16,10 @@ from tests import BaseTestCase
 
 
 class FakeResponse:
-    def __init__(self, body, status_code=200):
+    def __init__(self, body, status_code=200, headers=None):
         self._body = body
         self.status_code = status_code
+        self.headers = headers or {}
 
     def json(self):
         if self._body is None:
@@ -64,6 +65,9 @@ class FakeSlack:
         method = url.rsplit("/", 1)[-1]
         self.calls.append((method, kwargs.get("data") or {}))
         answer = self.answers.get(method, {"ok": False, "error": "unknown_method"})
+        if isinstance(answer, list):
+            # Successive answers to successive calls; the last one repeats.
+            answer = answer.pop(0) if len(answer) > 1 else answer[0]
         if isinstance(answer, FakeResponse):
             return answer
         return FakeResponse(answer)
@@ -94,6 +98,12 @@ class SlackTestCase(BaseTestCase):
         )
         rendering.start()
         self.addCleanup(rendering.stop)
+        # A real address: the test environment's SQLDESK_HOST is localhost,
+        # and a message to an address nobody in a channel can open goes
+        # without its button (see TestNoButtonNobodyCouldOpen).
+        host = mock.patch.object(settings, "HOST", "https://sqldesk.example.com")
+        host.start()
+        self.addCleanup(host.stop)
 
     def installed(self, token="xoxb-real"):
         workspace = models.SlackWorkspace(org=self.factory.org, bot_token=token, team_name="Acme", app_name="sqldesk")
@@ -927,3 +937,261 @@ class TestTheDestinationFormOffersChannels(SlackTestCase):
             if destination_type["type"] != "slack_app":
                 for field in destination_type["configuration_schema"].get("properties", {}).values():
                     self.assertNotIn("extendedEnum", field)
+
+
+class TestWhichAddressesGetAButton(BaseTestCase):
+    """The button opens in the reader's browser, so its address has to mean something there."""
+
+    def test_a_real_address_does(self):
+        self.assertEqual("https://sqldesk.example.com/x", slack.public_link("https://sqldesk.example.com/x"))
+
+    def test_an_address_behind_a_vpn_does(self):
+        # The case this feature exists for: the people in the channel are on
+        # the VPN too.
+        self.assertEqual("http://10.0.4.12:5000/x", slack.public_link("http://10.0.4.12:5000/x"))
+        self.assertEqual("http://sqldesk.corp.internal/x", slack.public_link("http://sqldesk.corp.internal/x"))
+
+    def test_localhost_does_not(self):
+        for url in (
+            "http://localhost:5000/dashboards/1",
+            "http://LOCALHOST/x",
+            "http://app.localhost/x",
+            "http://127.0.0.1:5099/x",
+            "http://[::1]:5000/x",
+            "http://0.0.0.0:5000/x",
+        ):
+            self.assertIsNone(slack.public_link(url), url)
+
+    def test_nor_a_containers_name(self):
+        # Somebody else's Docker network: nobody's browser resolves it.
+        self.assertIsNone(slack.public_link("http://sqldesk:5000/x"))
+        self.assertIsNone(slack.public_link("http://server:5000/x"))
+
+    def test_nor_nothing_at_all(self):
+        for url in ("", None, "/dashboards/1", "ftp://sqldesk.example.com/x"):
+            self.assertIsNone(slack.public_link(url), url)
+
+
+class TestNoButtonNobodyCouldOpen(SlackTestCase):
+    """
+    An install whose SQLDESK_HOST is localhost is being tried out: its
+    messages go without the button rather than with a dead one -- and Slack
+    may refuse a whole message over a button it does not like.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.installed()
+        self.dashboard = self.factory.create_dashboard(name="Revenue")
+        # A widget the sender can read: a dashboard of nothing is nobody's to send.
+        query = self.factory.create_query()
+        visualization = self.factory.create_visualization(query_rel=query)
+        self.factory.create_widget(dashboard=self.dashboard, visualization=visualization)
+        db.session.commit()
+        drawn = mock.patch("sqldesk.screenshots.capture", return_value=b"PNGDATA")
+        drawn.start()
+        self.addCleanup(drawn.stop)
+
+    def send(self):
+        return self.make_request(
+            "post",
+            "/api/dashboards/{}/share/slack".format(self.dashboard.id),
+            data={"channel": "C1"},
+            user=self.sender(),
+        )
+
+    def test_on_localhost_the_picture_goes_without_a_button(self):
+        with mock.patch.object(settings, "HOST", "http://localhost:5099"):
+            response = self.send()
+
+        self.assertEqual(200, response.status_code)
+        kinds = [block["type"] for block in self.slack.posted()]
+        self.assertIn("image", kinds)
+        self.assertNotIn("actions", kinds)
+
+    def test_nor_does_a_public_link_on_localhost_get_one(self):
+        models.db.session.add(models.ApiKey(org=self.factory.org, object=self.dashboard, api_key="abc123"))
+        db.session.commit()
+
+        with mock.patch.object(settings, "HOST", "http://127.0.0.1:5000"):
+            self.send()
+
+        self.assertNotIn("actions", [block["type"] for block in self.slack.posted()])
+
+    def test_on_a_real_address_it_has_one(self):
+        self.send()
+
+        self.assertIn("actions", [block["type"] for block in self.slack.posted()])
+
+    def test_an_alert_on_localhost_goes_without_its_button_too(self):
+        from sqldesk.destinations.slack_app import SlackApp
+
+        result = self.factory.create_query_result(
+            data={"rows": [{"value": 1}], "columns": [{"name": "value", "type": "INTEGER"}]}
+        )
+        query = self.factory.create_query(latest_query_data_id=result.id)
+        alert = self.factory.create_alert(
+            query_rel=query, options={"selector": "first", "op": "equals", "column": "value", "value": "1"}
+        )
+        db.session.commit()
+        destination = SlackApp({"channel": "C1"})
+
+        destination.notify(
+            alert, query, self.factory.user, "triggered", None, "http://localhost:5000", {}, {"channel": "C1"}
+        )
+
+        self.assertNotIn("actions", [block["type"] for block in self.slack.posted()])
+
+
+class TestWhenSlackRefusesTheLayout(SlackTestCase):
+    """
+    Slack refusing the message around the picture -- an image block or a
+    button it will not take -- does not cost the picture: it is shared into
+    the channel as a file instead, with the words above it.
+    """
+
+    REFUSED = {
+        "ok": False,
+        "error": "invalid_blocks",
+        "response_metadata": {"messages": ["[ERROR] must be a valid URL [json-pointer:/blocks/3/elements/0/url]"]},
+    }
+
+    def setUp(self):
+        super().setUp()
+        self.installed()
+        self.dashboard = self.factory.create_dashboard(name="Revenue")
+        # A widget the sender can read: a dashboard of nothing is nobody's to send.
+        query = self.factory.create_query()
+        visualization = self.factory.create_visualization(query_rel=query)
+        self.factory.create_widget(dashboard=self.dashboard, visualization=visualization)
+        db.session.commit()
+        drawn = mock.patch("sqldesk.screenshots.capture", return_value=b"PNGDATA")
+        drawn.start()
+        self.addCleanup(drawn.stop)
+
+    def send(self):
+        return self.make_request(
+            "post",
+            "/api/dashboards/{}/share/slack".format(self.dashboard.id),
+            data={"channel": "C1"},
+            user=self.sender(),
+        )
+
+    def test_the_picture_is_shared_as_a_file_instead(self):
+        self.slack.answers["chat.postMessage"] = self.REFUSED
+
+        response = self.send()
+
+        self.assertEqual(200, response.status_code)
+        completes = self.slack.asked("files.completeUploadExternal")
+        self.assertEqual(2, len(completes))
+        self.assertNotIn("channel_id", completes[0])
+        self.assertEqual("C1", completes[1]["channel_id"])
+        self.assertIn("Revenue", completes[1]["initial_comment"])
+
+    def test_if_that_fails_too_both_reasons_are_given(self):
+        self.slack.answers["chat.postMessage"] = self.REFUSED
+        self.slack.answers["files.completeUploadExternal"] = [{"ok": True}, {"ok": False, "error": "not_in_channel"}]
+
+        response = self.send()
+
+        self.assertEqual(400, response.status_code)
+        self.assertIn("must be a valid URL", response.json["message"])
+        self.assertIn("Invite it", response.json["message"])
+
+    def test_a_refusal_that_is_not_about_the_layout_is_not_retried(self):
+        self.slack.answers["chat.postMessage"] = {"ok": False, "error": "not_in_channel"}
+
+        response = self.send()
+
+        self.assertEqual(400, response.status_code)
+        self.assertEqual(1, len(self.slack.asked("files.completeUploadExternal")))
+
+    def test_slacks_own_detail_reaches_the_person_who_pressed_send(self):
+        # Slack says which part it refused and why; that sentence is the
+        # diagnosis, so it is passed on.
+        self.slack.answers["chat.postMessage"] = {
+            "ok": False,
+            "error": "invalid_arguments",
+            "response_metadata": {"messages": ["[ERROR] missing required field: channel"]},
+        }
+
+        response = self.send()
+
+        self.assertEqual(400, response.status_code)
+        self.assertIn("missing required field: channel", response.json["message"])
+
+
+class TestWhatTheLogSays(SlackTestCase):
+    """Every step, so "it did not arrive" can be answered from the server's log."""
+
+    def setUp(self):
+        super().setUp()
+        # The suite switches INFO off to keep its own output quiet
+        # (tests/__init__.py); these tests are about exactly those lines.
+        import logging
+
+        logging.disable(logging.NOTSET)
+        self.addCleanup(logging.disable, logging.INFO)
+        self.workspace = self.installed(token="xoxb-secret-token-value")
+        self.dashboard = self.factory.create_dashboard(name="Revenue")
+        # A widget the sender can read: a dashboard of nothing is nobody's to send.
+        query = self.factory.create_query()
+        visualization = self.factory.create_visualization(query_rel=query)
+        self.factory.create_widget(dashboard=self.dashboard, visualization=visualization)
+        db.session.commit()
+        drawn = mock.patch("sqldesk.screenshots.capture", return_value=b"PNGDATA")
+        drawn.start()
+        self.addCleanup(drawn.stop)
+
+    def send(self):
+        return self.make_request(
+            "post",
+            "/api/dashboards/{}/share/slack".format(self.dashboard.id),
+            data={"channel": "C1", "text": "private words for the channel"},
+            user=self.sender(),
+        )
+
+    def logged(self):
+        with self.assertLogs("sqldesk", level="INFO") as captured:
+            self.send()
+        return "\n".join(captured.output)
+
+    def test_each_step_of_a_send_is_logged(self):
+        log = self.logged()
+
+        for step in (
+            "is sending dashboard {} to C1".format(self.dashboard.id),
+            "drew dashboard {}".format(self.dashboard.id),
+            "files.getUploadURLExternal: ok",
+            "upload of F1",
+            "files.completeUploadExternal: ok",
+            "posting to C1: section, image, actions",
+            "chat.postMessage: ok",
+            "dashboard {} sent to C1".format(self.dashboard.id),
+        ):
+            self.assertIn(step, log)
+
+    def test_a_refusal_is_logged_with_slacks_own_detail(self):
+        self.slack.answers["chat.postMessage"] = TestWhenSlackRefusesTheLayout.REFUSED
+
+        log = self.logged()
+
+        self.assertIn("chat.postMessage: refused", log)
+        self.assertIn("must be a valid URL", log)
+        self.assertIn("sharing the picture into it as a file instead", log)
+
+    def test_a_missing_button_says_why(self):
+        with mock.patch.object(settings, "HOST", "http://localhost:5099"):
+            log = self.logged()
+
+        self.assertIn("no button on dashboard", log)
+        self.assertIn("http://localhost:5099", log)
+
+    def test_never_the_token_nor_the_words_of_the_message(self):
+        self.slack.answers["chat.postMessage"] = TestWhenSlackRefusesTheLayout.REFUSED
+
+        log = self.logged()
+
+        self.assertNotIn("xoxb-secret-token-value", log)
+        self.assertNotIn("private words for the channel", log)

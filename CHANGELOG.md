@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+### Slack
+
+**No button to localhost.** A message's *Open dashboard* (or *Open query*)
+button pointed at `SQLDESK_HOST`, and on an install being tried out that is
+`http://localhost:...` -- an address that means the reader's own machine, and
+one Slack may refuse a whole message over. A button now goes only to an
+address people in the channel could open: not localhost, `127.0.0.1`, `::1`
+or a bare container name like `http://sqldesk:5000`. A private address or an
+internal name with a dot in it is kept, because an install behind a VPN is
+what this feature is for. Without a button the picture still goes.
+
+**When Slack refuses the message, the picture still arrives.** If Slack
+rejects the message's layout (`invalid_blocks`), the picture is uploaded again
+and shared straight into the channel as a file, with the message's words
+above it. Slack's own explanation of what it refused -- "must be a valid URL
+[json-pointer:/blocks/3/elements/0/url]" -- is now part of any error shown,
+rather than just its error code.
+
+**Every step is logged.** Who sent which dashboard where, how long it took to
+draw and how big it was, each call to Slack with its timing and Slack's own
+reason when it refused, whether the button was left off and why, and whether
+the picture went as a message or a file. INFO when it works, WARNING when it
+does not; never the token, and never the words of a message.
+
 ## 0.8.3
 
 Read Back. Settings -> Slack failed on every install made before 0.7.0: the

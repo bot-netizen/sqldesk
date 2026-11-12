@@ -74,22 +74,35 @@ class SlackApp(BaseDestination):
             logger.warning("alert %s has a Slack (app) destination with no channel", alert.id)
             return
 
+        logger.info(
+            "slack: alert %s (%s) to %s, with %s picture(s)",
+            alert.id,
+            new_state,
+            channel,
+            len((metadata or {}).get("screenshots") or []),
+        )
         text = self._text(alert, query, new_state, host, metadata)
         file_ids, problems = self._upload(workspace, metadata)
 
+        # No button to an address nobody in the channel could open, such as
+        # localhost -- see `slack.public_link`.
+        link = slack.public_link("{}/queries/{}".format(host, query.id))
+        if link is None:
+            logger.info("slack: no button on alert %s: %s is not an address people in Slack can open", alert.id, host)
         _posted, error = slack.post(
             workspace.bot_token,
             channel,
             text,
             file_id=file_ids[0] if file_ids else None,
             footer="; ".join(problems) if problems else None,
-            button={"text": "Open query", "url": "{}/queries/{}".format(host, query.id)},
+            button={"text": "Open query", "url": link} if link else None,
         )
         if error:
             workspace.last_error = error
             models.db.session.commit()
             logger.warning("alert %s could not be sent to Slack: %s", alert.id, error)
             return
+        logger.info("slack: alert %s sent to %s", alert.id, channel)
         if workspace.last_error:
             workspace.last_error = None
             models.db.session.commit()

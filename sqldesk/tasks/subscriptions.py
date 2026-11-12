@@ -18,6 +18,7 @@ tried. One broken dashboard must not stop the other nineteen going out.
 
 import datetime
 import logging
+import time
 
 from flask_mail import Message
 
@@ -83,6 +84,12 @@ def _post_to_slack(subscription, dashboard, owner):
     says this one comes round on a schedule -- and who set it up, which is
     who to ask when somebody wants it to stop.
     """
+    logger.info(
+        "slack: subscription %s is sending dashboard %s to %s",
+        subscription.id,
+        dashboard.id,
+        subscription.slack_channel,
+    )
     workspace = models.SlackWorkspace.query.filter(models.SlackWorkspace.org_id == subscription.org_id).first()
     if workspace is None:
         _record_problem(
@@ -90,10 +97,15 @@ def _post_to_slack(subscription, dashboard, owner):
         )
         return
 
+    started = time.monotonic()
     picture = screenshots.capture(screenshots.DASHBOARD, dashboard, owner, fmt=models.DashboardSubscription.PNG)
     if picture is None:
+        logger.warning(
+            "slack: the renderer drew nothing for dashboard %s after %.1fs", dashboard.id, time.monotonic() - started
+        )
         _record_problem(subscription, "The renderer could not draw this dashboard.")
         return
+    logger.info("slack: drew dashboard %s in %.1fs (%s bytes)", dashboard.id, time.monotonic() - started, len(picture))
 
     cadence = CADENCES.get((subscription.schedule or {}).get("interval"), "on a schedule")
     text = "*{}*\n_Sent {} because {} subscribed this channel._".format(dashboard.name, cadence, owner.name)
@@ -113,6 +125,13 @@ def _post_to_slack(subscription, dashboard, owner):
         _record_problem(subscription, error)
         return
 
+    logger.info(
+        "slack: subscription %s sent dashboard %s to %s%s",
+        subscription.id,
+        dashboard.id,
+        subscription.slack_channel,
+        " as a file" if _posted.get("as_file") else "",
+    )
     workspace.last_error = None
     subscription.last_sent_at = datetime.datetime.now(datetime.timezone.utc)
     subscription.failures = 0

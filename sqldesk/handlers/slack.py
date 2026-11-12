@@ -9,6 +9,7 @@ would mean two modules importing each other.
 """
 
 import logging
+import time
 
 from flask import request
 from flask_restful import abort
@@ -233,8 +234,10 @@ class DashboardSlackShareResource(BaseResource):
 
         # Before anything is drawn or sent, because the answer does not depend
         # on either and a person should not wait eight seconds to be told no.
+        logger.info("slack: user %s is sending dashboard %s to %s", self.current_user.id, dashboard.id, channel)
         too_big = one_page.too_big_to_send(dashboard.widgets)
         if too_big:
+            logger.info("slack: dashboard %s not sent: too big for one page", dashboard.id)
             abort(400, message=too_big)
 
         workspace = _workspace(self.current_org)
@@ -258,9 +261,16 @@ class DashboardSlackShareResource(BaseResource):
             footer=slack.as_of(dashboard),
         )
         if error:
+            logger.warning("slack: dashboard %s was not sent to %s: %s", dashboard.id, channel, error)
             _remember(workspace, error)
             abort(400, message=error)
 
+        logger.info(
+            "slack: dashboard %s sent to %s%s",
+            dashboard.id,
+            posted["channel"],
+            " as a file" if posted.get("as_file") else "",
+        )
         _remember(workspace, None)
         self.record_event({"action": "share_slack", "object_id": dashboard.id, "object_type": "dashboard"})
         return {"sent": True, "channel": posted["channel"]}
@@ -277,7 +287,13 @@ class DashboardSlackShareResource(BaseResource):
         # all without one (see features.py), so somebody who reaches this line
         # has one. A branch for it would be unreachable code, which is code
         # nobody has run.
+        started = time.monotonic()
         picture = screenshots.capture(screenshots.DASHBOARD, dashboard, self.current_user)
+        took = time.monotonic() - started
+        if picture:
+            logger.info("slack: drew dashboard %s in %.1fs (%s bytes)", dashboard.id, took, len(picture))
+        else:
+            logger.warning("slack: the renderer drew nothing for dashboard %s after %.1fs", dashboard.id, took)
         if not picture:
             # `capture` folds every failure into None, because to an alert they
             # all mean "send it without a picture". Here they mean "do not
