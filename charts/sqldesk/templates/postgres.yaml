@@ -79,6 +79,13 @@ spec:
               command: ["pg_isready", "-U", {{ .Values.postgres.user | quote }}]
             initialDelaySeconds: 5
             periodSeconds: 5
+            # Not Kubernetes' one-second default. An unready Postgres is taken
+            # out of the Service, and every connection to it is then refused
+            # -- the whole app returns 500 while the database is up and
+            # answering. Seen on the development cluster: the laptop under it
+            # was loaded and swapping, `pg_isready` took just over a second,
+            # and SQLDesk was down for as long as that lasted.
+            timeoutSeconds: 5
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data

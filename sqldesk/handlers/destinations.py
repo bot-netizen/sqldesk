@@ -1,8 +1,10 @@
+import copy
+
 from flask import make_response, request
 from flask_restful import abort
 from sqlalchemy.exc import IntegrityError
 
-from sqldesk import models
+from sqldesk import models, slack
 from sqldesk.destinations import (
     destinations,
     get_configuration_schema_for_destination_type,
@@ -12,10 +14,36 @@ from sqldesk.permissions import require_admin
 from sqldesk.utils.configuration import ConfigurationContainer, ValidationError
 
 
+def _offer_slack_channels(destination_type, org):
+    """
+    Make a Slack (app) destination's channel a list to pick from.
+
+    The channels the app is in, asked of Slack as the form opens. Typed by
+    hand, a channel's name was one typo or one missing invitation away from an
+    alert that posts nowhere -- and the first anybody heard of it was the
+    alert that did not arrive. Left as a text field when Slack is not set up,
+    cannot be reached, or the app is in no channel yet: a list with nothing in
+    it would be a form nobody can fill in.
+    """
+    workspace = models.SlackWorkspace.query.filter(models.SlackWorkspace.org_id == org.id).first()
+    if workspace is None:
+        return destination_type
+    channels, error = slack.channels(workspace.bot_token)
+    if error or not channels:
+        return destination_type
+
+    offered = copy.deepcopy(destination_type)
+    field = offered["configuration_schema"]["properties"]["channel"]
+    field["extendedEnum"] = [{"value": c["id"], "name": "#{}".format(c["name"])} for c in channels]
+    field["info"] = "The channels the app is in. To add one, type /invite and the app's name in that channel in Slack."
+    return offered
+
+
 class DestinationTypeListResource(BaseResource):
     @require_admin
     def get(self):
-        return [q.to_dict() for q in destinations.values()]
+        types = [q.to_dict() for q in destinations.values()]
+        return [_offer_slack_channels(t, self.current_org) if t["type"] == "slack_app" else t for t in types]
 
 
 class DestinationResource(BaseResource):

@@ -3271,7 +3271,8 @@ class NotificationDestination(BelongsToOrgMixin, db.Model):
 @generic_repr("id", "dashboard_id", "user_id", "format", "active")
 class DashboardSubscription(TimestampMixin, BelongsToOrgMixin, db.Model):
     """
-    A dashboard, mailed to some people, on a schedule.
+    A dashboard, mailed to some people or posted to a Slack channel, on a
+    schedule.
 
     Named for the dashboard because `Alert.subscriptions` is already something
     else -- who hears about an alert. These two have nothing to do with each
@@ -3305,6 +3306,15 @@ class DashboardSubscription(TimestampMixin, BelongsToOrgMixin, db.Model):
     schedule = Column(MutableDict.as_mutable(JSONB), nullable=True)
 
     format = Column(db.String(10), default=PNG)
+
+    #: A Slack channel to post to, instead of people to mail. Its id, which is
+    #: what Slack posts by and what survives a rename, and its name as it was
+    #: when picked, which is what the dialog lists -- Slack is not asked again
+    #: just to label a row. A subscription has one or the other: people, who
+    #: are each checked against the dashboard, or a channel, which is the
+    #: subscriber's to choose the way Send to Slack is.
+    slack_channel = Column(db.String(64), nullable=True)
+    slack_channel_name = Column(db.String(255), nullable=True)
 
     #: User ids, never addresses: a subscription that could name an address
     #: would be a way to mail a dashboard's contents anywhere. Stored as a

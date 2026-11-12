@@ -19,6 +19,11 @@ test rather than a surprise in somebody's email.
 The rule is about a *page*, so it governs a PDF and a subscription and not an
 image. Downloading a dashboard as a picture sizes the canvas to the dashboard
 and has no page to overflow; its only limit is what the browser will allocate.
+
+Sending to Slack, now or on a schedule, follows the rule even though what it
+sends is a picture: a channel shows the picture at the width of a message, so
+a dashboard taller than a page arrives as a strip of charts too small to read
+until somebody opens it full size -- the eleven-page PDF again, in a channel.
 """
 
 import math
@@ -70,12 +75,20 @@ def grid_height(widgets):
     return rows * ROW_HEIGHT + GRID_MARGIN
 
 
-def too_big_to_send(widgets):
+def size_check(widgets):
     """
-    Why this dashboard cannot be sent as one page, or None.
+    How this dashboard measures against one page, and what to change if it
+    does not fit.
 
-    Kept word-for-word close to the client's message: somebody who has met
-    one of these should recognise the other.
+    Asked by the Send to Slack and subscription dialogs as they open, so
+    somebody learns a dashboard is too big -- and what to do about it --
+    before they have picked a channel and pressed Send, rather than after.
+
+    `remove` is how many widgets have to go for the count to fit; `too_tall`
+    is whether the layout is taller than a page even so. The two are separate
+    because they want different advice: a dashboard of fifteen small charts is
+    fixed by removing three, and one of four enormous ones is not fixed by
+    removing anything short of all of them.
     """
     # `dashboard.widgets` is a dynamic relationship, not a list, and a caller
     # holding one should not have to remember that.
@@ -88,15 +101,50 @@ def too_big_to_send(widgets):
     needed = height + HEADER_HEIGHT + MARGIN * 2
     pages = math.ceil(needed / page_height) if page_height else 1
 
-    if count <= MAX_WIDGETS and needed <= page_height * ONE_PAGE_STRETCH:
-        return None
+    remove = max(0, count - MAX_WIDGETS)
+    too_tall = needed > page_height * ONE_PAGE_STRETCH
+    fits = not remove and not too_tall
 
-    size = (
-        "This dashboard has {} widgets".format(count)
-        if count > MAX_WIDGETS
-        else "This dashboard would need {} pages".format(pages)
-    )
-    return (
-        "A subscription sends a one-page report: up to {} widgets, one page tall. {}. "
-        "Send a dashboard of just the widgets that matter instead.".format(MAX_WIDGETS, size)
-    )
+    problem = advice = None
+    if not fits:
+        size = (
+            "This dashboard has {} widgets".format(count)
+            if remove
+            else "This dashboard would need {} pages".format(pages)
+        )
+        problem = "A dashboard is sent as a one-page report: up to {} widgets, one page tall. {}.".format(
+            MAX_WIDGETS, size
+        )
+        copy = "or send a copy of it with just the widgets that matter."
+        if remove and too_tall:
+            advice = "To send it, remove at least {} {} and make it shorter, {}".format(
+                remove, "widget" if remove == 1 else "widgets", copy
+            )
+        elif remove:
+            advice = "To send it, remove {} {}, {}".format(remove, "widget" if remove == 1 else "widgets", copy)
+        else:
+            advice = "To send it, make it shorter -- fewer or smaller widgets -- {}".format(copy)
+
+    return {
+        "fits": fits,
+        "widgets": count,
+        "max_widgets": MAX_WIDGETS,
+        "pages": pages,
+        "remove": remove,
+        "too_tall": too_tall,
+        "problem": problem,
+        "advice": advice,
+    }
+
+
+def too_big_to_send(widgets):
+    """
+    Why this dashboard cannot be sent as one page, and what to do, or None.
+
+    Kept close to the client's message: somebody who has met one of these
+    should recognise the other.
+    """
+    check = size_check(widgets)
+    if check["fits"]:
+        return None
+    return "{} {}".format(check["problem"], check["advice"])

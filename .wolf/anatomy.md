@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-06T22:41:30.607Z
-> Files: 735 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-12T10:14:37.308Z
+> Files: 743 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -87,8 +87,8 @@
 - `migrate-job.yaml` — K8s Job (~1027 tok)
 - `networkpolicy.yaml` — K8s NetworkPolicy: {{ (~306 tok)
 - `NOTES.txt` (~909 tok)
-- `postgres.yaml` — K8s PersistentVolumeClaim: {{ (~800 tok)
-- `redis.yaml` — K8s Service: {{ (~559 tok)
+- `postgres.yaml` — K8s PersistentVolumeClaim (~936 tok)
+- `redis.yaml` — K8s Service (~1276 tok)
 - `screenshots.yaml` — K8s Service: {{ (~945 tok)
 - `secret.yaml` — K8s Secret: {{ (~450 tok)
 - `server.yaml` — K8s Service: {{ (~1196 tok)
@@ -264,6 +264,7 @@
 - `SelectItemsDialog.less` — Styles: 1 rules (~42 tok)
 - `SelectWithVirtualScroll.tsx` — MIN_LEN_FOR_VIRTUAL_SCROLL (~384 tok)
 - `SettingsWrapper.jsx` — wrapSettingsTab (~464 tok)
+- `SlackChannelSelect.jsx` — useSlackChannels (~1075 tok)
 - `Spinner.jsx` — `inline` follows the surrounding font size; the rest are fixed. (~440 tok)
 - `Spinner.less` — Styles: 4 rules, 1 media queries, 1 animations (~357 tok)
 - `Spinner.test.js` — Declares that (~696 tok)
@@ -705,14 +706,15 @@
 - `LiveBadge.jsx` — "● Live · every 30 seconds", or "Paused by Iqbal". The dot pulses while (~661 tok)
 - `LiveBadge.less` — Styles: 3 rules, 1 media queries, 1 animations (~274 tok)
 - `LiveBadge.test.js` — Declares text (~530 tok)
-- `SendToSlackDialog.jsx` — SendToSlackDialog — renders modal — uses useState, useEffect, useCallback (~1328 tok)
+- `SendableNotice.jsx` — useSendable (~724 tok)
+- `SendToSlackDialog.jsx` — SendToSlackDialog — renders modal (~993 tok)
 - `ShareDashboardButton.jsx` — ShareDashboardButton — uses useState, useCallback (~2415 tok)
 - `ShareDashboardButton.test.js` — Declares menuText (~698 tok)
 - `ShareDashboardDialog.jsx` — API_SHARE_URL — renders form, modal (~1102 tok)
 - `StreamMarker.jsx` — A rate a person can read, rather than seventeen digits of false precision. (~1214 tok)
 - `StreamMarker.less` — Styles: 5 rules (~661 tok)
 - `StreamMarker.test.js` — Declares aStream (~1741 tok)
-- `SubscribeDashboardDialog.jsx` — INTERVALS — renders table, modal — uses useState, useCallback, useEffect (~1923 tok)
+- `SubscribeDashboardDialog.jsx` — INTERVALS — renders table, modal (~2585 tok)
 
 ## client/app/pages/dashboards/export/
 
@@ -903,6 +905,7 @@
 - `5c1f7a92b4d8_notebook_cell_title.py` — A title for a notebook cell, separate from the name other cells use. (~204 tok)
 - `6d2a8e34f71b_notebook_schedule.py` — A notebook can run itself on a cron. (~339 tok)
 - `a1c7f30e95bd_dashboard_kind.py` — A dashboard declares whether it is streaming (~738 tok)
+- `a8d3f6c1e924_subscription_slack_channel.py` — A dashboard subscription can post to a Slack channel (~257 tok)
 - `d4b2a8e61f37_stream_value_formats.py` — A stream can read Avro and Protobuf, not only JSON (~318 tok)
 - `f3a71c20e9d5_alert_fires.py` — An alert keeps a history of when it fired (~498 tok)
 
@@ -924,7 +927,9 @@
 
 - `alerting.py` — condition, latest_value, headline, how_often (~1401 tok)
 - `notebooks.py` — name_problem, staleness, walk, missing_inputs (~1490 tok)
+- `one_page.py` — grid_height, size_check, too_big_to_send (~1700 tok)
 - `pools.py` — _Lock: pool_for, budget, held, in_use + 3 more (~2550 tok)
+- `slack.py` — check, channels, find_channel, upload (~3428 tok)
 
 ## sqldesk/cli/
 
@@ -944,10 +949,13 @@
 ## sqldesk/handlers/
 
 - `alerts.py` — AlertResource: require_access_to_attachments, can_see_dashboard, get, post + 10 more (~2597 tok)
+- `api.py` — ApiExt: add_org_resource, handle_error, json_representation (~5372 tok)
 - `authentication.py` — get_google_auth_url, render_token_login_page, invite, reset (~5769 tok)
 - `dashboards.py` — DashboardListResource: filter_by_kind, get, post, get + 2 more (~8039 tok)
+- `destinations.py` — DestinationTypeListResource: get, get, post, delete + 2 more (~1539 tok)
 - `notebooks.py` — NotebookListResource: serialize_notebook, serialize_cell, get, post + 5 more (~4498 tok)
 - `queries.py` — QuerySearchResource: filter_by_kind, format_sql_query, require_valid_schedule, get + 7 more (~8402 tok)
+- `slack.py` — SlackSettingsResource: get, post, delete, get + 2 more (~3362 tok)
 - `widgets.py` — WidgetListResource: clean_tabs, apply_tabs, post, post + 1 more (~2185 tok)
 
 ## sqldesk/mcp/
@@ -977,7 +985,7 @@
 
 ## sqldesk/serializers/
 
-- `__init__.py` — Serializer: streaming_data_source_ids, public_widget, public_dashboard, serialize_dashboard_subscrip (~5327 tok)
+- `__init__.py` — Serializer: streaming_data_source_ids, public_widget, public_dashboard, serialize_dashboard_subscrip (~5539 tok)
 
 ## sqldesk/settings/
 

@@ -1,5 +1,6 @@
 """
-Who gets a dashboard mailed to them, and when.
+Who gets a dashboard mailed to them, or which Slack channel it is posted to,
+and when.
 
 Everything here needs the `send_dashboards` feature, which an install only
 offers where a renderer is configured -- there is nothing to send without a
@@ -13,12 +14,17 @@ inboxes a week later:
 - a recipient has to be able to see the dashboard. One who cannot is left off
   and named in the reply, rather than silently dropped or silently mailed
   something they have no right to.
+
+A Slack channel is the third: it has to be one the app is in, asked of Slack
+when the subscription is saved, because a channel the app is not in refuses
+every post and the first anybody would hear of it is a dashboard that never
+arrives.
 """
 
 from flask import request
 from flask_restful import abort
 
-from sqldesk import features, models, one_page
+from sqldesk import features, models, one_page, slack
 from sqldesk.handlers.base import BaseResource, get_object_or_404
 from sqldesk.models import db
 from sqldesk.permissions import (
@@ -60,6 +66,14 @@ def _check_schedule(schedule):
     return None
 
 
+def _slack_channel(org, channel_id):
+    """The channel with this id, if the app is in it, or why not."""
+    workspace = models.SlackWorkspace.query.filter(models.SlackWorkspace.org_id == org.id).first()
+    if workspace is None:
+        return None, "Slack is not set up. An administrator adds the app's token under Settings."
+    return slack.find_channel(workspace.bot_token, channel_id)
+
+
 def _sort_recipients(ids, dashboard, org):
     """
     Who may be sent this dashboard, and who may not.
@@ -85,6 +99,21 @@ def _sort_recipients(ids, dashboard, org):
     return allowed, refused
 
 
+class DashboardSendableResource(BaseResource):
+    def get(self, dashboard_id):
+        """
+        Whether this dashboard fits on one page, and what to change if not.
+
+        Asked by the Send to Slack and subscription dialogs as they open, so
+        the answer arrives before somebody has picked a channel or a list of
+        people -- not as the reply to pressing Send.
+        """
+        dashboard = get_object_or_404(models.Dashboard.get_by_id_and_org, dashboard_id, self.current_org)
+        if not _visible(dashboard.id, self.current_org, self.current_user):
+            abort(404, message="Dashboard not found.")
+        return one_page.size_check(dashboard.widgets)
+
+
 class DashboardSubscriptionListResource(BaseResource):
     @require_feature(features.SEND_DASHBOARDS)
     def get(self, dashboard_id):
@@ -105,6 +134,7 @@ class DashboardSubscriptionListResource(BaseResource):
         :<json object schedule: when to send -- the shape a query's schedule has
         :<json string format: `png` or `pdf`
         :<json array recipients: user ids, never addresses
+        :<json string slack_channel: a Slack channel's id, instead of recipients
         """
         dashboard = get_object_or_404(models.Dashboard.get_by_id_and_org, dashboard_id, self.current_org)
         if not _visible(dashboard.id, self.current_org, self.current_user):
@@ -124,9 +154,21 @@ class DashboardSubscriptionListResource(BaseResource):
         if fmt not in models.DashboardSubscription.FORMATS:
             abort(400, message="A subscription is sent as a picture or a PDF.")
 
-        allowed, refused = _sort_recipients(body.get("recipients"), dashboard, self.current_org)
-        if not allowed:
-            abort(400, message="Nobody on that list can see this dashboard.")
+        channel = None
+        channel_id = (body.get("slack_channel") or "").strip()
+        if channel_id:
+            channel, problem = _slack_channel(self.current_org, channel_id)
+            if problem:
+                abort(400, message=problem)
+            # A channel shows a picture in the conversation; a PDF arrives as
+            # a file to download, which is not what somebody watching a
+            # dashboard every hour wants to open.
+            fmt = models.DashboardSubscription.PNG
+            allowed, refused = [], []
+        else:
+            allowed, refused = _sort_recipients(body.get("recipients"), dashboard, self.current_org)
+            if not allowed:
+                abort(400, message="Nobody on that list can see this dashboard.")
 
         subscription = models.DashboardSubscription(
             org=self.current_org,
@@ -135,6 +177,8 @@ class DashboardSubscriptionListResource(BaseResource):
             schedule=body["schedule"],
             format=fmt,
             recipient_ids=allowed,
+            slack_channel=channel["id"] if channel else None,
+            slack_channel_name=channel["name"] if channel else None,
         )
         db.session.add(subscription)
         db.session.commit()
@@ -174,9 +218,18 @@ class DashboardSubscriptionResource(BaseResource):
         if "format" in body:
             if body["format"] not in models.DashboardSubscription.FORMATS:
                 abort(400, message="A subscription is sent as a picture or a PDF.")
+            if subscription.slack_channel and body["format"] != models.DashboardSubscription.PNG:
+                abort(400, message="A Slack channel is sent a picture.")
             subscription.format = body["format"]
 
-        if "recipients" in body:
+        if body.get("slack_channel") and subscription.slack_channel:
+            channel, problem = _slack_channel(self.current_org, body["slack_channel"].strip())
+            if problem:
+                abort(400, message=problem)
+            subscription.slack_channel = channel["id"]
+            subscription.slack_channel_name = channel["name"]
+
+        if "recipients" in body and not subscription.slack_channel:
             allowed, refused = _sort_recipients(body["recipients"], subscription.dashboard, self.current_org)
             if not allowed:
                 abort(400, message="Nobody on that list can see this dashboard.")

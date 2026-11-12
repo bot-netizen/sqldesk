@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-06T22:41:30.607Z",
-    "fileCount": 735,
+    "lastScanned": "2026-11-12T10:14:37.308Z",
+    "fileCount": 743,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "b3c43828ee3817b4e69949df9a2e1e479066fa42b87fedaed2905511bcc2a572",
-    "storeUpdatedAt": "2026-11-06T22:41:30.639Z",
-    "rootHash": "cb8edb2e7e65ee14"
+    "renderedHash": "8b7399a0a96ca1e197c97c203b4c151c935ccacd7c88bef675cc7f7bd01bd219",
+    "storeUpdatedAt": "2026-11-12T10:14:37.327Z",
+    "rootHash": "1e8af909bc652a57"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -318,24 +318,22 @@
       "importance": 0.1572
     },
     "charts/sqldesk/templates/postgres.yaml": {
-      "description": "K8s PersistentVolumeClaim: {{",
-      "tokens": 800,
-      "hash": "77fcfaf5bce0db28",
-      "size": 2798,
-      "mtimeMs": 1790325739821.598,
-      "updatedAt": "2026-10-05T22:00:00.107Z",
-      "source": "scan",
-      "importance": 0.1572
+      "description": "K8s PersistentVolumeClaim",
+      "tokens": 936,
+      "hash": "57c11ffa4711c770",
+      "size": 3274,
+      "mtimeMs": 1794476238117.7505,
+      "updatedAt": "2026-11-12T09:37:18.307Z",
+      "source": "hook"
     },
     "charts/sqldesk/templates/redis.yaml": {
-      "description": "K8s Service: {{",
-      "tokens": 559,
-      "hash": "7cbac64ad1f85ca2",
-      "size": 1954,
-      "mtimeMs": 1790588622560.1443,
-      "updatedAt": "2026-10-05T22:00:00.107Z",
-      "source": "scan",
-      "importance": 0.1572
+      "description": "K8s Service",
+      "tokens": 1276,
+      "hash": "e39942ed29ce7e0b",
+      "size": 4463,
+      "mtimeMs": 1794476238569.3577,
+      "updatedAt": "2026-11-12T09:37:18.738Z",
+      "source": "hook"
     },
     "charts/sqldesk/templates/screenshots.yaml": {
       "description": "K8s Service: {{",
@@ -8841,24 +8839,22 @@
       "importance": 0.1572
     },
     "client/app/pages/dashboards/components/SendToSlackDialog.jsx": {
-      "description": "SendToSlackDialog — renders modal — uses useState, useEffect, useCallback",
-      "tokens": 1328,
-      "hash": "ec8f9b83dafb06c0",
-      "size": 4651,
-      "mtimeMs": 1790852792181.815,
-      "updatedAt": "2026-10-05T22:00:00.174Z",
-      "source": "scan",
+      "description": "SendToSlackDialog — renders modal",
+      "tokens": 993,
+      "hash": "1c1d7542d2b083e1",
+      "size": 3477,
+      "mtimeMs": 1794478449742.5952,
+      "updatedAt": "2026-11-12T10:14:09.878Z",
+      "source": "hook",
       "symbols": [
         {
           "name": "SendToSlackDialog",
           "kind": "fn",
-          "startLine": 25,
-          "endLine": 122,
-          "tokens": 975
+          "startLine": 31,
+          "endLine": 96,
+          "tokens": 620
         }
-      ],
-      "symbolSource": "ts",
-      "importance": 0.2654
+      ]
     },
     "client/app/pages/dashboards/components/ShareDashboardButton.jsx": {
       "description": "ShareDashboardButton — uses useState, useCallback",
@@ -8951,31 +8947,36 @@
       "importance": 0.2261
     },
     "client/app/pages/dashboards/components/SubscribeDashboardDialog.jsx": {
-      "description": "INTERVALS — renders table, modal — uses useState, useCallback, useEffect",
-      "tokens": 1923,
-      "hash": "e0521b4fea66c82f",
-      "size": 6729,
-      "mtimeMs": 1790808707527.2048,
-      "updatedAt": "2026-10-05T22:00:00.175Z",
-      "source": "scan",
+      "description": "INTERVALS — renders table, modal",
+      "tokens": 2585,
+      "hash": "eb600e923c59d10f",
+      "size": 9045,
+      "mtimeMs": 1794478477170.8044,
+      "updatedAt": "2026-11-12T10:14:37.307Z",
+      "source": "hook",
       "symbols": [
         {
           "name": "describe",
           "kind": "fn",
-          "startLine": 35,
-          "endLine": 38,
-          "tokens": 47
+          "startLine": 44,
+          "endLine": 48,
+          "tokens": 48
+        },
+        {
+          "name": "Who",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 67,
+          "tokens": 150
         },
         {
           "name": "SubscribeDashboardDialog",
           "kind": "fn",
-          "startLine": 40,
-          "endLine": 194,
-          "tokens": 1444
+          "startLine": 68,
+          "endLine": 261,
+          "tokens": 1866
         }
-      ],
-      "symbolSource": "ts",
-      "importance": 0.2654
+      ]
     },
     "client/app/pages/dashboards/dashboard-folders.less": {
       "description": "Styles: 2 rules",
@@ -11717,11 +11718,11 @@
     },
     "sqldesk/serializers/__init__.py": {
       "description": "Serializer: streaming_data_source_ids, public_widget, public_dashboard, serialize_dashboard_subscrip",
-      "tokens": 5327,
-      "hash": "8e58a7ec04ef48d4",
-      "size": 18646,
-      "mtimeMs": 1793286939138.6948,
-      "updatedAt": "2026-10-29T15:15:39.300Z",
+      "tokens": 5539,
+      "hash": "edb8c84b1b10f7d1",
+      "size": 19386,
+      "mtimeMs": 1794478073802.3496,
+      "updatedAt": "2026-11-12T10:07:53.940Z",
       "source": "hook",
       "symbols": [
         {
@@ -11749,91 +11750,91 @@
           "name": "serialize_dashboard_subscription",
           "kind": "fn",
           "startLine": 93,
-          "endLine": 114,
-          "tokens": 244
+          "endLine": 116,
+          "tokens": 278
         },
         {
           "name": "Serializer",
           "kind": "class",
-          "startLine": 115,
-          "endLine": 118,
+          "startLine": 117,
+          "endLine": 120,
           "tokens": 8
         },
         {
           "name": "QuerySerializer",
           "kind": "class",
-          "startLine": 119,
-          "endLine": 148,
+          "startLine": 121,
+          "endLine": 150,
           "tokens": 396
         },
         {
           "name": "serialize_query",
           "kind": "fn",
-          "startLine": 149,
-          "endLine": 224,
+          "startLine": 151,
+          "endLine": 226,
           "tokens": 837
         },
         {
           "name": "serialize_visualization",
           "kind": "fn",
-          "startLine": 225,
-          "endLine": 241,
+          "startLine": 227,
+          "endLine": 243,
           "tokens": 116
         },
         {
           "name": "serialize_widget",
           "kind": "fn",
-          "startLine": 242,
-          "endLine": 259,
+          "startLine": 244,
+          "endLine": 261,
           "tokens": 145
         },
         {
           "name": "_serialize_widget_tabs",
           "kind": "fn",
-          "startLine": 260,
-          "endLine": 287,
-          "tokens": 317
+          "startLine": 262,
+          "endLine": 300,
+          "tokens": 495
         },
         {
           "name": "serialize_alert_fire",
           "kind": "fn",
-          "startLine": 288,
-          "endLine": 296,
+          "startLine": 301,
+          "endLine": 309,
           "tokens": 53
         },
         {
           "name": "serialize_alert",
           "kind": "fn",
-          "startLine": 297,
-          "endLine": 329,
+          "startLine": 310,
+          "endLine": 342,
           "tokens": 306
         },
         {
           "name": "serialize_dashboard_verification",
           "kind": "fn",
-          "startLine": 330,
-          "endLine": 352,
+          "startLine": 343,
+          "endLine": 365,
           "tokens": 244
         },
         {
           "name": "serialize_dashboard",
           "kind": "fn",
-          "startLine": 353,
-          "endLine": 426,
+          "startLine": 366,
+          "endLine": 439,
           "tokens": 837
         },
         {
           "name": "DashboardSerializer",
           "kind": "class",
-          "startLine": 427,
-          "endLine": 467,
+          "startLine": 440,
+          "endLine": 480,
           "tokens": 566
         },
         {
           "name": "serialize_job",
           "kind": "fn",
-          "startLine": 468,
-          "endLine": 512,
+          "startLine": 481,
+          "endLine": 525,
           "tokens": 342
         }
       ]
@@ -19244,6 +19245,309 @@
       "mtimeMs": 1794004466238.8142,
       "updatedAt": "2026-11-06T22:34:26.442Z",
       "source": "hook"
+    },
+    "sqldesk/one_page.py": {
+      "description": "grid_height, size_check, too_big_to_send",
+      "tokens": 1700,
+      "hash": "adf1dba3e9470946",
+      "size": 5949,
+      "mtimeMs": 1794477934039.0771,
+      "updatedAt": "2026-11-12T10:05:34.170Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "grid_height",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 77,
+          "tokens": 177
+        },
+        {
+          "name": "size_check",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 139,
+          "tokens": 692
+        },
+        {
+          "name": "too_big_to_send",
+          "kind": "fn",
+          "startLine": 140,
+          "endLine": 151,
+          "tokens": 104
+        }
+      ]
+    },
+    "sqldesk/slack.py": {
+      "description": "check, channels, find_channel, upload",
+      "tokens": 3428,
+      "hash": "e987b35fd1334214",
+      "size": 11996,
+      "mtimeMs": 1794477979872.1167,
+      "updatedAt": "2026-11-12T10:06:20.005Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_explain",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 59,
+          "tokens": 36
+        },
+        {
+          "name": "_call",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 90,
+          "tokens": 298
+        },
+        {
+          "name": "check",
+          "kind": "fn",
+          "startLine": 91,
+          "endLine": 104,
+          "tokens": 128
+        },
+        {
+          "name": "channels",
+          "kind": "fn",
+          "startLine": 105,
+          "endLine": 147,
+          "tokens": 459
+        },
+        {
+          "name": "find_channel",
+          "kind": "fn",
+          "startLine": 148,
+          "endLine": 165,
+          "tokens": 191
+        },
+        {
+          "name": "upload",
+          "kind": "fn",
+          "startLine": 166,
+          "endLine": 204,
+          "tokens": 420
+        },
+        {
+          "name": "post",
+          "kind": "fn",
+          "startLine": 205,
+          "endLine": 255,
+          "tokens": 505
+        },
+        {
+          "name": "post_dashboard",
+          "kind": "fn",
+          "startLine": 256,
+          "endLine": 277,
+          "tokens": 203
+        },
+        {
+          "name": "dashboard_link",
+          "kind": "fn",
+          "startLine": 278,
+          "endLine": 300,
+          "tokens": 293
+        },
+        {
+          "name": "as_of",
+          "kind": "fn",
+          "startLine": 301,
+          "endLine": 310,
+          "tokens": 151
+        }
+      ]
+    },
+    "sqldesk/handlers/slack.py": {
+      "description": "SlackSettingsResource: get, post, delete, get + 2 more",
+      "tokens": 3362,
+      "hash": "a235c9563ef53f5a",
+      "size": 11770,
+      "mtimeMs": 1794478014931.7378,
+      "updatedAt": "2026-11-12T10:06:55.081Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_workspace",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 36,
+          "tokens": 83
+        },
+        {
+          "name": "SlackSettingsResource",
+          "kind": "class",
+          "startLine": 37,
+          "endLine": 101,
+          "tokens": 715
+        },
+        {
+          "name": "_may_pick_channels",
+          "kind": "fn",
+          "startLine": 102,
+          "endLine": 112,
+          "tokens": 118
+        },
+        {
+          "name": "SlackChannelsResource",
+          "kind": "class",
+          "startLine": 113,
+          "endLine": 137,
+          "tokens": 256
+        },
+        {
+          "name": "SlackAlertDestinationResource",
+          "kind": "class",
+          "startLine": 138,
+          "endLine": 194,
+          "tokens": 751
+        },
+        {
+          "name": "_remember",
+          "kind": "fn",
+          "startLine": 195,
+          "endLine": 207,
+          "tokens": 108
+        },
+        {
+          "name": "DashboardSlackShareResource",
+          "kind": "class",
+          "startLine": 208,
+          "endLine": 287,
+          "tokens": 1033
+        }
+      ]
+    },
+    "sqldesk/handlers/api.py": {
+      "description": "ApiExt: add_org_resource, handle_error, json_representation",
+      "tokens": 5372,
+      "hash": "3371a71f7649b2b1",
+      "size": 18801,
+      "mtimeMs": 1794478026958.686,
+      "updatedAt": "2026-11-12T10:07:07.104Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ApiExt",
+          "kind": "class",
+          "startLine": 162,
+          "endLine": 181,
+          "tokens": 204
+        },
+        {
+          "name": "json_representation",
+          "kind": "fn",
+          "startLine": 182,
+          "endLine": 491,
+          "tokens": 3908
+        }
+      ]
+    },
+    "migrations/versions/a8d3f6c1e924_subscription_slack_channel.py": {
+      "description": "A dashboard subscription can post to a Slack channel",
+      "tokens": 257,
+      "hash": "4427a99f64609144",
+      "size": 897,
+      "mtimeMs": 1794478052818.303,
+      "updatedAt": "2026-11-12T10:07:32.968Z",
+      "source": "hook"
+    },
+    "sqldesk/handlers/destinations.py": {
+      "description": "DestinationTypeListResource: get, get, post, delete + 2 more",
+      "tokens": 1539,
+      "hash": "e8a0fffaeea27b7b",
+      "size": 5385,
+      "mtimeMs": 1794478105084.4111,
+      "updatedAt": "2026-11-12T10:08:25.219Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_offer_slack_channels",
+          "kind": "fn",
+          "startLine": 17,
+          "endLine": 41,
+          "tokens": 342
+        },
+        {
+          "name": "DestinationTypeListResource",
+          "kind": "class",
+          "startLine": 42,
+          "endLine": 48,
+          "tokens": 74
+        },
+        {
+          "name": "DestinationResource",
+          "kind": "class",
+          "startLine": 49,
+          "endLine": 107,
+          "tokens": 544
+        },
+        {
+          "name": "DestinationListResource",
+          "kind": "class",
+          "startLine": 108,
+          "endLine": 163,
+          "tokens": 448
+        }
+      ]
+    },
+    "client/app/components/SlackChannelSelect.jsx": {
+      "description": "useSlackChannels",
+      "tokens": 1075,
+      "hash": "c5c1827ad405d39e",
+      "size": 3764,
+      "mtimeMs": 1794478438495.7546,
+      "updatedAt": "2026-11-12T10:13:58.656Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "useSlackChannels",
+          "kind": "fn",
+          "startLine": 23,
+          "endLine": 51,
+          "tokens": 248
+        },
+        {
+          "name": "inviteCommand",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 55,
+          "tokens": 34
+        },
+        {
+          "name": "SlackChannelSelect",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 114,
+          "tokens": 550
+        }
+      ]
+    },
+    "client/app/pages/dashboards/components/SendableNotice.jsx": {
+      "description": "useSendable",
+      "tokens": 724,
+      "hash": "578c4056b6cdb2c3",
+      "size": 2531,
+      "mtimeMs": 1794478438877.481,
+      "updatedAt": "2026-11-12T10:13:59.011Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "useSendable",
+          "kind": "fn",
+          "startLine": 22,
+          "endLine": 44,
+          "tokens": 163
+        },
+        {
+          "name": "SendableNotice",
+          "kind": "fn",
+          "startLine": 45,
+          "endLine": 86,
+          "tokens": 304
+        }
+      ]
     }
   },
   "preamble": [

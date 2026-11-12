@@ -1,4 +1,4 @@
-import { without, find, includes, map, toLower } from "lodash";
+import { without, find, get, includes, map, toLower } from "lodash";
 import React from "react";
 import PropTypes from "prop-types";
 
@@ -10,7 +10,9 @@ import { Destination as DestinationType, UserProfile as UserType } from "@/compo
 import DestinationService, { IMG_ROOT } from "@/services/destination";
 import TypeLogo from "@/components/TypeLogo";
 import AlertSubscription from "@/services/alert-subscription";
+import { axios } from "@/services/axios";
 import { clientConfig, currentUser } from "@/services/auth";
+import SlackChannelSelect from "@/components/SlackChannelSelect";
 import notification from "@/services/notification";
 import ListItemAddon from "@/components/groups/ListItemAddon";
 import EmailSettingsWarning from "@/components/EmailSettingsWarning";
@@ -18,6 +20,7 @@ import PlainButton from "@/components/PlainButton";
 import Tooltip from "@/components/Tooltip";
 
 import CloseOutlinedIcon from "@ant-design/icons/CloseOutlined";
+import SlackOutlinedIcon from "@ant-design/icons/SlackOutlined";
 import Switch from "antd/lib/switch";
 
 import "./AlertDestinations.less";
@@ -141,6 +144,35 @@ export default class AlertDestinations extends React.Component {
     });
   };
 
+  /*
+    A Slack channel, picked rather than typed, and only from the channels the
+    app is in. The server hands back that channel's destination -- the one
+    other alerts to it already use, or a new one -- so nobody has to ask an
+    administrator to make one first, or find it by name among the rest.
+  */
+  addSlackChannel = (channelId, channel) => {
+    if (!channelId) {
+      return;
+    }
+    axios
+      .post("api/slack/destinations", { channel: channelId })
+      .then((destination) => {
+        const { dests, subs } = this.state;
+        if (!find(dests, { id: destination.id })) {
+          this.setState({ dests: [...dests, destination] });
+        }
+        const name = channel ? `#${channel.name}` : destination.name;
+        if (find(subs, (s) => s.destination.id === destination.id)) {
+          notification.info(`This alert already posts to ${name}.`);
+          return null;
+        }
+        return this.subscribe(destination).then(() => notification.success(`This alert will post to ${name}.`));
+      })
+      .catch((error) => {
+        notification.error(get(error, "response.data.message") || "Could not add that channel.");
+      });
+  };
+
   onUserEmailToggle = (sub) => {
     if (sub) {
       this.unsubscribe(sub);
@@ -225,6 +257,20 @@ export default class AlertDestinations extends React.Component {
             <ListItem key={s.id} unsubscribe={() => this.unsubscribe(s)} {...s} />
           ))}
         </ul>
+        {clientConfig.slackConfigured && (
+          <div className="slack-channel-picker" data-test="AlertSlackChannel">
+            <label htmlFor="alert-slack-channel" className="m-b-5 d-block">
+              <SlackOutlinedIcon className="m-r-5" aria-hidden="true" />
+              Post to a Slack channel
+            </label>
+            <SlackChannelSelect
+              id="alert-slack-channel"
+              value={undefined}
+              placeholder="Pick a channel to add"
+              onChange={this.addSlackChannel}
+            />
+          </div>
+        )}
       </div>
     );
   }

@@ -116,6 +116,7 @@ from sqldesk.handlers.query_snippets import (
 from sqldesk.handlers.settings import OrganizationSettings
 from sqldesk.handlers.slack import (
     DashboardSlackShareResource,
+    SlackAlertDestinationResource,
     SlackChannelsResource,
     SlackSettingsResource,
 )
@@ -132,6 +133,7 @@ from sqldesk.handlers.streams import (
     TopicAnalysisResource,
 )
 from sqldesk.handlers.subscriptions import (
+    DashboardSendableResource,
     DashboardSubscriptionListResource,
     DashboardSubscriptionResource,
 )
@@ -310,6 +312,7 @@ api.add_org_resource(
 
 api.add_org_resource(SlackSettingsResource, "/api/settings/slack", endpoint="slack_settings")
 api.add_org_resource(SlackChannelsResource, "/api/slack/channels", endpoint="slack_channels")
+api.add_org_resource(SlackAlertDestinationResource, "/api/slack/destinations", endpoint="slack_destinations")
 api.add_org_resource(
     DashboardSlackShareResource,
     "/api/dashboards/<dashboard_id>/share/slack",
@@ -429,6 +432,11 @@ api.add_org_resource(
     DashboardSubscriptionResource,
     "/api/subscriptions/<subscription_id>",
     endpoint="dashboard_subscription",
+)
+api.add_org_resource(
+    DashboardSendableResource,
+    "/api/dashboards/<dashboard_id>/sendable",
+    endpoint="dashboard_sendable",
 )
 api.add_org_resource(
     QueryResultResource,

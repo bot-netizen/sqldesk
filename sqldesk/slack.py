@@ -102,24 +102,30 @@ def check(token):
     return {"team": body.get("team"), "app": body.get("user"), "team_id": body.get("team_id")}, None
 
 
-def channels(token, limit=200):
+def channels(token, limit=1000):
     """
-    The channels this app can post to, by name.
+    The channels this app has been added to -- the only ones it can post to.
 
-    Public channels, and the private ones the app has been invited to --
-    which is exactly what `conversations.list` returns for a bot token, so
-    there is nothing to filter: a private channel the app is not in is not
-    offered, because it cannot be posted to.
+    `users.conversations`, not `conversations.list`. For a bot token it
+    answers with the channels the app is a member of and nothing else, which
+    is the list that matters: the app has `chat:write` and not
+    `chat:write.public`, so a public channel it has not joined refuses a post
+    with `not_in_channel`. Listing every public channel offered, in a
+    workspace of hundreds, mostly choices that would fail -- and hid the few
+    that would not among them.
+
+    It is also the cheaper call: one page for the dozen channels an app is
+    usually in, rather than paging through the whole workspace.
     """
     found = []
     cursor = ""
     while True:
         body, error = _call(
-            "conversations.list",
+            "users.conversations",
             token,
             types="public_channel,private_channel",
             exclude_archived="true",
-            limit=min(200, limit),
+            limit=200,
             cursor=cursor,
         )
         if error:
@@ -130,10 +136,6 @@ def channels(token, limit=200):
                     "id": channel.get("id"),
                     "name": channel.get("name"),
                     "private": bool(channel.get("is_private")),
-                    # Whether the app is already in it. A public channel it is
-                    # not in can still be posted to; the page says so rather
-                    # than hiding it.
-                    "member": bool(channel.get("is_member")),
                 }
             )
         cursor = ((body.get("response_metadata") or {}).get("next_cursor") or "").strip()
@@ -141,6 +143,24 @@ def channels(token, limit=200):
             break
     found.sort(key=lambda channel: (channel["private"], channel["name"] or ""))
     return found, None
+
+
+def find_channel(token, channel_id):
+    """
+    The channel with this id among the ones the app is in, or an error.
+
+    Asked before anything is saved that will post to a channel later -- a
+    subscription, an alert -- so a channel the app has been removed from is
+    refused while somebody is choosing it, not discovered at three in the
+    morning when the first post fails.
+    """
+    found, error = channels(token)
+    if error:
+        return None, error
+    for channel in found:
+        if channel["id"] == channel_id:
+            return channel, None
+    return None, "The app is not in that channel. Invite it in Slack (/invite), then pick it again."
 
 
 def upload(token, filename, content):
@@ -231,3 +251,59 @@ def post(token, channel, text, file_id=None, button=None, footer=None):
     if error:
         return None, error
     return {"channel": body.get("channel"), "ts": body.get("ts")}, None
+
+
+def post_dashboard(token, channel, filename, picture, text, link, footer=None):
+    """
+    A dashboard's picture in a channel, with a button that opens it.
+
+    Shared by Send to Slack and by a subscription to a channel, so the two
+    arrive looking the same: the picture is uploaded first, and nothing is
+    posted if it will not go -- a message about a dashboard with no dashboard
+    in it reads as the feature being broken.
+    """
+    file_id, error = upload(token, filename, picture)
+    if error:
+        return None, error
+    return post(
+        token,
+        channel,
+        text,
+        file_id=file_id,
+        footer=footer,
+        button={"text": "Open dashboard", "url": link},
+    )
+
+
+def dashboard_link(org, dashboard):
+    """
+    Where a dashboard's button goes.
+
+    The public link when there is one, so anybody in the channel can open it
+    without an account here. Otherwise the dashboard's own address, where they
+    sign in -- the honest fallback rather than a link that half the channel
+    cannot use and nobody told them about.
+    """
+    # Here rather than at the top: this module is the Web API client first,
+    # and the destination that imports it is loaded while the models are.
+    from sqldesk import models
+    from sqldesk.utils import base_url
+
+    if not org.get_setting("disable_public_urls"):
+        # A dashboard's public link is an `ApiKey` row against it, not a
+        # column: there is one only if somebody turned sharing on.
+        key = models.ApiKey.get_by_object(dashboard)
+        if key is not None:
+            return "{}/public/dashboards/{}".format(base_url(org), key.api_key)
+    return "{}/dashboards/{}".format(base_url(org), dashboard.slug or dashboard.id)
+
+
+def as_of(dashboard):
+    """ "as of" the oldest result on the dashboard, which is the honest figure."""
+    oldest = None
+    for widget in dashboard.widgets:
+        query = widget.visualization.query_rel if widget.visualization else None
+        retrieved = query.latest_query_data.retrieved_at if query and query.latest_query_data else None
+        if retrieved and (oldest is None or retrieved < oldest):
+            oldest = retrieved
+    return "as of {}".format(oldest.strftime("%H:%M on %-d %B")) if oldest else None

@@ -106,6 +106,10 @@ spec:
               {{- end }}
             initialDelaySeconds: 3
             periodSeconds: 5
+            # Not the one-second default, for the reason on Postgres' probe:
+            # unready means out of the Service, and a Redis that is merely
+            # slow to answer `ping` is then refused to every worker.
+            timeoutSeconds: 5
           resources:
             {{- toYaml .Values.redis.resources | nindent 12 }}
 {{- end }}

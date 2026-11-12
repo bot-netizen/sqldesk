@@ -21,7 +21,7 @@ import logging
 
 from flask_mail import Message
 
-from sqldesk import mail, models, one_page, screenshots, unsubscribe
+from sqldesk import mail, models, one_page, screenshots, slack, unsubscribe
 from sqldesk.models import db
 from sqldesk.permissions import sees_all_of_dashboard
 from sqldesk.utils import base_url
@@ -70,6 +70,57 @@ def _record_problem(subscription, message):
     logger.warning("Subscription %s: %s", subscription.id, message)
 
 
+#: How a channel is told how often it will hear from this subscription.
+CADENCES = {3600: "every hour", 86400: "every day", 604800: "every week"}
+
+
+def _post_to_slack(subscription, dashboard, owner):
+    """
+    Draw the dashboard as its owner and post it to the channel.
+
+    The same message Send to Slack posts, through the same function, so a
+    channel that gets both cannot tell them apart except by the line that
+    says this one comes round on a schedule -- and who set it up, which is
+    who to ask when somebody wants it to stop.
+    """
+    workspace = models.SlackWorkspace.query.filter(models.SlackWorkspace.org_id == subscription.org_id).first()
+    if workspace is None:
+        _record_problem(
+            subscription, "Slack is no longer set up. An administrator adds the app's token under Settings."
+        )
+        return
+
+    picture = screenshots.capture(screenshots.DASHBOARD, dashboard, owner, fmt=models.DashboardSubscription.PNG)
+    if picture is None:
+        _record_problem(subscription, "The renderer could not draw this dashboard.")
+        return
+
+    cadence = CADENCES.get((subscription.schedule or {}).get("interval"), "on a schedule")
+    text = "*{}*\n_Sent {} because {} subscribed this channel._".format(dashboard.name, cadence, owner.name)
+    _posted, error = slack.post_dashboard(
+        workspace.bot_token,
+        subscription.slack_channel,
+        "{}.png".format(dashboard.slug),
+        picture,
+        text,
+        link=slack.dashboard_link(subscription.org, dashboard),
+        footer=slack.as_of(dashboard),
+    )
+    if error:
+        # On the workspace too: a revoked token stops every subscription to
+        # Slack at once, and Settings is where somebody looks for that.
+        workspace.last_error = error
+        _record_problem(subscription, error)
+        return
+
+    workspace.last_error = None
+    subscription.last_sent_at = datetime.datetime.now(datetime.timezone.utc)
+    subscription.failures = 0
+    subscription.last_error = None
+    db.session.add(subscription)
+    db.session.commit()
+
+
 @job("periodic", timeout=60)
 def send_due_subscriptions():
     """Put every subscription whose slot has come round on the emails queue."""
@@ -91,7 +142,7 @@ def send_due_subscriptions():
 
 @job("emails", timeout=300)
 def send_subscription(subscription_id):
-    """Draw one dashboard and mail it to the people on the subscription."""
+    """Draw one dashboard and mail it to its people, or post it to its channel."""
     subscription = models.DashboardSubscription.query.get(subscription_id)
     if subscription is None or not subscription.active:
         return
@@ -122,6 +173,10 @@ def send_subscription(subscription_id):
     # And because access changes: the owner is whose sight of it this is.
     if not screenshots.may_see_dashboard(dashboard, owner):
         _record_problem(subscription, "{} can no longer see this dashboard.".format(owner.name))
+        return
+
+    if subscription.slack_channel:
+        _post_to_slack(subscription, dashboard, owner)
         return
 
     recipients = [user for user in subscription.recipients() if not user.is_disabled]
