@@ -521,3 +521,6 @@ description: chronological action log per session, consolidated weekly
 | 05:13 | Created client/app/pages/dashboards/components/SendableNotice.jsx | — | ~724 |
 | 05:14 | Created client/app/pages/dashboards/components/SendToSlackDialog.jsx | — | ~993 |
 | 05:14 | Edited client/app/pages/dashboards/components/SubscribeDashboardDialog.jsx | expanded (+8 lines) | ~87 |
+| 08:30 | Edited migrations/versions/f9b3d61c48a7_slack_workspace.py | Text() → LargeBinary() | ~108 |
+| 08:30 | Created migrations/versions/d7e3ae10b9a9_slack_token_bytea.py | — | ~741 |
+| 09:00 | Edited tests/streams/test_broker.py | added error handling | ~219 |

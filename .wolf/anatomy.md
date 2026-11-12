@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-12T10:14:37.308Z
-> Files: 743 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-12T14:00:25.114Z
+> Files: 746 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -907,7 +907,9 @@
 - `a1c7f30e95bd_dashboard_kind.py` — A dashboard declares whether it is streaming (~738 tok)
 - `a8d3f6c1e924_subscription_slack_channel.py` — A dashboard subscription can post to a Slack channel (~257 tok)
 - `d4b2a8e61f37_stream_value_formats.py` — A stream can read Avro and Protobuf, not only JSON (~318 tok)
+- `d7e3ae10b9a9_slack_token_bytea.py` — The Slack bot token is stored as bytes, where an install has it as text (~741 tok)
 - `f3a71c20e9d5_alert_fires.py` — An alert keeps a history of when it fired (~498 tok)
+- `f9b3d61c48a7_slack_workspace.py` — The Slack app's bot token. (~577 tok)
 
 ## plan/
 
@@ -1048,6 +1050,7 @@
 
 ## tests/streams/
 
+- `test_broker.py` — BrokerTestCase: broker_is_running, setUp, drop, produce + 19 more (~4782 tok)
 - `test_decode_streams.py` — TestTheWindow: order, setUp, read_as_avro, test_avro_lands_with_columns_duckdb_typed_properly + 21 m (~3504 tok)
 - `test_decode.py` — TestAvroSchemaFiles: avsc, proto, avro_bytes, parsed + 14 more (~8659 tok)
 
