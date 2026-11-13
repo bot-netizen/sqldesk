@@ -38,6 +38,8 @@ SIZES = {
     "PIVOT": (20, 12),
     "PROGRESS": (12, 6),
     "RADAR": (16, 8),
+    # The top of a page: the whole width, a few lines tall.
+    "SUMMARY": (8, 24),
     "SANKEY": (14, 12),
     "STATUS_GRID": (10, 12),
     "STATE_TIMELINE": (12, 24),

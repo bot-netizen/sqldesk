@@ -21,6 +21,7 @@ import radarVisualization from "./radar";
 import sankeyVisualization from "./sankey";
 import statusGridVisualization from "./status-grid";
 import streamgraphVisualization from "./streamgraph";
+import summaryVisualization from "./summary";
 import sunburstVisualization from "./sunburst";
 import tableVisualization from "./table";
 import timelineVisualization from "./timeline";
@@ -123,6 +124,7 @@ each(
     sankeyVisualization,
     statusGridVisualization,
     streamgraphVisualization,
+    summaryVisualization,
     sunburstVisualization,
     tableVisualization,
     timelineVisualization,

@@ -242,6 +242,60 @@
     ]
   },
   {
+    "type": "SUMMARY",
+    "name": "This quarter, in words",
+    "query": "This quarter at a glance",
+    "options": {
+      "layout": "sentence",
+      "template": "This quarter so far: {{ revenue | currency }} from {{ orders }} orders by {{ customers }} customers, {{ average_order | currency }} an order on average.\nThat is {{ share_of_target | number | suffix(%) }} of the quarter's target.",
+      "rules": [
+        {
+          "column": "share_of_target",
+          "op": ">=",
+          "value": "100",
+          "tone": "good",
+          "icon": "check"
+        },
+        {
+          "column": "share_of_target",
+          "op": "between",
+          "value": "80",
+          "value2": "100",
+          "tone": "watch"
+        },
+        {
+          "column": "share_of_target",
+          "op": "<",
+          "value": "80",
+          "tone": "bad",
+          "icon": "down"
+        }
+      ]
+    },
+    "columns": [
+      {
+        "name": "revenue",
+        "type": "float"
+      },
+      {
+        "name": "orders",
+        "type": "integer"
+      },
+      {
+        "name": "customers",
+        "type": "integer"
+      },
+      {
+        "name": "average_order",
+        "type": "float"
+      },
+      {
+        "name": "share_of_target",
+        "type": "float"
+      }
+    ]
+  },
+  {
     "type": "COUNTER",
     "name": "Revenue this quarter",
     "query": "This quarter at a glance",

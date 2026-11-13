@@ -378,6 +378,23 @@ export const VARIANTS: Record<string, Variant[]> = {
   ],
   SUNBURST_SEQUENCE: [{ name: "defaults", options: {} }],
   DETAILS: [{ name: "defaults", options: {} }],
+  SUMMARY: [
+    { name: "defaults", options: {} },
+    {
+      name: "every kind of value, coloured",
+      options: {
+        template:
+          "First {{ label }}, total {{ sum(value) | currency }}, {{ count() }} rows, {{ value | percent | arrow }}.",
+        rules: [
+          { column: "value", op: ">=", value: "0", tone: "good", icon: "up" },
+          { column: "value", op: "<", value: "0", tone: "bad", icon: "down" },
+        ],
+      },
+    },
+    { name: "bullets", options: { layout: "bullets", template: "One {{ label }}\nTwo {{ max(value) }}" } },
+    { name: "status line", options: { layout: "status", template: "{{ count() }} rows\n{{ min(value) }} least" } },
+    { name: "a column that is not there", options: { template: "{{ nothing_here }}" } },
+  ],
   TABLE: [
     { name: "defaults", options: {} },
     { name: "a small page", options: { itemsPerPage: 2 } },
