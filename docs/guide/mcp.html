@@ -427,9 +427,10 @@ with &mdash; give each data source a read-only database user, which is good prac
 in any case.</p>
 
 <h3 id="limits">Limits</h3>
-<p>One request waits at most ten seconds less than the web server's own timeout
-(<code>SQLDESK_GUNICORN_TIMEOUT</code>, 60 by default), across every call in it; a query still
-running at that point carries on, and the tool says so and where to find it. A batch holds at most
+<p><code>run_query</code> waits up to five minutes for its query
+(<code>SQLDESK_MCP_RUN_TIMEOUT</code>, in seconds), and one request waits at most ten minutes across
+every call in it (<code>SQLDESK_MCP_TIME_BUDGET</code>; the web server's timeout is sized from it). A query
+still running at that point carries on, and the tool says so and where to find it. A batch holds at most
 ten messages, SQL at most 100,000 characters, and <code>expand_table</code> takes twenty names at
 a time.</p>
 
