@@ -25,6 +25,10 @@ budget_tokens: 2000
 - **Controls use the panel's own font.** No uppercase micro-labels with
   letter-spacing inside a widget -- they read as a second heading competing
   with the widget's title.
+- **Test on minikube (localhost:5090), never on Docker Compose stacks**
+  (2026-11-13). It is the testing/dev instance -- no real work on it -- so
+  deploy, reseed and reset it freely. Release smoke tests are a `helm upgrade`
+  there, not a `compose.prod.yaml` stack. See plan/local-dev.md.
 
 ## Key Learnings
 

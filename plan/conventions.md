@@ -36,11 +36,14 @@ lead-in** on each bullet, and always three closing sections: **Images**,
    pins. A different uv rewrites the whole lock into an older format.
 4. **Tag only when CI is green including `frontend-e2e-tests`.** The tag is
    what triggers the image build.
-5. **Smoke-test the published image** through `compose.prod.yaml` before
-   announcing: `/ping` and `/setup` answering, the scheduler registering its
-   periodic jobs, and `refresh_queries` and `cleanup_query_results` running
-   clean on the worker. CI never exercises `compose.prod.yaml`; doing this by
-   hand on 2026-09-17 found three defects a fully green pipeline had missed.
+5. **Smoke-test the published image on minikube** (localhost:5090) before
+   announcing: `helm upgrade` to the new tag with `--reset-then-reuse-values`,
+   so the chart's migration Job runs the upgrade from the previous release,
+   then `/ping` answering, the scheduler registering its periodic jobs, and
+   `refresh_queries` and `cleanup_query_results` running clean on the worker.
+   Since 13 Nov 2026 there are no Compose smoke stacks, so nothing exercises
+   `compose.prod.yaml` — CI never has. Say so in the release report: running
+   it by hand on 2026-09-17 found three defects a green pipeline had missed.
 6. Write the notes, create the release, then merge to `main`.
 
 ## Pushing
