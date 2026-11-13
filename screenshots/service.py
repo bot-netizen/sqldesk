@@ -46,6 +46,14 @@ MAX_TIMEOUT_SECONDS = int(os.environ.get("SCREENSHOT_MAX_TIMEOUT", "120"))
 #: thousands of pixels and take the browser down with it.
 MAX_CAPTURE_HEIGHT = int(os.environ.get("SCREENSHOT_MAX_HEIGHT", "30000"))
 
+#: The branded page SQLDesk draws around what it is photographed for -- the
+#: same frame Export as image draws (client/app/components/ScreenshotFrame).
+#: Where the page has one, the picture is the frame and nothing else: cropped
+#: to it, as the export is sized to its own content, rather than a window
+#: 900px tall with a short dashboard at the top and empty page below. A page
+#: without one -- an older SQLDesk -- is photographed as it always was.
+FRAME_SELECTOR = "[data-test='ScreenshotFrame']"
+
 # Two things keep this from being a browser anyone on the network can point
 # anywhere -- at a cloud metadata address, an internal admin page, or SQLDesk
 # itself with a header of their choosing. The caller shows a token, and the
@@ -173,6 +181,9 @@ def _render(url, headers, wait_for, timeout_seconds, full_page, fmt=PNG):
             # goes past it: one of 2800x21574 timed out here while the same
             # page had loaded and drawn in a fraction of that. The picture
             # being slow is not a reason to send the alert without one.
+            frame = page.query_selector(FRAME_SELECTOR)
+            if frame is not None:
+                return frame.screenshot(type="png", timeout=timeout_ms)
             return page.screenshot(full_page=full_page, type="png", timeout=timeout_ms)
         finally:
             browser.close()

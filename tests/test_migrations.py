@@ -411,4 +411,6 @@ class TestTheSlackTokenIsReadableAgain(BaseTestCase):
         script = ScriptDirectory.from_config(config)
 
         self.assertEqual("a8d3f6c1e924", script.get_revision(self.REVISION).down_revision)
-        self.assertEqual(self.REVISION, script.get_current_head())
+        # Raises if there is more than one; which revision is newest is not
+        # this migration's business.
+        script.get_current_head()

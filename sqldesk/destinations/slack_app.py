@@ -58,6 +58,14 @@ class SlackApp(BaseDestination):
         return "fa-slack"
 
     def notify(self, alert, query, user, new_state, app, host, metadata, options):
+        """
+        Post the alert, with its first picture inside the message and any
+        others shared into the channel after it.
+
+        Returns `{ok, detail}` for the alert's history, which is where "it
+        fired but nothing arrived" gets its answer: posted, posted with a
+        picture missing, or not posted and why.
+        """
         workspace = models.SlackWorkspace.query.filter(models.SlackWorkspace.org_id == query.org_id).first()
         if workspace is None:
             # Said once, with what to do. An alert firing into nothing every
@@ -67,51 +75,95 @@ class SlackApp(BaseDestination):
                 "an administrator adds the app's token under Settings -> Slack",
                 alert.id,
             )
-            return
+            return {
+                "ok": False,
+                "detail": "Slack is not set up: an administrator adds the app under Settings -> Slack.",
+            }
 
         channel = (options.get("channel") or "").strip()
         if not channel:
             logger.warning("alert %s has a Slack (app) destination with no channel", alert.id)
-            return
+            return {"ok": False, "detail": "This Slack destination has no channel."}
 
-        logger.info(
-            "slack: alert %s (%s) to %s, with %s picture(s)",
-            alert.id,
-            new_state,
-            channel,
-            len((metadata or {}).get("screenshots") or []),
-        )
+        pictures = (metadata or {}).get("screenshots") or []
+        logger.info("slack: alert %s (%s) to %s, with %s picture(s)", alert.id, new_state, channel, len(pictures))
         text = self._text(alert, query, new_state, host, metadata)
-        file_ids, problems = self._upload(workspace, metadata)
+        token = workspace.bot_token
+
+        # The first picture goes inside the message; uploaded on its own,
+        # unshared, so the message can carry it. A picture that will not
+        # upload must not stop the alert -- the threshold was still crossed --
+        # so it becomes a line in the message saying it is missing instead.
+        problems = []
+        file_id = None
+        if pictures:
+            file_id, error = slack.upload(token, pictures[0]["filename"], pictures[0]["image"])
+            if error:
+                logger.warning("could not upload %s to Slack: %s", pictures[0]["filename"], error)
+                problems.append(self._missing(pictures[0]))
 
         # No button to an address nobody in the channel could open, such as
         # localhost -- see `slack.public_link`.
         link = slack.public_link("{}/queries/{}".format(host, query.id))
         if link is None:
             logger.info("slack: no button on alert %s: %s is not an address people in Slack can open", alert.id, host)
-        _posted, error = slack.post(
-            workspace.bot_token,
-            channel,
-            text,
-            file_id=file_ids[0] if file_ids else None,
-            footer="; ".join(problems) if problems else None,
-            button={"text": "Open query", "url": link} if link else None,
-        )
+        button = {"text": "Open query", "url": link} if link else None
+        footer = "; ".join(problems) if problems else None
+
+        _posted, code, error = slack.post_message(token, channel, text, file_id=file_id, footer=footer, button=button)
+        as_files = False
+        if error and code in slack.LAYOUT_REFUSALS and file_id:
+            # Slack would not take the message around the picture. The alert
+            # still goes -- words and button, no image block -- and the
+            # picture follows it as a file, so it is not lost to the layout.
+            logger.warning(
+                "slack: %s refused alert %s's layout (%s); sending the words, then the pictures as files",
+                channel,
+                alert.id,
+                code,
+            )
+            _posted, code, error = slack.post_message(token, channel, text, footer=footer, button=button)
+            as_files = not error
+
         if error:
             workspace.last_error = error
             models.db.session.commit()
             logger.warning("alert %s could not be sent to Slack: %s", alert.id, error)
-            return
+            return {"ok": False, "detail": error}
         logger.info("slack: alert %s sent to %s", alert.id, channel)
         if workspace.last_error:
             workspace.last_error = None
             models.db.session.commit()
 
-        # Anything past the first picture, as its own message. A Slack message
-        # carries one image block, and an alert told to attach three dashboards
-        # should send three rather than silently send one.
-        for file_id in file_ids[1:]:
-            slack.post(workspace.bot_token, channel, "", file_id=file_id)
+        # Every picture the message did not carry, shared into the channel
+        # with its own title. A Slack message carries one image block, and an
+        # alert told to attach three dashboards should deliver three. (Each
+        # used to go as a message of its own with no words, which Slack
+        # refuses: a section's text cannot be empty.)
+        attached = 1 if file_id and not as_files else 0
+        following = pictures if as_files else pictures[1:]
+        for picture in following:
+            _shared, share_error = slack.upload(
+                token, picture["filename"], picture["image"], channel=channel, comment=picture.get("title")
+            )
+            if share_error:
+                logger.warning("could not share %s into %s: %s", picture["filename"], channel, share_error)
+                problems.append(self._missing(picture))
+            else:
+                attached += 1
+
+        detail = "Posted to {}".format(channel)
+        if pictures:
+            detail += " with {} of {} picture{}{}".format(
+                attached, len(pictures), "" if len(pictures) == 1 else "s", ", as files" if as_files else ""
+            )
+        if problems:
+            detail += " -- " + "; ".join(problems)
+        return {"ok": True, "detail": detail}
+
+    @staticmethod
+    def _missing(picture):
+        return "{} could not be attached".format(picture.get("title") or picture["filename"])
 
     def _text(self, alert, query, new_state, host, metadata=None):
         # The headline carries the number now -- "Orders: 87, below 100"
@@ -134,27 +186,6 @@ class SlackApp(BaseDestination):
         notes.append(alerting.links(alert, query, host) or "")
         lines.append(" \u00b7 ".join(one for one in notes if one))
         return "\n".join(lines)
-
-    def _upload(self, workspace, metadata):
-        """
-        The pictures, uploaded. Returns `(file_ids, problems)`.
-
-        A picture that will not upload must not stop the alert: the threshold
-        was still crossed, and somebody still needs to know. What goes in the
-        message instead is a line saying the picture is missing, because an
-        alert about a chart arriving with no chart and no explanation reads as
-        the alert being broken.
-        """
-        images = (metadata or {}).get("screenshots") or []
-        file_ids, problems = [], []
-        for picture in images:
-            file_id, error = slack.upload(workspace.bot_token, picture["filename"], picture["image"])
-            if error:
-                logger.warning("could not upload %s to Slack: %s", picture["filename"], error)
-                problems.append("{} could not be attached".format(picture.get("title") or picture["filename"]))
-                continue
-            file_ids.append(file_id)
-        return file_ids, problems
 
 
 register(SlackApp)

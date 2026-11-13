@@ -316,6 +316,11 @@ def post(token, channel, text, file_id=None, button=None, footer=None):
     return posted, error
 
 
+def post_message(token, channel, text, file_id=None, button=None, footer=None):
+    """`post`, with Slack's own error code as well: `(posted, code, error)`."""
+    return _post(token, channel, text, _blocks(text, file_id, footer, button))
+
+
 def _blocks(text, file_id=None, footer=None, button=None):
     """The message: the words, the picture, the footer, the button."""
     blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": text}}]
