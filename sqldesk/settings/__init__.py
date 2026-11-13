@@ -863,6 +863,12 @@ MCP_QUEUE = os.environ.get("SQLDESK_MCP_QUEUE", "")
 # `bin/docker-entrypoint` sizes gunicorn's timeout from this, and the clamp
 # below is for the install that sets the timeout by hand and forgets.
 MCP_TIME_BUDGET = int(os.environ.get("SQLDESK_MCP_TIME_BUDGET", "600"))
+# How long `run_query` waits for its query, inside that budget. Five minutes:
+# it was 45 seconds, and the queries worth asking a model about -- a day of
+# hourly rollups, a join across two big tables -- routinely take longer, so
+# the model was told "still running" and left to guess. Past this the query
+# keeps running and the tool says so; it is the waiting that stops.
+MCP_RUN_TIMEOUT = int(os.environ.get("SQLDESK_MCP_RUN_TIMEOUT", "300"))
 _GUNICORN_TIMEOUT = int(os.environ.get("SQLDESK_GUNICORN_TIMEOUT", str(MCP_TIME_BUDGET + 60)))
 if MCP_TIME_BUDGET > _GUNICORN_TIMEOUT - 10:
     logging.getLogger(__name__).warning(
