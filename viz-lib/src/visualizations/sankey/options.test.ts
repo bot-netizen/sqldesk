@@ -343,8 +343,30 @@ test("hovering lights the whole journey, not only the next step", () => {
   expect(series(buildOption(BIDS)).emphasis.focus).toBe("trajectory");
 });
 
-test("labels that would overlap are left to the tooltip", () => {
-  expect(series(buildOption(BIDS)).labelLayout).toEqual({ hideOverlap: true });
+describe("labels that would overlap", () => {
+  const built = buildOption(BIDS, { flowLabels: true, showNodeValues: true });
+  const layout = series(built).labelLayout;
+  const links = series(built).links;
+  const rect = { x: 0, y: 0, width: 200, height: 80 };
+  const indexOf = (target: string) => links.findIndex((l: any) => l.target.startsWith(target));
+
+  test("a stage's that would overlap another is left to the tooltip", () => {
+    expect(layout({ dataType: "node", dataIndex: 0, rect })).toEqual({ hideOverlap: true });
+  });
+
+  test("a flow's is never what hides a stage's name: it moves along the flow instead", () => {
+    const into = layout({ dataType: "edge", dataIndex: indexOf("Bid chosen"), rect });
+    expect(into.hideOverlap).toBeUndefined();
+    expect(into.dx).toBeGreaterThan(0);
+  });
+
+  test("but stays put into the last column, whose names sit at the flows' ends", () => {
+    const last = series(built).data.reduce((deepest: number, n: any) => Math.max(deepest, n.depth), 0);
+    const intoLast = links.findIndex(
+      (l: any) => series(built).data.find((n: any) => n.name === l.target).depth === last
+    );
+    expect(layout({ dataType: "edge", dataIndex: intoLast, rect })).toEqual({});
+  });
 });
 
 test("a flow's label is plain dark text, not outlined in the flow's colour", () => {

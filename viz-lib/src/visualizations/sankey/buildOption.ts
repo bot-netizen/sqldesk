@@ -517,6 +517,7 @@ export default function buildOption(data: any, options: any = {}): BuiltSankey {
   // the edge of the canvas, and the label is silently clipped -- "Exit" renders
   // as "E". Those labels go on the inside instead.
   const lastDepth = drawnNodes.reduce((deepest, node) => Math.max(deepest, node.depth), 0);
+  const depthOf = new Map<string, number>(map(drawnNodes, (node) => [node.name, node.depth] as [string, number]));
   const positioned = map(drawnNodes, (node) =>
     node.depth === lastDepth ? { ...node, label: { position: "left" } } : node
   );
@@ -621,10 +622,26 @@ export default function buildOption(data: any, options: any = {}): BuiltSankey {
         emphasis: { focus: "trajectory" },
         nodeAlign,
         // With values and percentages on, the labels of the last two columns
-        // ran into each other ("Exit 46,000 4.6%" over "Exit 54,000 5.4%"),
-        // and a flow's label could land on a stage's. One that would overlap
-        // is left off; the tooltip still has it.
-        labelLayout: { hideOverlap: true },
+        // ran into each other ("Exit 46,000 4.6%" over "Exit 54,000 5.4%"):
+        // a stage's label that would overlap another is left to the tooltip.
+        //
+        // Flows' labels are kept out of that contest. ECharts ranks labels by
+        // the size of what they sit on, so a flow's "10%" beat the name of the
+        // stage it leaves, and with flow labels on the first column lost its
+        // names. A flow's label moves along it instead, towards the stage it
+        // reaches and away from the name at its start -- except into the last
+        // column, whose names sit inside, at the flows' ends.
+        labelLayout: (params: any) => {
+          if (params.dataType !== "edge") {
+            return { hideOverlap: true };
+          }
+          const link = drawn[params.dataIndex];
+          const target = link ? depthOf.get(link.target) : undefined;
+          if (target === undefined || target === lastDepth || !params.rect) {
+            return {};
+          }
+          return { dx: Math.min(params.rect.width * 0.22, 60) };
+        },
         label: {
           formatter: (params: any) => {
             const parts = [params.data.displayName];
