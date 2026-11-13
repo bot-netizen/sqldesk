@@ -2299,8 +2299,12 @@ class TestDrawingAResultOverMcp(McpTestCase):
         self.assertEqual([], summary.options["rules"])
 
     def test_a_summary_can_be_bullets_or_a_status_line(self):
-        self.assertEqual("bullets", self.draw(kind="summary", text="{{ count() }} orders", layout="bullets").options["layout"])
-        self.assertEqual("status", self.draw(kind="summary", text="{{ count() }} orders", layout="status").options["layout"])
+        self.assertEqual(
+            "bullets", self.draw(kind="summary", text="{{ count() }} orders", layout="bullets").options["layout"]
+        )
+        self.assertEqual(
+            "status", self.draw(kind="summary", text="{{ count() }} orders", layout="status").options["layout"]
+        )
 
     def test_a_summary_without_words_is_refused(self):
         rv = self.call("save_visualization", {"query_id": self.query.id, "kind": "summary", "text": "  "})
