@@ -1,7 +1,7 @@
 import React from "react";
 import { mount } from "enzyme";
 
-import AlertHistory from "./AlertHistory";
+import AlertHistory, { firedAt } from "./AlertHistory";
 
 /*
   The page could already say where an alert is now and when it last moved.
@@ -83,5 +83,64 @@ describe("AlertHistory", () => {
     const wrapper = mount(<AlertHistory history={[fire({ state: "ok" })]} fires24h={0} />);
 
     expect(wrapper.find(".alert-history-count").exists()).toBe(false);
+  });
+});
+
+describe("AlertHistory, when and where", () => {
+  it("says when as a time, not only as 'ago'", () => {
+    const wrapper = mount(<AlertHistory history={[fire({ created_at: "2026-11-13T14:32:05Z" })]} fires24h={1} />);
+
+    const when = wrapper.find(".alert-history-when");
+    expect(when.prop("dateTime")).toBe("2026-11-13T14:32:05Z");
+    // The tests run in Africa/Khartoum (UTC+2): the viewer's own time.
+    expect(when.text()).toBe("Fri, 13 Nov 2026, 16:32:05 GMT+2");
+    expect(wrapper.find(".alert-history-ago").exists()).toBe(true);
+  });
+
+  it("formats a time it cannot read as nothing rather than 'Invalid Date'", () => {
+    expect(firedAt("not a date")).toBe("");
+  });
+
+  it("says which destinations it went to", () => {
+    const wrapper = mount(
+      <AlertHistory
+        history={[
+          fire({
+            deliveries: [
+              { destination: "Slack #ops", type: "slack_app", ok: true, detail: "Posted to C1 with 1 of 1 picture" },
+              { destination: "On-call webhook", type: "webhook", ok: false, detail: "webhook send ERROR. 502" },
+            ],
+          }),
+        ]}
+        fires24h={1}
+      />
+    );
+
+    const deliveries = wrapper.find('span[data-test="AlertHistoryDelivery"]');
+    expect(deliveries).toHaveLength(2);
+    expect(deliveries.at(0).hasClass("is-sent")).toBe(true);
+    expect(deliveries.at(0).text()).toContain("Slack #ops");
+    // A failure says why, on the page, not only on hover.
+    expect(deliveries.at(1).hasClass("is-failed")).toBe(true);
+    expect(deliveries.at(1).text()).toContain("webhook send ERROR. 502");
+  });
+
+  it("says when there was nobody to send it to", () => {
+    const wrapper = mount(<AlertHistory history={[fire({ deliveries: [] })]} fires24h={1} />);
+
+    expect(wrapper.find('[data-test="AlertHistoryNobody"]').text()).toContain("no destinations");
+  });
+
+  it("says nothing more for an event from before outcomes were kept", () => {
+    const wrapper = mount(<AlertHistory history={[fire({ deliveries: null })]} fires24h={1} />);
+
+    expect(wrapper.find('span[data-test="AlertHistoryDelivery"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="AlertHistoryNobody"]').exists()).toBe(false);
+  });
+
+  it("says how many it is showing", () => {
+    const wrapper = mount(<AlertHistory history={[fire(), fire()]} fires24h={2} />);
+
+    expect(wrapper.find(".alert-history-scope").text()).toBe("the last 2 changes");
   });
 });

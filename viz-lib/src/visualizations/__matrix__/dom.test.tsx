@@ -9,6 +9,8 @@ import tableOptions from "../table/getOptions";
 import TableRenderer from "../table/Renderer";
 import detailsOptions from "../details/getOptions";
 import DetailsRenderer from "../details/Renderer";
+import summaryOptions from "../summary/getOptions";
+import SummaryRenderer from "../summary/Renderer";
 import statusGridOptions from "../status-grid/getOptions";
 import StatusGridRenderer from "../status-grid/Renderer";
 import funnelConfig from "../funnel";
@@ -51,6 +53,7 @@ interface Subject {
 const SUBJECTS: Subject[] = [
   { name: "Table", type: "TABLE", Renderer: TableRenderer, getOptions: tableOptions },
   { name: "Details", type: "DETAILS", Renderer: DetailsRenderer, getOptions: detailsOptions },
+  { name: "Summary", type: "SUMMARY", Renderer: SummaryRenderer, getOptions: summaryOptions },
   { name: "Status grid", type: "STATUS_GRID", Renderer: StatusGridRenderer, getOptions: statusGridOptions },
   {
     name: "Funnel",

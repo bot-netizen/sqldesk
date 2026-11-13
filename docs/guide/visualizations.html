@@ -99,6 +99,7 @@ same data — so fixing the SQL fixes every one of them.</p>
   <tr><td>Rows, as rows</td><td>Table — with per-column formatting, colouring and data bars</td></tr>
   <tr><td>Something over time</td><td>Line, area, or a stat with a sparkline</td></tr>
   <tr><td>Categories compared</td><td>Bar or column; horizontal bars when the labels are long</td></tr>
+  <tr><td>The headline, in words</td><td>Summary &mdash; a sentence with the result&rsquo;s values in it, for the top of a page</td></tr>
   <tr><td>One number that matters</td><td>Counter, or Gauge when there is a target or a healthy range</td></tr>
   <tr><td>Parts of a whole</td><td>Pie for a handful of slices; a stacked bar for more</td></tr>
   <tr><td>Progress toward a target</td><td>Progress bar, bullet bar, or Gauge</td></tr>
@@ -108,6 +109,40 @@ same data — so fixing the SQL fixes every one of them.</p>
   <tr><td>Flow between stages</td><td>Sankey, or Funnel for a conversion sequence</td></tr>
   <tr><td>Distribution</td><td>Histogram or box plot</td></tr>
 </table>
+
+<h2 id="summary">A summary: the result, in a sentence</h2>
+<p>A <strong>Summary</strong> is words with the query&rsquo;s values in them &mdash; the paragraph somebody would
+write at the top of a report, except that it is true every time the query refreshes. It spans the dashboard
+and sizes itself to its text, so it sits naturally as the first thing on a page.</p>
+<pre><code>This quarter so far: {{ revenue | currency }} from {{ orders }} orders,
+{{ average_order | currency }} an order. That is {{ share_of_target | number | suffix(%) }} of target.</code></pre>
+<p>Whatever is between <code>{{</code> and <code>}}</code> is a value from the result:</p>
+<table>
+  <tr><th>Write</th><th>For</th></tr>
+  <tr><td><code>{{ revenue }}</code></td><td>The first row&rsquo;s value</td></tr>
+  <tr><td><code>{{ sum(revenue) }}</code></td><td>Over every row: <code>sum</code>, <code>avg</code>, <code>min</code>,
+    <code>max</code>, <code>count</code> &mdash; and <code>{{ count() }}</code> for the number of rows</td></tr>
+  <tr><td><code>{{ revenue where region = "West" }}</code></td><td>One row, found by another column</td></tr>
+  <tr><td><code>{{ change | percent | arrow }}</code></td><td>Formatted, left to right: <code>currency</code>
+    (or <code>currency(&euro;)</code>), <code>percent</code> (of one: 0.124 is 12.4%), <code>number</code>,
+    <code>integer</code>, <code>round(2)</code>, <code>date</code>, <code>datetime</code>, <code>upper</code>,
+    <code>lower</code>, <code>arrow</code> for &#9650; or &#9660; by its sign, and <code>prefix(&hellip;)</code> /
+    <code>suffix(&hellip;)</code> to keep a unit inside the value&rsquo;s colour &mdash;
+    <code>{{ share | number | suffix(%) }}</code>, or <code>suffix(" days")</code> quoted to keep the space</td></tr>
+</table>
+<p>In the editor, the buttons under the text insert a column where the cursor is. A column the result does
+not have is not left blank: the summary says so in its place &mdash; &ldquo;revnue isn&rsquo;t in this result
+&mdash; did you mean revenue?&rdquo; &mdash; and so does the editor, as you type. Values are always shown as
+text, so nothing in a query&rsquo;s result can put anything but words on the page.</p>
+<p><strong>Colours</strong> are rules, one per line: a column, a test (<em>above</em>, <em>below</em>,
+<em>between</em>, <em>is</em>&hellip;) and what a value that passes looks like &mdash; <em>good</em>,
+<em>bad</em>, <em>watch</em> or <em>neutral</em>, with an arrow, a check or a warning mark if wanted. The first
+rule that holds wins, so &ldquo;below 0 is bad&rdquo; then &ldquo;otherwise good&rdquo; reads the way you
+would say it. A rule on <code>revenue</code> also colours <code>sum(revenue)</code>.</p>
+<p>The same text can be laid out three ways: as a <strong>sentence</strong> (line breaks kept),
+<strong>bullets</strong> (one per line), or a <strong>status line</strong> (lines joined by a dot). A summary
+reads one query; for a sentence about two, write one query that returns both. An agent can write one too:
+<code>save_visualization</code> with <code>kind: "summary"</code>.</p>
 
 <h2 id="links">Turning a point or a cell into a link</h2>
 <p>This is the drill-down: click a bar, land on the query, dashboard or system that explains it. It is
@@ -292,6 +327,7 @@ timestamp without a time zone — the fix belongs in the SQL, where the intent i
   <nav class="doc-toc" aria-label="On this page">
     <h4>On this page</h4>
     <a href="#choosing-one">Choosing one</a>
+    <a href="#summary">A summary: the result, in a sentence</a>
     <a href="#links">Turning a point or a cell into a link</a>
     <a href="#numbers">Formatting numbers</a>
     <a href="#by-value">Colouring by the value itself</a>

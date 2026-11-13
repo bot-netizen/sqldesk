@@ -72,9 +72,13 @@ class TestWhatEachKindGets(unittest.TestCase):
         self.assertGreater(layout.size_of("CHART")[0], layout.size_of("COUNTER")[0])
 
     def test_nothing_is_the_old_strip(self):
-        """Six rows is 150 pixels. Only a stat is meant to be that small."""
+        """
+        Six rows is 150 pixels. Only a stat, a details card and a summary --
+        a few lines of words that grows to fit them -- are meant to start
+        that small.
+        """
         for kind, (rows, _) in layout.SIZES.items():
-            if kind not in ("COUNTER", "DETAILS"):
+            if kind not in ("COUNTER", "DETAILS", "SUMMARY"):
                 self.assertGreaterEqual(rows, 10, "{} is back to being a strip".format(kind))
 
     def test_a_type_nobody_has_heard_of_gets_a_chart_sized_tile(self):

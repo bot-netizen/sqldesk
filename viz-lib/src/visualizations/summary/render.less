@@ -1,0 +1,146 @@
+// Tones, in the app's own palette, light enough behind the words that a
+// summary of six values does not read as six alarms.
+@summary-good-bg: #e7f3ec;
+@summary-good-ink: #1f6b43;
+@summary-bad-bg: #fbe9e7;
+@summary-bad-ink: #a3302a;
+@summary-watch-bg: #fbf1dc;
+@summary-watch-ink: #8a5a06;
+
+// In line with the widget's own title, as the other visualizations sit.
+.summary-visualization {
+  padding: 6px 14px 10px;
+  color: var(--color-text, #1c1b1a);
+}
+
+.summary--sentence {
+  font-size: 17px;
+  line-height: 1.85;
+  // The template's own line breaks and blank lines are its paragraphs.
+  white-space: pre-line;
+}
+
+.summary--bullets {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 15px;
+  line-height: 1.9;
+}
+
+.summary--status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.summary-separator {
+  color: var(--color-text-muted, #6f6b66);
+}
+
+.summary-value {
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+
+  &--plain {
+    border-bottom: 1px dashed var(--color-border, #e8e5e1);
+  }
+
+  &--good,
+  &--bad,
+  &--watch,
+  &--neutral {
+    padding: 1px 6px;
+    border-radius: 6px;
+  }
+
+  &--good {
+    background: @summary-good-bg;
+    color: @summary-good-ink;
+  }
+
+  &--bad {
+    background: @summary-bad-bg;
+    color: @summary-bad-ink;
+  }
+
+  &--watch {
+    background: @summary-watch-bg;
+    color: @summary-watch-ink;
+  }
+
+  &--neutral {
+    background: var(--color-surface-sunken, #f3f1ee);
+  }
+}
+
+.summary-icon {
+  margin-right: 3px;
+  font-size: 0.8em;
+}
+
+.summary-problem {
+  padding: 1px 6px;
+  border-radius: 6px;
+  border: 1px dashed @summary-bad-ink;
+  color: @summary-bad-ink;
+  font-size: 0.85em;
+}
+
+.summary-empty {
+  color: var(--color-text-muted, #6f6b66);
+  font-size: 13px;
+}
+
+// The editor.
+.summary-editor-label {
+  margin-bottom: 6px;
+  color: var(--color-text-muted, #6f6b66);
+}
+
+.summary-editor-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.summary-editor-help {
+  color: var(--color-text-muted, #6f6b66);
+  font-size: 12px;
+  line-height: 1.8;
+
+  code {
+    font-size: 12px;
+  }
+}
+
+.summary-editor-problems {
+  color: @summary-bad-ink;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.summary-editor-rule {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border, #e8e5e1);
+}
+
+.summary-editor-rule-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+
+  & + & {
+    margin-top: 6px;
+  }
+}
+
+.summary-editor-rule-word {
+  width: 52px;
+  color: var(--color-text-muted, #6f6b66);
+  font-size: 12px;
+}

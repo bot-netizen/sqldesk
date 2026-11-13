@@ -268,6 +268,26 @@ VISUALIZATIONS = [
         "Categories by weight",
         {"column": "category", "frequenciesColumn": "revenue"},
     ),
+    # The summary at the top of the board: the quarter in a sentence, coloured
+    # by how far it is towards target.
+    (
+        "This quarter at a glance",
+        "SUMMARY",
+        "This quarter, in words",
+        {
+            "layout": "sentence",
+            "template": (
+                "This quarter so far: {{ revenue | currency }} from {{ orders }} orders by {{ customers }} "
+                "customers, {{ average_order | currency }} an order on average.\n"
+                "That is {{ share_of_target | number | suffix(%) }} of the quarter's target."
+            ),
+            "rules": [
+                {"column": "share_of_target", "op": ">=", "value": "100", "tone": "good", "icon": "check"},
+                {"column": "share_of_target", "op": "between", "value": "80", "value2": "100", "tone": "watch"},
+                {"column": "share_of_target", "op": "<", "value": "80", "tone": "bad", "icon": "down"},
+            ],
+        },
+    ),
     (
         "This quarter at a glance",
         "COUNTER",
@@ -408,6 +428,7 @@ HEIGHTS = {
     "SANKEY": 14,
     "STATE_TIMELINE": 12,
     "STREAMGRAPH": 16,
+    "SUMMARY": 8,
     "STATUS_GRID": 10,
     "SUNBURST_SEQUENCE": 14,
     "TABLE": 28,
@@ -426,6 +447,7 @@ HEIGHTS = {
 #: the page wide with its chart squashed into the corner.
 DASHBOARD = "Demo: everything, drawn"
 DASHBOARD_WIDGETS = [
+    ("This quarter, in words", 2),
     ("Revenue this quarter", 1),
     ("Against target", 1),
     # Three readings of one query behind one widget -- the tabs feature, and

@@ -6,12 +6,12 @@ import DashboardGrid from "@/components/dashboards/DashboardGrid";
 
 import { Dashboard } from "@/services/dashboard";
 
-
 import useDashboard from "./hooks/useDashboard";
 import LiveBadge from "./components/LiveBadge";
 import DashboardFilters from "./components/DashboardFilters";
 
-import useScreenshotMode, { everyWidgetHasFinished } from "@/lib/hooks/useScreenshotMode";
+import useScreenshotMode, { everyWidgetHasFinished, inScreenshotMode } from "@/lib/hooks/useScreenshotMode";
+import ScreenshotFrame, { generatedAt } from "@/components/ScreenshotFrame";
 
 import "./PublicDashboardPage.less";
 import Spinner from "@/components/Spinner";
@@ -24,6 +24,30 @@ function PublicDashboard({ dashboard, token }) {
   // to show, or the renderer captures a page of spinners -- or, as it turned
   // out, a page of nothing at all.
   useScreenshotMode(everyWidgetHasFinished(dashboard.widgets));
+
+  // Photographed for Slack, an email or an alert: on the same branded page
+  // Export as image draws, rather than the bare grid edge to edge. No filters
+  // and no live badge -- a picture cannot be clicked -- and the name moves
+  // into the frame's band.
+  if (inScreenshotMode()) {
+    return (
+      <ScreenshotFrame title={dashboard.name} fields={[{ label: "Generated at", value: generatedAt() }]}>
+        <div id="dashboard-container">
+          <DashboardGrid
+            dashboard={dashboard}
+            widgets={dashboard.widgets}
+            filters={filters}
+            isEditing={false}
+            isPublic
+            isLive={false}
+            liveInterval={null}
+            onLoadWidget={loadWidget}
+            onRefreshWidget={refreshWidget}
+          />
+        </div>
+      </ScreenshotFrame>
+    );
+  }
 
   return (
     <div className="container p-t-10 p-b-20">

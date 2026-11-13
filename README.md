@@ -11,7 +11,7 @@
   <p>
     <a href="https://github.com/bot-netizen/sqldesk/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/bot-netizen/sqldesk/actions/workflows/ci.yml/badge.svg"></a>
     <a href="LICENSE"><img alt="Licence" src="https://img.shields.io/badge/licence-Apache%202.0-blue"></a>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.8.4-teal">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.8.5-teal">
   </p>
 </div>
 
@@ -40,7 +40,7 @@ charge you for them.
   Prometheus, DuckDB and many more; Databricks and SQL Server over ODBC in the amd64 image. `manage ds list_types`
   lists every connector an install has
 - **File upload** — drop a CSV or Parquet file and query it with SQL, backed by DuckDB
-- **Visualizations** — 27 kinds: charts, tables, pivots, cohorts, funnels, maps, sankeys, gauges, candlesticks, trees
+- **Visualizations** — 28 kinds: charts, tables, pivots, cohorts, funnels, maps, sankeys, gauges, candlesticks, trees
 - **Dashboards** — arrange visualizations, filter across them, export a one-page report as PDF or image
 - **Alerts** — trigger on a query result and notify Slack, email, PagerDuty, webhooks and more
 - **Permissions** — groups, per-data-source access, view-only roles, shareable public links

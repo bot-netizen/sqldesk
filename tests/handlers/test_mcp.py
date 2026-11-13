@@ -2289,6 +2289,30 @@ class TestDrawingAResultOverMcp(McpTestCase):
         table = self.draw(kind="table")
         self.assertEqual("TABLE", table.type)
 
+    def test_a_summary_is_the_agents_sentence_with_no_colours_of_its_own(self):
+        summary = self.draw(kind="summary", text="Revenue is {{ sum(amount) | currency }}.")
+
+        self.assertEqual("SUMMARY", summary.type)
+        self.assertEqual("Revenue is {{ sum(amount) | currency }}.", summary.options["template"])
+        self.assertEqual("sentence", summary.options["layout"])
+        # Colours are a person's call, in the editor.
+        self.assertEqual([], summary.options["rules"])
+
+    def test_a_summary_can_be_bullets_or_a_status_line(self):
+        self.assertEqual(
+            "bullets", self.draw(kind="summary", text="{{ count() }} orders", layout="bullets").options["layout"]
+        )
+        self.assertEqual(
+            "status", self.draw(kind="summary", text="{{ count() }} orders", layout="status").options["layout"]
+        )
+
+    def test_a_summary_without_words_is_refused(self):
+        rv = self.call("save_visualization", {"query_id": self.query.id, "kind": "summary", "text": "  "})
+
+        self.assertIn("error", rv.json)
+        self.assertIn("needs `text`", rv.json["error"]["message"])
+        self.assertEqual(0, models.Visualization.query.count())
+
     def test_a_chart_without_its_columns_is_refused(self):
         rv = self.call("save_visualization", {"query_id": self.query.id, "kind": "chart"})
 

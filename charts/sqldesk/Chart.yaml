@@ -3,9 +3,9 @@ name: sqldesk
 description: SQLDesk — SQL, dashboards, notebooks and alerts over 60+ data sources, with an MCP server that keeps your permissions.
 type: application
 # The chart's own version, bumped when the chart changes.
-version: 0.8.4
+version: 0.8.5
 # The application it installs by default. `image.tag` overrides it.
-appVersion: "0.8.4"
+appVersion: "0.8.5"
 home: https://sqldesk.org
 sources:
   - https://github.com/bot-netizen/sqldesk

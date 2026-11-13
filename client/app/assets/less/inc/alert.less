@@ -68,26 +68,32 @@
     font-size: 13px;
   }
 
+  .alert-history-scope {
+    font-weight: 400;
+    font-size: 12px;
+    color: var(--color-text-muted, #6f6b66);
+    margin-left: 4px;
+  }
+
   .alert-history-list {
     list-style: none;
     margin: 0;
     padding: 0;
-    // Long enough to show a flap, short enough not to take the column over.
-    max-height: 260px;
+    // Ten changes, each two lines: scrolls rather than taking the column over.
+    max-height: 420px;
     overflow-y: auto;
   }
 
   .alert-history-item {
+    padding: 7px 0;
+    border-bottom: 1px solid @input-border;
+    font-size: 13px;
+  }
+
+  .alert-history-line {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 5px 0;
-    border-bottom: 1px solid @input-border;
-    font-size: 13px;
-
-    &:last-child {
-      border-bottom: 0;
-    }
   }
 
   .alert-history-state {
@@ -96,22 +102,51 @@
     flex: 0 0 auto;
   }
 
-  // The number pushed away from the state label and kept monospaced, because
-  // a column of figures is read by comparing them to each other.
+  // The number kept monospaced, because numbers read down a column.
   .alert-history-value {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     color: @headings-color;
   }
 
+  // The time, in full: what somebody matches against a deploy or an outage.
   .alert-history-when {
     margin-left: auto;
-    color: var(--color-text-muted, #6f6b66);
+    color: @headings-color;
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
+  }
+
+  .alert-history-detail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+    margin-top: 3px;
+    font-size: 12px;
+  }
+
+  .alert-history-ago {
+    color: var(--color-text-muted, #6f6b66);
+  }
+
+  .alert-history-delivery {
+    color: var(--color-text-muted, #6f6b66);
+
+    .fa {
+      margin-right: 2px;
+    }
+
+    &.is-sent .fa {
+      color: #3a8a5c;
+    }
+
+    &.is-failed {
+      color: #b4372c;
+    }
   }
 
   .alert-history-silent {
     color: var(--color-text-muted, #6f6b66);
-    flex: 0 0 auto;
   }
 }
 

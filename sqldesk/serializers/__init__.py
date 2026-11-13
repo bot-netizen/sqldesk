@@ -303,6 +303,7 @@ def serialize_alert_fire(fire):
         "state": fire.state,
         "value": fire.value,
         "notified": fire.notified,
+        "deliveries": fire.deliveries,
         "created_at": fire.created_at,
     }
 
@@ -328,7 +329,8 @@ def serialize_alert(alert, full=True, fires_24h=None, with_history=False):
     # Only where somebody opened the alert. On the list it would be a query
     # per row for something nobody is reading yet.
     if with_history:
-        d["history"] = [serialize_alert_fire(fire) for fire in alert.recent_fires()]
+        # The last ten: enough to read a flap, short enough to read.
+        d["history"] = [serialize_alert_fire(fire) for fire in alert.recent_fires(limit=10)]
 
     if full:
         d["query"] = serialize_query(alert.query_rel)

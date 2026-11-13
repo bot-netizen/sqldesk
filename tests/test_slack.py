@@ -670,7 +670,7 @@ class TestAnAlertThroughTheSlackApp(SlackTestCase):
 
     def notify(self, state="triggered", pictures=None, options=None):
         self.destination.options = options if options is not None else {"channel": "C1"}
-        self.destination.notify(
+        return self.destination.notify(
             self.alert,
             self.query,
             self.factory.user,
@@ -730,14 +730,28 @@ class TestAnAlertThroughTheSlackApp(SlackTestCase):
 
         self.assertIn("Revenue is below plan.", json.dumps(self.slack.posted()))
 
-    def test_several_pictures_arrive_as_several_messages(self):
+    def test_several_pictures_all_arrive(self):
         # A Slack message carries one image block, and an alert told to attach
-        # three dashboards should send three rather than silently send one.
+        # three dashboards should deliver three rather than silently send one:
+        # the first inside the message, the others shared into the channel.
         self.installed()
 
-        self.notify(pictures=[self.picture("a.png"), self.picture("b.png"), self.picture("c.png")])
+        result = self.notify(pictures=[self.picture("a.png"), self.picture("b.png"), self.picture("c.png")])
 
-        self.assertEqual(3, len(self.slack.asked("chat.postMessage")))
+        self.assertEqual(1, len(self.slack.asked("chat.postMessage")))
+        shared = [c for c in self.slack.asked("files.completeUploadExternal") if c.get("channel_id") == "C1"]
+        self.assertEqual(2, len(shared))
+        self.assertEqual("Posted to C1 with 3 of 3 pictures", result["detail"])
+
+    def test_and_none_of_them_as_a_message_with_no_words(self):
+        # They used to follow as messages of their own with empty text, which
+        # Slack refuses: a section's text cannot be empty.
+        self.installed()
+
+        self.notify(pictures=[self.picture("a.png"), self.picture("b.png")])
+
+        for sent in self.slack.asked("chat.postMessage"):
+            self.assertTrue(sent["text"])
 
     def test_a_picture_that_will_not_upload_does_not_stop_the_alert(self):
         # The threshold was still crossed, and somebody still needs to know.
@@ -1195,3 +1209,95 @@ class TestWhatTheLogSays(SlackTestCase):
 
         self.assertNotIn("xoxb-secret-token-value", log)
         self.assertNotIn("private words for the channel", log)
+
+
+class TestWhatAnAlertToSlackReports(SlackTestCase):
+    """
+    What the Slack (app) destination says it did, for the alert's history --
+    the answer to "it fired, but nothing arrived".
+    """
+
+    def setUp(self):
+        super().setUp()
+        from sqldesk.destinations.slack_app import SlackApp
+
+        self.destination = SlackApp({"channel": "C1"})
+        result = self.factory.create_query_result(
+            data={"rows": [{"value": 1}], "columns": [{"name": "value", "type": "INTEGER"}]}
+        )
+        self.query = self.factory.create_query(latest_query_data_id=result.id)
+        self.alert = self.factory.create_alert(
+            query_rel=self.query,
+            options={"selector": "first", "op": "equals", "column": "value", "value": "1"},
+        )
+        db.session.commit()
+
+    def notify(self, pictures=None, options=None):
+        options = options if options is not None else {"channel": "C1"}
+        return self.destination.notify(
+            self.alert,
+            self.query,
+            self.factory.user,
+            "triggered",
+            None,
+            "https://sqldesk.example.com",
+            {"screenshots": pictures or []},
+            options,
+        )
+
+    def picture(self, name="dashboard-1.png", title="Revenue"):
+        return {"filename": name, "image": b"PNGDATA", "title": title}
+
+    def test_a_post_says_where_and_with_what(self):
+        self.installed()
+
+        result = self.notify(pictures=[self.picture()])
+
+        self.assertEqual({"ok": True, "detail": "Posted to C1 with 1 of 1 picture"}, result)
+
+    def test_a_refusal_says_slacks_reason(self):
+        self.installed()
+        self.slack.answers["chat.postMessage"] = {"ok": False, "error": "not_in_channel"}
+
+        result = self.notify()
+
+        self.assertFalse(result["ok"])
+        self.assertIn("Invite it", result["detail"])
+
+    def test_a_missing_picture_is_said_but_the_alert_still_counts_as_sent(self):
+        self.installed()
+        self.slack.answers["files.getUploadURLExternal"] = {"ok": False, "error": "upload_limit_reached"}
+
+        result = self.notify(pictures=[self.picture(title="Revenue")])
+
+        self.assertTrue(result["ok"])
+        self.assertIn("0 of 1 picture", result["detail"])
+        self.assertIn("Revenue could not be attached", result["detail"])
+
+    def test_with_no_workspace_it_says_so(self):
+        result = self.notify()
+
+        self.assertFalse(result["ok"])
+        self.assertIn("not set up", result["detail"])
+
+    def test_with_no_channel_it_says_so(self):
+        self.installed()
+
+        result = self.notify(options={"channel": ""})
+
+        self.assertFalse(result["ok"])
+        self.assertIn("no channel", result["detail"])
+
+    def test_when_slack_refuses_the_layout_the_words_and_the_picture_still_arrive(self):
+        self.installed()
+        self.slack.answers["chat.postMessage"] = [TestWhenSlackRefusesTheLayout.REFUSED, {"ok": True, "channel": "C1"}]
+
+        result = self.notify(pictures=[self.picture()])
+
+        self.assertTrue(result["ok"])
+        self.assertEqual("Posted to C1 with 1 of 1 picture, as files", result["detail"])
+        posts = self.slack.asked("chat.postMessage")
+        self.assertEqual(2, len(posts))
+        self.assertNotIn('"image"', posts[1]["blocks"])
+        shared = [c for c in self.slack.asked("files.completeUploadExternal") if c.get("channel_id") == "C1"]
+        self.assertEqual(1, len(shared))

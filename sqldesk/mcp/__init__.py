@@ -1937,7 +1937,8 @@ SAVE_VISUALIZATION = {
     "name": "save_visualization",
     "title": "Add a chart to a draft query",
     "description": (
-        "Draw the result of a draft query you can edit: a chart, a table or a single number. The "
+        "Draw the result of a draft query you can edit: a chart, a table, a single number, or a "
+        "summary -- a sentence with the result's values in it, for the top of a dashboard. The "
         "query keeps its own result; this adds a way of reading it, which save_dashboard can then "
         "put on a dashboard."
     ),
@@ -1947,8 +1948,8 @@ SAVE_VISUALIZATION = {
             "query_id": {"type": "integer", "description": "The draft query to draw."},
             "kind": {
                 "type": "string",
-                "enum": ["chart", "table", "counter"],
-                "description": "chart needs x and y; counter needs column; table needs neither.",
+                "enum": ["chart", "table", "counter", "summary"],
+                "description": "chart needs x and y; counter needs column; summary needs text; table needs neither.",
             },
             "name": {"type": "string", "description": "What it is called on the query page."},
             "chart_type": {
@@ -1969,6 +1970,20 @@ SAVE_VISUALIZATION = {
             "size": {"type": "string", "description": "For a bubble chart: the column the bubble area comes from."},
             "value": {"type": "string", "description": "For a heatmap: the column the colour comes from."},
             "column": {"type": "string", "description": "For a counter: the column to show."},
+            "text": {
+                "type": "string",
+                "description": (
+                    "For a summary: the sentence, with values in {{ }}. {{ revenue }} is the first row's; "
+                    "{{ sum(revenue) }} is over every row (sum, avg, min, max, count); "
+                    '{{ revenue where region = "West" }} is one row by another column; '
+                    "| currency, | percent (of one), | number, | arrow, | suffix(%) format one. A new line is a new line."
+                ),
+            },
+            "layout": {
+                "type": "string",
+                "enum": ["sentence", "bullets", "status"],
+                "description": "For a summary: a sentence (default), one bullet per line, or one status line.",
+            },
             "description": {"type": "string", "description": "What it shows, if the name does not say it."},
         },
         "required": ["query_id", "kind"],
@@ -2271,8 +2286,8 @@ def tool_save_visualization(user, org, arguments):
     if not isinstance(query_id, int):
         raise McpError(INVALID_PARAMS, "`query_id` is required: the draft query to draw.")
     kind = (arguments.get("kind") or "").strip().lower()
-    if kind not in ("chart", "table", "counter"):
-        raise McpError(INVALID_PARAMS, "`kind` is chart, table or counter.")
+    if kind not in ("chart", "table", "counter", "summary"):
+        raise McpError(INVALID_PARAMS, "`kind` is chart, table, counter or summary.")
 
     query = _drawable_query(user, org, query_id)
 
@@ -2319,6 +2334,18 @@ def tool_save_visualization(user, org, arguments):
         # writes for a single-number counter.
         options = {"counterColName": column, "rowNumber": 1, "counterLabel": ""}
         default_name = column
+    elif kind == "summary":
+        text = (arguments.get("text") or "").strip()
+        if not text:
+            raise McpError(INVALID_PARAMS, "A summary needs `text`: the sentence, with values in {{ }}.")
+        layout = (arguments.get("layout") or "sentence").strip().lower()
+        if layout not in ("sentence", "bullets", "status"):
+            raise McpError(INVALID_PARAMS, "`layout` is sentence, bullets or status.")
+        # Colours are a person's call, made in the editor; an agent writes
+        # the words. The template is checked by the browser as it draws: a
+        # column that is not there shows as a problem in place.
+        options = {"template": text[:4000], "layout": layout, "rules": []}
+        default_name = "Summary"
     else:
         options = {}
         default_name = "Table"
@@ -2328,7 +2355,7 @@ def tool_save_visualization(user, org, arguments):
     name = (arguments.get("name") or "").strip() or default_name
     visualization = models.Visualization(
         query_rel=query,
-        # CHART, TABLE, COUNTER: the strings the renderers register under.
+        # CHART, TABLE, COUNTER, SUMMARY: the strings the renderers register under.
         type=kind.upper(),
         name=name[:255],
         description=(arguments.get("description") or "").strip() or None,

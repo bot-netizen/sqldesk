@@ -28,6 +28,7 @@ import useImmutableCallback from "@/lib/hooks/useImmutableCallback";
 import { Query } from "@/services/query";
 import location from "@/services/location";
 import useScreenshotMode, { inScreenshotMode } from "@/lib/hooks/useScreenshotMode";
+import ScreenshotFrame, { generatedAt } from "@/components/ScreenshotFrame";
 
 import Spinner from "@/components/Spinner";
 
@@ -233,9 +234,9 @@ function VisualizationEmbed({ queryId, visualizationId, apiKey, onError }) {
     return null;
   }
 
-  return (
+  const embed = (
     <div className="tile m-t-10 m-l-10 m-r-10 p-t-10 embed__vis" data-test="VisualizationEmbed">
-      {!hideHeader && (
+      {!hideHeader && !screenshot && (
         <VisualizationEmbedHeader
           queryName={query.name}
           queryDescription={showQueryDescription ? query.description : null}
@@ -274,6 +275,21 @@ function VisualizationEmbed({ queryId, visualizationId, apiKey, onError }) {
       )}
     </div>
   );
+
+  // Photographed for an alert: on the same branded page a dashboard is, so a
+  // chart attached to an alert and a dashboard sent to Slack look like the
+  // same product. The query's name goes in the band, with the
+  // visualization's where it has one of its own.
+  if (screenshot) {
+    const title =
+      visualization.name && visualization.name !== query.name ? `${query.name} · ${visualization.name}` : query.name;
+    return (
+      <ScreenshotFrame title={title} fields={[{ label: "Generated at", value: generatedAt() }]}>
+        {embed}
+      </ScreenshotFrame>
+    );
+  }
+  return embed;
 }
 
 VisualizationEmbed.propTypes = {

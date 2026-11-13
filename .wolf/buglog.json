@@ -2600,6 +2600,24 @@
       "last_seen": "2026-11-12T23:23:36.384Z",
       "occurrences": 1,
       "related_bugs": []
+    },
+    {
+      "error_message": "Incorrect value in code",
+      "file": "viz-lib/src/visualizations/summary/template.ts",
+      "root_cause": "Had \"0,0.[0]%\"",
+      "fix": "Changed to 's own number format appends a % sign and\n        ",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ts"
+      ],
+      "status": "candidate",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-154",
+      "timestamp": "2026-11-13T02:12:09.281Z",
+      "last_seen": "2026-11-13T02:12:09.281Z",
+      "occurrences": 1,
+      "related_bugs": []
     }
   ],
   "applied_observations": {
@@ -2691,7 +2709,8 @@
     "5480b947-9a77-4cee-ac0d-ea4840c3662c": true,
     "ed2413e8-408e-47d6-bc0f-4a30e9a533c0": true,
     "669b0be5-1d1f-4276-be9f-6b9cc2dca4b3": true,
-    "d6b072aa-e48c-4341-8cab-dec54ecbb7f7": true
+    "d6b072aa-e48c-4341-8cab-dec54ecbb7f7": true,
+    "47d7525c-e625-46ff-91ad-70203f931bf8": true
   },
-  "next_id": 154
+  "next_id": 155
 }

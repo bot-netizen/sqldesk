@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.8.5
+
+The Headline. A new visualization that writes the result as a sentence for
+the top of a page; pictures sent to Slack on the same branded page Export
+as image draws; and an alert history that says when, and what was sent.
+
+### Summary
+
+**A new visualization: the result, in a sentence.** Words with the query's
+values in them -- the paragraph somebody would write at the top of a report,
+true every time the query refreshes. Values go in `{{ }}`: the first row's
+(`{{ revenue }}`), over every row (`{{ sum(revenue) }}` -- sum, avg, min,
+max, count), or one row found by another column
+(`{{ revenue where region = "West" }}`), formatted left to right
+(`currency`, `percent`, `number`, `integer`, `round(n)`, `date`, `upper`,
+`suffix(%)`, `arrow`...). Rules colour a value by what it is -- good, bad,
+watch -- with an arrow or a mark. Sentence, bullets or status line. A column
+the result does not have is said in place, with the one probably meant;
+values are always text. The demo dashboard opens with one, and
+`save_visualization` takes `kind: "summary"`.
+
+### Pictures
+
+**Every picture the server takes is on the branded page.** Send to Slack,
+schedules and alert attachments are drawn on the page Export as image
+draws -- the SQLDesk mark, the name, and when it was taken with its time
+zone -- and cropped to it, so a short dashboard no longer arrives as a
+window-sized picture with empty page below. The renderer image changed too.
+
+### Alerts
+
+**The history says when, and what was sent.** The last ten changes, each
+with its status, its value, the full time in the viewer's zone with the
+relative time under it, and what every destination did: sent; not sent,
+with its reason; sent to nobody; not sent because muted. Destinations do not
+report failures, they log them; the alert task now listens while each one
+sends, and Slack (app) reports its own outcome (`alert_fires.deliveries`).
+
+**An alert with several pictures delivers all of them.** Each extra one went
+as a message with empty text, which Slack refuses; they are now shared into
+the channel as files with their titles. A refused layout sends the words,
+then the picture as a file.
+
+### Upgrading
+
+- One migration, `b2f6d9e4a1c7`: a nullable `deliveries` column on
+  `alert_fires`. With Compose, `manage db upgrade` before `up -d`; the Helm
+  chart runs it itself.
+- Deploy both images: the renderer now crops to the branded frame.
+
 ## 0.8.4
 
 Plain Sight. A dashboard's picture was not reaching Slack from an install

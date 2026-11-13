@@ -3399,6 +3399,12 @@ class AlertFire(db.Model):
     state = Column(db.String(255))
     value = Column(db.String(255), nullable=True)
     notified = Column(db.Boolean, default=False, server_default="false", nullable=False)
+    #: What each destination did with it: `[{destination, type, ok, detail}]`.
+    #: `notified` says something was *attempted*; this says whether it
+    #: arrived. "It fired but nothing came" was otherwise a question only the
+    #: worker's log could answer, and nobody reading an alert reads that.
+    #: Null where nothing was sent, and on events from before it was kept.
+    deliveries = Column(MutableList.as_mutable(JSONB), nullable=True)
     created_at = Column(db.DateTime(True), default=db.func.now(), nullable=False)
 
     __tablename__ = "alert_fires"

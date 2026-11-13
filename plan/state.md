@@ -1,12 +1,13 @@
 # Where the project is
 
-Last true on **2026-11-12**. Update this in the same commit as whatever
+Last true on **2026-11-13**. Update this in the same commit as whatever
 changed it.
 
 ## Released
 
 | Version | Name | When | Notes |
 |---|---|---|---|
+| 0.8.5 | The Headline | 13 Nov 2026 | Summary visualization (a sentence with {{ }} values and colour rules; agents can write one); server pictures on the branded Export page and cropped to it; alert history with full times and per-destination delivery (alert_fires.deliveries) |
 | 0.8.4 | Plain Sight | 12 Nov 2026 | Slack: no button to localhost or a container name (slack.public_link), a refused layout falls back to sharing the picture as a file, every step logged with Slack's own reason; never the token or the words |
 | 0.8.3 | Read Back | 12 Nov 2026 | The Slack bot token's column was Text on installs made before 0.7.0, so Settings -> Slack failed on every read; migration d7e3ae10b9a9 converts it in place, and a test now checks migrations rather than models for bytes columns |
 | 0.8.2 | The Right Channel | 12 Nov 2026 | Slack: only the app's own channels, dashboards to a channel on a schedule, too-big said as the dialog opens with a copy to trim, an alert picks its channel; Helm probes given 5 s so a slow node keeps Postgres in the Service |

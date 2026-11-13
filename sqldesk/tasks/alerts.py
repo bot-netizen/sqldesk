@@ -1,11 +1,92 @@
 import datetime
+import logging
 
 from flask import current_app
 
-from sqldesk import models, screenshots, utils
+from sqldesk import models, screenshots, settings, utils
 from sqldesk.worker import get_job_logger, job
 
 logger = get_job_logger(__name__)
+
+#: How much of a destination's own explanation the history keeps.
+MAX_DETAIL = 300
+
+
+class _Problems(logging.Handler):
+    """
+    What a destination logged as a problem while it was sending.
+
+    Destinations do not say whether they delivered: every one of them catches
+    its own failures and logs them -- most with `logging.exception` on the
+    root logger -- and returns nothing either way. Listening for the warnings
+    and errors logged while one is sending is how the history learns that a
+    webhook answered 500 without touching fourteen destinations to make them
+    report it. One that knows better says so itself (see `_deliver`).
+    """
+
+    def __init__(self):
+        super().__init__(level=logging.WARNING)
+        self.messages = []
+
+    def emit(self, record):
+        if record.name == "root" or record.name.startswith("sqldesk"):
+            try:
+                self.messages.append(record.getMessage())
+            except Exception:
+                self.messages.append(str(record.msg))
+
+
+def _deliver(subscription, alert, new_state, host, metadata):
+    """
+    Send one subscription's notification and say what happened:
+    `{destination, type, ok, detail}`.
+
+    A destination may return that dict itself -- Slack (app) does, because it
+    knows the difference between "posted, with a picture missing" and "not
+    posted". Otherwise: raising is a failure, logging a warning or error while
+    sending is a failure with that line as its reason, and neither is taken to
+    mean it went.
+    """
+    destination = subscription.destination
+    if destination is not None:
+        name, kind = destination.name, destination.type
+    else:
+        name, kind = "Email to {}".format(subscription.user.email), "email"
+        if not settings.ALERT_EMAIL_FALLBACK:
+            return {
+                "destination": name,
+                "type": kind,
+                "ok": False,
+                "detail": "This subscription has no destination, so nothing was sent.",
+            }
+
+    problems = _Problems()
+    root = logging.getLogger()
+    root.addHandler(problems)
+    try:
+        result = subscription.notify(alert, alert.query_rel, subscription.user, new_state, current_app, host, metadata)
+    except Exception as error:
+        logger.exception("Error with processing destination")
+        return {
+            "destination": name,
+            "type": kind,
+            "ok": False,
+            "detail": "{}: {}".format(error.__class__.__name__, error)[:MAX_DETAIL],
+        }
+    finally:
+        root.removeHandler(problems)
+
+    if isinstance(result, dict) and "ok" in result:
+        detail = result.get("detail")
+        return {
+            "destination": name,
+            "type": kind,
+            "ok": bool(result["ok"]),
+            "detail": detail[:MAX_DETAIL] if detail else None,
+        }
+    if problems.messages:
+        return {"destination": name, "type": kind, "ok": False, "detail": problems.messages[-1][:MAX_DETAIL]}
+    return {"destination": name, "type": kind, "ok": True, "detail": None}
 
 
 def notify_subscriptions(alert, new_state, metadata):
@@ -38,11 +119,18 @@ def notify_subscriptions(alert, new_state, metadata):
     except Exception:
         logger.exception("Could not count recent fires for alert %s; sending without the count.", alert.id)
 
+    deliveries = []
     for subscription in alert.subscriptions:
-        try:
-            subscription.notify(alert, alert.query_rel, subscription.user, new_state, current_app, host, metadata)
-        except Exception:
-            logger.exception("Error with processing destination")
+        delivery = _deliver(subscription, alert, new_state, host, metadata)
+        deliveries.append(delivery)
+        logger.info(
+            "Alert %s to %s: %s%s",
+            alert.id,
+            delivery["destination"],
+            "sent" if delivery["ok"] else "NOT sent",
+            " -- " + delivery["detail"] if delivery["detail"] else "",
+        )
+    return deliveries
 
 
 def should_notify(alert, new_state):
@@ -79,14 +167,13 @@ def check_alerts_for_query(query_id, metadata):
             # `evaluated_value` is set by `evaluate` above. Absent when it is
             # patched, which is how most of the tests drive this.
             value = getattr(alert, "evaluated_value", None)
-            models.db.session.add(
-                models.AlertFire(
-                    alert=alert,
-                    state=new_state,
-                    value=None if value is None else str(value)[:255],
-                    notified=will_notify,
-                )
+            fire = models.AlertFire(
+                alert=alert,
+                state=new_state,
+                value=None if value is None else str(value)[:255],
+                notified=will_notify,
             )
+            models.db.session.add(fire)
             models.db.session.commit()
 
             if settling:
@@ -97,4 +184,9 @@ def check_alerts_for_query(query_id, metadata):
                 logger.debug("Skipping notification (alert muted).")
                 continue
 
-            notify_subscriptions(alert, new_state, metadata)
+            # What each destination did, kept on the event, so the alert's page
+            # can say "Slack #ops: not in channel" rather than leave somebody
+            # wondering why nothing arrived.
+            fire.deliveries = notify_subscriptions(alert, new_state, metadata)
+            models.db.session.add(fire)
+            models.db.session.commit()

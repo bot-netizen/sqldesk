@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-12T23:23:36.355Z",
-    "fileCount": 746,
+    "lastScanned": "2026-11-13T02:12:09.250Z",
+    "fileCount": 751,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "062b85dce8871b06027e4836c3d943dd983c2e3ecbbf5067a04cee343198f065",
-    "storeUpdatedAt": "2026-11-12T23:23:36.366Z",
-    "rootHash": "5d31575821231b17"
+    "renderedHash": "93aae3f69df7fb57a403cf00170be45fd482081f6d2994c55c095a86753784bb",
+    "storeUpdatedAt": "2026-11-13T02:12:09.263Z",
+    "rootHash": "be3ba025eca0256c"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -15664,27 +15664,48 @@
       ]
     },
     "client/app/pages/alert/components/AlertHistory.jsx": {
-      "description": "Fire",
-      "tokens": 856,
-      "hash": "90b9d8e9db78afcc",
-      "size": 2995,
-      "mtimeMs": 1793105792952.906,
-      "updatedAt": "2026-10-27T12:56:33.085Z",
+      "description": "\"Thu 13 Nov 2026, 14:32:05 EST\" -- the viewer's own time, with its zone.",
+      "tokens": 1787,
+      "hash": "fa3b52470fc64ba5",
+      "size": 6253,
+      "mtimeMs": 1794534481241.762,
+      "updatedAt": "2026-11-13T01:48:01.435Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "firedAt",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 53,
+          "tokens": 134
+        },
+        {
+          "name": "Delivery",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 74,
+          "tokens": 237
+        },
+        {
+          "name": "Sent",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 106,
+          "tokens": 350
+        },
+        {
           "name": "Fire",
           "kind": "fn",
-          "startLine": 22,
-          "endLine": 55,
-          "tokens": 327
+          "startLine": 107,
+          "endLine": 140,
+          "tokens": 323
         },
         {
           "name": "AlertHistory",
           "kind": "fn",
-          "startLine": 56,
-          "endLine": 94,
-          "tokens": 304
+          "startLine": 141,
+          "endLine": 182,
+          "tokens": 349
         }
       ]
     },
@@ -19677,6 +19698,197 @@
           "startLine": 405,
           "endLine": 411,
           "tokens": 88
+        }
+      ]
+    },
+    "client/app/components/ScreenshotFrame.jsx": {
+      "description": "When the picture was taken, unambiguously: a channel spans time zones.",
+      "tokens": 795,
+      "hash": "d081c327db65868c",
+      "size": 2781,
+      "mtimeMs": 1794533980732.7092,
+      "updatedAt": "2026-11-13T01:39:40.919Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "generatedAt",
+          "kind": "fn",
+          "startLine": 25,
+          "endLine": 39,
+          "tokens": 105
+        },
+        {
+          "name": "ScreenshotFrame",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 82,
+          "tokens": 412
+        }
+      ]
+    },
+    "client/app/components/ScreenshotFrame.less": {
+      "description": "The branded page a server-side picture is taken on. Measurements mirror",
+      "tokens": 455,
+      "hash": "1837e8ade40763e9",
+      "size": 1706,
+      "mtimeMs": 1794533981172.3586,
+      "updatedAt": "2026-11-13T01:39:41.339Z",
+      "source": "hook"
+    },
+    "migrations/versions/b2f6d9e4a1c7_alert_fire_deliveries.py": {
+      "description": "An alert's history says what each destination did",
+      "tokens": 221,
+      "hash": "67bcccef75cb2070",
+      "size": 773,
+      "mtimeMs": 1794534350616.5073,
+      "updatedAt": "2026-11-13T01:45:50.789Z",
+      "source": "hook"
+    },
+    "viz-lib/src/visualizations/summary/template.ts": {
+      "description": "Up and down, as glyphs: they survive a picture in Slack, an email and a PDF.",
+      "tokens": 3986,
+      "hash": "ae27ad3238f23076",
+      "size": 13961,
+      "mtimeMs": 1794535929080.5933,
+      "updatedAt": "2026-11-13T02:12:09.249Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Rule",
+          "kind": "section",
+          "startLine": 34,
+          "endLine": 69,
+          "tokens": 292
+        },
+        {
+          "name": "Column",
+          "kind": "section",
+          "startLine": 70,
+          "endLine": 74,
+          "tokens": 16
+        },
+        {
+          "name": "Data",
+          "kind": "section",
+          "startLine": 75,
+          "endLine": 79,
+          "tokens": 17
+        },
+        {
+          "name": "Parsed",
+          "kind": "section",
+          "startLine": 80,
+          "endLine": 87,
+          "tokens": 74
+        },
+        {
+          "name": "split",
+          "kind": "fn",
+          "startLine": 88,
+          "endLine": 104,
+          "tokens": 173
+        },
+        {
+          "name": "parseExpression",
+          "kind": "fn",
+          "startLine": 105,
+          "endLine": 143,
+          "tokens": 389
+        },
+        {
+          "name": "distance",
+          "kind": "fn",
+          "startLine": 144,
+          "endLine": 158,
+          "tokens": 148
+        },
+        {
+          "name": "resolveColumn",
+          "kind": "fn",
+          "startLine": 159,
+          "endLine": 175,
+          "tokens": 208
+        },
+        {
+          "name": "asNumber",
+          "kind": "fn",
+          "startLine": 176,
+          "endLine": 185,
+          "tokens": 62
+        },
+        {
+          "name": "same",
+          "kind": "fn",
+          "startLine": 186,
+          "endLine": 195,
+          "tokens": 85
+        },
+        {
+          "name": "matches",
+          "kind": "fn",
+          "startLine": 196,
+          "endLine": 231,
+          "tokens": 235
+        },
+        {
+          "name": "aggregate",
+          "kind": "fn",
+          "startLine": 232,
+          "endLine": 253,
+          "tokens": 159
+        },
+        {
+          "name": "formatByType",
+          "kind": "fn",
+          "startLine": 254,
+          "endLine": 274,
+          "tokens": 215
+        },
+        {
+          "name": "applyFilters",
+          "kind": "fn",
+          "startLine": 275,
+          "endLine": 342,
+          "tokens": 722
+        },
+        {
+          "name": "evaluate",
+          "kind": "fn",
+          "startLine": 343,
+          "endLine": 388,
+          "tokens": 569
+        },
+        {
+          "name": "render",
+          "kind": "fn",
+          "startLine": 389,
+          "endLine": 398,
+          "tokens": 108
+        },
+        {
+          "name": "starterTemplate",
+          "kind": "fn",
+          "startLine": 399,
+          "endLine": 406,
+          "tokens": 90
+        }
+      ]
+    },
+    "viz-lib/src/visualizations/summary/template.test.ts": {
+      "description": "data: text",
+      "tokens": 2044,
+      "hash": "a148bf5888914e22",
+      "size": 7164,
+      "mtimeMs": 1794535919120.957,
+      "updatedAt": "2026-11-13T02:11:59.292Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "text",
+          "kind": "fn",
+          "startLine": 23,
+          "endLine": 184,
+          "tokens": 1819
         }
       ]
     }
