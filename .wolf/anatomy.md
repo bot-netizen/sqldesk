@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-12T23:23:36.355Z
-> Files: 746 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-13T02:12:09.250Z
+> Files: 751 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -260,6 +260,8 @@
 - `ScheduleControl.jsx` — NEVER — uses useMemo (~1184 tok)
 - `ScheduleControl.less` — Qualified with .ant-btn deliberately: antd's own `.ant-btn { display: (~348 tok)
 - `ScheduleControl.test.js` — What a stock installation allows: a minute to a month, twenty-one entries. (~1094 tok)
+- `ScreenshotFrame.jsx` — When the picture was taken, unambiguously: a channel spans time zones. (~795 tok)
+- `ScreenshotFrame.less` — The branded page a server-side picture is taken on. Measurements mirror (~455 tok)
 - `SelectItemsDialog.jsx` — ItemsList — renders modal — uses useCallback, useState, useEffect (~1799 tok)
 - `SelectItemsDialog.less` — Styles: 1 rules (~42 tok)
 - `SelectWithVirtualScroll.tsx` — MIN_LEN_FOR_VIRTUAL_SCROLL (~384 tok)
@@ -653,7 +655,7 @@
 - `AlertAttachments.less` — Styles: 5 rules (~294 tok)
 - `AlertDestinations.jsx` — USER_EMAIL_DEST_ID (~2080 tok)
 - `AlertDestinations.less` — Styles: 2 rules (~352 tok)
-- `AlertHistory.jsx` — Fire (~856 tok)
+- `AlertHistory.jsx` — "Thu 13 Nov 2026, 14:32:05 EST" -- the viewer's own time, with its zone. (~1787 tok)
 - `AlertHistory.test.js` — Declares fire (~937 tok)
 - `Criteria.jsx` — CONDITIONS (~1880 tok)
 - `Criteria.less` — Styles: 2 rules (~282 tok)
@@ -906,6 +908,7 @@
 - `6d2a8e34f71b_notebook_schedule.py` — A notebook can run itself on a cron. (~339 tok)
 - `a1c7f30e95bd_dashboard_kind.py` — A dashboard declares whether it is streaming (~738 tok)
 - `a8d3f6c1e924_subscription_slack_channel.py` — A dashboard subscription can post to a Slack channel (~257 tok)
+- `b2f6d9e4a1c7_alert_fire_deliveries.py` — An alert's history says what each destination did (~221 tok)
 - `d4b2a8e61f37_stream_value_formats.py` — A stream can read Avro and Protobuf, not only JSON (~318 tok)
 - `d7e3ae10b9a9_slack_token_bytea.py` — The Slack bot token is stored as bytes, where an install has it as text (~741 tok)
 - `f3a71c20e9d5_alert_fires.py` — An alert keeps a history of when it fired (~498 tok)
@@ -1106,6 +1109,11 @@
 ## viz-lib/src/visualizations/streamgraph/
 
 - `buildOption.ts` — A point on the river: when, how much, and which band. (~1532 tok)
+
+## viz-lib/src/visualizations/summary/
+
+- `template.test.ts` — data: text (~2044 tok)
+- `template.ts` — Up and down, as glyphs: they survive a picture in Slack, an email and a PDF. (~3986 tok)
 
 ## viz-lib/src/visualizations/table/
 

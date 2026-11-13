@@ -1,6 +1,6 @@
 [project]
 name = "sqldesk"
-version = "0.8.4"
+version = "0.8.5"
 description = "SQL, dashboards, notebooks and alerts over 60+ data sources, with an MCP server that keeps your permissions. Self-hosted."
 authors = [
     { name = "SQLDesk contributors" }
