@@ -9,6 +9,7 @@ import {
   getSeriesAxisIndex,
   normalizeX,
   seriesId,
+  sortCategories,
   timeAxisFormatter,
   timeAxisInterval,
   timeAxisTicks,
@@ -703,10 +704,10 @@ function buildHeatmap(chartData: any[], options: any) {
   let xCategories = uniq(map(points, (p: any) => String(p.x)));
   let yCategories = uniq(map(points, (p: any) => String(p.y)));
   if (options.sortX) {
-    xCategories = sortBy(xCategories);
+    xCategories = sortCategories(xCategories);
   }
   if (options.sortY) {
-    yCategories = sortBy(yCategories);
+    yCategories = sortCategories(yCategories);
   }
   if (options.reverseX) {
     xCategories = xCategories.slice().reverse();
@@ -873,7 +874,7 @@ export default function buildOption(
     );
     categories = Array.from(seen);
     if (options.sortX) {
-      categories = sortBy(categories);
+      categories = sortCategories(categories);
     }
     if (options.reverseX) {
       categories = categories.reverse();
