@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-12T18:33:19.723Z",
+    "lastScanned": "2026-11-12T23:23:36.355Z",
     "fileCount": 746,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "d043381c3ce2785362a66c7f0d957ceac17f3fa7488e3c737480944a81276374",
-    "storeUpdatedAt": "2026-11-12T18:33:19.736Z",
-    "rootHash": "fc74466800e1350b"
+    "renderedHash": "062b85dce8871b06027e4836c3d943dd983c2e3ecbbf5067a04cee343198f065",
+    "storeUpdatedAt": "2026-11-12T23:23:36.366Z",
+    "rootHash": "5d31575821231b17"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -19279,82 +19279,96 @@
       ]
     },
     "sqldesk/slack.py": {
-      "description": "check, channels, find_channel, upload",
-      "tokens": 3428,
-      "hash": "e987b35fd1334214",
-      "size": 11996,
-      "mtimeMs": 1794477979872.1167,
-      "updatedAt": "2026-11-12T10:06:20.005Z",
+      "description": "public_link, check, channels, find_channel",
+      "tokens": 4562,
+      "hash": "004f470cc339af1b",
+      "size": 15966,
+      "mtimeMs": 1794525816222.6497,
+      "updatedAt": "2026-11-12T23:23:36.354Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_explain",
           "kind": "fn",
-          "startLine": 56,
-          "endLine": 59,
-          "tokens": 36
+          "startLine": 73,
+          "endLine": 86,
+          "tokens": 164
+        },
+        {
+          "name": "_request",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 136,
+          "tokens": 591
         },
         {
           "name": "_call",
           "kind": "fn",
-          "startLine": 60,
-          "endLine": 90,
-          "tokens": 298
+          "startLine": 137,
+          "endLine": 142,
+          "tokens": 60
+        },
+        {
+          "name": "public_link",
+          "kind": "fn",
+          "startLine": 143,
+          "endLine": 175,
+          "tokens": 382
         },
         {
           "name": "check",
           "kind": "fn",
-          "startLine": 91,
-          "endLine": 104,
+          "startLine": 176,
+          "endLine": 189,
           "tokens": 128
         },
         {
           "name": "channels",
           "kind": "fn",
-          "startLine": 105,
-          "endLine": 147,
+          "startLine": 190,
+          "endLine": 232,
           "tokens": 459
         },
         {
           "name": "find_channel",
           "kind": "fn",
-          "startLine": 148,
-          "endLine": 165,
+          "startLine": 233,
+          "endLine": 250,
           "tokens": 191
         },
         {
           "name": "upload",
           "kind": "fn",
-          "startLine": 166,
-          "endLine": 204,
+          "startLine": 251,
+          "endLine": 289,
           "tokens": 420
         },
         {
           "name": "post",
           "kind": "fn",
-          "startLine": 205,
-          "endLine": 255,
+          "startLine": 290,
+          "endLine": 340,
           "tokens": 505
         },
         {
           "name": "post_dashboard",
           "kind": "fn",
-          "startLine": 256,
-          "endLine": 277,
+          "startLine": 341,
+          "endLine": 362,
           "tokens": 203
         },
         {
           "name": "dashboard_link",
           "kind": "fn",
-          "startLine": 278,
-          "endLine": 300,
+          "startLine": 363,
+          "endLine": 385,
           "tokens": 293
         },
         {
           "name": "as_of",
           "kind": "fn",
-          "startLine": 301,
-          "endLine": 310,
+          "startLine": 386,
+          "endLine": 395,
           "tokens": 151
         }
       ]
