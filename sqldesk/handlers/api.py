@@ -150,6 +150,7 @@ from sqldesk.handlers.users import (
     UserRegenerateApiKeyResource,
     UserResetPasswordResource,
     UserResource,
+    UserScreenResource,
 )
 from sqldesk.handlers.visualizations import (
     VisualizationListResource,
@@ -469,6 +470,7 @@ api.add_org_resource(
 )
 api.add_org_resource(UserDisableResource, "/api/users/<user_id>/disable", endpoint="user_disable")
 api.add_org_resource(UserAccessResource, "/api/users/<user_id>/access", endpoint="user_access")
+api.add_org_resource(UserScreenResource, "/api/users/<user_id>/screen", endpoint="user_screen")
 
 api.add_org_resource(VisualizationListResource, "/api/visualizations", endpoint="visualizations")
 api.add_org_resource(

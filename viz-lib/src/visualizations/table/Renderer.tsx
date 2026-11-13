@@ -6,7 +6,7 @@ import InfoCircleFilledIcon from "@ant-design/icons/InfoCircleFilled";
 import Popover from "antd/lib/popover";
 import { RendererPropTypes } from "@/visualizations/prop-types";
 
-import { prepareColumns, initRows, filterRows, sortRows, CellContext } from "./utils";
+import { prepareColumns, initRows, filterRows, sortRows, savedOrder, CellContext } from "./utils";
 import { columnStats, isFormatted, rowIdentity } from "./cellFormat";
 
 import "./renderer.less";
@@ -91,7 +91,11 @@ export function columnsSignature(configured: any[], returned: any[]) {
 
 export default function Renderer({ options, data }: any) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [orderBy, setOrderBy] = useState([]);
+  // Where the order starts: the one saved with a picture, if this is one --
+  // see `savedOrder` -- and otherwise the query's own.
+  const startingOrder = useMemo(() => savedOrder(options.sortBy, options.columns), [options.sortBy, options.columns]);
+  // Copies: a shift-click edits the order array in place (toggleOrderBy).
+  const [orderBy, setOrderBy] = useState<any[]>(() => [...startingOrder]);
 
   const searchColumns = useMemo(() => filter(options.columns, "allowSearch"), [options.columns]);
 
@@ -157,9 +161,12 @@ export default function Renderer({ options, data }: any) {
   // it moved. That reset the sort on every refresh of a live dashboard and
   // every two seconds on a streaming query.
   const columnsKey = columnsSignature(options.columns, data.columns);
+  const startingKey = JSON.stringify(startingOrder);
   useEffect(() => {
-    setOrderBy([]);
-  }, [columnsKey]);
+    setOrderBy([...startingOrder]);
+    // The key stands for the order: the array is new on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columnsKey, startingKey]);
 
   if (data.rows.length === 0) {
     // Not null: a blank tile reads as a widget that failed, and a query
@@ -169,7 +176,9 @@ export default function Renderer({ options, data }: any) {
   }
 
   return (
-    <div className="table-visualization-container">
+    // The order on screen, for the page to read when somebody sends this
+    // dashboard: a picture of it is drawn in the same order.
+    <div className="table-visualization-container" data-table-order={JSON.stringify(orderBy)}>
       <Table
         className="table-fixed-header"
         data-percy="show-scrollbars"

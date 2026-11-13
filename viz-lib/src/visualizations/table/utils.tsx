@@ -279,6 +279,34 @@ export function filterRows(rows: any, searchTerm: any, searchColumns: any) {
   return rows;
 }
 
+/**
+ * A saved order, as the table holds one: `[{ name, direction }]`, each
+ * direction "ascend" or "descend", naming columns the table has. Anything
+ * else is dropped rather than sorted by.
+ *
+ * Clicking a header sorts the rows in the browser and nowhere else, so a
+ * picture drawn by the server -- Send to Slack, a subscription, an alert --
+ * showed the query's own order while Export as image showed the order on
+ * screen. The order somebody was looking at when they sent it is saved with
+ * the picture and given back to the table here, as where it starts.
+ */
+export function savedOrder(sortBy: any, columns: any[] = []): any[] {
+  if (!Array.isArray(sortBy)) {
+    return [];
+  }
+  const names = new Set(map(columns, "name"));
+  return sortBy
+    .filter(
+      (item: any) =>
+        item &&
+        typeof item.name === "string" &&
+        (names.size === 0 || names.has(item.name)) &&
+        (item.direction === "ascend" || item.direction === "descend")
+    )
+    .slice(0, 5)
+    .map((item: any) => ({ name: item.name, direction: item.direction }));
+}
+
 export function sortRows(rows: any, orderBy: any) {
   if (orderBy.length === 0 || rows.length === 0) {
     return rows;

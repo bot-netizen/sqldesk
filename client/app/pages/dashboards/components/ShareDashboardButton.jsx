@@ -14,6 +14,7 @@ import SlackOutlinedIcon from "@ant-design/icons/SlackOutlined";
 import PlainButton from "@/components/PlainButton";
 import notification from "@/services/notification";
 import { currentUser, clientConfig } from "@/services/auth";
+import { rememberScreen } from "@/services/screen";
 import SubscribeDashboardDialog from "./SubscribeDashboardDialog";
 import SendToSlackDialog from "./SendToSlackDialog";
 import { exportSizeProblem, renderDashboardToPng, renderDashboardToPdf, downloadBlob, filenameFor } from "../export";
@@ -39,6 +40,10 @@ export default function ShareDashboardButton({ dashboard, getExportTarget, onSho
         notification.error("Nothing to export", "The dashboard is still loading.");
         return;
       }
+      // What this export looks like is what Slack and mail pictures sent in
+      // this person's name should look like. Not waited for: the export is
+      // drawn here, and does not depend on it.
+      rememberScreen({ dashboardId: dashboard.id });
       // Asked before anything starts, and answered where the person is
       // looking. As a corner notice after a spinner, the answer took 100ms
       // to arrive and 3s to vanish, and read as the button being broken.
@@ -94,7 +99,7 @@ export default function ShareDashboardButton({ dashboard, getExportTarget, onSho
         setBusy(null);
       }
     },
-    [dashboard.name, getExportTarget]
+    [dashboard.id, dashboard.name, getExportTarget]
   );
 
   const owner = get(dashboard, "user.name");

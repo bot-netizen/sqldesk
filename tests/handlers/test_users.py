@@ -651,3 +651,69 @@ class TestUserRegenerateApiKey(BaseTestCase):
 
         user = models.User.query.get(user.id)
         self.assertNotEqual(orig_api_key, user.api_key)
+
+
+class TestUserScreen(BaseTestCase):
+    """
+    How wide this person's screen draws a dashboard, so the pictures sent in
+    their name are drawn the same way. Their own, and only theirs.
+    """
+
+    def _post(self, user, body, as_user=None):
+        return self.make_request("post", "/api/users/{}/screen".format(user.id), data=body, user=as_user or user)
+
+    def test_remembers_the_width_and_zone(self):
+        user = self.factory.user
+
+        rv = self._post(user, {"width": 2780, "time_zone": "America/Toronto"})
+
+        self.assertEqual(200, rv.status_code)
+        db_user = models.User.query.get(user.id)
+        self.assertEqual(db_user.details["screen"], {"width": 2780, "time_zone": "America/Toronto"})
+
+    def test_a_zone_it_does_not_know_is_left_out(self):
+        user = self.factory.user
+
+        rv = self._post(user, {"width": 1400, "time_zone": "Mars/Olympus"})
+
+        self.assertEqual(200, rv.status_code)
+        self.assertEqual(models.User.query.get(user.id).details["screen"], {"width": 1400})
+
+    def test_refuses_a_width_it_cannot_draw(self):
+        user = self.factory.user
+        for width in (10, 100000, "wide", None):
+            self.assertEqual(400, self._post(user, {"width": width}).status_code, width)
+        self.assertNotIn("screen", models.User.query.get(user.id).details or {})
+
+    def test_never_somebody_elses(self):
+        other = self.factory.create_user()
+        admin = self.factory.create_admin()
+
+        rv = self._post(other, {"width": 1400}, as_user=admin)
+
+        self.assertEqual(403, rv.status_code)
+        self.assertNotIn("screen", models.User.query.get(other.id).details or {})
+
+    def test_remembers_the_order_of_each_table_on_a_dashboard(self):
+        user = self.factory.user
+        orders = {"31": [{"name": "slot_requests", "direction": "descend"}]}
+
+        rv = self._post(user, {"width": 1400, "dashboard_id": 9, "table_orders": orders})
+
+        self.assertEqual(200, rv.status_code)
+        self.assertEqual(rv.json["table_orders"], orders)
+        db_user = models.User.query.get(user.id)
+        self.assertEqual(db_user.details["table_orders"], [{"dashboard": 9, "tables": orders}])
+
+    def test_a_dashboard_with_nothing_sorted_is_forgotten(self):
+        user = self.factory.user
+        self._post(user, {"dashboard_id": 9, "table_orders": {"31": [{"name": "a", "direction": "ascend"}]}})
+
+        rv = self._post(user, {"dashboard_id": 9, "table_orders": {}})
+
+        self.assertEqual(200, rv.status_code)
+        self.assertEqual(models.User.query.get(user.id).details["table_orders"], [])
+
+    def test_needs_something_to_remember(self):
+        self.assertEqual(400, self._post(self.factory.user, {}).status_code)
+        self.assertEqual(400, self._post(self.factory.user, {"dashboard_id": "x", "table_orders": {}}).status_code)

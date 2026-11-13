@@ -145,6 +145,142 @@ class TestCapture(BaseTestCase):
         self.assertTrue(body["full_page"])
 
 
+class TestDrawnTheWayItsSenderSeesIt(BaseTestCase):
+    """
+    A Slack picture of a dashboard showed eight tiles where the same person's
+    Export as image showed eighteen: the export is the dashboard on their
+    2800px screen, the renderer had a 1400px window of its own. The width
+    their browser last reported goes with every picture sent in their name.
+    """
+
+    def _send(self, kind, obj, viewer):
+        with _on(), mock.patch("sqldesk.screenshots.requests.post") as post:
+            post.return_value = mock.Mock(content=b"PNG", raise_for_status=mock.Mock())
+            screenshots.capture(kind, obj, viewer)
+        return post.call_args[1]["json"]
+
+    def test_a_dashboard_is_drawn_at_the_senders_width_and_in_their_zone(self):
+        dashboard = self.factory.create_dashboard()
+        user = self.factory.user
+        user.details = {**(user.details or {}), "screen": {"width": 2780, "time_zone": "America/Toronto"}}
+        db.session.commit()
+
+        body = self._send(screenshots.DASHBOARD, dashboard, user)
+
+        # The window is wider than the dashboard by the frame drawn round it,
+        # so the dashboard itself is exactly as wide as it was on the screen.
+        self.assertEqual(body["width"], 2780 + screenshots.FRAME_WIDTH)
+        self.assertEqual(body["time_zone"], "America/Toronto")
+
+    def test_somebody_who_never_reported_a_screen_gets_the_renderers_window(self):
+        dashboard = self.factory.create_dashboard()
+        db.session.commit()
+
+        body = self._send(screenshots.DASHBOARD, dashboard, self.factory.user)
+
+        self.assertNotIn("width", body)
+        self.assertNotIn("time_zone", body)
+
+    def test_a_query_keeps_the_renderers_window_but_takes_the_zone(self):
+        query = self.factory.create_query()
+        self.factory.create_visualization(query_rel=query, type="CHART")
+        user = self.factory.user
+        user.details = {**(user.details or {}), "screen": {"width": 2780, "time_zone": "Europe/London"}}
+        db.session.commit()
+
+        body = self._send(screenshots.QUERY, query, user)
+
+        self.assertNotIn("width", body)
+        self.assertEqual(body["time_zone"], "Europe/London")
+
+    def test_nonsense_is_never_passed_on(self):
+        dashboard = self.factory.create_dashboard()
+        user = self.factory.user
+        user.details = {**(user.details or {}), "screen": {"width": 99999, "time_zone": "Mars/Olympus"}}
+        db.session.commit()
+
+        body = self._send(screenshots.DASHBOARD, dashboard, user)
+
+        self.assertNotIn("width", body)
+        self.assertNotIn("time_zone", body)
+
+
+class TestScreenValues(BaseTestCase):
+    def test_widths(self):
+        self.assertEqual(screenshots.clean_screen_width(1400), 1400)
+        self.assertEqual(screenshots.clean_screen_width(1399.6), 1400)
+        self.assertIsNone(screenshots.clean_screen_width(screenshots.MIN_SCREEN_WIDTH - 1))
+        self.assertIsNone(screenshots.clean_screen_width(screenshots.MAX_SCREEN_WIDTH + 1))
+        self.assertIsNone(screenshots.clean_screen_width("1400"))
+        self.assertIsNone(screenshots.clean_screen_width(True))
+        self.assertIsNone(screenshots.clean_screen_width(None))
+
+    def test_time_zones(self):
+        self.assertEqual(screenshots.clean_time_zone("America/Toronto"), "America/Toronto")
+        self.assertEqual(screenshots.clean_time_zone("UTC"), "UTC")
+        self.assertIsNone(screenshots.clean_time_zone("America/Nowhere"))
+        self.assertIsNone(screenshots.clean_time_zone("../../etc/passwd"))
+        self.assertIsNone(screenshots.clean_time_zone(None))
+
+    def test_a_user_with_no_details(self):
+        user = mock.Mock(details=None)
+        self.assertEqual(screenshots.screen_of(user), (None, None))
+
+
+class TestTableOrders(BaseTestCase):
+    """
+    A table sorted by its header on screen was exported sorted and sent to
+    Slack in the query's order. The order on screen is kept, per dashboard,
+    for the pictures sent in that person's name.
+    """
+
+    ORDER = {"12": [{"name": "slot_requests", "direction": "descend"}]}
+
+    def test_keeps_only_well_formed_orders(self):
+        orders = screenshots.clean_table_orders(
+            {
+                "12": [{"name": "slot_requests", "direction": "descend", "extra": 1}],
+                "13": [{"name": "x", "direction": "sideways"}],
+                "not-a-widget": [{"name": "x", "direction": "ascend"}],
+                "14": "slot_requests",
+            }
+        )
+        self.assertEqual(orders, {"12": [{"name": "slot_requests", "direction": "descend"}]})
+        self.assertEqual(screenshots.clean_table_orders(None), {})
+
+    def test_remembers_one_dashboard_without_touching_another(self):
+        user = self.factory.user
+        screenshots.remember_table_orders(user, 4, self.ORDER)
+        screenshots.remember_table_orders(user, 5, {"20": [{"name": "a", "direction": "ascend"}]})
+        db.session.commit()
+
+        self.assertEqual(screenshots.table_orders_of(user, mock.Mock(id=4)), self.ORDER)
+        self.assertEqual(screenshots.table_orders_of(user, mock.Mock(id=5))["20"][0]["name"], "a")
+
+    def test_nothing_sorted_forgets_the_dashboard(self):
+        user = self.factory.user
+        screenshots.remember_table_orders(user, 4, self.ORDER)
+
+        self.assertTrue(screenshots.remember_table_orders(user, 4, {}))
+        self.assertEqual(screenshots.table_orders_of(user, mock.Mock(id=4)), {})
+
+    def test_the_same_order_again_changes_nothing(self):
+        user = self.factory.user
+        screenshots.remember_table_orders(user, 4, self.ORDER)
+        self.assertFalse(screenshots.remember_table_orders(user, 4, self.ORDER))
+
+    def test_keeps_the_most_recent_dashboards_only(self):
+        user = self.factory.user
+        for dashboard_id in range(1, screenshots.MAX_SORTED_DASHBOARDS + 6):
+            screenshots.remember_table_orders(user, dashboard_id, self.ORDER)
+
+        self.assertEqual(len(user.details["table_orders"]), screenshots.MAX_SORTED_DASHBOARDS)
+        self.assertEqual(screenshots.table_orders_of(user, mock.Mock(id=1)), {})
+        self.assertEqual(
+            screenshots.table_orders_of(user, mock.Mock(id=screenshots.MAX_SORTED_DASHBOARDS + 5)), self.ORDER
+        )
+
+
 class TestCaptureNeverRaises(BaseTestCase):
     """
     A picture is a nice-to-have. An alert is not.

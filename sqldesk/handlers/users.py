@@ -6,7 +6,7 @@ from funcy import flatten, partial, project
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from sqldesk import features, limiter, models, oauth, settings
+from sqldesk import features, limiter, models, oauth, screenshots, settings
 from sqldesk.authentication.account import (
     invite_link_for_user,
     send_invite_email,
@@ -343,6 +343,65 @@ class UserAccessResource(BaseResource):
                 sources.append({"name": source.name, "access": "view only" if view_only else "full"})
 
         return {"features": offered, "data_sources": sources, "is_admin": is_admin}
+
+
+class UserScreenResource(BaseResource):
+    def post(self, user_id):
+        """
+        Remember how wide this person's dashboards are, and their time zone,
+        so the pictures sent in their name -- Send to Slack, subscriptions,
+        an alert's attachment -- are drawn the way their own screen shows the
+        dashboard. See `screenshots.screen_of`.
+
+        Your own and nobody else's: it describes a screen, which only its
+        owner's browser can see.
+
+        :<json number width: the dashboard's width in CSS pixels
+        :<json string time_zone: an IANA time zone, such as America/Toronto
+        """
+        if not isinstance(self.current_user, models.User) or str(self.current_user.id) != str(user_id):
+            abort(403, message="You can only describe your own screen.")
+
+        body = request.get_json(force=True, silent=True) or {}
+        if not isinstance(body, dict) or ("width" not in body and "dashboard_id" not in body):
+            abort(400, message="Send `width`, or `dashboard_id` with `table_orders`, or both.")
+
+        user = self.current_user
+        changed = False
+
+        if "width" in body:
+            width = screenshots.clean_screen_width(body.get("width"))
+            if width is None:
+                abort(
+                    400,
+                    message="`width` is the dashboard's width in pixels, between {} and {}.".format(
+                        screenshots.MIN_SCREEN_WIDTH, screenshots.MAX_SCREEN_WIDTH
+                    ),
+                )
+            screen = {"width": width}
+            time_zone = screenshots.clean_time_zone(body.get("time_zone"))
+            if time_zone:
+                screen["time_zone"] = time_zone
+            if (user.details or {}).get("screen") != screen:
+                if user.details is None:
+                    user.details = {}
+                user.details["screen"] = screen
+                changed = True
+
+        orders = None
+        if "dashboard_id" in body:
+            dashboard_id = body.get("dashboard_id")
+            if isinstance(dashboard_id, bool) or not str(dashboard_id).isdigit():
+                abort(400, message="`dashboard_id` is the id of the dashboard on screen.")
+            orders = screenshots.clean_table_orders(body.get("table_orders"))
+            changed = screenshots.remember_table_orders(user, dashboard_id, orders) or changed
+
+        if changed:
+            models.db.session.commit()
+        result = {"screen": (user.details or {}).get("screen")}
+        if orders is not None:
+            result["table_orders"] = orders
+        return result
 
 
 class UserDisableResource(BaseResource):
