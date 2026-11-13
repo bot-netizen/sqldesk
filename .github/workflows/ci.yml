@@ -137,6 +137,13 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Run Lint
         run: pnpm run lint:ci
+      # Formatting, which nothing was checking. The ESLint config extends
+      # eslint-config-prettier, so ESLint's own formatting rules are turned
+      # off on purpose and Prettier is the only thing that would catch drift
+      # -- except it only ever ran as `--write`, by hand. Nineteen files had
+      # drifted by 0.8. Vendored code is exempted in `.prettierignore`.
+      - name: Check formatting
+        run: pnpm run prettier:check
       - name: Store Test Results
         uses: actions/upload-artifact@v4
         with:

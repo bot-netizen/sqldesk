@@ -158,8 +158,8 @@ class EditDataSource extends React.Component {
       content: (
         <div>
           <p>
-            Nothing will be sent to it until it is resumed — not queries, not scheduled refreshes, not live
-            dashboards, not AI clients. Nothing is deleted.
+            Nothing will be sent to it until it is resumed — not queries, not scheduled refreshes, not live dashboards,
+            not AI clients. Nothing is deleted.
           </p>
           <Input
             placeholder="Why, for whoever runs into it"
