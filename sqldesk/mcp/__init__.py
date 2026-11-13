@@ -61,8 +61,8 @@ ROW_LIMIT = 1000
 #: running -- it is the waiting that stops, not the work. Both are capped again
 #: by the request's own budget (`time_budget`), which the web server's timeout
 #: sets: a wait that outlives gunicorn's kills the worker mid-answer, and the
-#: client sees a dropped connection instead of a reason.
-RUN_TIMEOUT = 45
+#: client sees a dropped connection instead of a reason. `run_query`'s is a
+#: setting, SQLDESK_MCP_RUN_TIMEOUT, five minutes unless changed.
 EXPLAIN_TIMEOUT = 20
 #: Ceilings on what a caller can make as large as it likes. SQL is parsed in
 #: the web process, and every search term is another ILIKE.
@@ -1671,7 +1671,7 @@ def tool_run_query(user, org, arguments):
     # limit from the runner that knows the dialect.
     limited = _capped(sql, source) or source.query_runner.apply_auto_limit(sql, True)
 
-    result, error = _on_a_worker(user, source, limited, timeout=RUN_TIMEOUT)
+    result, error = _on_a_worker(user, source, limited, timeout=settings.MCP_RUN_TIMEOUT)
     if error:
         return {"content": [{"type": "text", "text": error[0]}], "isError": True}
     # Every row the query was allowed to return. The SQL is already rewritten

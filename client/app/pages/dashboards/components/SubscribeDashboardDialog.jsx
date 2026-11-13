@@ -13,6 +13,7 @@ import { axios } from "@/services/axios";
 import { wrap as wrapDialog, DialogPropType } from "@/components/DialogWrapper";
 import SlackChannelSelect from "@/components/SlackChannelSelect";
 import notification from "@/services/notification";
+import { rememberScreen } from "@/services/screen";
 import { clientConfig } from "@/services/auth";
 import { formatDateTime } from "@/lib/utils";
 import User from "@/services/user";
@@ -102,8 +103,9 @@ function SubscribeDashboardDialog({ dialog, dashboard }) {
     const body = toSlack
       ? { schedule: { interval }, slack_channel: channel }
       : { schedule: { interval }, format, recipients };
-    axios
-      .post(url, body)
+    // Every picture this subscription sends is drawn at this screen's width.
+    rememberScreen({ dashboardId: dashboard.id })
+      .then(() => axios.post(url, body))
       .then((created) => {
         setRecipients([]);
         setChannel(undefined);
@@ -128,7 +130,7 @@ function SubscribeDashboardDialog({ dialog, dashboard }) {
         setProblem((error.response && error.response.data && error.response.data.message) || "Could not subscribe.");
       })
       .finally(() => setSaving(false));
-  }, [url, interval, format, recipients, channel, toSlack, load]);
+  }, [url, interval, format, recipients, channel, toSlack, load, dashboard.id]);
 
   const stop = useCallback(
     (subscription) => {

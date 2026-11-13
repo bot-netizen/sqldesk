@@ -2618,6 +2618,45 @@
       "last_seen": "2026-11-13T02:12:09.281Z",
       "occurrences": 1,
       "related_bugs": []
+    },
+    {
+      "error_message": "Bar chart over numeric ids drew its bars in text order: 1, 11, 12 ... 19, 2, 20",
+      "file": "viz-lib/src/visualizations/chart/echarts/buildOption.ts",
+      "root_cause": "Bars get a category axis even for numeric x (barsWantCategories, since 0.1.0); normalizeX turns category values into strings and sortBy(categories) then sorts them as text.",
+      "fix": "sortCategories() in echarts/utils.ts sorts as numbers when every category is number-like; used for the bar axis and heatmap x/y. a77de77dc.",
+      "tags": [
+        "chart",
+        "sort",
+        "category-axis",
+        "echarts"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-155",
+      "timestamp": "2026-11-13T17:15:08.000Z",
+      "last_seen": "2026-11-13T17:15:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
+    },
+    {
+      "error_message": "Slack picture of a dashboard showed 8 status-grid tiles where Export as image showed 18; tables unsorted in Slack but sorted in the export",
+      "file": "sqldesk/screenshots.py",
+      "root_cause": "The renderer drew in its own 1400px window while the export photographs the dashboard at the sender's screen width (~2800px), and widgets keep their height while their width follows the screen. Table header sorting is browser-only state, so the server render used the query's order.",
+      "fix": "Export/Send/Subscribe POST /api/users/<id>/screen with the #dashboard-container width, time zone and each table's data-table-order; capture() sends width+80 and time_zone to the renderer; render-pass dashboards get picture.table_orders, applied as table options.sortBy. c9a3634ac.",
+      "tags": [
+        "screenshots",
+        "slack",
+        "renderer",
+        "export",
+        "table-sort"
+      ],
+      "status": "fixed",
+      "observed_worktree": "/Users/iqbal.singh/dev_workspace/sqldesk",
+      "id": "bug-156",
+      "timestamp": "2026-11-13T17:15:08.000Z",
+      "last_seen": "2026-11-13T17:15:08.000Z",
+      "occurrences": 1,
+      "related_bugs": []
     }
   ],
   "applied_observations": {
@@ -2712,5 +2751,5 @@
     "d6b072aa-e48c-4341-8cab-dec54ecbb7f7": true,
     "47d7525c-e625-46ff-91ad-70203f931bf8": true
   },
-  "next_id": 155
+  "next_id": 157
 }

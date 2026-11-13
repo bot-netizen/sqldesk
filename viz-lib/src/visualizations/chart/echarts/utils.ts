@@ -1,4 +1,4 @@
-import { each, includes, isNil, mapValues } from "lodash";
+import { each, includes, isNil, mapValues, sortBy } from "lodash";
 import moment from "moment";
 
 // Every chart type the renderer can draw. Plotly used to catch anything absent
@@ -119,6 +119,27 @@ export function isDateLike(value: any): boolean {
   return (
     typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value) && moment(value, moment.ISO_8601, true).isValid()
   );
+}
+
+/**
+ * Categories in the order a person reads them.
+ *
+ * A category axis holds its values as text, so sorting them as they are puts
+ * 11 before 2: a bar chart of toggle ids came out 1, 11, 12 ... 19, 2, 20,
+ * with no labels to show it, and every bar read as the wrong toggle. Where
+ * every category is a number they are sorted as numbers; anything else --
+ * names, or a mix of names and numbers -- keeps the text order it always had.
+ */
+export function sortCategories(categories: any[]): any[] {
+  const numeric = categories.length > 0 && categories.every((category) => isNumberLike(category));
+  return numeric ? sortBy(categories, (category) => Number(category)) : sortBy(categories);
+}
+
+function isNumberLike(value: any): boolean {
+  if (typeof value === "number") {
+    return isFinite(value);
+  }
+  return typeof value === "string" && /^\s*-?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?\s*$/i.test(value);
 }
 
 /**

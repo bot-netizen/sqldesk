@@ -20,6 +20,7 @@ breach went unreported.
 
 import logging
 
+import pytz
 import requests
 
 from sqldesk import models, render_pass, settings
@@ -39,6 +40,131 @@ QUERY = "query"
 #: subscription may want a printable page instead.
 PNG = "png"
 PDF = "pdf"
+
+
+#: The narrowest and widest dashboard a picture is drawn at, in CSS pixels.
+#: Below this a dashboard collapses to its phone layout, which is a different
+#: picture of a different thing; above it the image is too big to be worth
+#: sending. A 4K screen at 100% is 3840.
+MIN_SCREEN_WIDTH = 600
+MAX_SCREEN_WIDTH = 3840
+
+#: What the branded frame adds either side of the dashboard: 40px a side
+#: (ScreenshotFrame.less, and MARGIN in the export's compose.js). The window
+#: is this much wider than the dashboard, so the dashboard is exactly as wide
+#: as it was on the screen it was sent from.
+FRAME_WIDTH = 80
+
+
+def clean_screen_width(value):
+    """A dashboard width worth drawing at, or None."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    width = int(round(value))
+    return width if MIN_SCREEN_WIDTH <= width <= MAX_SCREEN_WIDTH else None
+
+
+def clean_time_zone(value):
+    """An IANA time zone the renderer can be put in, or None."""
+    if isinstance(value, str) and value in pytz.all_timezones_set:
+        return value
+    return None
+
+
+def screen_of(user):
+    """
+    The screen this person's pictures are drawn for: the dashboard's width
+    and their time zone, as their browser last reported them -- or Nones.
+
+    A dashboard lays itself out to the width it is given. Its widgets keep
+    their height and gain or lose width, so tiles and table columns that fit
+    on one screen wrap or vanish on another. Export as image photographs the
+    dashboard as it is on the screen in front of somebody; the renderer had a
+    window of its own, 1400px, and drew a dashboard laid out on a 2800px
+    screen with a third of its tiles scrolled out of sight. So the browser
+    says how wide the dashboard is whenever somebody exports, sends or
+    subscribes, and the pictures sent in their name are drawn at that width
+    and in their time zone -- the picture they would have exported.
+    """
+    details = getattr(user, "details", None) or {}
+    screen = details.get("screen") if isinstance(details, dict) else None
+    if not isinstance(screen, dict):
+        return None, None
+    return clean_screen_width(screen.get("width")), clean_time_zone(screen.get("time_zone"))
+
+
+#: How many dashboards' table orders are kept for one person, most recent
+#: last, and how many tables on one dashboard. A ceiling, so a person's record
+#: cannot grow without end.
+MAX_SORTED_DASHBOARDS = 50
+MAX_SORTED_TABLES = 50
+SORT_DIRECTIONS = ("ascend", "descend")
+
+
+def clean_table_orders(value):
+    """
+    `{widget_id: [{name, direction}]}` as a table reports the order it is
+    showing, keeping only well-formed entries: a widget id, a column name, and
+    "ascend" or "descend", at most five columns deep.
+    """
+    if not isinstance(value, dict):
+        return {}
+    orders = {}
+    for widget_id, order in list(value.items())[:MAX_SORTED_TABLES]:
+        if not str(widget_id).isdigit() or not isinstance(order, list):
+            continue
+        clean = [
+            {"name": item["name"], "direction": item["direction"]}
+            for item in order[:5]
+            if isinstance(item, dict)
+            and isinstance(item.get("name"), str)
+            and 0 < len(item["name"]) <= 255
+            and item.get("direction") in SORT_DIRECTIONS
+        ]
+        if clean:
+            orders[str(widget_id)] = clean
+    return orders
+
+
+def remember_table_orders(user, dashboard_id, orders):
+    """
+    Keep the order this person's tables were in on this dashboard, the last
+    time they exported, sent or subscribed to it. True if anything changed.
+
+    Clicking a column header sorts the rows in the browser and nowhere else,
+    so Export as image showed them sorted and the Slack picture of the same
+    dashboard showed the query's own order. An empty `orders` forgets the
+    dashboard: nothing sorted, so the query's order is the right one.
+
+    A list, most recent last, because Postgres does not keep the order of an
+    object's keys and the oldest is the one to let go.
+    """
+    details = user.details if isinstance(user.details, dict) else {}
+    kept = [
+        entry
+        for entry in (details.get("table_orders") or [])
+        if isinstance(entry, dict) and str(entry.get("dashboard")) != str(dashboard_id)
+    ]
+    if orders:
+        kept.append({"dashboard": int(dashboard_id), "tables": orders})
+    kept = kept[-MAX_SORTED_DASHBOARDS:]
+    if kept == (details.get("table_orders") or []):
+        return False
+    if user.details is None:
+        user.details = {}
+    user.details["table_orders"] = kept
+    return True
+
+
+def table_orders_of(user, dashboard):
+    """The order each table on this dashboard was in for this person, by widget id."""
+    details = getattr(user, "details", None)
+    if not isinstance(details, dict):
+        return {}
+    for entry in reversed(details.get("table_orders") or []):
+        if isinstance(entry, dict) and str(entry.get("dashboard")) == str(dashboard.id):
+            return clean_table_orders(entry.get("tables"))
+    return {}
 
 
 def enabled():
@@ -107,6 +233,8 @@ def capture(kind, obj, viewer, fmt=PNG):
         logger.warning("Could not issue a render pass for %s %s.", kind, getattr(obj, "id", "?"))
         return None
 
+    width, time_zone = screen_of(viewer)
+
     url = _target_url(kind, obj, token)
     if url is None:
         logger.warning("Nothing to draw for %s %s; skipping its screenshot.", kind, getattr(obj, "id", "?"))
@@ -130,6 +258,11 @@ def capture(kind, obj, viewer, fmt=PNG):
                 # captures the whole page rather than the first screen of it.
                 # A PDF paginates instead, so this says nothing about one.
                 "full_page": kind == DASHBOARD,
+                # Drawn the way the person it is sent for sees it -- see
+                # `screen_of`. A query's picture is one chart, which has no
+                # layout to keep, so it keeps the renderer's own window.
+                **({"width": width + FRAME_WIDTH} if width and kind == DASHBOARD else {}),
+                **({"time_zone": time_zone} if time_zone else {}),
             },
             timeout=settings.SCREENSHOT_TIMEOUT + 5,
         )

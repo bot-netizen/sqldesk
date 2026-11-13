@@ -9,6 +9,7 @@ import { wrap as wrapDialog, DialogPropType } from "@/components/DialogWrapper";
 import SlackChannelSelect from "@/components/SlackChannelSelect";
 import { axios } from "@/services/axios";
 import notification from "@/services/notification";
+import { rememberScreen } from "@/services/screen";
 import SendableNotice, { useSendable } from "./SendableNotice";
 
 /*
@@ -40,8 +41,10 @@ function SendToSlackDialog({ dialog, dashboard }) {
   const send = useCallback(() => {
     setSending(true);
     setProblem(null);
-    axios
-      .post(`api/dashboards/${dashboard.id}/share/slack`, { channel, text })
+    // First, so the picture is drawn at this screen's width: the one Export
+    // as image would give. It cannot fail the send.
+    rememberScreen({ dashboardId: dashboard.id })
+      .then(() => axios.post(`api/dashboards/${dashboard.id}/share/slack`, { channel, text }))
       .then(() => {
         notification.success(`Sent to Slack.`);
         dialog.close();

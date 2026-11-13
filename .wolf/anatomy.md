@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-13T02:12:09.250Z
-> Files: 751 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-13T17:23:53.003Z
+> Files: 752 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -1104,7 +1104,8 @@
 
 ## viz-lib/src/visualizations/sankey/
 
-- `Editor.tsx` — Editor (~406 tok)
+- `Editor.tsx` — Labels can be chosen for colours and for leaving out; a ceiling on the list. (~2171 tok)
+- `options.test.ts` — columns: series, node, label (~2953 tok)
 
 ## viz-lib/src/visualizations/streamgraph/
 

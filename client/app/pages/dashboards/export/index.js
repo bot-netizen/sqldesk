@@ -2,8 +2,9 @@ import { getFontEmbedCSS, toSvg } from "html-to-image";
 import { revealAllCharts } from "@sqldesk/viz/lib/services/offscreen";
 import buildSingleImagePdf, { buildImagePdf, A4_LANDSCAPE, A4_PORTRAIT } from "./singleImagePdf";
 import composeExportCanvas, { PAGE_FURNITURE } from "./compose";
-import { capitalizeFirst, formatDateTime } from "@/lib/utils";
+import { capitalizeFirst } from "@/lib/utils";
 import { currentUser } from "@/services/auth";
+import { generatedAt } from "@/components/ScreenshotFrame";
 
 /*
   Dashboard export.
@@ -547,7 +548,9 @@ async function capturePage(element, { title, owner, format, tiles = DASHBOARD_TI
       generatedBy: currentUser.name,
       // The export is a point-in-time copy, so when it was taken is the
       // difference between current data and something stale in a channel.
-      generatedAt: formatDateTime(new Date()),
+      // Written the way the server's pictures write it, zone and all, so an
+      // export and a Slack picture of the same dashboard read the same.
+      generatedAt: generatedAt(new Date()),
       scale,
     }),
     5000,

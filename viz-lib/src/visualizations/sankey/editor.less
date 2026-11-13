@@ -1,0 +1,19 @@
+// A colour for each label, two to a row: the swatch, then the label it is for.
+.sankey-editor-colours {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 6px 16px;
+}
+
+.sankey-editor-colour {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sankey-editor-colour-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

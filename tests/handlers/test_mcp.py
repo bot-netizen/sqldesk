@@ -549,6 +549,19 @@ class TestExplainAndRun(McpTestCase):
         # And it carries who asked, so the admin's list can say so.
         self.assertTrue(enqueue.call_args[1]["metadata"]["mcp"])
 
+    def test_it_waits_five_minutes_for_a_query(self):
+        # It was 45 seconds, and the queries worth asking a model about take
+        # longer than that.
+        with mock.patch("sqldesk.mcp._on_a_worker", return_value=({"columns": [], "rows": []}, None)) as worker:
+            self.call("run_query", {"sql": "SELECT 1", "data_source": self.factory.data_source.name})
+        self.assertEqual(300, worker.call_args[1]["timeout"])
+
+    def test_how_long_it_waits_is_a_setting(self):
+        with mock.patch("sqldesk.mcp.settings.MCP_RUN_TIMEOUT", 120):
+            with mock.patch("sqldesk.mcp._on_a_worker", return_value=({"columns": [], "rows": []}, None)) as worker:
+                self.call("run_query", {"sql": "SELECT 1", "data_source": self.factory.data_source.name})
+        self.assertEqual(120, worker.call_args[1]["timeout"])
+
     def test_a_failing_query_reports_the_reason(self):
         with mock.patch("sqldesk.mcp._on_a_worker", return_value=(None, ['relation "nope" does not exist'])):
             body = self.call("run_query", {"sql": "SELECT * FROM nope", "data_source": self.factory.data_source.name})

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-13T02:12:09.250Z",
-    "fileCount": 751,
+    "lastScanned": "2026-11-13T17:23:53.003Z",
+    "fileCount": 752,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "93aae3f69df7fb57a403cf00170be45fd482081f6d2994c55c095a86753784bb",
-    "storeUpdatedAt": "2026-11-13T02:12:09.263Z",
-    "rootHash": "be3ba025eca0256c"
+    "renderedHash": "27408930222feecb5911cb6822adf9ff694cae46ee2c20496cda0fc5d8055a1c",
+    "storeUpdatedAt": "2026-11-13T17:23:53.013Z",
+    "rootHash": "0f31e7101617baa3"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -18912,13 +18912,22 @@
       ]
     },
     "viz-lib/src/visualizations/sankey/Editor.tsx": {
-      "description": "Editor",
-      "tokens": 406,
-      "hash": "02dd611df4aa76ad",
-      "size": 1421,
-      "mtimeMs": 1793958036148.8196,
-      "updatedAt": "2026-11-06T09:40:36.313Z",
-      "source": "hook"
+      "description": "Labels can be chosen for colours and for leaving out; a ceiling on the list.",
+      "tokens": 2171,
+      "hash": "611cf46c13b42a07",
+      "size": 7598,
+      "mtimeMs": 1794590532018.8013,
+      "updatedAt": "2026-11-13T17:22:12.151Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Editor",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 227,
+          "tokens": 1833
+        }
+      ]
     },
     "viz-lib/src/visualizations/streamgraph/buildOption.ts": {
       "description": "A point on the river: when, how much, and which band.",
@@ -19889,6 +19898,38 @@
           "startLine": 23,
           "endLine": 184,
           "tokens": 1819
+        }
+      ]
+    },
+    "viz-lib/src/visualizations/sankey/options.test.ts": {
+      "description": "columns: series, node, label",
+      "tokens": 2953,
+      "hash": "7a3d58f60a310281",
+      "size": 10343,
+      "mtimeMs": 1794590632861.506,
+      "updatedAt": "2026-11-13T17:23:53.002Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "series",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 34,
+          "tokens": 19
+        },
+        {
+          "name": "node",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 38,
+          "tokens": 34
+        },
+        {
+          "name": "label",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 266,
+          "tokens": 2574
         }
       ]
     }

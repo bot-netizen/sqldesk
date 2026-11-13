@@ -7,6 +7,7 @@ changed it.
 
 | Version | Name | When | Notes |
 |---|---|---|---|
+| 0.8.6 | As You See It | 13 Nov 2026 | Server pictures drawn at the sender's dashboard width, time zone and table sort (POST /api/users/<id>/screen; renderer takes width + time_zone), same header as Export; Sankey palettes/flow colours/percentages/leave-out/compressed widths; numeric bar order; MCP run_query 300s |
 | 0.8.5 | The Headline | 13 Nov 2026 | Summary visualization (a sentence with {{ }} values and colour rules; agents can write one); server pictures on the branded Export page and cropped to it; alert history with full times and per-destination delivery (alert_fires.deliveries) |
 | 0.8.4 | Plain Sight | 12 Nov 2026 | Slack: no button to localhost or a container name (slack.public_link), a refused layout falls back to sharing the picture as a file, every step logged with Slack's own reason; never the token or the words |
 | 0.8.3 | Read Back | 12 Nov 2026 | The Slack bot token's column was Text on installs made before 0.7.0, so Settings -> Slack failed on every read; migration d7e3ae10b9a9 converts it in place, and a test now checks migrations rather than models for bytes columns |

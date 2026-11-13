@@ -2,8 +2,11 @@
 
 The test install is **minikube**, reached at **http://localhost:5090** through
 `kubectl port-forward svc/sqldesk 5090:5000`. That forward dies on every
-rollout and every node restart; restart it. **5090 is the user's** — use 5091
-for anything of your own, and never kill a forward you did not start.
+rollout and every node restart; restart it. **It is the testing and dev
+instance** (Iqbal, 13 Nov 2026): no real work lives on it, so deploy test
+builds to it, reseed it and reset it freely. Test here, not on Docker Compose
+stacks — Compose on top of minikube starves this Mac, and the dev Compose
+Postgres has no volume.
 
 **Stop restarting it by hand.** The forward binds to one pod, so every
 rollout kills it — the error is always `lost connection to pod`. A loop

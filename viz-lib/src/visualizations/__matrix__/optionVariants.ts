@@ -354,6 +354,19 @@ export const VARIANTS: Record<string, Variant[]> = {
   SANKEY: [
     { name: "defaults", options: {} },
     { name: "with each stage's value", options: { showNodeValues: true } },
+    {
+      name: "percentages on stages and flows",
+      options: { showNodeValues: true, nodePercent: "previous", flowLabels: true },
+    },
+    { name: "a chosen palette, one colour per flow", options: { colorScheme: "Tableau 10", linkColor: "source" } },
+    { name: "each journey in its own colour", options: { linkColor: "journey" } },
+    { name: "compressed widths", options: { widthScale: "sqrt" } },
+    { name: "an unknown label left out", options: { hiddenNodes: ["not in the result"] } },
+    {
+      name: "soft palette, outcome colours, from the left",
+      options: { colorScheme: "Soft", linkColor: "target", nodeAlign: "left" },
+    },
+    { name: "what continues, in Calm", options: { colorScheme: "Calm", linkColor: "continues" } },
   ],
   CANDLESTICK: [
     { name: "defaults", options: {} },

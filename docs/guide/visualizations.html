@@ -144,6 +144,28 @@ would say it. A rule on <code>revenue</code> also colours <code>sum(revenue)</co
 reads one query; for a sentence about two, write one query that returns both. An agent can write one too:
 <code>save_visualization</code> with <code>kind: "summary"</code>.</p>
 
+<h2 id="sankey">A sankey: flows between stages</h2>
+<p>One row per path through the stages: columns <code>stage1</code>, <code>stage2</code> &hellip; as many
+as the funnel has, and <code>value</code>, how many took that path. A blank stage means the path stopped
+there; it is drawn flowing into <em>Exit</em>.</p>
+<ul>
+  <li><strong>Colours.</strong> Classic is the palette every sankey has had. <em>Soft</em>, <em>Calm</em> and
+    <em>Blues</em> are quieter, for a chart that is mostly colour; on any of them Exit is grey. Any label can
+    be given a colour of its own, grey included.</li>
+  <li><strong>Flows</strong> fade from one stage&rsquo;s colour to the next (as before), take one colour from
+    the stage they leave, keep the colour of the first stage a journey started from all the way to the end,
+    take the colour of the stage they reach &mdash; colour your outcomes, won and lost &mdash; or show
+    <em>what continues</em> in one colour and what stops in grey.</li>
+  <li><strong>Percentages</strong> are worked out from the flows, of the total or of the stage before, on each
+    stage and, if you like, on each flow. The query needs no column for them: a percentage per row cannot be
+    added up where rows meet.</li>
+  <li><strong>When one flow is most of the total</strong> &mdash; nine bid requests in ten passing &mdash; leave
+    it out, and the rest fills the chart with its percentages still of the full total; or compress the widths,
+    which keeps the real numbers on the labels. Either way the chart says so underneath.</li>
+  <li><strong>Hover</strong> lights a whole journey, first stage to last. Stages can sit in their own columns
+    from the left, so a drop-off is drawn where it happened.</li>
+</ul>
+
 <h2 id="links">Turning a point or a cell into a link</h2>
 <p>This is the drill-down: click a bar, land on the query, dashboard or system that explains it. It is
 configured per visualization, and the important part is that <strong>the link is built from the row</strong>
@@ -328,6 +350,7 @@ timestamp without a time zone — the fix belongs in the SQL, where the intent i
     <h4>On this page</h4>
     <a href="#choosing-one">Choosing one</a>
     <a href="#summary">A summary: the result, in a sentence</a>
+    <a href="#sankey">A sankey: flows between stages</a>
     <a href="#links">Turning a point or a cell into a link</a>
     <a href="#numbers">Formatting numbers</a>
     <a href="#by-value">Colouring by the value itself</a>

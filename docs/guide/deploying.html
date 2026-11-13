@@ -388,7 +388,7 @@ to the release it was written for.</p>
 which address the login throttle and the audit log see.</p>
 
 <h2 id="upgrading">Upgrading</h2>
-<pre><code># .env: SQLDESK_IMAGE=ghcr.io/bot-netizen/sqldesk:0.8.5
+<pre><code># .env: SQLDESK_IMAGE=ghcr.io/bot-netizen/sqldesk:0.8.6
 docker compose -f compose.prod.yaml pull
 docker compose -f compose.prod.yaml run --rm server manage db upgrade
 docker compose -f compose.prod.yaml up -d</code></pre>

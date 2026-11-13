@@ -20,6 +20,7 @@ lives in sqldesk/screenshots.py, on the other side of this boundary.
 import hmac
 import logging
 import os
+import re
 from urllib.parse import urlsplit
 
 from flask import Flask, jsonify, request
@@ -36,6 +37,19 @@ VIEWPORT = {
     "width": int(os.environ.get("SCREENSHOT_WIDTH", "1400")),
     "height": int(os.environ.get("SCREENSHOT_HEIGHT", "900")),
 }
+
+#: The widest window a caller may ask for. SQLDesk asks for the width of the
+#: screen the picture is being sent from, so a dashboard is laid out the way
+#: that person sees it; a 4K screen at 100% is 3840, and the branded frame
+#: adds 80.
+MIN_WIDTH = 600
+MAX_WIDTH = 3920
+
+#: Twice the pixels on an ordinary screen, so text is not soft where the
+#: picture is read; fewer on a wide one, where twice would be an image of
+#: seven thousand pixels across for Slack to shrink. Text stays as sharp as
+#: a 2000px window at 2x.
+SHARP_WIDTH = 4000
 
 #: Above this, stop waiting and say so.
 MAX_TIMEOUT_SECONDS = int(os.environ.get("SCREENSHOT_MAX_TIMEOUT", "120"))
@@ -87,17 +101,44 @@ PDF = "pdf"
 FORMATS = (PNG, PDF)
 
 
-def _render(url, headers, wait_for, timeout_seconds, full_page, fmt=PNG):
+def _window(width):
+    """The window to draw in: the width asked for, if it is a sensible one."""
+    if isinstance(width, bool) or not isinstance(width, int) or not MIN_WIDTH <= width <= MAX_WIDTH:
+        return dict(VIEWPORT)
+    return {"width": width, "height": VIEWPORT["height"]}
+
+
+def _scale(window):
+    return round(min(2.0, SHARP_WIDTH / window["width"]), 3)
+
+
+#: An IANA name, such as America/Toronto or UTC. SQLDesk checks the name
+#: against the zone database before sending it; this only keeps anything
+#: that is not shaped like one away from the browser.
+_TIME_ZONE = re.compile(r"^[A-Za-z][A-Za-z0-9_+\-]*(/[A-Za-z0-9_+\-]+){0,2}$")
+
+
+def _time_zone(value):
+    return value if isinstance(value, str) and len(value) <= 64 and _TIME_ZONE.match(value) else None
+
+
+def _render(url, headers, wait_for, timeout_seconds, full_page, fmt=PNG, width=None, time_zone=None):
     timeout_ms = min(timeout_seconds, MAX_TIMEOUT_SECONDS) * 1000
+    window = _window(width)
+    zone = _time_zone(time_zone)
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
         try:
             context = browser.new_context(
-                viewport=VIEWPORT,
+                viewport=window,
                 # Twice the pixels, so text in the image is not soft on the
-                # screen somebody reads the email on.
-                device_scale_factor=2,
+                # screen somebody reads the email on -- see SHARP_WIDTH.
+                device_scale_factor=_scale(window),
+                # "Generated at" in the frame reads in the zone of the person
+                # it is sent for, as their own export would. Charts are not
+                # affected: they read timestamps in the zone they were stored.
+                **({"timezone_id": zone} if zone else {}),
                 # A still picture of a chart that animates itself into view is
                 # a picture of it half drawn. Measured: a sparkline's area fill
                 # reached 74% of its width at the moment of capture while the
@@ -149,8 +190,8 @@ def _render(url, headers, wait_for, timeout_seconds, full_page, fmt=PNG):
                 # window changes size, so waiting for it a second time waits
                 # for the redraw that the resize caused.
                 height = min(int(page.evaluate("document.documentElement.scrollHeight")), MAX_CAPTURE_HEIGHT)
-                if height > VIEWPORT["height"]:
-                    page.set_viewport_size({"width": VIEWPORT["width"], "height": height})
+                if height > window["height"]:
+                    page.set_viewport_size({"width": window["width"], "height": height})
                     if wait_for:
                         page.wait_for_selector(wait_for, timeout=timeout_ms, state="attached")
 
@@ -214,6 +255,8 @@ def screenshot():
             int(body.get("timeout", 60)),
             bool(body.get("full_page")),
             fmt,
+            body.get("width"),
+            body.get("time_zone"),
         )
     except PlaywrightError as error:
         # The caller treats any failure the same way -- send the alert without
