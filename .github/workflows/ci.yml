@@ -64,6 +64,18 @@ jobs:
             --set notebooks.enabled=true --set networkPolicy.enabled=true \
             --set notebooks.spark.remote=sc://spark-connect:15002 \
             --set 'notebooks.spark.egress[0].ports[0].port=15002' > /dev/null
+      - name: Does it warn when the workers cannot hold a result at the limit?
+        run: |
+          set -euo pipefail
+          warns() {
+            local out
+            out=$(helm install sqldesk charts/sqldesk --dry-run=client "$@")
+            grep -q "WARNING: worker may run out of memory" <<< "$out"
+          }
+          # The defaults fit: 600Mi + 2 processes x 50 MB x 8 = 1400Mi of 2Gi.
+          if warns; then echo "the defaults warn"; exit 1; fi
+          warns --set queryResults.maxMB=100
+          if warns --set queryResults.maxMB=100 --set worker.resources.limits.memory=3Gi; then exit 1; fi
       - name: Does it parse as Kubernetes objects?
         run: |
           helm template sqldesk charts/sqldesk | python3 -c "

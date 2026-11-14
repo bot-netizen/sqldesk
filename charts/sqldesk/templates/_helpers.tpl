@@ -108,15 +108,58 @@ first install that cannot start.
 {{- end -}}
 
 {{/*
+queryResults.maxMB. `default dict`: a release made before `queryResults`
+existed upgrades with --reuse-values into a values tree without it.
+*/}}
+{{- define "sqldesk.resultMaxMB" -}}
+{{- dig "maxMB" 50 (default dict .Values.queryResults) | int -}}
+{{- end -}}
+
+{{/*
+A Kubernetes memory quantity in MiB: "2Gi", "1536Mi", "2G", "2147483648".
+0 when it is not one this can read, which the caller takes as "unknown".
+*/}}
+{{- define "sqldesk.memoryMi" -}}
+{{- $q := toString . -}}
+{{- if hasSuffix "Gi" $q -}}{{ mulf (trimSuffix "Gi" $q | float64) 1024 | int }}
+{{- else if hasSuffix "Mi" $q -}}{{ trimSuffix "Mi" $q | float64 | int }}
+{{- else if hasSuffix "Ki" $q -}}{{ divf (trimSuffix "Ki" $q | float64) 1024 | int }}
+{{- else if hasSuffix "G" $q -}}{{ mulf (trimSuffix "G" $q | float64) 953.674 | int }}
+{{- else if hasSuffix "M" $q -}}{{ mulf (trimSuffix "M" $q | float64) 0.953674 | int }}
+{{- else if regexMatch "^[0-9]+$" $q -}}{{ div ($q | int64) 1048576 }}
+{{- else -}}0
+{{- end -}}
+{{- end -}}
+
+{{/*
+A warning when a deployment that runs queries has less memory than its
+processes need to hold a result at queryResults.maxMB: about 600Mi of its own
+plus eight times the limit per process, measured on a real worker. Empty
+when the limit is off, the memory is not limited, or there is room.
+Takes a dict: name, workersCount, resources, root.
+*/}}
+{{- define "sqldesk.resultMemoryWarning" -}}
+{{- $maxMB := include "sqldesk.resultMaxMB" .root | int -}}
+{{- $have := include "sqldesk.memoryMi" (dig "limits" "memory" "" (default dict .resources)) | int -}}
+{{- $processes := .workersCount | default 1 | int -}}
+{{- $need := add 600 (mul $processes $maxMB 8) -}}
+{{- if and (gt $maxMB 0) (gt $have 0) (lt $have $need) }}
+WARNING: {{ .name }} may run out of memory on a large result. Its {{ $processes }}
+query process(es) can each hold about 8 x queryResults.maxMB ({{ $maxMB }}) while
+storing a result, beside ~600Mi of their own: {{ $need }}Mi, against a limit of
+{{ $have }}Mi. A worker that runs out is killed with every query on it. Raise
+its resources.limits.memory, or lower queryResults.maxMB.
+{{- end -}}
+{{- end -}}
+
+{{/*
 Every process gets the same environment. The server, the workers and the
 scheduler are the same image doing different jobs, and a variable that
 reached only one of them is the kind of difference nobody finds quickly.
 */}}
 {{- define "sqldesk.env" -}}
-{{- /* `default dict`: a release made before `queryResults` existed upgrades
-     with --reuse-values into a values tree without it. */}}
 - name: SQLDESK_QUERY_RESULT_MAX_MB
-  value: {{ dig "maxMB" 100 (default dict .Values.queryResults) | quote }}
+  value: {{ include "sqldesk.resultMaxMB" . | quote }}
 - name: SQLDESK_DATABASE_URL
   valueFrom:
     secretKeyRef:

@@ -257,6 +257,20 @@ for one query to cost an install its capacity while every health check still pas
 one report legitimately takes an hour, schedule it rather than raising the ad-hoc limit for
 everybody.</p>
 
+<h3 id="result-limit">How much of a result a worker keeps</h3>
+<p><code>queryResults.maxMB</code> in the chart (<code>SQLDESK_QUERY_RESULT_MAX_MB</code> elsewhere),
+<strong>50</strong> by default since 0.8.7. Past it the worker stops reading, cancels the rest of the
+query on the warehouse, and keeps the rows it has; the page says the result was cut short, at how much,
+and what to do. Without it, one result bigger than the worker's memory got the whole container killed,
+every query on it failed with no message, and the warehouse kept the query open.</p>
+<p>Size the workers with it. A worker process holds up to about <strong>eight times the limit</strong>
+at its peak &mdash; measured on a real worker, the rows as Python objects plus the JSON written from
+them &mdash; and runs <code>worker.workersCount</code> of them beside about 600 MB of its own:</p>
+<pre><code>worker.resources.limits.memory &gt;= 600Mi + workersCount &times; maxMB &times; 8</code></pre>
+<p>The defaults come to 1400Mi of 2Gi. At 100 they did not fit: a million-row Trino result killed a
+worker. <code>helm install</code> and <code>helm upgrade</code> print a warning when a query worker's
+limit is under the sum. <code>0</code> turns the limit off &mdash; only with the memory for it.</p>
+
 <h2 id="running-more-at-once">Running more at once</h2>
 <p>Two numbers decide how much SQLDesk does at the same time, and the first one is read wrongly more
 often than not.</p>
