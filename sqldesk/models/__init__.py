@@ -58,6 +58,7 @@ from sqldesk.models.types import (
     JSONText,
     MutableDict,
     MutableList,
+    SerializedJSON,
     json_cast_property,
 )
 from sqldesk.models.users import (  # noqa
@@ -557,13 +558,15 @@ class UploadedFile(TimestampMixin, BelongsToOrgMixin, db.Model):
 
 
 @generic_repr("id", "org_id", "data_source_id", "query_hash", "runtime", "retrieved_at")
-def _row_count_of(data):
+def result_row_count(data):
     """Row count of a result payload, or None when it cannot be determined.
 
     Runners hand back {"columns": [...], "rows": [...]}, but a failed or
     empty run may pass None. None is stored rather than 0 so the UI can say
     "unknown" instead of asserting a query returned nothing.
     """
+    if isinstance(data, SerializedJSON):
+        return data.row_count
     if isinstance(data, dict):
         rows = data.get("rows")
         if rows is not None:
@@ -736,7 +739,7 @@ class QueryResult(db.Model, BelongsToOrgMixin):
             data_source=data_source,
             retrieved_at=retrieved_at,
             data=data,
-            row_count=_row_count_of(data),
+            row_count=result_row_count(data),
         )
 
         db.session.add(query_result)

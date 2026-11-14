@@ -13,7 +13,7 @@ from sqldesk.query_runner import InterruptException
 from sqldesk.tasks.alerts import check_alerts_for_query
 from sqldesk.tasks.failure_report import track_failure
 from sqldesk.tasks.worker import Job, Queue
-from sqldesk.utils import gen_query_hash, utcnow
+from sqldesk.utils import gen_query_hash, json_dumps_result, utcnow
 from sqldesk.worker import get_job_logger
 
 logger = get_job_logger(__name__)
@@ -328,15 +328,21 @@ class QueryExecutor:
                     self.query_model.skip_updated_at = True
                     models.db.session.add(self.query_model)
 
+                # Written out here, and the rows let go, before the insert:
+                # see SerializedJSON. Holding both is what ran workers out of
+                # memory on results well inside queryResults.maxMB.
+                payload = models.SerializedJSON(json_dumps_result(data), models.result_row_count(data))
+                data = None
                 query_result = models.QueryResult.store_result(
                     self.data_source.org_id,
                     self.data_source,
                     self.query_hash,
                     self.query,
-                    data,
+                    payload,
                     run_time,
                     utcnow(),
                 )
+                payload = None
 
                 updated_query_ids = models.Query.update_latest_result(query_result)
 

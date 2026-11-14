@@ -29,6 +29,27 @@ class EncryptedConfiguration(EncryptedType):
         )
 
 
+class SerializedJSON:
+    """
+    A query result already written as JSON text, for JSONText to store as is.
+
+    Storing the result dict made the worker hold it twice over at the worst
+    moment: every row as Python objects, the JSON text, and the copies the
+    database driver makes of that text to build the INSERT -- about eight
+    times the result's size, measured on a real worker, which is what got
+    workers killed for running out of memory. Written out first, the rows can
+    be let go before the insert starts.
+
+    `row_count` comes along because it can no longer be read off the rows.
+    """
+
+    __slots__ = ("text", "row_count")
+
+    def __init__(self, text, row_count=None):
+        self.text = text
+        self.row_count = row_count
+
+
 # Utilized for cases when JSON size is bigger than JSONB (255MB) or JSON (10MB) limit
 class JSONText(TypeDecorator):
     impl = db.Text
@@ -36,6 +57,8 @@ class JSONText(TypeDecorator):
     def process_bind_param(self, value, dialect):
         if value is None:
             return value
+        if isinstance(value, SerializedJSON):
+            return value.text
         # Only query results are stored this way, and they are the largest
         # thing SQLDesk writes: see json_dumps_result.
         return json_dumps_result(value)

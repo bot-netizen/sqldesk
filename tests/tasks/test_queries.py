@@ -1,8 +1,13 @@
+import datetime
+import decimal
+import weakref
+
 from mock import Mock, patch
 from rq import Connection
 from rq.exceptions import NoSuchJobError
 
 from sqldesk import models, redis_connection, rq_redis_connection
+from sqldesk.models.types import JSONText
 from sqldesk.query_runner.pg import PostgreSQL
 from sqldesk.tasks import Job
 from sqldesk.tasks.queries.execution import (
@@ -218,6 +223,56 @@ class QueryExecutorTests(BaseTestCase):
             self.assertEqual(1, qr.call_count)
             result = models.QueryResult.query.get(result_id)
             self.assertEqual(result.data, query_result_data)
+
+    def test_the_stored_result_reads_back_as_written(self, _):
+        rows = [
+            {"day": datetime.date(2026, 11, 14), "amount": decimal.Decimal("12.50"), "note": "it's"},
+            {"day": datetime.date(2026, 11, 15), "amount": None, "note": "back\\slash"},
+        ]
+        data = {"columns": [{"name": "day"}, {"name": "amount"}, {"name": "note"}], "rows": rows}
+        with patch.object(PostgreSQL, "run_query", return_value=(data, None)):
+            result_id = execute_query("SELECT 1", self.factory.data_source.id, {})
+
+        models.db.session.expire_all()
+        result = models.QueryResult.query.get(result_id)
+        self.assertEqual(result.row_count, 2)
+        self.assertEqual(
+            result.data["rows"],
+            [
+                {"day": "2026-11-14", "amount": 12.5, "note": "it's"},
+                {"day": "2026-11-15", "amount": None, "note": "back\\slash"},
+            ],
+        )
+
+    def test_the_rows_are_let_go_before_the_result_is_inserted(self, _):
+        # Holding every row as Python objects while the driver copies the
+        # JSON into an INSERT is what ran workers out of memory: about eight
+        # times the result's size at once.
+        class Rows(list):
+            pass
+
+        seen = {}
+
+        def run_query(*args, **kwargs):
+            rows = Rows({"n": n} for n in range(3))
+            seen["rows"] = weakref.ref(rows)
+            return {"columns": [{"name": "n"}], "rows": rows}, None
+
+        real_bind = JSONText.process_bind_param
+
+        def bind(type_, value, dialect):
+            if "rows" in seen:
+                seen["alive_at_insert"] = seen["rows"]() is not None
+            return real_bind(type_, value, dialect)
+
+        with patch.object(PostgreSQL, "run_query", side_effect=run_query), patch.object(
+            JSONText, "process_bind_param", bind
+        ):
+            result_id = execute_query("SELECT 1", self.factory.data_source.id, {})
+
+        self.assertIs(seen["alive_at_insert"], False)
+        models.db.session.expire_all()
+        self.assertEqual(models.QueryResult.query.get(result_id).row_count, 3)
 
     def test_success_scheduled(self, _):
         """
