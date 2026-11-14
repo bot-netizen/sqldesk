@@ -10,6 +10,7 @@ function getQueryResultData(queryResult, queryResultStatus = null) {
     updatedAt: invoke(queryResult, "getUpdatedAt") || null,
     retrievedAt: get(queryResult, "query_result.retrieved_at", null),
     truncated: invoke(queryResult, "getTruncated") || null,
+    truncation: get(queryResult, "query_result.data.truncation", null),
     log: invoke(queryResult, "getLog") || [],
     error: invoke(queryResult, "getError") || null,
     runtime: invoke(queryResult, "getRuntime") || null,

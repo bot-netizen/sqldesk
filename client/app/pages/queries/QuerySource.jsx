@@ -18,6 +18,7 @@ import QueryPageHeader from "./components/QueryPageHeader";
 import QueryMetadata from "./components/QueryMetadata";
 import ScheduleControl from "@/components/ScheduleControl";
 import QueryVisualizationTabs from "./components/QueryVisualizationTabs";
+import ResultTruncatedNotice from "./components/ResultTruncatedNotice";
 import QueryExecutionStatus from "./components/QueryExecutionStatus";
 import QuerySourceAlerts from "./components/QuerySourceAlerts";
 import wrapQueryPage from "./components/wrapQueryPage";
@@ -600,6 +601,12 @@ function QuerySource(props) {
                 )}
 
                 <React.Fragment>
+                  {!isStream && queryResultData.truncated === true && (
+                    <ResultTruncatedNotice
+                      rowCount={queryResultData.rows.length}
+                      truncation={queryResultData.truncation}
+                    />
+                  )}
                   {queryResultData.log.length > 0 && (
                     <div className="query-results-log">
                       <p>Log Information:</p>

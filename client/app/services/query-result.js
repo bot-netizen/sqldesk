@@ -14,6 +14,49 @@ const MAX_POLL_FAILURES = 5;
 
 // How often a hidden tab asks after a running query.
 const HIDDEN_POLL_MS = 5000;
+
+/*
+  What the page says when something goes wrong and nothing else says why.
+  A failure with no words reads as a query that finished and found nothing,
+  which is the worst thing it can be mistaken for -- so there is always a
+  reason, and always something to do next.
+*/
+export const NO_REASON =
+  "The query failed without saying why. Run it again; if it keeps happening, the server's log has the details.";
+export const NO_RESULT_STORED =
+  "The query finished but no result was stored for it. Run it again; if it keeps happening, the worker's log has the details.";
+
+// Why a request to SQLDesk itself failed, in words: a status the server sent,
+// or the absence of one.
+function serverProblem(error) {
+  const status = get(error, "response.status");
+  if (status === 413) {
+    return "it was more than the server will send";
+  }
+  if (status === 502 || status === 503 || status === 504) {
+    return `the server did not answer in time (HTTP ${status})`;
+  }
+  if (status) {
+    return `the server answered HTTP ${status}`;
+  }
+  return "no answer reached the browser";
+}
+
+export function resultLoadFailedMessage(error) {
+  return (
+    `The query finished, but its result could not be loaded: ${serverProblem(error)}. ` +
+    "A very large result can be more than the browser or the server can carry -- add a LIMIT, a filter or an " +
+    "aggregate. Otherwise check your connection and run it again."
+  );
+}
+
+export function pollFailedMessage(error) {
+  return (
+    `Lost contact with SQLDesk while the query was running: ${serverProblem(error)}. ` +
+    "The query may still be running. Check your connection and run it again."
+  );
+}
+
 const filterTypes = ["filter", "multi-filter", "multiFilter"];
 
 function defer() {
@@ -207,6 +250,9 @@ class QueryResult {
       this.status = "processing";
     } else if (this.job.status === 4) {
       this.status = statuses[this.job.status];
+      if (!this.job.error || this.job.error === "None") {
+        this.job.error = NO_REASON;
+      }
       this.deferred.reject(new QueryResultError(this.job.error));
     } else {
       this.deferred.onStatusChange(undefined);
@@ -407,7 +453,7 @@ class QueryResult {
           logger("Connection error while trying to load result", error);
           this.update({
             job: {
-              error: "failed communicating with server. Please check your Internet connection and try again.",
+              error: resultLoadFailedMessage(error),
               status: 4,
             },
           });
@@ -461,8 +507,13 @@ class QueryResult {
       .then((jobResponse) => {
         this.update(jobResponse);
 
-        if (this.getStatus() === "processing" && this.job.query_result_id && this.job.query_result_id !== "None") {
+        const resultId = this.job.query_result_id && this.job.query_result_id !== "None";
+        if (this.getStatus() === "processing" && resultId) {
           loadResult();
+        } else if (this.job.status === 3) {
+          // Finished, and nothing to load: polling on would say "Executing
+          // query..." for ever.
+          this.update({ job: { error: NO_RESULT_STORED, status: 4 } });
         } else if (this.getStatus() !== "failed") {
           let waitTime;
           if (tryNumber <= 10) {
@@ -489,7 +540,7 @@ class QueryResult {
         // TODO: use QueryResultError, or better yet: exception/reject of promise.
         this.update({
           job: {
-            error: "failed communicating with server. Please check your Internet connection and try again.",
+            error: pollFailedMessage(error),
             status: 4,
           },
         });

@@ -1,4 +1,10 @@
-import QueryResult, { isDateTime } from "@/services/query-result";
+import QueryResult, {
+  isDateTime,
+  NO_REASON,
+  NO_RESULT_STORED,
+  pollFailedMessage,
+  resultLoadFailedMessage,
+} from "@/services/query-result";
 import { axios } from "@/services/axios";
 import { Auth } from "@/services/auth";
 
@@ -112,5 +118,68 @@ describe("polling a running query", () => {
     await settle();
 
     expect(axios.get).toHaveBeenCalledTimes(1);
+  });
+});
+
+/*
+  Whenever a result is not shown, the page says why and what to do. A failure
+  with no words read as a query that finished and found nothing.
+*/
+describe("never a silent failure", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.spyOn(Auth, "isAuthenticated").mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  async function settle() {
+    for (let i = 0; i < 5; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await Promise.resolve();
+    }
+  }
+
+  function watched(result) {
+    result.toPromise().catch(() => {});
+    return result;
+  }
+
+  test("a failure with no reason gets one", () => {
+    const result = watched(new QueryResult({ job: { id: "j1", status: 4, error: "" } }));
+    expect(result.getStatus()).toBe("failed");
+    expect(result.getError()).toBe(NO_REASON);
+  });
+
+  test("a failure's own reason is kept", () => {
+    const result = watched(new QueryResult({ job: { id: "j1", status: 4, error: "Table x does not exist" } }));
+    expect(result.getError()).toBe("Table x does not exist");
+  });
+
+  test("a job that finished with nothing stored stops waiting and says so", async () => {
+    const result = watched(new QueryResult({ job: { id: "j1", status: 2 } }));
+    jest
+      .spyOn(axios, "get")
+      .mockImplementation(() => Promise.resolve({ job: { id: "j1", status: 3, query_result_id: null } }));
+
+    result.refreshStatus(1, {});
+    await settle();
+
+    expect(result.getStatus()).toBe("failed");
+    expect(result.getError()).toBe(NO_RESULT_STORED);
+    jest.advanceTimersByTime(60000);
+    await settle();
+    expect(axios.get).toHaveBeenCalledTimes(1);
+  });
+
+  test("a result that cannot be loaded says why, not 'check your Internet'", () => {
+    const tooBig = resultLoadFailedMessage({ response: { status: 504 } });
+    expect(tooBig).toContain("did not answer in time (HTTP 504)");
+    expect(tooBig).toContain("LIMIT");
+    expect(resultLoadFailedMessage({})).toContain("no answer reached the browser");
+    expect(pollFailedMessage({ response: { status: 502 } })).toContain("may still be running");
   });
 });

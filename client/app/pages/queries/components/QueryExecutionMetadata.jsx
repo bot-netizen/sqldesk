@@ -13,6 +13,7 @@ import EditVisualizationButton from "@/components/EditVisualizationButton";
 import useQueryResultData from "@/lib/useQueryResultData";
 import { durationHumanize, pluralize, prettySize } from "@/lib/utils";
 import { isUndefined } from "lodash";
+import { truncationMessage } from "./ResultTruncatedNotice";
 
 import "./QueryExecutionMetadata.less";
 
@@ -65,13 +66,7 @@ export default function QueryExecutionMetadata({
         <span>
           {queryResultData.truncated === true && (
             <span className="m-r-5">
-              <Tooltip
-                title={
-                  "Result truncated to " +
-                  queryResultData.rows.length +
-                  " rows. Databricks may truncate query results that are unstably large."
-                }
-              >
+              <Tooltip title={truncationMessage(queryResultData.rows.length, queryResultData.truncation).title}>
                 <WarningTwoTone twoToneColor="#FF9800" />
               </Tooltip>
             </span>
