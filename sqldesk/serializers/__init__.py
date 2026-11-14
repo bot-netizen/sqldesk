@@ -493,6 +493,14 @@ WORKER_DIED = (
     "memory or a smaller SQLDESK_QUERY_RESULT_MAX_MB."
 )
 NO_REASON = "The query stopped without saying why. The worker's log has the details."
+WORKER_GONE = (
+    "The worker running this query stopped before it finished -- restarted, upgraded, or out of memory. "
+    "Run it again; if this query keeps doing it, add a LIMIT or an aggregate."
+)
+LOST = (
+    "This query was never run: the worker that took it stopped first -- a restart or an upgrade, usually. "
+    "Run it again."
+)
 
 
 def failure_reason(job):
@@ -546,6 +554,14 @@ def serialize_job(job):
 
     if job.is_cancelled:
         error = "Query cancelled by user."
+        status = 4
+    elif job_status == JobStatus.QUEUED and getattr(job, "is_lost", False):
+        # Queued by RQ's account and on no queue: polling it would wait for ever.
+        error = LOST
+        status = 4
+    elif job_status == JobStatus.STARTED and getattr(job, "is_orphaned", False):
+        # Its worker is gone; RQ would say so only once the time limit passed.
+        error = WORKER_GONE
         status = 4
     elif isinstance(job.result, Exception):
         error = str(job.result)

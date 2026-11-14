@@ -274,6 +274,24 @@ class QueryExecutorTests(BaseTestCase):
         models.db.session.expire_all()
         self.assertEqual(models.QueryResult.query.get(result_id).row_count, 3)
 
+    def test_no_database_connection_is_held_while_the_warehouse_works(self, _):
+        # Postgres ends a transaction left idle for a minute
+        # (SQLALCHEMY_IDLE_IN_TRANSACTION_TIMEOUT_MS), and the connection
+        # with it: a slower query then could not store its result.
+        held = {}
+
+        def run_query(*args, **kwargs):
+            held["connections"] = models.db.engine.pool.checkedout()
+            return {"columns": [{"name": "n"}], "rows": [{"n": 1}]}, None
+
+        with patch(
+            "sqldesk.uploads.note_queried", side_effect=lambda *a: models.UploadedFile.query.all()
+        ), patch.object(PostgreSQL, "run_query", side_effect=run_query):
+            result_id = execute_query("SELECT 1", self.factory.data_source.id, {})
+
+        self.assertEqual(held["connections"], 0)
+        self.assertIsNotNone(models.QueryResult.query.get(result_id))
+
     def test_success_scheduled(self, _):
         """
         Scheduled queries remember their latest results.

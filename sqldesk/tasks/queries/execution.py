@@ -94,6 +94,7 @@ def enqueue_query(query, data_source, user_id, is_api_key=False, scheduled_query
                 logger.info("[%s] Found existing job: %s", query_hash, job_id)
                 job_complete = None
                 job_cancelled = None
+                job_lost = None
 
                 try:
                     job = Job.fetch(job_id)
@@ -101,16 +102,24 @@ def enqueue_query(query, data_source, user_id, is_api_key=False, scheduled_query
                     status = job.get_status()
                     job_complete = status in [JobStatus.FINISHED, JobStatus.FAILED]
                     job_cancelled = job.is_cancelled
+                    # Queued on no queue, or started on a worker that is gone:
+                    # it will never finish, and every run of the same query
+                    # would join it through this lock.
+                    job_lost = (status == JobStatus.QUEUED and job.is_lost) or (
+                        status == JobStatus.STARTED and job.is_orphaned
+                    )
 
                     if job_complete:
                         message = "job found is complete (%s)" % status
                     elif job_cancelled:
                         message = "job found has been cancelled"
+                    elif job_lost:
+                        message = "job found was lost (on no queue, or its worker is gone)"
                 except NoSuchJobError:
                     message = "job found has expired"
                     job_exists = False
 
-                lock_is_irrelevant = job_complete or job_cancelled or not job_exists
+                lock_is_irrelevant = job_complete or job_cancelled or job_lost or not job_exists
 
                 if lock_is_irrelevant:
                     logger.info("[%s] %s, removing lock", query_hash, message)
@@ -293,6 +302,14 @@ class QueryExecutor:
         # still using, and the pool would admit somebody on top of it -- so
         # the slot is renewed from a thread for as long as the query runs.
         keep_slot = self._renew_in_background()
+        # Nothing from here needs the database until the result is stored,
+        # and note_queried above has just opened a transaction. Left open
+        # across the query, Postgres ends it -- and the connection with it --
+        # after SQLALCHEMY_IDLE_IN_TRANSACTION_TIMEOUT_MS (a minute), so any
+        # query slower than that lost its result when the worker came to store
+        # it, or a failure's own message to the rollback after it. The
+        # constructor closes the session for the same reason.
+        models.db.session.close()
         try:
             data, error = query_runner.run_query(annotated_query, self.user)
         except Exception as e:
@@ -518,5 +535,12 @@ def execute_query(
             scheduled_query_id is not None,
         ).run()
     except QueryExecutionError as e:
-        models.db.session.rollback()
+        # The query's own failure is what the page needs. A connection that
+        # died under it made this rollback raise instead, and the page was
+        # shown "(Background on this error at: http://sqlalche.me/e/13/e3q8)"
+        # in place of why the query failed.
+        try:
+            models.db.session.rollback()
+        except Exception:
+            logger.warning("Rolling back after a failed query failed too", exc_info=True)
         return e
