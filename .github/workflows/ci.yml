@@ -64,6 +64,19 @@ jobs:
             --set notebooks.enabled=true --set networkPolicy.enabled=true \
             --set notebooks.spark.remote=sc://spark-connect:15002 \
             --set 'notebooks.spark.egress[0].ports[0].port=15002' > /dev/null
+      - name: Does it parse as Kubernetes objects?
+        run: |
+          helm template sqldesk charts/sqldesk | python3 -c "
+          import sys, yaml
+          kinds = [d['kind'] for d in yaml.safe_load_all(sys.stdin) if d]
+          print(len(kinds), 'objects:', ', '.join(sorted(set(kinds))))
+          assert 'Deployment' in kinds and 'Service' in kinds, kinds"
+      # The install notes are rendered only by `helm install`, and Helm 3's
+      # `--dry-run=client` still asks for a cluster -- CI has none. Helm 4's
+      # does not, so this step alone runs on it; everything above stays on 3.
+      - uses: azure/setup-helm@v4
+        with:
+          version: v4.3.0
       - name: Does it warn when the workers cannot hold a result at the limit?
         run: |
           set -euo pipefail
@@ -76,13 +89,6 @@ jobs:
           if warns; then echo "the defaults warn"; exit 1; fi
           warns --set queryResults.maxMB=100
           if warns --set queryResults.maxMB=100 --set worker.resources.limits.memory=3Gi; then exit 1; fi
-      - name: Does it parse as Kubernetes objects?
-        run: |
-          helm template sqldesk charts/sqldesk | python3 -c "
-          import sys, yaml
-          kinds = [d['kind'] for d in yaml.safe_load_all(sys.stdin) if d]
-          print(len(kinds), 'objects:', ', '.join(sorted(set(kinds))))
-          assert 'Deployment' in kinds and 'Service' in kinds, kinds"
 
   backend-unit-tests:
     runs-on: ubuntu-22.04
