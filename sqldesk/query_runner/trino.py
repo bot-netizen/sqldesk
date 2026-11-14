@@ -1,5 +1,9 @@
+import functools
 import logging
 import os
+from urllib.parse import urlsplit
+
+import requests
 
 from sqldesk.models.users import ApiUser, User
 from sqldesk.query_runner import (
@@ -240,6 +244,23 @@ def _explain(error, query_id, configuration):
             detail, where
         )
     spooled = (configuration.get("encoding") or "").strip() != DIRECT
+    if isinstance(error, requests.exceptions.RequestException):
+        # Raised by the client as it is, not as a DatabaseError: on the spooled
+        # protocol that is a segment download, so the host it was reaching for
+        # says whether it was the storage or Trino that could not be reached.
+        failed_host = urlsplit(getattr(error.request, "url", None) or "").hostname
+        if spooled and failed_host and failed_host != configuration.get("host"):
+            return (
+                "SQLDesk could not download the result from Trino's spooling storage at {}{}, so the query was "
+                "stopped. The workers need to reach the object storage Trino spools to; if they cannot, set this "
+                "data source's Result transfer to Direct. ({})".format(failed_host, where, detail)
+            )
+        return (
+            "The connection to Trino dropped while the result was being read{}, so the query was stopped. "
+            "Run it again; if it keeps happening, check that the workers can reach {}:{}. ({})".format(
+                where, configuration.get("host", ""), configuration.get("port", 8080), detail
+            )
+        )
     if spooled and isinstance(error, DatabaseError) and _looks_like_storage(detail):
         # A spooled segment the workers could not download comes back as a
         # bare HTTP error from the storage, not from Trino.
@@ -266,9 +287,10 @@ class Trino(BaseSQLQueryRunner):
     results. The spooled protocol has the workers write segments to object
     storage and the client fetch them directly, compressed with lz4 or zstd.
 
-    It is off unless a data source asks for it, because it needs a server that
-    offers it (Trino 466 and later, with spooling configured) and there is no
-    way to tell from here whether one does.
+    Result transfer "Automatic", the default, takes it whenever the server
+    offers it (Trino 466 and later, with spooling configured) and the standard
+    protocol otherwise. "Direct" turns it off, for workers that cannot reach
+    the storage Trino spools to.
     """
 
     noop_query = "SELECT 1"
@@ -463,7 +485,12 @@ class Trino(BaseSQLQueryRunner):
         except (KeyboardInterrupt, InterruptException, JobTimeoutException):
             _stop(cursor)
             raise
-        except (DatabaseError, trino_exceptions.HttpError, trino_exceptions.TrinoQueryError) as failure:
+        except (
+            DatabaseError,
+            trino_exceptions.HttpError,
+            trino_exceptions.TrinoQueryError,
+            requests.exceptions.RequestException,
+        ) as failure:
             # Whatever stopped the read, the query may still be running.
             _stop(cursor)
             data = None
@@ -497,6 +524,47 @@ class Trino(BaseSQLQueryRunner):
             }
 
         return to_row
+
+
+#: (connect, read) seconds for downloading one spooled segment. Reading waits
+#: as long as a large segment can take between bytes.
+SEGMENT_TIMEOUT = (10, 120)
+
+
+def _download_with_a_timeout(send):
+    """
+    The client downloads a spooled segment with no timeout at all.
+
+    It builds a fresh request for every segment, so a session given to the
+    connection never reaches it. With storage the workers could not reach,
+    each of three attempts waited for the kernel to give up on the TCP
+    connection, and the page said "Executing query" for six and a half
+    minutes before it said anything else -- measured on minikube, with a
+    NetworkPolicy between the workers and the storage.
+    """
+
+    @functools.wraps(send)
+    def send_with_a_timeout(self, uri, **kwargs):
+        if kwargs.get("timeout") is None:
+            kwargs["timeout"] = SEGMENT_TIMEOUT
+        return send(self, uri, **kwargs)
+
+    send_with_a_timeout.gives_a_timeout = True
+    return send_with_a_timeout
+
+
+def _give_segment_downloads_a_timeout():
+    segment = getattr(getattr(trino, "client", None), "SpooledSegment", None)
+    send = getattr(segment, "_send_spooling_request", None)
+    if send is None:
+        logger.warning("trino.client.SpooledSegment has no _send_spooling_request: segment downloads keep no timeout")
+        return
+    if not getattr(send, "gives_a_timeout", False):
+        segment._send_spooling_request = _download_with_a_timeout(send)
+
+
+if enabled:
+    _give_segment_downloads_a_timeout()
 
 
 def _stop(cursor):

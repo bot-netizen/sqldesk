@@ -7,10 +7,17 @@ import random
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
+import requests
 from trino import exceptions as trino_exceptions
 from trino.mapper import RowMapperFactory, TimestampValueMapper
 
-from sqldesk.query_runner.trino import Trino, _explain, _fast_converters, _timestamp
+from sqldesk.query_runner.trino import (
+    SEGMENT_TIMEOUT,
+    Trino,
+    _explain,
+    _fast_converters,
+    _timestamp,
+)
 from sqldesk.utils import JSONEncoder, json_dumps
 
 
@@ -146,3 +153,81 @@ class TestTrinoSaysWhatWentWrong(TestCase):
         self.assertIn("spooling storage", _explain(failure, "q3", self.configuration))
         self.assertIn("Direct", _explain(failure, "q3", self.configuration))
         self.assertNotIn("spooling", _explain(failure, "q3", dict(self.configuration, encoding="direct")))
+
+
+def network_failure(url, kind=requests.exceptions.ConnectTimeout):
+    """What the client raises, as it is, when a download it made does not connect."""
+    return kind(
+        "HTTPConnectionPool(host=..., port=...): Max retries exceeded",
+        request=requests.Request("GET", url).prepare(),
+    )
+
+
+class TestTrinoSpoolingStorageOutOfReach(TestCase):
+    """
+    Found on minikube with the workers kept away from Trino's spooling storage
+    by a NetworkPolicy: the client raised requests' own ConnectTimeout, which
+    the runner did not catch -- the page got the raw connection error and the
+    query was left running on Trino.
+    """
+
+    configuration = {"host": "trino.example", "port": 8080, "username": "u"}
+    columns = [column("bigint")]
+
+    def test_a_segment_that_cannot_be_downloaded_names_the_storage_and_the_way_out(self):
+        message = _explain(network_failure("http://dw-s3:8333/spooling/segment-1"), "q4", self.configuration)
+
+        self.assertIn("spooling storage at dw-s3", message)
+        self.assertIn("Result transfer to Direct", message)
+        self.assertIn("q4", message)
+
+    def test_trino_itself_out_of_reach_is_not_blamed_on_the_storage(self):
+        failure = network_failure("http://trino.example:8080/v1/statement/x", requests.exceptions.ConnectionError)
+        message = _explain(failure, "q5", self.configuration)
+
+        self.assertNotIn("spooling", message)
+        self.assertIn("connection to Trino dropped", message)
+
+    def test_on_direct_nothing_is_spooled_so_nothing_is_blamed_on_storage(self):
+        message = _explain(
+            network_failure("http://dw-s3:8333/spooling/segment-1"), None, dict(self.configuration, encoding="direct")
+        )
+
+        self.assertNotIn("spooling", message)
+
+    def test_the_query_is_stopped_and_the_page_told(self):
+        cursor = cursor_with([], self.columns)
+        cursor.fetchmany.side_effect = network_failure("http://dw-s3:8333/spooling/segment-1")
+        with patch("trino.dbapi.connect") as connect:
+            connect.return_value.cursor.return_value = cursor
+            data, error = Trino(self.configuration).run_query("select 1", None)
+
+        self.assertIsNone(data)
+        self.assertIn("spooling storage", error)
+        cursor.cancel.assert_called()
+
+
+class TestNoDownloadWaitsForEver(TestCase):
+    """
+    The client downloads a spooled segment with no timeout, through a request
+    it builds itself, so storage the workers could not reach held the query on
+    "Executing query" while the kernel gave up on each of three connections.
+    """
+
+    def sent_with(self, **kwargs):
+        from trino.client import SpooledSegment
+
+        segment = SpooledSegment.__new__(SpooledSegment)
+        segment._segment = {"uri": "http://dw-s3:8333/spooling/segment-1", "ackUri": "x", "headers": {}}
+        segment._request = MagicMock()
+        segment._coordinator_host = "trino.example"
+        segment._custom_headers = {}
+        segment._send_spooling_request(segment.uri, **kwargs)
+        return segment._request._get.call_args.kwargs
+
+    def test_a_segment_download_gets_a_timeout(self):
+        self.assertEqual(self.sent_with()["timeout"], SEGMENT_TIMEOUT)
+
+    def test_one_the_client_chose_is_left_alone(self):
+        # Acknowledging a segment asks for two seconds.
+        self.assertEqual(self.sent_with(timeout=2)["timeout"], 2)
