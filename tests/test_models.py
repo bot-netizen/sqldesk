@@ -6,6 +6,7 @@ from dateutil.parser import parse as date_parse
 
 from sqldesk import models
 from sqldesk.models import db
+from sqldesk.tasks.queries.maintenance import cleanup_query_results
 from sqldesk.utils import gen_query_hash, utcnow
 from tests import BaseTestCase
 
@@ -452,6 +453,49 @@ class TestUnusedQueryResults(BaseTestCase):
 
         self.assertIn(unused_qr, list(models.QueryResult.unused()))
         self.assertNotIn(new_unused_qr, list(models.QueryResult.unused()))
+
+    def test_an_old_result_a_query_still_shows_is_kept(self):
+        two_weeks_ago = utcnow() - datetime.timedelta(days=14)
+        shown = self.factory.create_query_result(retrieved_at=two_weeks_ago)
+        self.factory.create_query(latest_query_data=shown)
+        db.session.flush()
+
+        self.assertNotIn(shown, list(models.QueryResult.unused()))
+
+    def a_cell_showing(self, query_result):
+        notebook = models.Notebook(org=self.factory.org, user=self.factory.user, name="Quarter")
+        cell = models.NotebookCell(notebook=notebook, name="orders", source="SELECT 1", position=0)
+        cell.latest_result = query_result
+        db.session.add_all([notebook, cell])
+        db.session.flush()
+        return cell
+
+    def test_an_old_result_a_notebook_cell_still_shows_is_kept(self):
+        two_weeks_ago = utcnow() - datetime.timedelta(days=14)
+        shown = self.factory.create_query_result(retrieved_at=two_weeks_ago)
+        unused_qr = self.factory.create_query_result(retrieved_at=two_weeks_ago)
+        self.a_cell_showing(shown)
+
+        unused = list(models.QueryResult.unused())
+        self.assertNotIn(shown, unused)
+        self.assertIn(unused_qr, unused)
+
+    def test_cleanup_still_runs_on_an_install_with_notebooks(self):
+        # The cleanup deletes in one statement, so one result the foreign key
+        # protects failed the lot and nothing was ever removed.
+        two_weeks_ago = utcnow() - datetime.timedelta(days=14)
+        shown = self.factory.create_query_result(retrieved_at=two_weeks_ago)
+        unused_qr = self.factory.create_query_result(retrieved_at=two_weeks_ago)
+        self.a_cell_showing(shown)
+        db.session.commit()
+        shown_id, unused_id = shown.id, unused_qr.id
+
+        cleanup_query_results()
+
+        # A bulk delete leaves the session's copies behind, so ask the table.
+        remaining = {id for (id,) in db.session.query(models.QueryResult.id)}
+        self.assertIn(shown_id, remaining)
+        self.assertNotIn(unused_id, remaining)
 
 
 class TestQueryAll(BaseTestCase):

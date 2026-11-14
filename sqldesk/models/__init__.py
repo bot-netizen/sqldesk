@@ -625,10 +625,23 @@ class QueryResult(db.Model, BelongsToOrgMixin):
 
     @classmethod
     def unused(cls, days=7):
+        """
+        Results over `days` old that nothing points to any more.
+
+        A query's latest result is not the only reference: since 0.8.0 a
+        notebook cell keeps the result it last showed in
+        notebook_cells.latest_result_id. Looking only at queries picked those
+        results too, the foreign key refused the DELETE, and the whole batch
+        failed -- so on an install with notebooks nothing was ever cleaned up.
+        """
         age_threshold = datetime.datetime.now() - datetime.timedelta(days=days)
-        return (cls.query.filter(Query.id.is_(None), cls.retrieved_at < age_threshold).outerjoin(Query)).options(
-            load_only("id")
-        )
+        shown_by_a_query = db.session.query(Query.id).filter(Query.latest_query_data_id == cls.id)
+        shown_by_a_cell = db.session.query(NotebookCell.id).filter(NotebookCell.latest_result_id == cls.id)
+        return cls.query.filter(
+            cls.retrieved_at < age_threshold,
+            ~shown_by_a_query.exists(),
+            ~shown_by_a_cell.exists(),
+        ).options(load_only("id"))
 
     @classmethod
     def raw_data_text(cls, result_id):
