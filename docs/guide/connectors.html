@@ -119,6 +119,29 @@ able to write new queries against the source.</p>
   <tr><td>Query Results</td><td>Not external at all: query the results of other queries, in SQLite. Useful for joining across sources.</td></tr>
 </table>
 
+<h3 id="trino">Trino: getting a large result back fast</h3>
+<ul>
+  <li><strong>Turn on spooling in Trino</strong> (466 or later, reliable from 476) with object storage
+    the SQLDesk workers can reach. A large result then comes back as compressed segments, read in
+    parallel, instead of page by page through the coordinator &mdash; two to four times faster on a
+    million rows, and the coordinator lets go of the query in seconds instead of holding it while
+    the whole result is read.</li>
+  <li><strong>Result transfer</strong>, on the data source: <em>Automatic</em> (the default) uses
+    spooling whenever Trino offers it. Pick <em>Direct</em> if the workers cannot reach the spooling
+    storage &mdash; the query page says when that is what went wrong.</li>
+  <li><strong>Lower <code>query.client.timeout</code></strong> on the coordinator (5 minutes by
+    default). It is how long Trino keeps a query whose reader has gone; a worker that was stopped
+    mid-result leaves the query running that long.</li>
+  <li>A result past the <a href="deploying.html#result-limit">result limit</a> is cut short and the
+    rest of the query is cancelled on Trino, not left running.</li>
+</ul>
+
+<h3 id="vertica">Vertica</h3>
+<p><strong>Binary transfer</strong> is on by default and reads a large result about a third faster.
+Doubles come back exact rather than rounded to 15 digits. One difference to know: a year-month
+interval reads as days (fourteen months is &ldquo;420 days&rdquo;). Cancel and the query time limit
+stop the query on Vertica too.</p>
+
 <h3 id="promql">Prometheus and Mimir: what you write is PromQL</h3>
 <p>These are not SQL sources. What you type in the editor is a PromQL expression, and SQLDesk says so
 rather than trying to parse it as SQL &mdash; the optimizer panel and the MCP tools that check SQL both

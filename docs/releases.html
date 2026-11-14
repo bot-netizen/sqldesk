@@ -312,6 +312,16 @@ footer a{color:var(--muted)}
        including what to do when you upgrade.</p>
     <div class="items">
       <div class="item">
+        <div class="item-h"><h3 id="v0-8-7">0.8.7 &mdash; Never Silent</h3><span class="st st-shipped">Shipped</span></div>
+        <p class="sub">14 November 2026</p>
+        <ul class="points">
+          <li>A large warehouse result stops at a limit you set in Helm (<code>queryResults.maxMB</code>, 50 MB), the rest of the query is cancelled on the warehouse, and the page says how much is shown and why.</li>
+          <li>A query slower than a minute keeps its result: since 0.7.7 the database connection under it was closed after a minute, and the result was lost when the worker came to store it.</li>
+          <li>Whenever a result is not shown, the page says why: a worker that died or restarted, a dropped Trino connection, spooling storage out of reach, a result too large for the browser.</li>
+          <li>Faster on a million rows: Trino 16.8s &rarr; 6.9s, Vertica 25.8s &rarr; 15.4s, StarRocks 16.4s &rarr; 9.0s; and the result cleanup works on installs with notebooks.</li>
+        </ul>
+      </div>
+      <div class="item">
         <div class="item-h"><h3 id="v0-8-6">0.8.6 &mdash; As You See It</h3><span class="st st-shipped">Shipped</span></div>
         <p class="sub">13 November 2026</p>
         <ul class="points">

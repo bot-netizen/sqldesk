@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-13T17:23:53.003Z
-> Files: 752 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-14T13:33:40.478Z
+> Files: 759 tracked | Anatomy hits: 0 | Misses: 0
 
 > Project structure index. Auto-maintained by OpenWolf hooks and daemon.
 > Run `openwolf scan` to generate, or wait for the first Claude Code session.
@@ -82,11 +82,11 @@
 
 ## charts/sqldesk/templates/
 
-- `_helpers.tpl` (~3631 tok)
+- `_helpers.tpl` (~4662 tok)
 - `executor.yaml` — K8s Service (~1598 tok)
 - `migrate-job.yaml` — K8s Job (~1027 tok)
 - `networkpolicy.yaml` — K8s NetworkPolicy: {{ (~306 tok)
-- `NOTES.txt` (~909 tok)
+- `NOTES.txt` (~1044 tok)
 - `postgres.yaml` — K8s PersistentVolumeClaim (~936 tok)
 - `redis.yaml` — K8s Service (~1276 tok)
 - `screenshots.yaml` — K8s Service: {{ (~945 tok)
@@ -974,7 +974,8 @@
 
 ## sqldesk/models/
 
-- `__init__.py` — ScheduledQueriesExecutions: refresh, update, get, to_dict + 16 more (~41472 tok)
+- `__init__.py` — ScheduledQueriesExecutions: refresh, update, get, to_dict + 13 more (~42253 tok)
+- `types.py` — Configuration: process_bind_param, process_result_value, process_bind_param, process_result_value +  (~1160 tok)
 - `users.py` — PermissionsCheckMixin: sync_last_active_at, update_user_active_at, init_app, has_permission + 28 mor (~4407 tok)
 
 ## sqldesk/notebooks/
@@ -987,6 +988,7 @@
 
 - `__init__.py` — deferred: installed, split_sql_statements, strip_trailing_comments, strip_trailing_semicolon + 14 mo (~6766 tok)
 - `prometheus.py` — Prometheus: split_query_body, sample_time, api_error, sample_value + 9 more (~7500 tok)
+- `trino.py` — Declares as (~6367 tok)
 
 ## sqldesk/serializers/
 
@@ -1004,6 +1006,11 @@
 
 - `alerts.py` — notify_subscriptions, should_notify, check_alerts_for_query (~1051 tok)
 - `notebooks.py` — run_cell (~901 tok)
+- `worker.py` — CancellableJob: shutting_down, cancel, is_cancelled, is_lost + 8 more (~2980 tok)
+
+## sqldesk/tasks/queries/
+
+- `execution.py` — QueryExecutionError: describe_failure, enqueue_query, signal_handler, run (~6160 tok)
 
 ## tests/
 
@@ -1019,6 +1026,7 @@
 - `test_factories.py` — TestTheFactoriesDoNotShareTheirDefaults: test_each_call_gets_its_own_copy_of_a_default, test_and_the (~646 tok)
 - `test_metrics_endpoint.py` — MetricsTestCase: setUp, scrape, test_with_the_token_it_answers, test_without_a_token_configured_ther (~1607 tok)
 - `test_migrations.py` — MigrationsTest: test_only_single_head_revision_in_migrations, test_every_migration_compiles, test_co (~3051 tok)
+- `test_models.py` — DashboardTest: test_appends_suffix_to_slug_when_duplicate, test_runs_when_a_slot_has_come_round_sinc (~9252 tok)
 - `test_pools.py` — PoolTestCase: setUp, clear, test_a_data_source_gets_a_pool_of_its_own_by_default, test_two_sources_n (~3223 tok)
 
 ## tests/handlers/
@@ -1059,7 +1067,9 @@
 
 ## tests/tasks/
 
+- `test_lost_jobs.py` — LostJobTestCase: a_query, setUp, queued, taken_off_the_queue + 8 more (~1109 tok)
 - `test_notebook_cells.py` — CellJobTestCase: setUp, a_cell, test_a_sql_cell_takes_a_slot_and_gives_it_back, note + 8 more (~1710 tok)
+- `test_queries.py` — TestEnqueueTask: fetch_job, create_job, test_multiple_enqueue_of_same_query, test_the_job_meta_says_ (~5661 tok)
 - `test_schedule.py` — TestSchedule: tick, setUp, test_schedules_a_new_job, foo + 23 more (~2392 tok)
 
 ## viz-lib/src/visualizations/candlestick/
