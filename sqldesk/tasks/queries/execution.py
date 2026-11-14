@@ -18,6 +18,26 @@ from sqldesk.worker import get_job_logger
 
 logger = get_job_logger(__name__)
 TIMEOUT_MESSAGE = "Query exceeded SQLDesk query execution time limit."
+OUT_OF_MEMORY = (
+    "The worker ran out of memory reading this result. Add a LIMIT, a filter or an aggregate, or ask an "
+    "administrator to give the workers more memory or a smaller result limit (queryResults.maxMB)."
+)
+
+
+def describe_failure(error):
+    """
+    What an exception out of a runner says to whoever ran the query -- never
+    nothing. Several have no text of their own (MemoryError is one), and an
+    empty error reads on the page as a query that found no rows.
+    """
+    if isinstance(error, JobTimeoutException):
+        return TIMEOUT_MESSAGE
+    if isinstance(error, MemoryError):
+        return OUT_OF_MEMORY
+    text = str(error).strip()
+    if text:
+        return text
+    return "The query failed with {} and no message. The worker's log has the details.".format(type(error).__name__)
 
 
 def _job_lock_id(query_hash, data_source_id):
@@ -276,10 +296,7 @@ class QueryExecutor:
         try:
             data, error = query_runner.run_query(annotated_query, self.user)
         except Exception as e:
-            if isinstance(e, JobTimeoutException):
-                error = TIMEOUT_MESSAGE
-            else:
-                error = str(e)
+            error = describe_failure(e)
 
             data = None
             logger.warning("Unexpected error while running query:", exc_info=1)

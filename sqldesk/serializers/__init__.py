@@ -480,6 +480,49 @@ class DashboardSerializer(Serializer):
         return result
 
 
+#: What a failed query says when the worker running it died rather than
+#: returning: the job has no result and no error of its own, and it used to
+#: reach the page as status "failed" with an empty message -- which reads as
+#: "the query finished and returned nothing". Measured on a 2 GiB worker: a
+#: 400,000-row result of wide rows took the whole container down (Kubernetes
+#: kills every process in a container that runs out of memory), and the
+#: warehouse kept the query open with nobody left to read it.
+WORKER_DIED = (
+    "The worker running this query stopped before it finished. The usual cause is a result too large "
+    "for the worker's memory: add a LIMIT or aggregate, or ask an administrator to give the workers more "
+    "memory or a smaller SQLDESK_QUERY_RESULT_MAX_MB."
+)
+NO_REASON = "The query stopped without saying why. The worker's log has the details."
+
+
+def failure_reason(job):
+    """
+    Why a failed job failed, in words for whoever ran it -- never empty.
+
+    RQ keeps it in one of two places: the job's latest result, for a work horse
+    that was killed (`Work-horse terminated unexpectedly; waitpid returned 9`),
+    and `_exc_info`, for a job whose worker vanished altogether and was swept
+    up later as abandoned. Neither is a sentence anybody should be shown.
+    """
+    raw = ""
+    try:
+        latest = job.latest_result()
+        if latest is not None and latest.type == latest.Type.FAILED:
+            raw = latest.exc_string or ""
+    except Exception:
+        raw = ""
+    raw = raw or getattr(job, "_exc_info", None) or ""
+
+    if "AbandonedJobError" in raw or "Work-horse terminated unexpectedly" in raw:
+        return WORKER_DIED
+    if "JobTimeoutException" in raw:
+        return "Query exceeded SQLDesk query execution time limit."
+    if "stopped by user" in raw.lower():
+        return "Query cancelled by user."
+    lines = [line.strip() for line in raw.splitlines() if line.strip()]
+    return lines[-1] if lines else NO_REASON
+
+
 def serialize_job(job):
     # TODO: this is mapping to the old Job class statuses. Need to update the client side and remove this
     STATUSES = {
@@ -510,6 +553,8 @@ def serialize_job(job):
     elif isinstance(job.result, dict) and "error" in job.result:
         error = job.result["error"]
         status = 4
+    elif job_status == JobStatus.FAILED:
+        error = failure_reason(job)
     else:
         error = ""
         result = query_result_id = job.result

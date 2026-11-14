@@ -68,6 +68,23 @@ worker:
     requests: { cpu: 200m, memory: 512Mi }
     limits: { memory: 2Gi }
 
+# How much of one query's result a worker keeps.
+queryResults:
+  # Megabytes of the result as JSON. Past it the worker stops reading, cancels
+  # the rest of the query on the warehouse, and keeps the rows it has: the page
+  # says the result was cut short, at how much, and what to do about it.
+  #
+  # This is what keeps one large result from taking a worker down. A worker
+  # holds a result about five times over while it stores it, and runs
+  # `worker.workersCount` queries at once, so with the 2Gi limit above 100 is
+  # about as far as it goes safely. Raise both together: roughly
+  # memory >= workersCount x maxMB x 5 + 500Mi. Without a limit a result
+  # bigger than the worker's memory got the whole container killed, every
+  # query on it failed with no message, and the warehouse kept the query open.
+  #
+  # 0 turns the limit off. Only with workers given the memory for it.
+  maxMB: 100
+
 # Scheduling, alerts, mail and the cleanups: everything that is not a query.
 #
 # A separate deployment because none of it is heavy -- a few seconds of work a

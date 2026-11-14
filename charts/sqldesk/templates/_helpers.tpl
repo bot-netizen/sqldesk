@@ -113,6 +113,10 @@ scheduler are the same image doing different jobs, and a variable that
 reached only one of them is the kind of difference nobody finds quickly.
 */}}
 {{- define "sqldesk.env" -}}
+{{- /* `default dict`: a release made before `queryResults` existed upgrades
+     with --reuse-values into a values tree without it. */}}
+- name: SQLDESK_QUERY_RESULT_MAX_MB
+  value: {{ dig "maxMB" 100 (default dict .Values.queryResults) | quote }}
 - name: SQLDESK_DATABASE_URL
   valueFrom:
     secretKeyRef:

@@ -2,6 +2,7 @@ import base64
 import logging
 
 from sqldesk.query_runner import (
+    FETCH_BATCH,
     TYPE_BOOLEAN,
     TYPE_DATE,
     TYPE_DATETIME,
@@ -9,7 +10,10 @@ from sqldesk.query_runner import (
     TYPE_INTEGER,
     TYPE_STRING,
     BaseSQLQueryRunner,
+    InterruptException,
     JobTimeoutException,
+    fetch_within_budget,
+    mark_truncated,
     register,
 )
 
@@ -114,9 +118,13 @@ class Hive(BaseSQLQueryRunner):
 
     def run_query(self, query, user):
         connection = None
+        cursor = None
         try:
             connection = self._get_connection()
             cursor = connection.cursor()
+            # Rows per round trip to HiveServer2. PyHive asks for 1,000, so a
+            # million-row result was a thousand sequential RPCs.
+            cursor.arraysize = FETCH_BATCH
 
             cursor.execute(query)
 
@@ -135,13 +143,21 @@ class Hive(BaseSQLQueryRunner):
                     }
                 )
 
-            rows = [dict(zip(column_names, row)) for row in cursor]
+            rows, truncated = fetch_within_budget(cursor.fetchmany, lambda row: dict(zip(column_names, row)))
+            if truncated:
+                _cancel(cursor)
 
             data = {"columns": columns, "rows": rows}
+            if truncated:
+                mark_truncated(data)
             error = None
-        except (KeyboardInterrupt, JobTimeoutException):
-            if connection:
-                connection.cancel()
+        except (KeyboardInterrupt, InterruptException, JobTimeoutException):
+            # The cursor, not the connection: a PyHive connection has no
+            # cancel, so this line raised AttributeError over the timeout it
+            # was handling, and the query ran on. And InterruptException --
+            # what pressing Cancel raises -- was not caught at all.
+            if cursor is not None:
+                _cancel(cursor)
             raise
         except DatabaseError as e:
             try:
@@ -154,6 +170,14 @@ class Hive(BaseSQLQueryRunner):
                 connection.close()
 
         return data, error
+
+
+def _cancel(cursor):
+    """Stop the operation this cursor is running on HiveServer2."""
+    try:
+        cursor.cancel()
+    except Exception:
+        logger.warning("Could not cancel a Hive operation", exc_info=True)
 
 
 class HiveHttp(Hive):

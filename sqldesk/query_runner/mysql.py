@@ -11,12 +11,15 @@ from sqldesk.query_runner import (
     BaseSQLQueryRunner,
     InterruptException,
     JobTimeoutException,
+    fetch_within_budget,
+    mark_truncated,
     register,
 )
 from sqldesk.settings import parse_boolean
 
 try:
     import MySQLdb
+    import MySQLdb.cursors
 
     enabled = True
 except ImportError:
@@ -230,42 +233,69 @@ class Mysql(BaseSQLQueryRunner):
 
         return r.data, r.error
 
+    def _take_result(self, cursor):
+        """The current result set as (columns, rows, truncated), or None for a statement that returns none."""
+        desc = cursor.description
+        if desc is None:
+            return None
+        columns = self.fetch_columns([(i[0], types_map.get(i[1], None)) for i in desc])
+        names = [column["name"] for column in columns]
+        rows, truncated = fetch_within_budget(cursor.fetchmany, lambda row: dict(zip(names, row)))
+        return columns, rows, truncated
+
     def _run_query(self, query, user, connection, r, ev):
+        cursor = None
         try:
-            cursor = connection.cursor()
+            # Unbuffered. The default cursor has the driver read the whole
+            # result into its own memory before the first row is handed over,
+            # so a result was held twice -- and could not be stopped part way.
+            # This one reads rows from the server as they are taken. StarRocks
+            # and Doris speak this protocol too, and come through here.
+            cursor = connection.cursor(MySQLdb.cursors.SSCursor)
             logger.debug("MySQL running query: %s", query)
             cursor.execute(query)
 
-            data = cursor.fetchall()
-            desc = cursor.description
-
-            while cursor.nextset():
+            # A script's last statement that returns rows is its answer, as
+            # before; the result sets before it are read and dropped.
+            taken = self._take_result(cursor)
+            truncated = bool(taken and taken[2])
+            while not truncated and cursor.nextset():
                 if cursor.description is not None:
-                    data = cursor.fetchall()
-                    desc = cursor.description
+                    taken = self._take_result(cursor)
+                    truncated = bool(taken and taken[2])
 
-            # TODO - very similar to pg.py
-            if desc is not None:
-                columns = self.fetch_columns([(i[0], types_map.get(i[1], None)) for i in desc])
-                rows = [dict(zip((column["name"] for column in columns), row)) for row in data]
+            if truncated:
+                # Closing an unbuffered cursor reads every row it has not
+                # handed over. Killing the connection stops the server instead.
+                self._cancel(connection.thread_id())
 
-                data = {"columns": columns, "rows": rows}
-                r.data = data
+            if taken is not None:
+                columns, rows, truncated = taken
+                r.data = {"columns": columns, "rows": rows}
+                if truncated:
+                    mark_truncated(r.data)
                 r.error = None
             else:
                 r.data = None
                 r.error = "No data was returned."
 
-            cursor.close()
+            if not truncated:
+                cursor.close()
         except MySQLdb.Error as e:
             if cursor:
-                cursor.close()
+                try:
+                    cursor.close()
+                except MySQLdb.Error:
+                    pass
             r.data = None
-            r.error = e.args[1]
+            r.error = e.args[1] if len(e.args) > 1 else str(e)
         finally:
             ev.set()
             if connection:
-                connection.close()
+                try:
+                    connection.close()
+                except MySQLdb.Error:
+                    pass
 
     # MySQL's own spelling of the SSL modes, which is not the spelling the form uses.
     SSL_MODES = {

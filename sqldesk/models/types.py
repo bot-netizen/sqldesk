@@ -3,7 +3,7 @@ from sqlalchemy.ext.mutable import Mutable
 from sqlalchemy.types import TypeDecorator
 from sqlalchemy_utils import EncryptedType
 
-from sqldesk.utils import json_dumps, json_loads
+from sqldesk.utils import json_dumps_result, json_loads
 from sqldesk.utils.configuration import ConfigurationContainer
 
 from .base import db
@@ -36,8 +36,9 @@ class JSONText(TypeDecorator):
     def process_bind_param(self, value, dialect):
         if value is None:
             return value
-
-        return json_dumps(value)
+        # Only query results are stored this way, and they are the largest
+        # thing SQLDesk writes: see json_dumps_result.
+        return json_dumps_result(value)
 
     def process_result_value(self, value, dialect):
         if not value:

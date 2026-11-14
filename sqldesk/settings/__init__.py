@@ -94,6 +94,14 @@ EVENTS_CLEANUP_COUNT = int(os.environ.get("SQLDESK_EVENTS_CLEANUP_COUNT", "10000
 QUERY_RESULTS_EXPIRED_TTL_ENABLED = parse_boolean(os.environ.get("SQLDESK_QUERY_RESULTS_EXPIRED_TTL_ENABLED", "false"))
 # default set query results expired ttl 86400 seconds
 QUERY_RESULTS_EXPIRED_TTL = int(os.environ.get("SQLDESK_QUERY_RESULTS_EXPIRED_TTL", "86400"))
+# The most of one query's result a worker keeps, as JSON, in megabytes; 0 for
+# no limit. Past it the runner stops fetching, cancels the rest on the
+# warehouse, and stores what it has, marked truncated. A worker holds a result
+# about five times over while storing it, and two run at once, so 100 MB keeps
+# the chart's 2 GiB workers clear of the kernel's OOM killer -- which takes the
+# whole container, and every query on it, with no message to anyone. Raise it
+# with the workers' memory. 100 MB is also about all a browser table can load.
+QUERY_RESULT_MAX_MB = int(os.environ.get("SQLDESK_QUERY_RESULT_MAX_MB", "100"))
 
 # Minutes between background schema refreshes. Every data source is read on
 # every pass, and on a warehouse with thousands of tables one pass is minutes
