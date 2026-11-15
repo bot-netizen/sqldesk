@@ -45,6 +45,46 @@ class CancellableJob(BaseJob):
     def is_cancelled(self):
         return self.meta.get("cancelled", False)
 
+    #: How long a job must have been queued before it can be called lost. A
+    #: worker takes a job off its queue and marks it started a moment later;
+    #: this is far longer than that moment.
+    LOST_AFTER_SECONDS = 30
+
+    @property
+    def is_lost(self):
+        """
+        Queued, by RQ's account, but on no queue -- so nothing will ever run it.
+
+        A worker stopped between taking a job off its queue and starting it
+        leaves exactly that: a rolling restart or a node drain does it. Found
+        on minikube when a worker was replaced under a query just submitted:
+        the page polled "waiting" with nothing to wait for, and the same query
+        run again joined the lost job through its lock instead of starting.
+        """
+        if self.get_status(refresh=True) != JobStatus.QUEUED or self.enqueued_at is None:
+            return False
+        if (utcnow() - self.enqueued_at).total_seconds() < self.LOST_AFTER_SECONDS:
+            return False
+        if self.id in BaseQueue(self.origin, connection=self.connection).get_job_ids():
+            return False
+        # Taken off the queue between the two reads, and started since.
+        return self.get_status(refresh=True) == JobStatus.QUEUED
+
+    @property
+    def is_orphaned(self):
+        """
+        Started, by RQ's account, on a worker that no longer exists.
+
+        RQ calls such a job abandoned only once its time limit has passed and
+        a worker happens to sweep the registry -- up to a quarter of an hour
+        for a query somebody is watching. A worker that shut down deregisters
+        at once, and one that was killed stops refreshing its key within
+        minutes; either way the job can be called over then.
+        """
+        if self.get_status(refresh=True) != JobStatus.STARTED or not self.worker_name:
+            return False
+        return not self.connection.exists(Worker.redis_worker_namespace_prefix + self.worker_name)
+
 
 class StatsdRecordingQueue(BaseQueue):
     """

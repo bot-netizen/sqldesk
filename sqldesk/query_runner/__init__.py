@@ -260,6 +260,69 @@ def has_odbc_driver(name):
         return False
 
 
+#: Rows asked of the driver at a time. Enough that the round trips do not
+#: show; few enough that a budget is checked often.
+FETCH_BATCH = 10000
+
+
+def _weigh(rows):
+    """What these rows come to as JSON, in bytes, from a sample of them."""
+    if not rows:
+        return 0
+    step = max(1, len(rows) // 200)
+    sample = rows[::step]
+    text = utils.json_dumps_result(sample)
+    return int(len(text) / len(sample) * len(rows))
+
+
+def fetch_within_budget(fetchmany, to_row, budget_bytes=None, batch=FETCH_BATCH):
+    """
+    Rows from a cursor, a batch at a time, until the result ends or it would
+    be more than this instance keeps. Returns `(rows, truncated)`.
+
+    Every runner used to `fetchall()`. The whole result was then held three
+    times over -- the driver's rows, the dicts, the JSON -- about 1.3 GB for a
+    million nine-column rows, and a 2 GiB worker that met a bigger one was
+    killed by the kernel along with every query it was running. The page saw
+    the query fail with no message; the warehouse kept the result for a
+    reader that was gone. Measured, both, on Trino.
+
+    `fetchmany(n)` is the cursor's; `to_row` turns one driver row into the
+    dict the result stores. A `budget_bytes` of 0 means no limit; None means
+    the instance's (SQLDESK_QUERY_RESULT_MAX_MB). The caller stops the query
+    on the warehouse when this says it truncated: the rest is not wanted.
+    """
+    if budget_bytes is None:
+        budget_bytes = settings.QUERY_RESULT_MAX_MB * 1024 * 1024
+    rows = []
+    weight = 0
+    while True:
+        chunk = fetchmany(batch)
+        if not chunk:
+            return rows, False
+        converted = [to_row(r) for r in chunk]
+        if budget_bytes:
+            chunk_weight = _weigh(converted)
+            if weight + chunk_weight > budget_bytes:
+                # As much of this batch as fits, then stop.
+                per_row = chunk_weight / len(converted)
+                room = int((budget_bytes - weight) / per_row) if per_row else len(converted)
+                rows.extend(converted[: max(0, room)])
+                return rows, True
+            weight += chunk_weight
+        rows.extend(converted)
+
+
+def mark_truncated(data):
+    """
+    Say on the result that it is not all of it, and why, so the page can say
+    so where the rows are -- not in a tooltip on an icon.
+    """
+    data["truncated"] = True
+    data["truncation"] = {"reason": "size", "limit_mb": settings.QUERY_RESULT_MAX_MB}
+    return data
+
+
 class BaseQueryRunner:
     #: Whether this kind of data source belongs in the ordinary query editor.
     #: A stream does not: its tables exist only while somebody is watching, so

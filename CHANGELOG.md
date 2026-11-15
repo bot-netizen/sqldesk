@@ -1,5 +1,95 @@
 # Changelog
 
+## 0.8.7
+
+Never Silent. A query slower than a minute keeps its result again (since
+0.7.7 it was lost when the worker came to store it). A large warehouse
+result is cut at a limit you set, the rest of the query is cancelled on the
+warehouse, and the page says so; whenever a result cannot be shown, the page
+says why. Trino, Vertica and StarRocks read results faster, and a worker
+holds less while it stores one.
+
+### Large results
+
+**A limit on how much of one result a worker keeps**: `queryResults.maxMB`
+in the chart, `SQLDESK_QUERY_RESULT_MAX_MB` elsewhere, 50 by default. Past
+it the worker stops reading, cancels the rest of the query on the
+warehouse (Trino, Vertica, StarRocks and MySQL, Hive), and keeps the rows
+it has. A notice above the table says how many rows are shown, the limit, and
+what to do. Without it one result bigger than the worker's memory got the
+container killed, every query on it came back "failed" with an empty error
+-- which reads as no rows -- and the warehouse kept the query open.
+
+**Less memory while a result is stored.** The worker writes the JSON and lets
+go of the rows before the insert, instead of holding both while the driver
+copies the JSON into it. The million-row Trino query that killed a 2Gi
+worker at a 100 MB limit now peaks at 1.34 GB.
+
+**Size the workers with the limit**: 600Mi + workersCount x maxMB x 8.
+`helm install` and `helm upgrade` warn when a query worker's memory limit is
+under it.
+
+### Never silent
+
+**A worker that died says so** -- killed, restarted or abandoned by RQ --
+instead of failing with no message. A runner error with no text of its own
+(MemoryError among them) says what it was.
+
+**Trino names what went wrong**, with the query id: a connection dropped
+mid-result, a coordinator SQLDesk cannot reach, a gateway error, spooling
+storage the workers cannot reach -- and stops the query on Trino whichever it
+was. Storage out of reach used to come back as the raw connection error, with
+the query left running.
+
+**The page never waits for ever.** A job that finished with nothing stored,
+or a result too large to download to the browser, gets a reason and what to
+do, instead of "Executing query..." or "check your Internet connection".
+
+### Faster
+
+| 1M rows, fetch + store | 0.8.6 | 0.8.7 |
+|---|---|---|
+| Trino 476 | 16.8s | 6.9s |
+| Vertica 25.4 | 25.8s | 15.4s |
+| StarRocks 3.5.8 | 16.4s | 9.0s |
+
+**Results are stored with orjson**: the same values, 48s to 8s on a million
+rows. **Trino** converts the common types itself (identical stored results,
+checked on 22 types), and Result transfer offers Direct beside Automatic.
+**Vertica** reads with binary transfer: doubles are exact rather than 15
+digits; a year-month interval reads as days. **StarRocks and MySQL** stream
+the result instead of buffering all of it in the driver.
+
+### Fixed
+
+- **A query slower than a minute lost its result.** The worker opened a
+  database transaction just before running the query and left it open
+  while the warehouse worked; since 0.7.7 Postgres ends a transaction idle
+  for a minute, so storing the result failed and the page showed
+  "(Background on this error at: http://sqlalche.me/e/13/e3q8)". The worker
+  now holds no connection while the query runs, and a failure's own message
+  is never replaced by a rollback that failed after it.
+- **A query lost to a worker restart no longer waits for ever.** A worker
+  stopped between taking a job and starting it left the job "queued" on no
+  queue: the page polled for ever, and running the query again joined the
+  same job. One killed mid-query left it "started" until RQ swept it after
+  the time limit -- up to a quarter of an hour. Both now say what happened
+  (a force-killed worker is reported in about a minute), and running the
+  query again starts it. A worker stopped normally still finishes the query
+  it is running.
+- **Spooled Trino results never wait for ever on storage.** The client
+  downloads a segment with no timeout, so storage the workers could not
+  reach held the page on "Executing query" for six and a half minutes, then
+  showed the raw connection error and left the query running. It now says
+  so in under a minute, names the storage, and cancels the query.
+- **Query result cleanup on installs with notebooks.** A result a notebook
+  cell still showed was picked for deletion, the foreign key refused it, and
+  the whole batch failed: nothing was ever cleaned up.
+- **Vertica's Cancel and time limit** left the statement running on Vertica.
+- **Vertica INTERVAL columns** failed to store.
+- **Hive's Cancel** never reached HiveServer2 (fixed and unit-tested; not
+  tried against a live HiveServer2).
+
 ## 0.8.6
 
 As You See It. A picture sent to Slack is the picture Export as image makes

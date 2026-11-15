@@ -220,12 +220,12 @@ class TestTrinoSpooledProtocol(TestCase):
     def test_every_encoding_offered_is_one_the_client_understands(self):
         import trino.dbapi
 
-        offered = [
+        offered = {
             option["value"]
             for option in Trino.configuration_schema()["properties"]["encoding"]["extendedEnum"]
-            if option["value"]
-        ]
-        self.assertEqual(offered, ["json", "json+lz4", "json+zstd"])
+            if option["value"] and option["value"] != "direct"
+        }
+        self.assertEqual(offered, {"json", "json+lz4", "json+zstd"})
         # And the client has to actually take the argument, or the dropdown is
         # a decoration -- which is the fault 0.7.1 fixed in the MySQL runner.
         self.assertIn("encoding", inspect.signature(trino.dbapi.Connection.__init__).parameters)
@@ -233,3 +233,37 @@ class TestTrinoSpooledProtocol(TestCase):
     def test_the_codecs_those_encodings_need_are_installed(self):
         import lz4.block  # noqa: F401
         import zstandard  # noqa: F401
+
+
+class TestTrinoResultTransfer(TestCase):
+    """
+    The client spools whenever it is not told otherwise, so "the standard
+    protocol" the form offered was in fact automatic -- and there was no way
+    to keep a Trino whose spooling storage the workers cannot reach from
+    using it. Direct is that way.
+    """
+
+    def _connect_kwargs(self, configuration):
+        with patch("trino.dbapi.connect") as connect:
+            connect.return_value.cursor.return_value.execute.side_effect = RuntimeError("stop here")
+            try:
+                Trino(configuration).run_query("select 1", None)
+            except RuntimeError:
+                pass
+            return connect.call_args[1]
+
+    def test_automatic_leaves_the_clients_choice_alone(self):
+        self.assertNotIn("encoding", self._connect_kwargs({"host": "h", "username": "u", "encoding": ""}))
+
+    def test_direct_turns_spooling_off(self):
+        kwargs = self._connect_kwargs({"host": "h", "username": "u", "encoding": "direct"})
+        self.assertIn("encoding", kwargs)
+        self.assertIsNone(kwargs["encoding"])
+
+    def test_values_come_as_trino_sends_them(self):
+        self.assertTrue(self._connect_kwargs({"host": "h", "username": "u"})["legacy_primitive_types"])
+
+    def test_the_form_says_automatic_is_the_default(self):
+        choices = Trino.configuration_schema()["properties"]["encoding"]["extendedEnum"]
+        self.assertEqual(choices[0]["value"], "")
+        self.assertIn("Automatic", choices[0]["name"])

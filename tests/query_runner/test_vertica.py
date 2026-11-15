@@ -63,3 +63,50 @@ class TestVerticaTypes(TestCase):
 
         self.assertEqual(types_map[VerticaType.TIMESTAMP], TYPE_DATETIME)
         self.assertEqual(types_map[VerticaType.TIMESTAMPTZ], TYPE_DATETIME)
+
+
+class TestVerticaReading(TestCase):
+    """Binary transfer by default, a result read within the budget, and a statement stopped on the server."""
+
+    def run_with(self, cursor, configuration=None, budget_mb=100):
+        from unittest.mock import patch
+
+        connection = cursor._connection
+        with patch("vertica_python.connect", return_value=connection) as connect, patch(
+            "sqldesk.settings.QUERY_RESULT_MAX_MB", budget_mb
+        ):
+            result = Vertica(configuration or {"host": "h", "database": "d"}).run_query("select 1", None)
+        return result, connect.call_args[1]
+
+    def cursor(self, chunks):
+        from unittest.mock import MagicMock
+
+        cursor = MagicMock()
+        cursor.description = [("n", 6), ("t", 9)]
+        cursor.fetchmany.side_effect = list(chunks) + [[]] * 5
+        connection = MagicMock()
+        connection.cursor.return_value = cursor
+        cursor._connection = connection
+        return cursor
+
+    def test_binary_transfer_is_on_unless_turned_off(self):
+        (_, kwargs) = self.run_with(self.cursor([]))
+        self.assertTrue(kwargs["binary_transfer"])
+        (_, kwargs) = self.run_with(self.cursor([]), {"host": "h", "database": "d", "binary_transfer": False})
+        self.assertNotIn("binary_transfer", kwargs)
+
+    def test_past_the_budget_the_statement_is_cancelled(self):
+        cursor = self.cursor([[(i, "x" * 300) for i in range(n, n + 1000)] for n in range(0, 20000, 1000)])
+        ((data, error), _) = self.run_with(cursor, budget_mb=1)
+        self.assertTrue(data["truncated"])
+        cursor._connection.cancel.assert_called()
+
+    def test_a_time_limit_cancels_the_statement_on_vertica(self):
+        from rq.timeouts import JobTimeoutException
+
+        cursor = self.cursor([])
+        cursor.fetchmany.side_effect = JobTimeoutException("time limit")
+        with self.assertRaises(JobTimeoutException):
+            self.run_with(cursor)
+        # Closing the connection does not stop a Vertica statement; this does.
+        cursor._connection.cancel.assert_called()

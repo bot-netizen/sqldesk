@@ -94,6 +94,16 @@ EVENTS_CLEANUP_COUNT = int(os.environ.get("SQLDESK_EVENTS_CLEANUP_COUNT", "10000
 QUERY_RESULTS_EXPIRED_TTL_ENABLED = parse_boolean(os.environ.get("SQLDESK_QUERY_RESULTS_EXPIRED_TTL_ENABLED", "false"))
 # default set query results expired ttl 86400 seconds
 QUERY_RESULTS_EXPIRED_TTL = int(os.environ.get("SQLDESK_QUERY_RESULTS_EXPIRED_TTL", "86400"))
+# The most of one query's result a worker keeps, as JSON, in megabytes; 0 for
+# no limit. Past it the runner stops fetching, cancels the rest on the
+# warehouse, and stores what it has, marked truncated. A worker process holds
+# about eight times the limit at its peak -- measured on a real worker, the
+# rows as Python objects plus the JSON -- and the chart runs two at once beside
+# ~600 MB of its own, so 50 MB keeps its 2 GiB workers clear of the kernel's
+# OOM killer, which takes the whole container and every query on it. 100 MB
+# did not: one million-row Trino result killed a worker at that limit. Raise
+# it with the workers' memory: 600 MB + processes x limit x 8.
+QUERY_RESULT_MAX_MB = int(os.environ.get("SQLDESK_QUERY_RESULT_MAX_MB", "50"))
 
 # Minutes between background schema refreshes. Every data source is read on
 # every pass, and on a warehouse with thousands of tables one pass is minutes

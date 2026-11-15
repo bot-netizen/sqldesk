@@ -21,6 +21,7 @@ import useQueryResultData from "@/lib/useQueryResultData";
 
 import QueryPageHeader from "./components/QueryPageHeader";
 import QueryVisualizationTabs from "./components/QueryVisualizationTabs";
+import ResultTruncatedNotice from "./components/ResultTruncatedNotice";
 import QueryExecutionStatus from "./components/QueryExecutionStatus";
 import QueryMetadata from "./components/QueryMetadata";
 import wrapQueryPage from "./components/wrapQueryPage";
@@ -160,6 +161,9 @@ function QueryView(props) {
           </div>
         )}
         <div className="query-results m-t-15">
+          {loadedInitialResults && queryResultData.truncated === true && (
+            <ResultTruncatedNotice rowCount={queryResultData.rows.length} truncation={queryResultData.truncation} />
+          )}
           {loadedInitialResults && (
             <QueryVisualizationTabs
               queryResult={queryResult}

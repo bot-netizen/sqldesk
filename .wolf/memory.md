@@ -537,3 +537,21 @@ description: chronological action log per session, consolidated weekly
 | 21:12 | Edited viz-lib/src/visualizations/summary/template.ts | modified toString() | ~74 |
 | 12:22 | Created viz-lib/src/visualizations/sankey/Editor.tsx | — | ~2171 |
 | 12:23 | Created viz-lib/src/visualizations/sankey/options.test.ts | — | ~2953 |
+| 06:38 | Edited sqldesk/models/__init__.py | modified unused() | ~280 |
+| 06:38 | Edited tests/test_models.py | modified test_an_old_result_a_query_still_shows_is_kept() | ~587 |
+| 06:42 | Edited sqldesk/models/types.py | modified __init__() | ~306 |
+| 06:42 | Edited sqldesk/models/__init__.py | modified isinstance() | ~38 |
+| 06:42 | Edited sqldesk/tasks/queries/execution.py | expanded (+6 lines) | ~202 |
+| 06:43 | Edited tests/tasks/test_queries.py | modified test_the_stored_result_reads_back_as_written() | ~652 |
+| 06:59 | Edited charts/sqldesk/templates/_helpers.tpl | expanded (+43 lines) | ~685 |
+| 06:59 | Edited charts/sqldesk/templates/NOTES.txt | expanded (+10 lines) | ~192 |
+| 07:12 | Edited sqldesk/query_runner/trino.py | 4→5 lines | ~78 |
+| 07:41 | Edited sqldesk/query_runner/trino.py | modified isinstance() | ~412 |
+| 07:41 | Edited sqldesk/query_runner/trino.py | 1→6 lines | ~58 |
+| 07:58 | Edited sqldesk/query_runner/trino.py | modified request() | ~302 |
+| 07:58 | Edited sqldesk/query_runner/trino.py | 4→6 lines | ~64 |
+| 08:02 | Edited sqldesk/tasks/queries/execution.py | expanded (+8 lines) | ~197 |
+| 08:02 | Edited tests/tasks/test_queries.py | modified test_no_database_connection_is_held_while_the_warehouse_works() | ~264 |
+| 08:05 | Edited sqldesk/tasks/worker.py | added 1 condition(s) | ~378 |
+| 08:06 | Created tests/tasks/test_lost_jobs.py | — | ~1109 |
+| 08:33 | Edited sqldesk/tasks/worker.py | modified is_orphaned() | ~243 |

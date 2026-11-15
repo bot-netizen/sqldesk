@@ -58,6 +58,7 @@ from sqldesk.models.types import (
     JSONText,
     MutableDict,
     MutableList,
+    SerializedJSON,
     json_cast_property,
 )
 from sqldesk.models.users import (  # noqa
@@ -557,13 +558,15 @@ class UploadedFile(TimestampMixin, BelongsToOrgMixin, db.Model):
 
 
 @generic_repr("id", "org_id", "data_source_id", "query_hash", "runtime", "retrieved_at")
-def _row_count_of(data):
+def result_row_count(data):
     """Row count of a result payload, or None when it cannot be determined.
 
     Runners hand back {"columns": [...], "rows": [...]}, but a failed or
     empty run may pass None. None is stored rather than 0 so the UI can say
     "unknown" instead of asserting a query returned nothing.
     """
+    if isinstance(data, SerializedJSON):
+        return data.row_count
     if isinstance(data, dict):
         rows = data.get("rows")
         if rows is not None:
@@ -625,10 +628,23 @@ class QueryResult(db.Model, BelongsToOrgMixin):
 
     @classmethod
     def unused(cls, days=7):
+        """
+        Results over `days` old that nothing points to any more.
+
+        A query's latest result is not the only reference: since 0.8.0 a
+        notebook cell keeps the result it last showed in
+        notebook_cells.latest_result_id. Looking only at queries picked those
+        results too, the foreign key refused the DELETE, and the whole batch
+        failed -- so on an install with notebooks nothing was ever cleaned up.
+        """
         age_threshold = datetime.datetime.now() - datetime.timedelta(days=days)
-        return (cls.query.filter(Query.id.is_(None), cls.retrieved_at < age_threshold).outerjoin(Query)).options(
-            load_only("id")
-        )
+        shown_by_a_query = db.session.query(Query.id).filter(Query.latest_query_data_id == cls.id)
+        shown_by_a_cell = db.session.query(NotebookCell.id).filter(NotebookCell.latest_result_id == cls.id)
+        return cls.query.filter(
+            cls.retrieved_at < age_threshold,
+            ~shown_by_a_query.exists(),
+            ~shown_by_a_cell.exists(),
+        ).options(load_only("id"))
 
     @classmethod
     def raw_data_text(cls, result_id):
@@ -723,7 +739,7 @@ class QueryResult(db.Model, BelongsToOrgMixin):
             data_source=data_source,
             retrieved_at=retrieved_at,
             data=data,
-            row_count=_row_count_of(data),
+            row_count=result_row_count(data),
         )
 
         db.session.add(query_result)

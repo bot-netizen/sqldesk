@@ -1,12 +1,13 @@
 # Where the project is
 
-Last true on **2026-11-13**. Update this in the same commit as whatever
+Last true on **2026-11-14**. Update this in the same commit as whatever
 changed it.
 
 ## Released
 
 | Version | Name | When | Notes |
 |---|---|---|---|
+| 0.8.7 | Never Silent | 14 Nov 2026 | Queries >60s lost their result since 0.7.7 (worker held a transaction across the query; idle-in-transaction timeout killed it) -- session closed before run_query; lost RQ jobs (queued on no queue) reported and replaced; Trino segment downloads get a timeout; Result limit queryResults.maxMB (50; cancels the rest on Trino/Vertica/StarRocks/Hive, notice on the page); store writes JSON before the insert and drops the rows (1M-row Trino at 100 MB: OOM -> 1.34 GB peak); Helm warns when worker memory < 600Mi + workersCount x maxMB x 8; worker-died / Trino dropped / storage unreachable messages; orjson store, Trino fast types, Vertica binary transfer, MySQL streaming; cleanup skips results notebook cells show (bug-157) |
 | 0.8.6 | As You See It | 13 Nov 2026 | Server pictures drawn at the sender's dashboard width, time zone and table sort (POST /api/users/<id>/screen; renderer takes width + time_zone), same header as Export; Sankey palettes/flow colours/percentages/leave-out/compressed widths; numeric bar order; MCP run_query 300s |
 | 0.8.5 | The Headline | 13 Nov 2026 | Summary visualization (a sentence with {{ }} values and colour rules; agents can write one); server pictures on the branded Export page and cropped to it; alert history with full times and per-destination delivery (alert_fires.deliveries) |
 | 0.8.4 | Plain Sight | 12 Nov 2026 | Slack: no button to localhost or a container name (slack.public_link), a refused layout falls back to sharing the picture as a file, every step logged with Slack's own reason; never the token or the words |

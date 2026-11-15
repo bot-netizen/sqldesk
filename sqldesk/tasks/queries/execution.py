@@ -13,11 +13,31 @@ from sqldesk.query_runner import InterruptException
 from sqldesk.tasks.alerts import check_alerts_for_query
 from sqldesk.tasks.failure_report import track_failure
 from sqldesk.tasks.worker import Job, Queue
-from sqldesk.utils import gen_query_hash, utcnow
+from sqldesk.utils import gen_query_hash, json_dumps_result, utcnow
 from sqldesk.worker import get_job_logger
 
 logger = get_job_logger(__name__)
 TIMEOUT_MESSAGE = "Query exceeded SQLDesk query execution time limit."
+OUT_OF_MEMORY = (
+    "The worker ran out of memory reading this result. Add a LIMIT, a filter or an aggregate, or ask an "
+    "administrator to give the workers more memory or a smaller result limit (queryResults.maxMB)."
+)
+
+
+def describe_failure(error):
+    """
+    What an exception out of a runner says to whoever ran the query -- never
+    nothing. Several have no text of their own (MemoryError is one), and an
+    empty error reads on the page as a query that found no rows.
+    """
+    if isinstance(error, JobTimeoutException):
+        return TIMEOUT_MESSAGE
+    if isinstance(error, MemoryError):
+        return OUT_OF_MEMORY
+    text = str(error).strip()
+    if text:
+        return text
+    return "The query failed with {} and no message. The worker's log has the details.".format(type(error).__name__)
 
 
 def _job_lock_id(query_hash, data_source_id):
@@ -74,6 +94,7 @@ def enqueue_query(query, data_source, user_id, is_api_key=False, scheduled_query
                 logger.info("[%s] Found existing job: %s", query_hash, job_id)
                 job_complete = None
                 job_cancelled = None
+                job_lost = None
 
                 try:
                     job = Job.fetch(job_id)
@@ -81,16 +102,24 @@ def enqueue_query(query, data_source, user_id, is_api_key=False, scheduled_query
                     status = job.get_status()
                     job_complete = status in [JobStatus.FINISHED, JobStatus.FAILED]
                     job_cancelled = job.is_cancelled
+                    # Queued on no queue, or started on a worker that is gone:
+                    # it will never finish, and every run of the same query
+                    # would join it through this lock.
+                    job_lost = (status == JobStatus.QUEUED and job.is_lost) or (
+                        status == JobStatus.STARTED and job.is_orphaned
+                    )
 
                     if job_complete:
                         message = "job found is complete (%s)" % status
                     elif job_cancelled:
                         message = "job found has been cancelled"
+                    elif job_lost:
+                        message = "job found was lost (on no queue, or its worker is gone)"
                 except NoSuchJobError:
                     message = "job found has expired"
                     job_exists = False
 
-                lock_is_irrelevant = job_complete or job_cancelled or not job_exists
+                lock_is_irrelevant = job_complete or job_cancelled or job_lost or not job_exists
 
                 if lock_is_irrelevant:
                     logger.info("[%s] %s, removing lock", query_hash, message)
@@ -273,13 +302,18 @@ class QueryExecutor:
         # still using, and the pool would admit somebody on top of it -- so
         # the slot is renewed from a thread for as long as the query runs.
         keep_slot = self._renew_in_background()
+        # Nothing from here needs the database until the result is stored,
+        # and note_queried above has just opened a transaction. Left open
+        # across the query, Postgres ends it -- and the connection with it --
+        # after SQLALCHEMY_IDLE_IN_TRANSACTION_TIMEOUT_MS (a minute), so any
+        # query slower than that lost its result when the worker came to store
+        # it, or a failure's own message to the rollback after it. The
+        # constructor closes the session for the same reason.
+        models.db.session.close()
         try:
             data, error = query_runner.run_query(annotated_query, self.user)
         except Exception as e:
-            if isinstance(e, JobTimeoutException):
-                error = TIMEOUT_MESSAGE
-            else:
-                error = str(e)
+            error = describe_failure(e)
 
             data = None
             logger.warning("Unexpected error while running query:", exc_info=1)
@@ -311,15 +345,21 @@ class QueryExecutor:
                     self.query_model.skip_updated_at = True
                     models.db.session.add(self.query_model)
 
+                # Written out here, and the rows let go, before the insert:
+                # see SerializedJSON. Holding both is what ran workers out of
+                # memory on results well inside queryResults.maxMB.
+                payload = models.SerializedJSON(json_dumps_result(data), models.result_row_count(data))
+                data = None
                 query_result = models.QueryResult.store_result(
                     self.data_source.org_id,
                     self.data_source,
                     self.query_hash,
                     self.query,
-                    data,
+                    payload,
                     run_time,
                     utcnow(),
                 )
+                payload = None
 
                 updated_query_ids = models.Query.update_latest_result(query_result)
 
@@ -495,5 +535,12 @@ def execute_query(
             scheduled_query_id is not None,
         ).run()
     except QueryExecutionError as e:
-        models.db.session.rollback()
+        # The query's own failure is what the page needs. A connection that
+        # died under it made this rollback raise instead, and the page was
+        # shown "(Background on this error at: http://sqlalche.me/e/13/e3q8)"
+        # in place of why the query failed.
+        try:
+            models.db.session.rollback()
+        except Exception:
+            logger.warning("Rolling back after a failed query failed too", exc_info=True)
         return e

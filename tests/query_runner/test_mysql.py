@@ -72,3 +72,45 @@ class TestMariaDB(TestCase):
 
     def test_existing_mysql_connections_keep_their_type(self):
         self.assertEqual(Mysql.type(), "mysql")
+
+
+class TestMysqlStreamsItsResult(TestCase):
+    """Unbuffered, read within the budget, and the connection killed when the rest is not wanted."""
+
+    def run_with(self, chunks, budget_mb=100):
+        import threading
+        from unittest.mock import MagicMock, patch
+
+        cursor = MagicMock()
+        cursor.description = [("n", 3, None, None, None, None, None)]
+        cursor.fetchmany.side_effect = list(chunks) + [[]] * 5
+        cursor.nextset.return_value = None
+        connection = MagicMock()
+        connection.cursor.return_value = cursor
+        connection.thread_id.return_value = 42
+        runner = Mysql({"host": "h", "db": "d"})
+        result = MagicMock()
+        with patch("sqldesk.settings.QUERY_RESULT_MAX_MB", budget_mb), patch.object(runner, "_cancel") as cancel:
+            runner._run_query("select 1", None, connection, result, threading.Event())
+        return result, cursor, connection, cancel
+
+    def test_it_reads_unbuffered(self):
+        import MySQLdb.cursors
+
+        _, _, connection, _ = self.run_with([[(1,), (2,)]])
+        connection.cursor.assert_called_with(MySQLdb.cursors.SSCursor)
+
+    def test_a_small_result_is_all_there(self):
+        result, cursor, _, cancel = self.run_with([[(1,), (2,)]])
+        self.assertEqual(result.data["rows"], [{"n": 1}, {"n": 2}])
+        cancel.assert_not_called()
+        cursor.close.assert_called()
+
+    def test_past_the_budget_the_query_is_killed_not_read_to_the_end(self):
+        result, cursor, _, cancel = self.run_with(
+            [[(i,) for i in range(n, n + 1000)] for n in range(0, 200000, 1000)], 0.05
+        )
+        self.assertTrue(result.data["truncated"])
+        cancel.assert_called_with(42)
+        # Closing an unbuffered cursor would read every remaining row.
+        cursor.close.assert_not_called()

@@ -184,3 +184,45 @@ class TestTheScheduler(unittest.TestCase):
         # rq-scheduler enqueues only while holding a Redis lock, so a second
         # pod is a warm spare rather than a second copy of every due job.
         self.assertIn("replicas: {{ .Values.scheduler.replicas }}", template("worker.yaml"))
+
+
+class TestTheResultLimit(unittest.TestCase):
+    """
+    queryResults.maxMB keeps one large result from taking a worker down, but
+    only if the worker has the memory for it. At 100 MB the chart's own 2Gi
+    worker was killed by a million-row Trino result: a worker process holds
+    about eight times the limit at its peak, and the worker runs two.
+    """
+
+    def setUp(self):
+        self.values = open("charts/sqldesk/values.yaml").read()
+
+    def worker_defaults(self):
+        worker = self.values.split("\nworker:\n", 1)[1].split("\n\n", 1)[0]
+        processes = int(re.search(r"^  workersCount: (\d+)$", worker, re.M).group(1))
+        limit = re.search(r"limits: \{ memory: (\d+)(Gi|Mi) \}", worker)
+        memory_mi = int(limit.group(1)) * (1024 if limit.group(2) == "Gi" else 1)
+        return processes, memory_mi
+
+    def max_mb(self):
+        return int(re.search(r"^  maxMB: (\d+)$", self.values, re.M).group(1))
+
+    def test_the_default_fits_the_default_worker(self):
+        processes, memory_mi = self.worker_defaults()
+
+        self.assertLessEqual(600 + processes * self.max_mb() * 8, memory_mi)
+
+    def test_the_chart_and_the_application_agree_on_the_default(self):
+        # An install without the chart, or a values tree from before the
+        # setting, gets the application's default instead.
+        from sqldesk import settings
+
+        self.assertEqual(self.max_mb(), settings.QUERY_RESULT_MAX_MB)
+        self.assertIn('dig "maxMB" {} '.format(self.max_mb()), template("_helpers.tpl"))
+
+    def test_an_install_that_does_not_fit_is_told(self):
+        notes = template("NOTES.txt")
+
+        self.assertIn('include "sqldesk.resultMemoryWarning"', notes)
+        self.assertIn(".Values.worker.resources", notes)
+        self.assertIn(".Values.mcp.worker.resources", notes)

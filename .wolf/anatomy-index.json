@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-13T17:23:53.003Z",
-    "fileCount": 752,
+    "lastScanned": "2026-11-14T13:33:40.478Z",
+    "fileCount": 759,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "27408930222feecb5911cb6822adf9ff694cae46ee2c20496cda0fc5d8055a1c",
-    "storeUpdatedAt": "2026-11-13T17:23:53.013Z",
-    "rootHash": "0f31e7101617baa3"
+    "renderedHash": "c69a2e1e69e86001ab64438ac3c55b0af5f21d97badea1793a6a798e8b42ae34",
+    "storeUpdatedAt": "2026-11-14T13:33:40.497Z",
+    "rootHash": "96f35ab793372b6f"
   },
   "files": {
     ".ci/compose.ci.yaml": {
@@ -280,13 +280,12 @@
     },
     "charts/sqldesk/templates/_helpers.tpl": {
       "description": "",
-      "tokens": 3631,
-      "hash": "db9c8f624916dd54",
-      "size": 13616,
-      "mtimeMs": 1791063836597.1565,
-      "updatedAt": "2026-10-05T22:00:00.107Z",
-      "source": "scan",
-      "importance": 0.1572
+      "tokens": 4662,
+      "hash": "d09c00a9125cf668",
+      "size": 17480,
+      "mtimeMs": 1794657547021.6572,
+      "updatedAt": "2026-11-14T11:59:07.167Z",
+      "source": "hook"
     },
     "charts/sqldesk/templates/migrate-job.yaml": {
       "description": "K8s Job",
@@ -309,13 +308,12 @@
     },
     "charts/sqldesk/templates/NOTES.txt": {
       "description": "",
-      "tokens": 909,
-      "hash": "2445f1d21a4a8311",
-      "size": 3635,
-      "mtimeMs": 1790588622560.7617,
-      "updatedAt": "2026-10-05T22:00:00.107Z",
-      "source": "scan",
-      "importance": 0.1572
+      "tokens": 1044,
+      "hash": "a11f6f5b7cff23a2",
+      "size": 4174,
+      "mtimeMs": 1794657558797.4924,
+      "updatedAt": "2026-11-14T11:59:18.937Z",
+      "source": "hook"
     },
     "charts/sqldesk/templates/postgres.yaml": {
       "description": "K8s PersistentVolumeClaim",
@@ -11840,12 +11838,12 @@
       ]
     },
     "sqldesk/models/__init__.py": {
-      "description": "ScheduledQueriesExecutions: refresh, update, get, to_dict + 16 more",
-      "tokens": 41472,
-      "hash": "e7d23bf2b394309e",
-      "size": 145155,
-      "mtimeMs": 1793963458127.7734,
-      "updatedAt": "2026-11-06T11:10:58.306Z",
+      "description": "ScheduledQueriesExecutions: refresh, update, get, to_dict + 13 more",
+      "tokens": 42253,
+      "hash": "538ca50c27e778aa",
+      "size": 147886,
+      "mtimeMs": 1794656559183.0918,
+      "updatedAt": "2026-11-14T11:42:39.308Z",
       "source": "hook",
       "symbols": [
         {
@@ -11859,204 +11857,204 @@
           "name": "DataSource",
           "kind": "class",
           "startLine": 119,
-          "endLine": 388,
-          "tokens": 3128
+          "endLine": 406,
+          "tokens": 3390
         },
         {
           "name": "DataSourceGroup",
           "kind": "class",
-          "startLine": 389,
-          "endLine": 402,
+          "startLine": 407,
+          "endLine": 420,
           "tokens": 182
         },
         {
           "name": "UploadedFile",
           "kind": "class",
-          "startLine": 403,
-          "endLine": 541,
+          "startLine": 421,
+          "endLine": 559,
           "tokens": 1715
         },
         {
           "name": "_row_count_of",
           "kind": "fn",
-          "startLine": 542,
-          "endLine": 558,
-          "tokens": 154
+          "startLine": 560,
+          "endLine": 578,
+          "tokens": 174
         },
         {
           "name": "QueryResult",
           "kind": "class",
-          "startLine": 559,
-          "endLine": 720,
-          "tokens": 1966
+          "startLine": 579,
+          "endLine": 753,
+          "tokens": 2166
         },
         {
           "name": "is_valid_cron",
           "kind": "fn",
-          "startLine": 721,
-          "endLine": 747,
+          "startLine": 754,
+          "endLine": 780,
           "tokens": 304
         },
         {
           "name": "_backoff",
           "kind": "fn",
-          "startLine": 748,
-          "endLine": 758,
+          "startLine": 781,
+          "endLine": 791,
           "tokens": 90
         },
         {
           "name": "should_schedule_next",
           "kind": "fn",
-          "startLine": 759,
-          "endLine": 804,
+          "startLine": 792,
+          "endLine": 837,
           "tokens": 594
         },
         {
           "name": "_forget_about",
           "kind": "fn",
-          "startLine": 805,
-          "endLine": 844,
+          "startLine": 838,
+          "endLine": 877,
           "tokens": 379
         },
         {
           "name": "Query",
           "kind": "class",
-          "startLine": 845,
-          "endLine": 1378,
+          "startLine": 878,
+          "endLine": 1411,
           "tokens": 5907
         },
         {
           "name": "receive_before_insert_update",
           "kind": "fn",
-          "startLine": 1379,
-          "endLine": 1383,
+          "startLine": 1412,
+          "endLine": 1416,
           "tokens": 37
         },
         {
           "name": "query_last_modified_by",
           "kind": "fn",
-          "startLine": 1384,
-          "endLine": 1388,
+          "startLine": 1417,
+          "endLine": 1421,
           "tokens": 48
         },
         {
           "name": "Favorite",
           "kind": "class",
-          "startLine": 1389,
-          "endLine": 1437,
+          "startLine": 1422,
+          "endLine": 1470,
           "tokens": 428
         },
         {
           "name": "next_state",
           "kind": "fn",
-          "startLine": 1438,
-          "endLine": 1470,
+          "startLine": 1471,
+          "endLine": 1503,
           "tokens": 311
         },
         {
           "name": "Alert",
           "kind": "class",
-          "startLine": 1471,
-          "endLine": 1679,
+          "startLine": 1504,
+          "endLine": 1712,
           "tokens": 2484
         },
         {
           "name": "generate_slug",
           "kind": "fn",
-          "startLine": 1680,
-          "endLine": 1689,
+          "startLine": 1713,
+          "endLine": 1722,
           "tokens": 97
         },
         {
           "name": "DashboardFolder",
           "kind": "class",
-          "startLine": 1690,
-          "endLine": 1751,
+          "startLine": 1723,
+          "endLine": 1784,
           "tokens": 745
         },
         {
           "name": "Dashboard",
           "kind": "class",
-          "startLine": 1752,
-          "endLine": 2072,
+          "startLine": 1785,
+          "endLine": 2105,
           "tokens": 4109
         },
         {
           "name": "Visualization",
           "kind": "class",
-          "startLine": 2073,
-          "endLine": 2114,
+          "startLine": 2106,
+          "endLine": 2147,
           "tokens": 463
         },
         {
           "name": "Notebook",
           "kind": "class",
-          "startLine": 2115,
-          "endLine": 2223,
+          "startLine": 2148,
+          "endLine": 2256,
           "tokens": 1280
         },
         {
           "name": "NotebookCell",
           "kind": "class",
-          "startLine": 2224,
-          "endLine": 2277,
+          "startLine": 2257,
+          "endLine": 2310,
           "tokens": 750
         },
         {
           "name": "NotebookRun",
           "kind": "class",
-          "startLine": 2278,
-          "endLine": 2339,
+          "startLine": 2311,
+          "endLine": 2372,
           "tokens": 799
         },
         {
           "name": "_token_digest",
           "kind": "fn",
-          "startLine": 2340,
-          "endLine": 2365,
+          "startLine": 2373,
+          "endLine": 2398,
           "tokens": 261
         },
         {
           "name": "Stream",
           "kind": "class",
-          "startLine": 2366,
-          "endLine": 2503,
+          "startLine": 2399,
+          "endLine": 2536,
           "tokens": 2036
         },
         {
           "name": "StreamRollup",
           "kind": "class",
-          "startLine": 2504,
-          "endLine": 2536,
+          "startLine": 2537,
+          "endLine": 2569,
           "tokens": 485
         },
         {
           "name": "SlackWorkspace",
           "kind": "class",
-          "startLine": 2537,
-          "endLine": 2588,
+          "startLine": 2570,
+          "endLine": 2621,
           "tokens": 694
         },
         {
           "name": "OAuthClient",
           "kind": "class",
-          "startLine": 2589,
-          "endLine": 2653,
+          "startLine": 2622,
+          "endLine": 2686,
           "tokens": 768
         },
         {
           "name": "OAuthAuthorizationCode",
           "kind": "class",
-          "startLine": 2654,
-          "endLine": 2694,
+          "startLine": 2687,
+          "endLine": 2727,
           "tokens": 416
         },
         {
           "name": "OAuthToken",
           "kind": "class",
-          "startLine": 2695,
-          "endLine": 3522,
-          "tokens": 9995
+          "startLine": 2728,
+          "endLine": 3571,
+          "tokens": 10293
         }
       ]
     },
@@ -19930,6 +19928,517 @@
           "startLine": 39,
           "endLine": 266,
           "tokens": 2574
+        }
+      ]
+    },
+    "tests/test_models.py": {
+      "description": "DashboardTest: test_appends_suffix_to_slug_when_duplicate, test_runs_when_a_slot_has_come_round_sinc",
+      "tokens": 9252,
+      "hash": "b44d7e12d29d214f",
+      "size": 32380,
+      "mtimeMs": 1794656307129.6968,
+      "updatedAt": "2026-11-14T11:38:27.254Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "DashboardTest",
+          "kind": "class",
+          "startLine": 13,
+          "endLine": 28,
+          "tokens": 148
+        },
+        {
+          "name": "CronScheduleTest",
+          "kind": "class",
+          "startLine": 29,
+          "endLine": 67,
+          "tokens": 559
+        },
+        {
+          "name": "IsValidCronTest",
+          "kind": "class",
+          "startLine": 68,
+          "endLine": 80,
+          "tokens": 175
+        },
+        {
+          "name": "ShouldScheduleNextTest",
+          "kind": "class",
+          "startLine": 81,
+          "endLine": 189,
+          "tokens": 1523
+        },
+        {
+          "name": "QueryOutdatedQueriesTest",
+          "kind": "class",
+          "startLine": 190,
+          "endLine": 380,
+          "tokens": 2153
+        },
+        {
+          "name": "QueryArchiveTest",
+          "kind": "class",
+          "startLine": 381,
+          "endLine": 436,
+          "tokens": 609
+        },
+        {
+          "name": "TestUnusedQueryResults",
+          "kind": "class",
+          "startLine": 437,
+          "endLine": 497,
+          "tokens": 814
+        },
+        {
+          "name": "TestQueryAll",
+          "kind": "class",
+          "startLine": 498,
+          "endLine": 584,
+          "tokens": 1128
+        },
+        {
+          "name": "TestGroup",
+          "kind": "class",
+          "startLine": 585,
+          "endLine": 605,
+          "tokens": 229
+        },
+        {
+          "name": "TestQueryResultStoreResult",
+          "kind": "class",
+          "startLine": 606,
+          "endLine": 634,
+          "tokens": 294
+        },
+        {
+          "name": "TestEvents",
+          "kind": "class",
+          "startLine": 635,
+          "endLine": 672,
+          "tokens": 356
+        },
+        {
+          "name": "_set_up_dashboard_test",
+          "kind": "fn",
+          "startLine": 673,
+          "endLine": 700,
+          "tokens": 358
+        },
+        {
+          "name": "TestDashboardAll",
+          "kind": "class",
+          "startLine": 701,
+          "endLine": 776,
+          "tokens": 835
+        }
+      ]
+    },
+    "sqldesk/models/types.py": {
+      "description": "Configuration: process_bind_param, process_result_value, process_bind_param, process_result_value + ",
+      "tokens": 1160,
+      "hash": "bbd67db794d9db65",
+      "size": 4059,
+      "mtimeMs": 1794656558846.248,
+      "updatedAt": "2026-11-14T11:42:38.988Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Configuration",
+          "kind": "class",
+          "startLine": 12,
+          "endLine": 21,
+          "tokens": 71
+        },
+        {
+          "name": "EncryptedConfiguration",
+          "kind": "class",
+          "startLine": 22,
+          "endLine": 31,
+          "tokens": 112
+        },
+        {
+          "name": "SerializedJSON",
+          "kind": "class",
+          "startLine": 32,
+          "endLine": 53,
+          "tokens": 241
+        },
+        {
+          "name": "JSONText",
+          "kind": "class",
+          "startLine": 54,
+          "endLine": 71,
+          "tokens": 152
+        },
+        {
+          "name": "MutableDict",
+          "kind": "class",
+          "startLine": 72,
+          "endLine": 98,
+          "tokens": 208
+        },
+        {
+          "name": "MutableList",
+          "kind": "class",
+          "startLine": 99,
+          "endLine": 117,
+          "tokens": 135
+        },
+        {
+          "name": "json_cast_property",
+          "kind": "class",
+          "startLine": 118,
+          "endLine": 132,
+          "tokens": 149
+        }
+      ]
+    },
+    "sqldesk/tasks/queries/execution.py": {
+      "description": "QueryExecutionError: describe_failure, enqueue_query, signal_handler, run",
+      "tokens": 6160,
+      "hash": "4eeda59034276c1f",
+      "size": 21560,
+      "mtimeMs": 1794661370228.5825,
+      "updatedAt": "2026-11-14T13:02:50.366Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "describe_failure",
+          "kind": "fn",
+          "startLine": 27,
+          "endLine": 42,
+          "tokens": 169
+        },
+        {
+          "name": "_job_lock_id",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 62,
+          "tokens": 212
+        },
+        {
+          "name": "_unlock",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 79,
+          "tokens": 222
+        },
+        {
+          "name": "enqueue_query",
+          "kind": "fn",
+          "startLine": 80,
+          "endLine": 182,
+          "tokens": 1221
+        },
+        {
+          "name": "signal_handler",
+          "kind": "fn",
+          "startLine": 183,
+          "endLine": 186,
+          "tokens": 17
+        },
+        {
+          "name": "QueryExecutionError",
+          "kind": "class",
+          "startLine": 187,
+          "endLine": 190,
+          "tokens": 14
+        },
+        {
+          "name": "_resolve_user",
+          "kind": "fn",
+          "startLine": 191,
+          "endLine": 206,
+          "tokens": 128
+        },
+        {
+          "name": "_shape_of",
+          "kind": "fn",
+          "startLine": 207,
+          "endLine": 226,
+          "tokens": 208
+        },
+        {
+          "name": "QueryExecutor",
+          "kind": "class",
+          "startLine": 227,
+          "endLine": 510,
+          "tokens": 3580
+        },
+        {
+          "name": "execute_query",
+          "kind": "fn",
+          "startLine": 511,
+          "endLine": 531,
+          "tokens": 126
+        }
+      ]
+    },
+    "tests/tasks/test_queries.py": {
+      "description": "TestEnqueueTask: fetch_job, create_job, test_multiple_enqueue_of_same_query, test_the_job_meta_says_",
+      "tokens": 5661,
+      "hash": "3ef22f3e2770f8b3",
+      "size": 19812,
+      "mtimeMs": 1794661379768.8313,
+      "updatedAt": "2026-11-14T13:02:59.903Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "fetch_job",
+          "kind": "fn",
+          "startLine": 23,
+          "endLine": 35,
+          "tokens": 74
+        },
+        {
+          "name": "create_job",
+          "kind": "fn",
+          "startLine": 36,
+          "endLine": 41,
+          "tokens": 68
+        },
+        {
+          "name": "TestEnqueueTask",
+          "kind": "class",
+          "startLine": 42,
+          "endLine": 213,
+          "tokens": 1564
+        },
+        {
+          "name": "QueryExecutorTests",
+          "kind": "class",
+          "startLine": 214,
+          "endLine": 426,
+          "tokens": 2524
+        },
+        {
+          "name": "QueryLockTests",
+          "kind": "class",
+          "startLine": 427,
+          "endLine": 520,
+          "tokens": 1279
+        }
+      ]
+    },
+    "sqldesk/query_runner/trino.py": {
+      "description": "Declares as",
+      "tokens": 6367,
+      "hash": "cbd4d0551537e174",
+      "size": 22284,
+      "mtimeMs": 1794661087939.6997,
+      "updatedAt": "2026-11-14T12:58:08.065Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_convert_row_types",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 103,
+          "tokens": 374
+        },
+        {
+          "name": "_trino_type",
+          "kind": "fn",
+          "startLine": 104,
+          "endLine": 129,
+          "tokens": 319
+        },
+        {
+          "name": "_database_error_message",
+          "kind": "fn",
+          "startLine": 130,
+          "endLine": 155,
+          "tokens": 301
+        },
+        {
+          "name": "_float",
+          "kind": "fn",
+          "startLine": 156,
+          "endLine": 160,
+          "tokens": 50
+        },
+        {
+          "name": "_decimal",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 165,
+          "tokens": 39
+        },
+        {
+          "name": "_timestamp",
+          "kind": "fn",
+          "startLine": 166,
+          "endLine": 179,
+          "tokens": 156
+        },
+        {
+          "name": "_precision",
+          "kind": "fn",
+          "startLine": 180,
+          "endLine": 186,
+          "tokens": 59
+        },
+        {
+          "name": "_fast_converters",
+          "kind": "fn",
+          "startLine": 187,
+          "endLine": 215,
+          "tokens": 337
+        },
+        {
+          "name": "_explain",
+          "kind": "fn",
+          "startLine": 216,
+          "endLine": 273,
+          "tokens": 996
+        },
+        {
+          "name": "_looks_like_storage",
+          "kind": "fn",
+          "startLine": 274,
+          "endLine": 280,
+          "tokens": 62
+        },
+        {
+          "name": "Trino",
+          "kind": "class",
+          "startLine": 281,
+          "endLine": 534,
+          "tokens": 2769
+        },
+        {
+          "name": "_SessionWithTimeouts",
+          "kind": "class",
+          "startLine": 535,
+          "endLine": 552,
+          "tokens": 215
+        },
+        {
+          "name": "_stop",
+          "kind": "fn",
+          "startLine": 553,
+          "endLine": 562,
+          "tokens": 73
+        }
+      ]
+    },
+    "sqldesk/tasks/worker.py": {
+      "description": "CancellableJob: shutting_down, cancel, is_cancelled, is_lost + 8 more",
+      "tokens": 2980,
+      "hash": "f8cd6f5fc9c2bef4",
+      "size": 10428,
+      "mtimeMs": 1794663220347.7139,
+      "updatedAt": "2026-11-14T13:33:40.477Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "shutting_down",
+          "kind": "fn",
+          "startLine": 25,
+          "endLine": 36,
+          "tokens": 79
+        },
+        {
+          "name": "CancellableJob",
+          "kind": "class",
+          "startLine": 37,
+          "endLine": 88,
+          "tokens": 632
+        },
+        {
+          "name": "StatsdRecordingQueue",
+          "kind": "class",
+          "startLine": 89,
+          "endLine": 99,
+          "tokens": 92
+        },
+        {
+          "name": "CancellableQueue",
+          "kind": "class",
+          "startLine": 100,
+          "endLine": 103,
+          "tokens": 20
+        },
+        {
+          "name": "SQLDeskQueue",
+          "kind": "class",
+          "startLine": 104,
+          "endLine": 107,
+          "tokens": 20
+        },
+        {
+          "name": "StatsdRecordingWorker",
+          "kind": "class",
+          "startLine": 108,
+          "endLine": 138,
+          "tokens": 391
+        },
+        {
+          "name": "HardLimitingWorker",
+          "kind": "class",
+          "startLine": 139,
+          "endLine": 258,
+          "tokens": 1524
+        },
+        {
+          "name": "SQLDeskWorker",
+          "kind": "class",
+          "startLine": 259,
+          "endLine": 266,
+          "tokens": 47
+        }
+      ]
+    },
+    "tests/tasks/test_lost_jobs.py": {
+      "description": "LostJobTestCase: a_query, setUp, queued, taken_off_the_queue + 8 more",
+      "tokens": 1109,
+      "hash": "8baa1dbc3259d05d",
+      "size": 3880,
+      "mtimeMs": 1794661567899.5312,
+      "updatedAt": "2026-11-14T13:06:08.034Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "a_query",
+          "kind": "fn",
+          "startLine": 23,
+          "endLine": 26,
+          "tokens": 11
+        },
+        {
+          "name": "LostJobTestCase",
+          "kind": "class",
+          "startLine": 27,
+          "endLine": 44,
+          "tokens": 192
+        },
+        {
+          "name": "TestAJobIsLost",
+          "kind": "class",
+          "startLine": 45,
+          "endLine": 61,
+          "tokens": 182
+        },
+        {
+          "name": "TestTheQueryPageIsTold",
+          "kind": "class",
+          "startLine": 62,
+          "endLine": 75,
+          "tokens": 134
+        },
+        {
+          "name": "TestRunningItAgain",
+          "kind": "class",
+          "startLine": 76,
+          "endLine": 87,
+          "tokens": 142
+        },
+        {
+          "name": "TestAFailureKeepsItsOwnWords",
+          "kind": "class",
+          "startLine": 88,
+          "endLine": 99,
+          "tokens": 218
         }
       ]
     }

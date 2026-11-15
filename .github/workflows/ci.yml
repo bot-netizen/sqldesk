@@ -71,6 +71,24 @@ jobs:
           kinds = [d['kind'] for d in yaml.safe_load_all(sys.stdin) if d]
           print(len(kinds), 'objects:', ', '.join(sorted(set(kinds))))
           assert 'Deployment' in kinds and 'Service' in kinds, kinds"
+      # The install notes are rendered only by `helm install`, and Helm 3's
+      # `--dry-run=client` still asks for a cluster -- CI has none. Helm 4's
+      # does not, so this step alone runs on it; everything above stays on 3.
+      - uses: azure/setup-helm@v4
+        with:
+          version: v4.3.0
+      - name: Does it warn when the workers cannot hold a result at the limit?
+        run: |
+          set -euo pipefail
+          warns() {
+            local out
+            out=$(helm install sqldesk charts/sqldesk --dry-run=client "$@")
+            grep -q "WARNING: worker may run out of memory" <<< "$out"
+          }
+          # The defaults fit: 600Mi + 2 processes x 50 MB x 8 = 1400Mi of 2Gi.
+          if warns; then echo "the defaults warn"; exit 1; fi
+          warns --set queryResults.maxMB=100
+          if warns --set queryResults.maxMB=100 --set worker.resources.limits.memory=3Gi; then exit 1; fi
 
   backend-unit-tests:
     runs-on: ubuntu-22.04

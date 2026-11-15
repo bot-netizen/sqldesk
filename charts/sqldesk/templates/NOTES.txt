@@ -68,6 +68,16 @@ https://sqldesk.org/guide/mcp.html
 WARNING: `host` is unset, so links in emails and alerts will point at
 localhost. Set it to the address people actually use.
 {{- end }}
+{{- $workerWarning := include "sqldesk.resultMemoryWarning" (dict "name" "worker" "workersCount" .Values.worker.workersCount "resources" .Values.worker.resources "root" .) }}
+{{- if $workerWarning }}
+{{ $workerWarning }}
+{{- end }}
+{{- if and .Values.mcp.enabled .Values.mcp.queue .Values.mcp.worker.enabled }}
+{{- $mcpWarning := include "sqldesk.resultMemoryWarning" (dict "name" "mcp.worker" "workersCount" .Values.mcp.worker.workersCount "resources" .Values.mcp.worker.resources "root" .) }}
+{{- if $mcpWarning }}
+{{ $mcpWarning }}
+{{- end }}
+{{- end }}
 
 {{- if .Values.rendering.enabled }}
 
