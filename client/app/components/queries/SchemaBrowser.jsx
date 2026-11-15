@@ -333,7 +333,8 @@ export default function SchemaBrowser({
               onOk={confirmUpload}
               onCancel={cancelUpload}
               okText="Upload"
-              okButtonProps={{ loading: uploading, disabled: !uploadName.trim() }}>
+              okButtonProps={{ loading: uploading, disabled: !uploadName.trim() }}
+            >
               <label htmlFor="schemaBrowserUploadName">Name</label>
               <Input
                 id="schemaBrowserUploadName"

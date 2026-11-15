@@ -187,8 +187,6 @@ describe("Counter", () => {
     `);
     cy.getByTestId("Counter.Format.Style").selectAntdOption("Counter.Format.Style.compact");
 
-    cy.getByTestId("VisualizationPreview")
-      .find(".counter-visualization-value")
-      .should("have.text", "27.2K");
+    cy.getByTestId("VisualizationPreview").find(".counter-visualization-value").should("have.text", "27.2K");
   });
 });

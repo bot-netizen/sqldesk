@@ -20,7 +20,11 @@ describe("the beta badge", () => {
   it("marks a feature the server calls beta", () => {
     withFeatures([{ name: "use_notebooks", label: "Use notebooks", beta: true }]);
 
-    expect(mount(<BetaBadge feature="use_notebooks" />).find('[data-test="BetaBadge"]').exists()).toBe(true);
+    expect(
+      mount(<BetaBadge feature="use_notebooks" />)
+        .find('[data-test="BetaBadge"]')
+        .exists()
+    ).toBe(true);
   });
 
   it("says nothing about a feature that is not", () => {

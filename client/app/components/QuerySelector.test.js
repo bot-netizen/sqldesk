@@ -63,7 +63,10 @@ describe("QuerySelector", () => {
 
   test("a search asks the server for the half it wants", async () => {
     const wrapper = await render({ kind: "streaming" });
-    wrapper.find("input").first().simulate("change", { target: { value: "orders" } });
+    wrapper
+      .find("input")
+      .first()
+      .simulate("change", { target: { value: "orders" } });
     await settle(wrapper);
 
     expect(Query.query).toHaveBeenCalledWith(expect.objectContaining({ kind: "streaming" }));

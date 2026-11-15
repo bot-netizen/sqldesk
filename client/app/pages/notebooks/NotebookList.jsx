@@ -66,8 +66,7 @@ class NotebookList extends React.Component {
           {notebook.data_source_count > 0 && (
             <>
               {" · "}
-              {notebook.data_source_count}{" "}
-              {notebook.data_source_count === 1 ? "data source" : "data sources"}
+              {notebook.data_source_count} {notebook.data_source_count === 1 ? "data source" : "data sources"}
             </>
           )}
         </span>

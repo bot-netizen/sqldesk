@@ -73,11 +73,13 @@ function NotebookPage({ notebookId }) {
   }, [notebookId]);
 
   const loadHandoffs = useCallback(() => {
-    return Notebook.handoffs(notebookId)
-      .then(({ handoffs: found }) => setHandoffs(found || []))
-      // Autocomplete is a convenience. A notebook that will not tell us what
-      // it handed over is still a notebook somebody can write in.
-      .catch(() => setHandoffs([]));
+    return (
+      Notebook.handoffs(notebookId)
+        .then(({ handoffs: found }) => setHandoffs(found || []))
+        // Autocomplete is a convenience. A notebook that will not tell us what
+        // it handed over is still a notebook somebody can write in.
+        .catch(() => setHandoffs([]))
+    );
   }, [notebookId]);
 
   useEffect(() => {
@@ -236,7 +238,11 @@ function NotebookPage({ notebookId }) {
           <div className="notebook-subhead">
             <BetaBadge feature="use_notebooks" className="notebook-beta" />
             <NotebookSize cells={cells} />
-            <PlainButton className="notebook-link" onClick={() => NotebookHelpDialog.showModal({})} data-test="NotebookHelp">
+            <PlainButton
+              className="notebook-link"
+              onClick={() => NotebookHelpDialog.showModal({})}
+              data-test="NotebookHelp"
+            >
               How notebooks work
             </PlainButton>
             <Link href="notebooks" className="notebook-link" data-test="AllNotebooks">
@@ -459,9 +465,7 @@ export function NotebookSize({ cells }) {
   return (
     <span className="notebook-size" data-test="NotebookSize">
       {plural(counted.cells, "cell", "cells")} ·{" "}
-      {counted.dataSources === 0
-        ? "no data source"
-        : plural(counted.dataSources, "data source", "data sources")}
+      {counted.dataSources === 0 ? "no data source" : plural(counted.dataSources, "data source", "data sources")}
     </span>
   );
 }

@@ -17,8 +17,16 @@ describe("Spinner", () => {
   });
 
   test("follows the surrounding text size unless told otherwise", () => {
-    expect(mount(<Spinner />).find("span").hasClass("sqldesk-spinner-inline")).toBe(true);
-    expect(mount(<Spinner size="large" />).find("span").hasClass("sqldesk-spinner-large")).toBe(true);
+    expect(
+      mount(<Spinner />)
+        .find("span")
+        .hasClass("sqldesk-spinner-inline")
+    ).toBe(true);
+    expect(
+      mount(<Spinner size="large" />)
+        .find("span")
+        .hasClass("sqldesk-spinner-large")
+    ).toBe(true);
   });
 
   test("keeps a caller's own classes, which position it", () => {
@@ -30,7 +38,11 @@ describe("Spinner", () => {
   // It is never the only thing announced: every caller wraps it in a live
   // region whose text says what is loading.
   test("is not read out on its own", () => {
-    expect(mount(<Spinner />).find("span").prop("aria-hidden")).toBe("true");
+    expect(
+      mount(<Spinner />)
+        .find("span")
+        .prop("aria-hidden")
+    ).toBe("true");
   });
 });
 
@@ -45,7 +57,9 @@ describe("LoadingState", () => {
   // Most list pages drop it straight onto the page background, so the tile is
   // the default and the pages that already have one pass className="".
   test("comes as a tile unless a caller says otherwise", () => {
-    const box = mount(<LoadingState />).find(".big-message").first();
+    const box = mount(<LoadingState />)
+      .find(".big-message")
+      .first();
     expect(box.hasClass("tiled")).toBe(true);
     expect(box.hasClass("bg-white")).toBe(true);
   });
